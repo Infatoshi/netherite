@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/entity/monster/EntityGolem.java",
+  "classes": ["EntityGolem"],
+  "lines": 60,
+  "side": "common",
+  "category": "entity",
+  "role": "Base class for EntityIronGolem and EntitySnowman: no fall damage, no sounds, despawns never, talk interval 120.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.c", "symbols": ["living_can_despawn", "living_fall"]},
+    {"file": "csrc/engine/villagers.c", "symbols": ["iron_golem_construct"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-village-full-s42", "csrc/tests/test_villagers.c", "out/java/snapshots/golem-fight-s42"],
+  "members": [
+    {"kind": "ctor", "name": "EntityGolem", "sig": "(World)V", "native": "csrc/engine/villagers.c:iron_golem_construct", "status": "exact", "note": "the subclass construct covers the base's work (super EntityCreature); EntityGolem adds no field or draw"},
+    {"kind": "method", "name": "fall", "sig": "(F)V", "native": "csrc/engine/living.c:living_fall", "status": "exact", "note": "living_fall returns at once for VK_IRON_GOLEM (no damage, no rider fall); golem-fight-s42 drops a golem from y 95"},
+    {"kind": "method", "name": "getLivingSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "null, audio"},
+    {"kind": "method", "name": "getHurtSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "null, audio"},
+    {"kind": "method", "name": "getDeathSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "null, audio"},
+    {"kind": "method", "name": "getTalkInterval", "sig": "()I", "native": null, "status": "n/a", "note": "120, a sound-frequency constant"},
+    {"kind": "method", "name": "canDespawn", "sig": "()Z", "native": "csrc/engine/living.c:living_can_despawn", "status": "exact", "note": "living_can_despawn falls through to return 0 for VK_IRON_GOLEM, matching the base's false"}
+  ],
+  "missing": [],
+  "notes": "Snowman (the other subclass) is out of scope: world.conf built_golems = off, and snow golems never spawn naturally. The base class's remaining surface is therefore only what the iron golem needs. lane/idxentity. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

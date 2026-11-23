@@ -1,0 +1,169 @@
+{
+  "path": "oracle/src/block/BlockEnchantmentTable.java",
+  "classes": [
+    "BlockEnchantmentTable"
+  ],
+  "lines": 120,
+  "side": "common",
+  "category": "block",
+  "role": "The enchantment table: a tile-entity block; world.conf enchanting = off makes its activation return false, leaving a plain block with an idle tile entity.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: the enchanting table is craftable (diamonds, obsidian, a book) and placeable; its 0.75-high box collides, its tile entity ticks the book animation (TileEntityEnchantmentTable, in scope), and randomDisplayTick spawns glyph particles toward nearby bookshelves. world.conf enchanting = off only closes the window (BlockEnchantmentTable.java:96).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "te_kind_of_block",
+        "TE_ENCHANT_TABLE"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "enchant_update"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "client_block_activated"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/particles_live.c",
+      "symbols": [
+        "particles_live_display_tick",
+        "new_enchant"
+      ]
+    },
+    {
+      "file": "csrc/engine/clientworld.c",
+      "symbols": [
+        "clientworld_random_display_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "place_try"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "out/java/snapshots/iu-off-s1",
+    "out/java/snapshots/rs-mach-s1",
+    "csrc/tests/test_snapshots.c",
+    "out/java/rendertick/fx_redstone",
+    "csrc/tests/test_rendertick.c",
+    "out/java/snapshots/cov-blkbreak-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_149950_a",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "client top texture"
+    },
+    {
+      "kind": "field",
+      "name": "field_149949_b",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "client bottom texture"
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockEnchantmentTable",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 116: the 0.75-tall box, light opacity 0"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "normal_block 0"
+    },
+    {
+      "kind": "method",
+      "name": "randomDisplayTick",
+      "sig": "(World,IIIRandom)V",
+      "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+      "status": "exact",
+      "note": "the bookshelf ring two out (the inner middle skipped, one roll in 16 per cell, air between) and each EntityEnchantmentTableParticleFX (particles_live.c new_enchant): test_rendertick matches the spawns and every glyph's fields per tick in out/java/rendertick/fx_redstone (two tables ringed by bookshelves)"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "opaque_cube 0"
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture selection"
+    },
+    {
+      "kind": "method",
+      "name": "createNewTileEntity",
+      "sig": "(World,I)Lnet/minecraft/tileentity/TileEntity;",
+      "native": "csrc/engine/tileentity.c:te_kind_of_block",
+      "status": "exact",
+      "note": "case 116 returns TE_ENCHANT_TABLE"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z",
+      "native": "csrc/engine/survival.c:client_block_activated",
+      "status": "exact",
+      "note": "the WorldConf.enchanting gate returns false before any tile access; survival.c's activation answers the same"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(World,IIILnet/minecraft/entity/EntityLivingBase;ItemStack)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the named-item display write, unreachable and unported"
+    },
+    {
+      "kind": "method",
+      "name": "TileEntity tick (inherited)",
+      "sig": "updateEntity",
+      "native": "csrc/engine/tileticks.c:enchant_update",
+      "status": "exact",
+      "note": "the tile entity's idle update runs in the tileticks census"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "atlas registration"
+    }
+  ],
+  "missing": [],
+  "notes": "Enchantment data and effects stay (DEVLOG's redstone section keeps loot books and enchanted mob gear); only the table's GUI path is dead. Verified by the tileticks census. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/itemuse: iu-off-s1 uses it with world.conf's switch off (right-clicked with dirt, empty-handed and sneaking: the dirt is placed against it, nothing opens). lane/idxredstone 2026-09-27: exact. rs-mach-s1 places a table by hand among bookshelves; fx_redstone checks the glyphs."
+}

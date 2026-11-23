@@ -1,0 +1,65 @@
+{
+ "path": "oracle/src/client/model/ModelSquid.java",
+ "classes": [
+  "ModelSquid"
+ ],
+ "lines": 66,
+ "side": "client",
+ "category": "client_model",
+ "role": "The squid's model: the body cube and eight tentacles arranged on a circle.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_squid",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs2b_squid_f006",
+  "out/java/render/mobs2b_squid_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "squidBody",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_squid",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "squidTentacles",
+   "sig": "ModelRenderer[]",
+   "native": "csrc/engine/raster_mobs.c:model_squid",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelSquid",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_squid",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_squid",
+   "status": "exact",
+   "note": "the tentacle angles from the render pitch input (mob_render_input.squid_pitch)"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:draw_model",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

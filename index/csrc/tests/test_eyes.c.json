@@ -1,0 +1,60 @@
+{
+ "path": "csrc/tests/test_eyes.c",
+ "lines": 247,
+ "role": "Gate (manifest kind eyes2): replays EyesProbe's ender eye throws: stronghold_nearest must match ItemEnderEye's findClosestStructure target, then each EntityEnderEye is spawned via proj_spawn_ender_eye and ticked with its entity id, drop flag, per-tick motion and the Det start and end states compared.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/item/ItemEnderEye.java",
+   "members": [
+    "onItemRightClick"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityEnderEye.java",
+   "members": [
+    "moveTowards",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenStructure.java",
+   "members": [
+    "func_151545_a"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/EyesProbe.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "findClosestStructure"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "stream_ref",
+   "java": "Det state dump (seed, next entity ids, seeder and math digests, split streams)",
+   "fields": [
+    "seed",
+    "next_id",
+    "seeder",
+    "math",
+    "names",
+    "state",
+    "used",
+    "nsplits"
+   ]
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "Data: out/java/eyes/*. Skips (exit 0) when the manifest kind is not eyes2. Loads 11x11 chunks around each region in regions.txt. The stronghold target is World.findClosestStructure -> MapGenStructure.func_151545_a on the stronghold generator. Test code, built only into out/native/test_*; not on the product or GPU path, so no GPU hazards are listed."
+}

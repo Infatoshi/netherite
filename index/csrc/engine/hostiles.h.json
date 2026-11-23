@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/hostiles.h",
+ "lines": 39,
+ "role": "Declares the hostile lane's shared API from hostiles.c: the zombie kind functions, the shared loot pass, the probe player constructor, hostile_spawn and hostile_write_state, plus the byte sizes of the hostile state record (shared block, enderman and pigman extras).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntityZombie.java", "members": ["EntityZombie", "setChild", "onSpawnWithEgg", "onLivingUpdate", "attackEntityAsMob", "dropFewItems"]},
+  {"path": "oracle/src/entity/EntityLiving.java", "members": ["onLivingUpdate"]}
+ ],
+ "structs": [],
+ "entry_points": ["zombie_construct", "zombie_set_child", "zombie_on_spawn_with_egg", "living_add_random_armor", "zombie_on_living_update", "zombie_attack_entity_as_mob", "zombie_drop_few_items", "hostile_loot_update", "player_construct", "hostile_spawn", "hostile_write_state"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_hostiles.c", "csrc/tests/test_lightning.c"],
+ "notes": "HOSTILE_STATE_BYTES = AN_STATE_BYTES + 332 + 44 + 32; older oracle dumps without the enderman block are read through each dump's ent_state_layout. hostile_loot_update is declared twice (lines 24 and 27), harmless."
+}

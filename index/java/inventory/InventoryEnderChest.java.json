@@ -1,0 +1,105 @@
+{
+ "classes": [
+  "InventoryEnderChest"
+ ],
+ "lines": 93,
+ "side": "common",
+ "category": "inventory",
+ "role": "The player's 27-slot ender inventory: loaded and saved through the player NBT's EnderItems list, and opened through an ender chest block's activation.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "read_ender_inventory",
+    "gui_open_ender",
+    "gui_close_ender",
+    "gui_can_interact"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity_nbt.c",
+   "symbols": [
+    "player_ender_items"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.h",
+   "symbols": [
+    "ender"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/fresh-play-s1",
+  "out/java/snapshots/te-chest-s1",
+  "out/java/snapshots/containers2-s42",
+  "out/java/snapshots/act2-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "associatedChest",
+   "sig": "TileEntityEnderChest",
+   "native": "csrc/engine/player.h:server_player",
+   "status": "exact",
+   "note": "ender_assoc and ender_ax/ay/az: set by gui_open_ender before displayGUIChest's closeScreen (so an open ender window's close counts the new chest down and forgets it), cleared by gui_close_ender; act2-s1 and chest-toggle-s1 open and close ender chests."
+  },
+  {
+   "kind": "ctor",
+   "name": "InventoryEnderChest",
+   "sig": "()V",
+   "native": "csrc/engine/survival.h:ender",
+   "status": "exact",
+   "note": "the 27 ender slots in surv_state"
+  },
+  {
+   "kind": "method",
+   "name": "func_146031_a",
+   "sig": "(Lnet/minecraft/tileentity/TileEntityEnderChest;)V",
+   "native": "csrc/engine/survival.c:gui_open_ender",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "loadInventoryFromNBT",
+   "sig": "(Lnet/minecraft/nbt/NBTTagList;)V",
+   "native": "csrc/engine/survival.c:read_ender_inventory",
+   "status": "exact",
+   "note": "the EnderItems list read"
+  },
+  {
+   "kind": "method",
+   "name": "saveInventoryToNBT",
+   "sig": "()Lnet/minecraft/nbt/NBTTagList;",
+   "native": "csrc/engine/entity_nbt.c:player_ender_items",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isUseableByPlayer",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "the associated ender chest's func_145971_a (the same tile, within 8), else the base's true"
+  },
+  {
+   "kind": "method",
+   "name": "openInventory",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:gui_open_ender",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "closeInventory",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:gui_close_ender",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "The GUI opens as CONTAINER_CHEST with 27 slots over the ender array (survival.c's displayGUIChest(InventoryEnderChest) path). No snapshot-specific ender-chest recording was verified; the EnderItems NBT round-trip is exercised by the player NBT digest path. lane/idxblocks: act2-s1 is the whole-server recording with an ender chest opened.",
+ "path": "oracle/src/inventory/InventoryEnderChest.java"
+}

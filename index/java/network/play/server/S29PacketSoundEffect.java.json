@@ -1,0 +1,151 @@
+{
+ "path": "oracle/src/network/play/server/S29PacketSoundEffect.java",
+ "classes": [
+  "S29PacketSoundEffect"
+ ],
+ "lines": 108,
+ "side": "server",
+ "category": "network",
+ "role": "A positioned sound for the client's audio engine; the client calls World.playSound, which only feeds the sound manager.",
+ "scope": "client_cosmetic",
+ "status": "not_applicable",
+ "native": [
+  {
+   "file": "csrc/engine/entity.c",
+   "symbols": [
+    "playSound"
+   ]
+  }
+ ],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149219_a",
+   "sig": "String",
+   "status": "n/a",
+   "note": "the sound name"
+  },
+  {
+   "kind": "field",
+   "name": "field_149217_b",
+   "sig": "int",
+   "status": "n/a",
+   "note": "x * 8"
+  },
+  {
+   "kind": "field",
+   "name": "field_149218_c",
+   "sig": "int",
+   "status": "n/a",
+   "note": "y * 8"
+  },
+  {
+   "kind": "field",
+   "name": "field_149215_d",
+   "sig": "int",
+   "status": "n/a",
+   "note": "z * 8"
+  },
+  {
+   "kind": "field",
+   "name": "field_149216_e",
+   "sig": "float",
+   "status": "n/a",
+   "note": "volume"
+  },
+  {
+   "kind": "field",
+   "name": "field_149214_f",
+   "sig": "int",
+   "status": "n/a",
+   "note": "pitch"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(String,double,double,double,float,float)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "func_149212_c",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149207_d",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149211_e",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149210_f",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149208_g",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149209_h",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "n/a",
+   "note": "handleSoundEffect: World.playSound"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "scope_reason": "The native engine has no audio and the SPEC's GPU contract needs none: the vanilla playSound paths are documented empty on both sides (csrc/engine/entity.c, csrc/engine/blockcb.c, csrc/engine/activate.c). No world state rides the packet.",
+ "notes": "The vanilla playSoundEffect call sites keep their argument evaluation (the Random draws) because those change RNG state; the sound itself is dropped."
+}

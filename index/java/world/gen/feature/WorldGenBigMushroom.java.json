@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/world/gen/feature/WorldGenBigMushroom.java",
+  "classes": ["WorldGenBigMushroom"],
+  "lines": 214,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The huge brown or red mushroom: checks space and soil, then builds a stem 4 to 6 tall and a flat (brown) or domed (red) cap with the right side metadata. Placed by the biome decorator (roofed forest, mushroom island) and by bone meal on a small mushroom.",
+  "scope": "in_scope",
+  "scope_reason": "Decoration and bone-meal growth are vanilla and in scope.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/features_lakes.c", "symbols": ["feature_bigmushroom"]},
+    {"file": "csrc/engine/randomtick.c", "symbols": ["mushroom_bonemeal"]}
+  ],
+  "evidence": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c", "csrc/tests/test_seedworld.c", "out/java/seedworld/seed1", "out/java/snapshots/cov-mushroom-s1"],
+  "members": [
+    {"kind": "field", "name": "mushroomType", "sig": "int (-1 draw, 0 brown, 1 red)", "native": "csrc/engine/features_lakes.c:feature_bigmushroom", "status": "exact", "note": "The type argument; the feature table registers types 0, 1 and -1."},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "WorldGenBigMushroom", "sig": "(int)", "native": "csrc/engine/features_lakes.c:feature_bigmushroom", "status": "exact", "note": "super(true) block-notify flag has no observable effect here (comment at features_lakes.c 300)."},
+    {"kind": "ctor", "name": "WorldGenBigMushroom", "sig": "()", "native": "csrc/engine/features_lakes.c:feature_bigmushroom", "status": "exact", "note": "type -1, the decorator's instance."},
+    {"kind": "method", "name": "generate", "sig": "(World,Random,int,int,int)Z", "native": "csrc/engine/features_lakes.c:feature_bigmushroom", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "Which tests cover the bone-meal path (randomtick.c mushroom_bonemeal) I did not confirm. Gates not re-run for this record."
+}

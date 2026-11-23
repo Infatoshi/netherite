@@ -1,0 +1,106 @@
+{
+ "path": "oracle/src/client/audio/SoundEventAccessorComposite.java",
+ "classes": [
+  "SoundEventAccessorComposite"
+ ],
+ "lines": 87,
+ "side": "client",
+ "category": "client_audio",
+ "role": "A sound event: a weighted list of pool entries plus volume/pitch multipliers and category; picks one entry at random when played.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148736_a",
+   "sig": "List<ISoundEventAccessor>",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148734_b",
+   "sig": "Random",
+   "native": null,
+   "status": "n/a",
+   "note": "netherite Det.newRandom(): own stream"
+  },
+  {
+   "kind": "field",
+   "name": "field_148735_c",
+   "sig": "ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148732_d",
+   "sig": "SoundCategory",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148733_e",
+   "sig": "double pitch multiplier",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148731_f",
+   "sig": "double volume multiplier",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "SoundEventAccessorComposite",
+   "sig": "(ResourceLocation,double,double,SoundCategory)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148721_a",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "total weight"
+  },
+  {
+   "kind": "method",
+   "name": "func_148720_g",
+   "sig": "()SoundPoolEntry",
+   "native": null,
+   "status": "n/a",
+   "note": "weighted random pick"
+  },
+  {
+   "kind": "method",
+   "name": "func_148727_a",
+   "sig": "(ISoundEventAccessor)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148729_c",
+   "sig": "()ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148728_d",
+   "sig": "()SoundCategory",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Its Random is a separate Det stream and is only drawn when SoundManager actually plays a sound, which never happens in agent mode."
+}

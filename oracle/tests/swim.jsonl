@@ -1,0 +1,12 @@
+{"cmd":"run","class":"Snapshot"}
+{"n":1,"act":{"dlook":[90,0]}}
+{"n":30,"act":{"hold":["forward","sprint","jump"]}}
+{"n":1,"act":{"dlook":[-90,0]}}
+{"n":12,"act":{"hold":["forward","sprint"]}}
+{"n":45,"act":{"hold":["forward"]}}
+{"n":30,"act":{"hold":["forward","jump"]}}
+{"n":20,"act":{"hold":["forward"]}}
+{"n":1,"act":{"dlook":[180,0]}}
+{"n":45,"act":{"hold":["forward","jump"]}}
+{"n":25,"act":{"hold":["forward"]}}
+{"n":30,"act":{"hold":["forward","jump"]}}

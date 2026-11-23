@@ -1,0 +1,148 @@
+{
+  "path": "oracle/src/item/ItemBow.java",
+  "classes": [
+    "ItemBow"
+  ],
+  "lines": 154,
+  "side": "common",
+  "category": "item",
+  "role": "The bow: right-click starts a 72000-tick use when an arrow is held, the release computes the charge curve, spawns the EntityArrow (crit at full draw), damages the bow, plays the itemRand pitch and consumes an arrow unless creative or Infinity.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/throw.c",
+      "symbols": [
+        "throw_server_use",
+        "throw_server_release",
+        "bow_charge",
+        "set_item_in_use",
+        "has_arrow",
+        "consume_arrow",
+        "item_rand_float",
+        "damage_bow_client",
+        "bow_infinite",
+        "throw_client_release"
+      ]
+    },
+    {
+      "file": "csrc/engine/projectile.c",
+      "symbols": [
+        "proj_spawn_arrow_shooter"
+      ]
+    },
+    {
+      "file": "csrc/engine/items.h",
+      "symbols": [
+        "ITEMS",
+        "max_damage"
+      ]
+    },
+    {
+      "file": "csrc/engine/enchant.c",
+      "symbols": [
+        "item_enchantability"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_damage_stack",
+        "surv_ench_level"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/use-kinds-s1",
+    "out/java/snapshots/throw-bow-s1",
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/clientframes/idx-usehand-s1",
+    "out/java/snapshots/cov-longuse-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "bowPullIconNameArray, iconArray",
+      "sig": "String[] / IIcon[]",
+      "native": null,
+      "status": "n/a",
+      "note": "client pull icons"
+    },
+    {
+      "kind": "ctor",
+      "name": "ItemBow",
+      "sig": "()V",
+      "native": "csrc/engine/items.h:ITEMS",
+      "status": "exact",
+      "note": "row 261: max stack 1, max damage 384"
+    },
+    {
+      "kind": "method",
+      "name": "onPlayerStoppedUsing",
+      "sig": "(ItemStack,World,EntityPlayer,I)V",
+      "native": "csrc/engine/throw.c:throw_server_release",
+      "status": "exact",
+      "note": "the charge curve (bow_charge), the crit at full draw, Power, Punch and Flame (setFire(100): 2000 ticks) from the bow's ench list, Infinity (no arrow needed at the release, pickup 2, none consumed), damageItem 1 with the Unbreaking roll on the server player's Random (survival.c:surv_damage_stack) and on the client player's own (damage_bow_client), the itemRand pitch and the arrow consumption"
+    },
+    {
+      "kind": "method",
+      "name": "onEaten",
+      "sig": "(ItemStack,World,EntityPlayer)ItemStack",
+      "native": "csrc/engine/survival.c:surv_server_eat_tick",
+      "status": "exact",
+      "note": "returns the stack; cov-longuse-s1 draws a bow 72000 ticks"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxItemUseDuration",
+      "sig": "(ItemStack)I",
+      "native": "csrc/engine/throw.c:set_item_in_use",
+      "status": "exact",
+      "note": "the 72000 constant is baked into the use start"
+    },
+    {
+      "kind": "method",
+      "name": "getItemUseAction",
+      "sig": "(ItemStack)EnumAction",
+      "native": null,
+      "status": "n/a",
+      "note": "client animation"
+    },
+    {
+      "kind": "method",
+      "name": "onItemRightClick",
+      "sig": "(ItemStack,World,EntityPlayer)ItemStack",
+      "native": "csrc/engine/throw.c:throw_server_use",
+      "status": "exact",
+      "note": "set_item_in_use gated on has_arrow or creative; on the client too (survival.c right_click_mouse, lane/idxlast: the hand's draw and the FOV zoom follow it; idx-usehand-s1)"
+    },
+    {
+      "kind": "method",
+      "name": "getItemEnchantability",
+      "sig": "()I",
+      "native": "csrc/engine/enchant.c:can_enchant_item",
+      "status": "exact",
+      "note": "ItemBow is enchantable with the bow-type enchantments and its enchantability 1 comes through the plain-item path"
+    },
+    {
+      "kind": "method",
+      "name": "registerIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client icons"
+    },
+    {
+      "kind": "method",
+      "name": "getItemIconForUseDuration",
+      "sig": "(I)IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "client pull icon"
+    }
+  ],
+  "missing": [],
+  "notes": "throw-bow-s1 gates draws of 5, 10 and 25 ticks with the crit, pickup, a kill and bow damage 1..9. use-kinds-s1 shoots an Infinity bow twice (the arrow stack untouched) and an Unbreaking I bow six times (server damage 2; the client's own rolls reach 5 until the next full inventory send)."
+}

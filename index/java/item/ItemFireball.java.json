@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/item/ItemFireball.java",
+  "classes": ["ItemFireball"],
+  "lines": 81,
+  "side": "server",
+  "category": "item",
+  "role": "The fire charge: places a fire block in the air cell adjacent to the clicked face, with the itemRand ignite pitch.",
+  "scope": "in_scope",
+  "scope_reason": "Redstone is off (world.conf redstone), but the fire charge's placement needs no power and stays vanilla.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/itemuse.c", "symbols": ["fireball_use", "item_sound_random"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_itemuse.c",
+    "out/java/itemuse/seed2-v2",
+    "out/java/snapshots/iu-fcharge-s1",
+    "out/java/snapshots/portalframes-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemFireball", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 385"},
+    {"kind": "method", "name": "onItemUse", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/itemuse.c:fireball_use", "status": "exact", "note": "the client-true (the client's own call changes nothing: until iu-fcharge-s1 the client decremented its stack), the side offset, canPlayerEdit, the air check, the fire.ignite pitch draw and the stack decrement in survival mode; iu-fcharge-s1 (stone, a portal frame, a TNT side)"}
+  ],
+  "missing": [],
+  "notes": "test_itemuse.c compares fireball_use against the oracle's ItemUseProbe (out/java/itemuse/seed2-v2)."
+}

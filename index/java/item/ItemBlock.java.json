@@ -1,0 +1,39 @@
+{
+  "path": "oracle/src/item/ItemBlock.java",
+  "classes": ["ItemBlock"],
+  "lines": 217,
+  "side": "common",
+  "category": "item",
+  "role": "The generic block item: places its block with the metadata from getMetadata, the snow-layer/vine/tallgrass cell adjust, the canPlaceEntityOnSide check, onBlockPlaced/onBlockPlacedBy/onPostBlockPlaced and the place sound, and answers its block's name, icons and creative tab.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["item_block_on_item_use", "item_get_metadata", "can_place_block_at", "on_block_placed", "place_try", "item_block_would_use", "place_item_block_precheck"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "block_id"]},
+    {"file": "csrc/engine/raster_hand.c", "symbols": ["raster_hand"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/rc-blocks-s1",
+    "out/java/snapshots/reinforce-baby-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150939_a, field_150938_b", "sig": "Block / IIcon", "native": "csrc/engine/items.h:block_id", "status": "partial", "note": "block_id is the ITEMS field; the icon is client presentation"},
+    {"kind": "ctor", "name": "ItemBlock", "sig": "(Block)V", "native": "csrc/engine/items.h:block_id", "status": "exact"},
+    {"kind": "method", "name": "setUnlocalizedName", "sig": "(String)ItemBlock", "native": null, "status": "n/a", "note": "client naming"},
+    {"kind": "method", "name": "getSpriteNumber", "sig": "()I", "native": null, "status": "n/a", "note": "client sprite sheet"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "method", "name": "onItemUse", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/place.c:item_block_on_item_use", "status": "exact", "note": "the shared ItemBlock-family body: cell adjust, canPlayerEdit, y==255 solid check, canPlaceEntityOnSide, onBlockPlaced, setBlock, onBlockPlacedBy, onPostBlockPlaced, the sound and the stack decrement"},
+    {"kind": "method", "name": "func_150936_a", "sig": "(World,IIII,EntityPlayer,ItemStack)Z", "native": "csrc/engine/place.c:place_item_block_precheck", "status": "exact", "note": "the client's test before onPlayerRightClick sends the C08: the target cell adjust (any snow layer makes the side the top), then canPlaceEntityOnSide over the client world with its entity copies (a baby zombie's copy keeps the adult box); item_block_would_use keeps onItemUse's own answer for the swing"},
+    {"kind": "method", "name": "getUnlocalizedName(ItemStack)", "sig": "(ItemStack)String", "native": null, "status": "n/a", "note": "client naming"},
+    {"kind": "method", "name": "getUnlocalizedName()", "sig": "()String", "native": null, "status": "n/a", "note": "client naming"},
+    {"kind": "method", "name": "getCreativeTab", "sig": "()CreativeTabs", "native": null, "status": "n/a", "note": "creative menu"},
+    {"kind": "method", "name": "getSubItems", "sig": "(Item,CreativeTabs,List)V", "native": null, "status": "n/a", "note": "creative menu"},
+    {"kind": "method", "name": "registerIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client icons"},
+    {"kind": "method", "name": "getMetadata (inherited)", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": null
+}

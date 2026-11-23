@@ -1,0 +1,20 @@
+{
+  "path": "csrc/engine/chat.h",
+  "lines": 57,
+  "role": "Declares GuiNewChat's native lists (chat_message, chat_line, chat) and chat.c's split and push.",
+  "layer": "render",
+  "java": [
+    {"path": "oracle/src/client/gui/GuiNewChat.java", "members": ["field_146252_h", "field_146253_i"]},
+    {"path": "oracle/src/client/gui/ChatLine.java", "members": ["ChatLine"]}
+  ],
+  "structs": [
+    {"name": "chat_message", "java": "ChatLine", "fields": ["counter", "id", "nparts", "fmt", "text"]},
+    {"name": "chat_line", "java": "ChatLine", "fields": ["counter", "id", "text"]}
+  ],
+  "entry_points": [],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_hudscreens.c"
+  ]
+}

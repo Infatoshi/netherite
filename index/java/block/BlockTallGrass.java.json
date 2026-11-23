@@ -1,0 +1,44 @@
+{
+  "path": "oracle/src/block/BlockTallGrass.java",
+  "classes": ["BlockTallGrass"],
+  "lines": 156,
+  "side": "common",
+  "category": "block",
+  "role": "Tall grass (id 31, three variants incl. fern): dies without soil, drops wheat seeds one time in eight, shears drop the block itself, bone meal grows a double plant.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS", "MATERIALS"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["blockcb_can_stay", "bush_floor_ok", "is_bush_family"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["harvest_block"]},
+    {"file": "csrc/engine/randomtick.c", "symbols": ["tallgrass_bonemeal", "randomtick_bonemeal_can", "randomtick_bonemeal_grow", "randomtick_update_tick"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_pool_box"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["biome_color"]},
+    {"file": "csrc/engine/pickblock.c", "symbols": ["pick_block_item"]}
+  ],
+  "evidence": ["csrc/tests/test_feature.c", "csrc/tests/test_worldgen.c", "out/java/snapshots/pickblock-s1"],
+  "members": [
+    {"kind": "field", "name": "field_149871_a", "sig": "static final String[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149870_b", "sig": "IIcon[]", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "BlockTallGrass", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 31: Material.vine row, 0.4-column bounds, tick_randomly"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": null, "status": "missing", "note": "the deadbush/tallgrass/fern icon per meta; the cross renderer picks by meta and was not verified here"},
+    {"kind": "method", "name": "getBlockColor", "sig": "()I", "native": "csrc/engine/render_blocks.c:biome_color", "status": "n/a", "note": "its only callers are RenderBlocks.renderBlockLilyPad (the lily pad's own) and BlockGrass.getRenderColor (grass's own); nothing asks this block"},
+    {"kind": "method", "name": "canBlockStay", "sig": "(Lnet/minecraft/world/World;III)Z", "native": "csrc/engine/blockcb.c:blockcb_can_stay", "status": "exact", "note": "func_149854_a on the block below, the bush family check"},
+    {"kind": "method", "name": "getRenderColor", "sig": "(I)I", "native": "csrc/engine/render_blocks.c:biome_color", "status": "partial", "note": "white for meta 0, biome grass color otherwise"},
+    {"kind": "method", "name": "colorMultiplier", "sig": "(Lnet/minecraft/world/IBlockAccess;III)I", "native": "csrc/engine/render_blocks.c:biome_color", "status": "partial", "note": "biome grass color per position"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 31: wheat seeds on nextInt(8) == 0, else null"},
+    {"kind": "method", "name": "quantityDroppedWithBonus", "sig": "(ILjava/util/Random;)I", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "1 + nextInt(fortune * 2 + 1), in the case 31 branch"},
+    {"kind": "method", "name": "harvestBlock", "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;IIII)V", "native": "csrc/engine/harvestdrops.c:harvest_block", "status": "exact", "note": "the shears branch drops the block itself with its meta"},
+    {"kind": "method", "name": "getDamageValue", "sig": "(Lnet/minecraft/world/World;III)I", "native": "csrc/engine/pickblock.c:block_get_damage", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149851_a", "sig": "(Lnet/minecraft/world/World;IIIZ)Z", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_can", "status": "exact", "note": "meta != 0"},
+    {"kind": "method", "name": "func_149852_a", "sig": "(Lnet/minecraft/world/World;Ljava/util/Random;III)Z", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_chance", "status": "exact", "note": "true"},
+    {"kind": "method", "name": "func_149853_b", "sig": "(Lnet/minecraft/world/World;Ljava/util/Random;III)V", "native": "csrc/engine/randomtick.c:tallgrass_bonemeal", "status": "exact", "note": "grows a double plant (fern to the large fern variant) where it can take the cell"}
+  ],
+  "missing": [
+    "getIcon: the per-variant cross texture was not verified in the native mesher."
+  ],
+  "notes": "WorldGenTallGrass (the worldgen decoration that places id 31) is features_plants.c:feature_tallgrass, covered by test_feature.c and the chunk dumps."
+}

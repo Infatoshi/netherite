@@ -1,0 +1,112 @@
+{
+ "path": "oracle/src/block/BlockSand.java",
+ "classes": [
+  "BlockSand"
+ ],
+ "lines": 50,
+ "side": "common",
+ "category": "block",
+ "role": "Sand and red sand (id 12): a falling block whose drop keeps its meta.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "falling_can_fall",
+    "falling_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "table_icon"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/world-falling-s1",
+  "out/java/chunks",
+  "csrc/tests/test_drops.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149838_a",
+   "sig": "static String[]",
+   "native": null,
+   "status": "n/a",
+   "note": "variant names"
+  },
+  {
+   "kind": "field",
+   "name": "field_149837_b",
+   "sig": "static IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client"
+  },
+  {
+   "kind": "field",
+   "name": "field_149839_N",
+   "sig": "static IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration; the native atlas is loaded from the same assets"
+  },
+  {
+   "kind": "method",
+   "name": "damageDropped",
+   "sig": "(I)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 12: meta"
+  },
+  {
+   "kind": "method",
+   "name": "getSubBlocks",
+   "sig": "(Item,CreativeTabs,List)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative tab listing, client only"
+  },
+  {
+   "kind": "method",
+   "name": "getMapColor",
+   "sig": "(I)MapColor",
+   "native": null,
+   "status": "n/a",
+   "note": "maps off"
+  }
+ ],
+ "missing": [],
+ "notes": "The falling behavior is BlockFalling's (servertick.c)."
+}

@@ -1,0 +1,25 @@
+{
+ "path": "csrc/engine/temple.c",
+ "lines": 172,
+ "role": "MapGenScatteredFeature's start half as one structure_type of the shared structure layer: the spacing and salt spawn test on the world Random with the biome check at the chunk centre, and the start that picks a desert pyramid, jungle temple or swamp hut component by biome and sizes its box by coordBaseMode.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/MapGenScatteredFeature.java", "members": ["biomelist", "maxDistanceBetweenScatteredFeatures", "minDistanceBetweenScatteredFeatures", "canSpawnStructureAtCoords", "Start.Start(World,Random,int,int)"]},
+  {"path": "oracle/src/world/gen/structure/ComponentScatteredFeaturePieces.java", "members": ["Feature.Feature(Random,int,int,int,int,int,int)", "Feature.field_74936_d", "DesertPyramid(Random,int,int)", "JunglePyramid(Random,int,int)", "SwampHut(Random,int,int)"]},
+  {"path": "oracle/src/world/World.java", "members": ["setRandomSeed"]},
+  {"path": "oracle/src/world/biome/WorldChunkManager.java", "members": ["getBiomeGenAt"]}
+ ],
+ "structs": [
+  {"name": "structure_temple (const struct structure_type)", "java": "MapGenScatteredFeature: name, begin, canSpawnStructureAtCoords, getStructureStart", "fields": []},
+  {"name": "temple_world (static struct)", "java": "the World seed and the WorldChunkManager layer stack the spawn test reads", "fields": ["seed", "layers"]},
+  {"name": "temple_biomes (static const table)", "java": "MapGenScatteredFeature.biomelist as biome ids", "fields": []}
+ ],
+ "entry_points": ["temple_begin", "structure_temple"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 132, function temple_piece_new: calloc of each piece; start_add links it into the start's piece-pointer list (heap allocation and pointer graph)"
+ ],
+ "tests": ["csrc/tests/test_structures.c", "csrc/tests/test_populate.c", "csrc/tests/test_sblocks.c"],
+ "notes": "The component constructors here only draw coordBaseMode and size the box; the block half is temple_blocks.c. Temple distances are the vanilla 32/8 defaults, not read from world.conf. Starts are built during chunk generation and population, which run inside the server tick when chunks load. test_structures.c lists \"Temple\" among its overworld types; which recordings it runs on was not checked."
+}

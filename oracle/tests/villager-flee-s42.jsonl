@@ -1,0 +1,14 @@
+{"cmd":"run","class":"Snapshot"}
+{"n":16,"act":{}}
+{"cmd":"dev","op":"tp","x":700.5,"y":68.0,"z":-352.5,"yaw":180.0,"pitch":0.0}
+{"n":40,"act":{}}
+{"cmd":"dev","op":"fill","x0":679,"y0":84,"z0":-357,"x1":681,"y1":87,"z1":-355,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":680,"y0":85,"z0":-356,"x1":680,"y1":86,"z1":-356,"id":0,"meta":0}
+{"cmd":"dev","op":"tp","x":680.5,"y":85.0,"z":-355.5,"yaw":180.0,"pitch":0.0}
+{"n":3,"act":{}}
+{"cmd":"dev","op":"summon","name":"Villager","x":692.5,"y":63.0,"z":-312.5}
+{"cmd":"dev","op":"summon","name":"Villager","x":693.5,"y":63.0,"z":-310.5}
+{"cmd":"dev","op":"summon","name":"Villager","x":691.5,"y":63.0,"z":-314.5}
+{"n":40,"act":{}}
+{"cmd":"dev","op":"summon","name":"Zombie","x":692.5,"y":63.0,"z":-319.5,"equip":[{"slot":4,"item":306}]}
+{"n":400,"act":{}}

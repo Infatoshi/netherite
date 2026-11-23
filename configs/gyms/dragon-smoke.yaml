@@ -1,0 +1,30 @@
+# A flywheel gym (nether flywheel configs/gyms/dragon-smoke.yaml --incumbent W.ntw --gpu G): a short PPO step on
+# the End bank's train starts, then an exact 32-episode eval of the candidate and the incumbent on the held-out
+# dragon_25 starts, KEEP on a better dragon rate (exact McNemar p <= max_p). A smoke of the loop, minutes a step:
+# the real step is end-crystal-bow.yaml. Paths are the checkout's (cache/ is the shared cache's link).
+name: dragon-smoke
+variant: s1.ls.hb.hs.dk.r1.m4.b.f.sb
+train_config: configs/gyms/dragon-smoke.train.yaml
+eval_config: configs/gyms/dragon-eval.yaml
+budget_steps: 2000000
+primary_metric: dragon
+max_p: 0.05
+quick_gate: off
+log: out/flywheel/dragon-smoke
+
+train:
+  flags: --dev --fresh-opt --train-skip-ambient --graph 0
+  critic: 128
+  distant_tick_radius: 64
+
+eval:
+  episodes: 32
+  minutes: 15
+  seed: 1000
+  groups: 4
+  library: cache/end-bank-dev-2026-11-23/eval
+  stages: dragon_25
+  start: cache/end-bank-dev-2026-11-23/eval/s437203103-end/start
+  clock: wrap
+  start_cycle: on
+  flags: --dev

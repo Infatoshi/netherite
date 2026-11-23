@@ -1,0 +1,7 @@
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"difficulty","value":0}
+{"n":1,"act":{"opts":{"rd":4}}}
+{"cmd":"dev","op":"tp","x":650.5,"y":90.0,"z":-318.5,"yaw":270.0,"pitch":0.0}
+{"n":120,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":20,"act":{}}

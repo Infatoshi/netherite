@@ -1,0 +1,78 @@
+{
+ "path": "oracle/src/enchantment/EnchantmentLootBonus.java",
+ "classes": [
+  "EnchantmentLootBonus"
+ ],
+ "lines": 36,
+ "side": "server",
+ "category": "combat",
+ "role": "The Fortune/Looting/Luck-of-the-Sea family (effect ids 21, 35, 61): one class, three instances named by the EnumEnchantmentType passed to the constructor.",
+ "scope": "in_scope",
+ "scope_reason": "The enchanting table is a plain block (world.conf enchanting=off), but the enchantment registry itself is kept: loot books and mob equipment carry enchantments (DEVLOG 2026-09-25, 'Kept: enchantment data and effects').",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/enchants.h",
+   "symbols": [
+    "ENCHANTS",
+    "struct enchantment_def"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "map_enchantment_data"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_loot.c",
+  "out/java/loot/seed2",
+  "csrc/tests/test_trades.c",
+  "out/java/trades/seed2"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EnchantmentLootBonus",
+   "sig": "(int,int,EnumEnchantmentType)V",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "the three rows carry the three setName branches: 'enchantment.lootBonus' (21), 'enchantment.lootBonusDigger' (35), 'enchantment.lootBonusFishing' (61)"
+  },
+  {
+   "kind": "method",
+   "name": "getMinEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "rows min_enchantability {15,24,33}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "rows max_enchantability {61,71,81}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxLevel",
+   "sig": "()I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "rows max_level 3"
+  },
+  {
+   "kind": "method",
+   "name": "canApplyTogether",
+   "sig": "(Enchantment)Z",
+   "native": "csrc/engine/enchant.c:can_apply_together",
+   "status": "exact",
+   "note": "lootBonus refuses silkTouch; encoded as bit j of CAN_APPLY_TOGETHER[i] in csrc/engine/enchants.h, read in the direction Java calls it (existing.canApplyTogether(candidate))"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

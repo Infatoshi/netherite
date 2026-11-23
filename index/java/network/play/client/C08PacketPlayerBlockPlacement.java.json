@@ -1,0 +1,44 @@
+{
+  "path": "oracle/src/network/play/client/C08PacketPlayerBlockPlacement.java",
+  "classes": ["C08PacketPlayerBlockPlacement"],
+  "lines": 115,
+  "side": "client",
+  "category": "network",
+  "role": "Right-click: either the in-air form (using the held item, food/bow) or the block form carrying the clicked block coords, face, and hit offsets inside the face.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["client_out"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["right_click_mouse", "surv_client_use_pressed", "surv_client_use_pressed", "process_c08", "surv_server_use_packet", "surv_server_tick_start"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try", "place_would_use"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/dev-give-s1",
+    "csrc/tests/test_place.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149583_a (x)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c08_x[]"},
+    {"kind": "field", "name": "field_149581_b (y)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c08_y[]"},
+    {"kind": "field", "name": "field_149582_c (z)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c08_z[]"},
+    {"kind": "field", "name": "field_149579_d (face)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c08_side[]"},
+    {"kind": "field", "name": "field_149580_e (stack)", "sig": "ItemStack", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "not carried: the form distinction is the c08[] kind (1 in-air, 2 block, 3 block with empty hand); the server reads its own held stack"},
+    {"kind": "field", "name": "field_149577_f (hitX)", "sig": "F", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c08_hx[]"},
+    {"kind": "field", "name": "field_149578_g (hitY)", "sig": "F", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c08_hy[]"},
+    {"kind": "field", "name": "field_149584_h (hitZ)", "sig": "F", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c08_hz[]"},
+    {"kind": "ctor", "name": "C08PacketPlayerBlockPlacement", "sig": "(IIIIIItemStackFFF)V", "native": "csrc/engine/survival.c:surv_client_use_pressed", "status": "exact", "note": "the client's right-click flow: right_click_mouse resolves entity vs block vs in-air, surv_client_use_pressed builds the packet and predicts the use"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/survival.c:process_c08", "status": "exact", "note": "surv_server_tick_start walks co->c08[] into process_c08 (in-air kind 1 vs block kind 2+); the block path runs through place.c/itemuse.c"},
+    {"kind": "method", "name": "func_149576_c", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149571_d", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149570_e", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149568_f", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149574_g", "sig": "()ItemStack", "native": null, "status": "n/a", "note": "the stack is never carried natively (see field_149580_e)"},
+    {"kind": "method", "name": "func_149573_h", "sig": "()F", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149569_i", "sig": "()F", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149575_j", "sig": "()F", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "ctor", "name": "C08PacketPlayerBlockPlacement", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [],
+  "notes": "surv_server_use_packet is the dig machine's C08 entry (survival.c:3068) used when the use path runs inside the dig flow; the ordinary tick path reaches process_c08 directly. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): world-crops-s1."
+}

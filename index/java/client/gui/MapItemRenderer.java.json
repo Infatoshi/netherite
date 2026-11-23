@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/client/gui/MapItemRenderer.java",
+  "classes": ["MapItemRenderer", "MapItemRenderer.Instance"],
+  "lines": 162,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders a held map: one DynamicTexture per MapData updated from MapData.colors, drawn as a blended quad with the map_icons.png decoration layer.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf maps = off: an empty map stays empty and a filled map from loot never draws, so no MapData ever reaches this renderer on either side.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_148253_a", "sig": "static ResourceLocation", "native": null, "status": "n/a", "note": "static constant"},
+    {"kind": "field", "name": "field_148251_b", "sig": "TextureManager", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_148252_c", "sig": "Map", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "MapItemRenderer", "sig": "(TextureManager)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_148246_a", "sig": "(MapData)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_148250_a", "sig": "(MapData,boolean)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_148248_b", "sig": "(MapData)MapItemRenderer.Instance", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_148249_a", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "Instance.field_148242_b", "sig": "MapData", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "Instance.field_148243_c", "sig": "DynamicTexture", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "Instance.field_148240_d", "sig": "ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "Instance.field_148241_e", "sig": "int[]", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "Instance", "sig": "(MapData)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Instance.func_148236_a", "sig": "()V", "native": null, "status": "n/a", "note": "MapData.colors into the texture, MapColor.mapColorArray lookup"},
+    {"kind": "method", "name": "Instance.func_148237_a", "sig": "(boolean)V", "native": null, "status": "n/a", "note": "the quad plus the playersVisibleOnMap icons"}
+  ],
+  "missing": [],
+  "notes": "No native grep hit for MapItemRenderer or map icons."
+}

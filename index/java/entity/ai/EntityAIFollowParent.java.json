@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIFollowParent.java",
+  "classes": ["EntityAIFollowParent"],
+  "lines": 113,
+  "side": "server",
+  "category": "ai",
+  "role": "Makes a baby animal walk after the nearest adult of its kind: picks the closest adult in an 8x4x8 box when more than 3 blocks away, re-paths every 10 ticks.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["follow_parent_target", "ai_should_execute", "ai_continue_executing", "ai_start", "ai_update", "ai_reset", "ai_setup_kind"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/rc-animals-s1", "csrc/tests/test_animals.c"],
+  "members": [
+    {"kind": "field", "name": "childAnimal", "sig": "EntityAnimal", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living, there is no separate child pointer"},
+    {"kind": "field", "name": "parentAnimal", "sig": "EntityAnimal", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target"},
+    {"kind": "field", "name": "field_75347_c", "sig": "double", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "the follow speed, registered per kind (1.1 pig, 1.25 cow, 1.1 chicken, 1.1 sheep)"},
+    {"kind": "field", "name": "field_75345_d", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.follow_parent_delay"},
+    {"kind": "ctor", "name": "EntityAIFollowParent", "sig": "(EntityAnimal,double)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:follow_parent_target", "status": "exact", "note": "the AIC_FOLLOW_PARENT case in ai_should_execute: growingAge < 0, nearest adult in the 8x4x8 box, dist >= 9"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "alive and dist in [9, 256]"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "follow_parent_delay = 0"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "parentAnimal = null"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "every 10 ticks tryMoveToEntityLiving(parent)"}
+  ],
+  "missing": [],
+  "notes": ""
+}

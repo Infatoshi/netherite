@@ -1,0 +1,9 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"lava"}
+{"n":2,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":1,"act":{"dlook":[-45,0]}}
+{"n":40,"act":{"hold":["forward"]}}
+{"n":1,"act":{"dlook":[135,0]}}
+{"n":60,"act":{"hold":["forward","jump"]}}
+{"n":360,"act":{}}

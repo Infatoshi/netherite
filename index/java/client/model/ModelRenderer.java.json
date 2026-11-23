@@ -1,0 +1,310 @@
+{
+ "path": "oracle/src/client/model/ModelRenderer.java",
+ "classes": [
+  "ModelRenderer"
+ ],
+ "lines": 307,
+ "side": "client",
+ "category": "client_model",
+ "role": "The model part: a pivot, rotation angles, a box list and child parts; vanilla renders it with GL matrix calls and display lists.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "part",
+    "box",
+    "pose_model",
+    "draw_box",
+    "xf_part",
+    "model_vertex",
+    "texture_size"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs2b_iron_golem_f011",
+  "out/java/render/mobs2b_villager_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "ModelRenderer",
+   "sig": "(ModelBase,String)V",
+   "native": "csrc/engine/raster_mobs.c:part",
+   "status": "exact",
+   "note": "the named-box form resolves offsets at build time (the DR_* tables, crystal_draw)"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelRenderer",
+   "sig": "(ModelBase)V",
+   "native": "csrc/engine/raster_mobs.c:part",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelRenderer",
+   "sig": "(ModelBase,int,int)V",
+   "native": "csrc/engine/raster_mobs.c:part",
+   "status": "exact",
+   "note": "the texture offset rides in box()'s u,v arguments"
+  },
+  {
+   "kind": "method",
+   "name": "addChild",
+   "sig": "(ModelRenderer)V",
+   "native": "csrc/engine/raster_mobs.c:model_vertex",
+   "status": "exact",
+   "note": "the parent index is set by the model functions; model_vertex walks the chain"
+  },
+  {
+   "kind": "method",
+   "name": "setTextureOffset",
+   "sig": "(int,int)ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addBox",
+   "sig": "(String,float,float,float,int,int,int)ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addBox",
+   "sig": "(float,float,float,int,int,int)ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addBox",
+   "sig": "(float,float,float,int,int,int,float)V",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact",
+   "note": "the scale parameter is box()'s grow"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationPoint",
+   "sig": "(float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:part",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(float)V",
+   "native": "csrc/engine/raster_mobs.c:draw_box",
+   "status": "exact",
+   "note": "the part transform (translate, then Rz, Ry, Rx) is xf_part; child recursion is model_vertex"
+  },
+  {
+   "kind": "method",
+   "name": "renderWithRotation",
+   "sig": "(float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not used by any mob renderer the native engine ports"
+  },
+  {
+   "kind": "method",
+   "name": "postRender",
+   "sig": "(float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the held-item arm pivot; third-person player rendering is not ported"
+  },
+  {
+   "kind": "method",
+   "name": "compileDisplayList",
+   "sig": "(float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the software rasterizer draws boxes directly; no GL display lists"
+  },
+  {
+   "kind": "method",
+   "name": "setTextureSize",
+   "sig": "(int,int)ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:texture_size",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "textureWidth",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:texture_size",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "textureHeight",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:texture_size",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "textureOffsetX",
+   "sig": "int",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "textureOffsetY",
+   "sig": "int",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rotationPointX",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:part",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rotationPointY",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:part",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rotationPointZ",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:part",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rotateAngleX",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact",
+   "note": "mob_part.ax"
+  },
+  {
+   "kind": "field",
+   "name": "rotateAngleY",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact",
+   "note": "mob_part.ay"
+  },
+  {
+   "kind": "field",
+   "name": "rotateAngleZ",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact",
+   "note": "mob_part.az"
+  },
+  {
+   "kind": "field",
+   "name": "compiled",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "no display lists"
+  },
+  {
+   "kind": "field",
+   "name": "displayList",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "no display lists"
+  },
+  {
+   "kind": "field",
+   "name": "mirror",
+   "sig": "boolean",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact",
+   "note": "box()'s mirror argument; emit_box_faces flips the shading normal"
+  },
+  {
+   "kind": "field",
+   "name": "showModel",
+   "sig": "boolean",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "partial",
+   "note": "the native renderer hides a whole mob (mob_render_input.invisible), not individual parts"
+  },
+  {
+   "kind": "field",
+   "name": "isHidden",
+   "sig": "boolean",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "partial",
+   "note": "same as showModel"
+  },
+  {
+   "kind": "field",
+   "name": "cubeList",
+   "sig": "List",
+   "native": "csrc/engine/raster_mobs.c:mob_part",
+   "status": "exact",
+   "note": "mob_part.box[MAX_BOXES] with nbox; MAX_BOXES is 3"
+  },
+  {
+   "kind": "field",
+   "name": "childModels",
+   "sig": "List",
+   "native": "csrc/engine/raster_mobs.c:mob_part",
+   "status": "exact",
+   "note": "mob_part.parent"
+  },
+  {
+   "kind": "field",
+   "name": "boxName",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "named boxes are resolved at build time into the DR_* tables"
+  },
+  {
+   "kind": "field",
+   "name": "baseModel",
+   "sig": "ModelBase",
+   "native": null,
+   "status": "n/a",
+   "note": "only used for named-box offset lookups and texture sizes"
+  },
+  {
+   "kind": "field",
+   "name": "offsetX",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:model_witch",
+   "status": "partial",
+   "note": "only the witch's nose offsets reach a native counterpart (model_witch); not verified field by field"
+  },
+  {
+   "kind": "field",
+   "name": "offsetY",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:model_witch",
+   "status": "partial",
+   "note": "same"
+  },
+  {
+   "kind": "field",
+   "name": "offsetZ",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:model_witch",
+   "status": "partial",
+   "note": "same"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers; third person is off-profile. Formerly listed as missing: Per-part isHidden/showModel gating: the native renderer hides a whole mob (mob_render_input.invisible), not individual parts. renderWithRotation and postRender have no native counterpart; third-person player rendering is not ported."
+}

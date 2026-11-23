@@ -1,0 +1,41 @@
+{
+  "path": "oracle/src/entity/monster/EntityMob.java",
+  "classes": ["EntityMob"],
+  "lines": 285,
+  "side": "common",
+  "category": "entity",
+  "role": "Base class for all hostile mobs: registers attackDamage, implements the touch-of-death melee with enchantment knockback, the light-gated spawn rule, and the peaceful-difficulty despawn.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.c", "symbols": ["living_attack_entity_from_attacker_base", "living_on_living_update", "living_despawn", "living_light_brightness"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["can_spawn_here_monster", "valid_light_level"]},
+    {"file": "csrc/engine/hostiles.c", "symbols": ["hostile_spawn", "hostile_loot_update", "ATTR_ATTACK_DAMAGE"]},
+    {"file": "csrc/engine/combatench.c", "symbols": ["mob_attack_entity_as_mob"]}
+  ],
+  "evidence": ["out/java/snapshots/peaceful-s1", "out/java/snapshots/diff-switch-s1", "out/java/snapshots/combat-mobs-s1", "out/java/snapshots/fight-zombie-s1", "csrc/tests/test_hostiles.c", "csrc/tests/test_spawning.c", "out/java/snapshots/dmg-sources-s1", "out/java/snapshots/melee-mods-s1", "out/java/snapshots/arrow-reload-s1"],
+  "members": [
+    {"kind": "ctor", "name": "EntityMob", "sig": "(World)V", "native": "csrc/engine/hostiles.c:zombie_construct", "status": "exact", "note": "experienceValue 5, set in each kind's constructor (zombie_construct, skeleton_construct, spider_construct, creeper_construct, enderman_construct, witch_construct, silverfish_construct)"},
+    {"kind": "method", "name": "onLivingUpdate", "sig": "()V", "native": "csrc/engine/living.c:living_on_living_update", "status": "exact", "note": "updateArmSwingProgress, the brightness>0.5 age bump, then super; the per-kind bodies (hostiles_*.c) call the same shared step"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": "csrc/engine/living.c:living_is_entity_mob", "status": "exact", "note": "the PEACEFUL setDead after super.onUpdate: living_on_update's EntityMob step, living_is_entity_mob and living_server_peaceful (peaceful-s1, diff-switch-s1)"},
+    {"kind": "method", "name": "getSwimSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getSplashSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "findPlayerToAttack", "sig": "()Lnet/minecraft/entity/Entity;", "native": "csrc/engine/ai.c:AIC_NEAREST_ATTACKABLE_TARGET", "status": "partial", "note": "the 16-block getClosestVulnerablePlayerToEntity + canEntityBeSeen rule is the nearest-attackable task's scan; the per-kind overrides (spider at day, peaceful pigman, silverfish at 8 blocks) live in their own files"},
+    {"kind": "method", "name": "attackEntityFrom", "sig": "(Lnet/minecraft/util/DamageSource;F)Z", "native": "csrc/engine/living.c:living_attack_entity_from_attacker_base", "status": "exact", "note": "the invulnerable guard, the super call, the entityToAttack revenge mark (living.c:1811, the EntityMob tail the per-kind overrides share)"},
+    {"kind": "method", "name": "getHurtSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getDeathSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "func_146067_o", "sig": "(I)Ljava/lang/String;", "native": null, "status": "n/a", "note": "fall-sound key, audio"},
+    {"kind": "method", "name": "attackEntityAsMob", "sig": "(Lnet/minecraft/entity/Entity;)Z", "native": "csrc/engine/combatench.c:mob_attack_entity_as_mob", "status": "exact", "note": "one body every kind calls (zombie, pigman, skeleton, spider, cave spider, enderman, blaze, silverfish)"},
+    {"kind": "method", "name": "attackEntity", "sig": "(Lnet/minecraft/entity/Entity;F)V", "native": "csrc/engine/hostiles_spider.c:spider_attack_entity", "status": "partial", "note": "the touch-of-death (attackTime<=0, range<2.0F, the bounding-box Y overlap, attackTime 20) is carried by the per-kind attack_entity bodies (hostiles_spider.c:187, hostiles_silverfish.c:226)"},
+    {"kind": "method", "name": "getBlockPathWeight", "sig": "(III)F", "native": "csrc/engine/living.c:living_light_brightness", "status": "partial", "note": "0.5 - getLightBrightness rides the shared light helper in the wander and spawn paths"},
+    {"kind": "method", "name": "isValidLightLevel", "sig": "()Z", "native": "csrc/engine/spawning.c:valid_light_level", "status": "exact", "note": "the sky>nextInt(32) rejection, the block-light <=nextInt(8) acceptance, and the thundering skylightSubtracted=10 hack with its save/restore"},
+    {"kind": "method", "name": "getCanSpawnHere", "sig": "()Z", "native": "csrc/engine/spawning.c:can_spawn_here_monster", "status": "exact", "note": "the non-PEACEFUL guard then isValidLightLevel then EntityLiving's rule"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": "csrc/engine/hostiles.c:ATTR_ATTACK_DAMAGE", "status": "exact", "note": "the attackDamage registration rides the shared attribute table"},
+    {"kind": "method", "name": "func_146066_aG", "sig": "()Z", "native": null, "status": "missing", "note": "the always-true AllowLadderClimbing hook has no native counterpart; no mob pathfinds onto ladders in the native"},
+    {"kind": "method", "name": "isAIEnabled", "sig": "()Z", "native": null, "status": "n/a", "note": "true for mobs; the task structure is ai_setup_kind's"}
+  ],
+  "missing": [
+    "func_146066_aG (AllowLadderClimbing): no native counterpart; nothing pathfinds onto ladders."
+  ],
+  "notes": "Every hostile subclass file (hostiles_*.c, slimes.c, ghasts.c) rides these shared steps. hostiles.c:hostile_spawn is the natural-spawn driver and hostile_loot_update the drop dispatch that the per-kind dropFewItems plug into. lane/reloadstate: a shooterless arrow's hit makes the arrow entityToAttack; it died hitting, so the mob keeps entity_to_attack 0 with entity_to_attack_gone set, and the old-AI updates (spider, pigman, silverfish, blaze) clear it on their next tick instead of finding a player."
+}

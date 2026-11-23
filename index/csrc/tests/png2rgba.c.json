@@ -1,0 +1,15 @@
+{
+ "path": "csrc/tests/png2rgba.c",
+ "lines": 19,
+ "role": "Build tool: converts a PNG to raw RGBA bytes with pngread.c; the Makefile uses it to turn the client jar's GUI container sheets (inventory, crafting_table, furnace, generic_54, villager) into out/native/gui/*.rgba for play and test_render.",
+ "layer": "tool",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "No Java counterpart; asset pipeline only."
+}

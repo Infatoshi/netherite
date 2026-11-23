@@ -1,0 +1,69 @@
+{
+  "path": "oracle/src/command/server/CommandSummon.java",
+  "classes": [
+    "CommandSummon"
+  ],
+  "lines": 147,
+  "side": "server",
+  "category": "commands",
+  "role": "The /summon command: builds an entity from its entity id plus optional coordinates and NBT (with Riding chains), runs onSpawnWithEgg for living entities and spawns it.",
+  "scope": "not_needed",
+  "scope_reason": "Never reached: the agent and RL paths have no chat or command input (SPEC input: look, gui ops, held keys; no command source), and the native engine has no command dispatcher. world.conf does not list commands.",
+  "status": "not_applicable",
+  "native": [
+    {
+      "file": "csrc/engine/dev.c",
+      "symbols": [
+        "dev_summon"
+      ]
+    }
+  ],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,[Ljava/lang/String;)V",
+      "native": "csrc/engine/dev.c:dev_summon",
+      "status": "n/a",
+      "note": "not the command: agent mode has no chat. The harness dev op (csrc/engine/dev.c, folded through serverreplay_summon_hostile) covers the same entity-creation half, and the vanilla hook in this command is netherite.oracle.WorldConf.checkSummon (oracle/harness/netherite/oracle/WorldConf.java:122), which both sides call so switched-off entities cannot be summoned."
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,[Ljava/lang/String;)Ljava/util/List;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147182_d",
+      "sig": "()[Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "The only command in this batch with a vanilla hook: processCommand calls netherite.oracle.WorldConf.checkSummon (one of the 14 hand hook edits)."
+}

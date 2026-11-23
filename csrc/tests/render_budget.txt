@@ -1,0 +1,833 @@
+# test_render budgets: scene, mean absolute error per channel (R G B) over the
+# whole frame, pixels whose largest channel error is over 25. Each line is what
+# the renderer measured when the scene was accepted (2026-09-25, master
+# 28d2e52); the gate fails when a frame gets worse. Lower a line when a fix
+# lowers the error; add a line only for a reviewed new scene.
+#
+# Known residuals: beach, beach6, beach8 carry the achievement toast and the
+# squid (DEVLOG, the beach8 entries); beach8-fast the squid. painting's residual is not the painting: its
+# row predates the recorded graphics options, and the golden draws clouds and
+# fancy water the native frame reads as off (lane/entrender's ent_painting
+# draws the painting pass itself within 54 px). Block item icon edge and
+# lighting residuals are
+# covered by the blockicons scenes. The first-person hand and held item
+# (raster_hand.c, lane/hand 2026-09-25) lowered terrain_hudbar, hud_mixed,
+# hud_underwater (with renderOverlays' water overlay), blockicons_hotbar_a/b,
+# blockicons_shapes and the overlay_select_* lines; old values in DEVLOG.
+terrain1 SKIP its state predates the render-state "out" block (the first scene; raster_render never read it); terrain_nearest and village cover it
+# GUI scenes share the same world mesh. gui_inventory predates the preview state
+# (its recording has no preview inputs, so its player preview stays undrawn);
+# block item models and the first-person hand account for the other named
+# content residuals. The pause menu has no oracle GuiIngameMenu to record.
+beach 9.105457 9.739896 11.688620 53111
+beach6 7.264178 7.978808 8.871290 26085
+beach8 6.063593 6.901734 8.537071 20526
+beach8-fast 0.358377 0.396502 0.359880 1879
+end 0.088556 0.074832 0.096480 494
+endfight_f006 0.031613 0.024866 0.035827 12
+endfight_f011 0.031831 0.025061 0.036127 21
+endfight_f021 0.029484 0.023302 0.032921 14
+flower_field 0.017255 0.011012 0.008431 35
+forest 0.013325 0.011319 0.009863 40
+forest-fast 0.004933 0.007721 0.003857 34
+gui_chest 0.248556 0.233936 0.215164 4
+gui_crafting 0.253815 0.239959 0.221316 4
+gui_death 0.286048 0.280294 0.303835 137
+gui_double_chest 0.249861 0.229794 0.208543 0
+gui_furnace 0.253318 0.239071 0.220770 4
+gui_inventory 2.379855 2.217408 2.154320 5971
+gui_merchant 0.248949 0.234260 0.214166 3
+hud_mixed 0.103684 0.115366 0.127583 410
+hud_underwater 1.192862 1.682245 1.872234 5
+toast 0.575886 0.723083 0.751000 4625
+blockicons_hotbar_a 0.038056 0.045187 0.046875 222
+blockicons_hotbar_b 0.068652 0.078442 0.088095 330
+blockicons_shapes 0.042716 0.048824 0.051032 238
+blockicons_drops 0.036524 0.033404 0.052622 328
+nether 0.123314 0.068523 0.025903 397
+night-fast 0.001578 0.002261 0.001722 11
+painting 0.804418 0.945465 1.569331 10930
+terrain_hudbar 0.110909 0.116006 0.122302 484
+terrain_nearest 0.106816 0.105882 0.121150 516
+village 0.056294 0.031772 0.053750 317
+water-fast 0.164535 0.219811 0.356111 10
+# overlay_* (lane/overlay): the lane measured the outline and crack regions at
+# 0.05 to 0.9 per channel; the torch scene also lacks its flame particle. The
+# select scenes now draw the hand. The overlay_dig_* recordings predate the
+# hand block and are mid-dig, swinging at a phase they did not record, so
+# their hand stays undrawn and their lines unchanged (dirt and leaves carry the
+# missing arm, about 17,000 px; hand_dig covers the dig swing).
+overlay_dig_dirt_s4 1.799097 0.896536 1.238569 18011
+overlay_dig_leaves_s4 1.765530 0.874841 1.221555 17481
+overlay_dig_log_s7 0.513125 0.397190 0.496960 3432
+overlay_dig_slab_s1 0.585046 0.385397 0.560207 3489
+overlay_dig_stone_s2 0.504435 0.392128 0.491125 3399
+overlay_select_flower 0.422436 0.452459 0.550349 2826
+overlay_select_slab 0.238934 0.277349 0.333624 1384
+overlay_select_stone 0.239486 0.264234 0.333163 1403
+overlay_select_stone_angle 0.227854 0.257011 0.324534 1356
+overlay_select_stone_near 0.417742 0.445602 0.545919 2795
+overlay_select_torch 0.519204 0.514593 0.601437 3151
+# mobs_* (lane/mobmodels): the frame views of six mob scenes, whose sources live
+# in out/java/render-src; zero pxdiff clusters on the mobs, terrain roundoff only.
+mobs_chicken_f006 0.044560 0.051466 0.032470 4
+mobs_chicken_f011 0.040988 0.047824 0.030121 7
+mobs_chicken_f016 0.041132 0.048912 0.039913 7
+mobs_cow_f006 0.047673 0.056352 0.034843 3
+mobs_cow_f012 0.041149 0.043843 0.030869 5
+mobs_farm_f006 0.073266 0.071241 0.098022 5
+mobs_farm_f016 0.100373 0.087273 0.061185 10
+mobs_farm_f036 0.065471 0.090462 0.078842 343
+mobs_pig_f006 0.051127 0.056916 0.037368 30
+mobs_pig_f011 0.048695 0.053867 0.036983 36
+mobs_pig_f016 0.048029 0.054330 0.046414 33
+mobs_sheep_f006 0.055935 0.063800 0.042884 11
+mobs_sheep_f011 0.052213 0.059448 0.042782 13
+mobs_sheep_f016 0.052908 0.060963 0.051820 10
+mobs_zombie_f006 0.049639 0.055952 0.035651 17
+mobs_zombie_f011 0.044694 0.050517 0.031431 19
+mobs_zombie_f016 0.043799 0.051483 0.041276 12
+# mobs2b (lane/mobs2b): the remaining living models, 24 close in-motion views from
+# twelve staged scenes (out/java/render-src). Two shared-machinery bugs were found
+# and fixed while making these exact, and these lines are what the frames measure
+# after them (pxdiff selftest PASS; causes below are pxdiff's, not guesses):
+#  - ModelBox's mirror swaps the x corners and keeps each corner's own texture
+#    position. The native mirrored box reversed the corner order for the winding
+#    and left v alone, so every mirrored box sampled the wrong texture rows:
+#    iron golem 355/270 -> 29/14 px, pigman 525/491 -> 14/3, professions 359/329 ->
+#    11/9, villager 71/65 -> 3/4, zombie 95/65/62 -> 68/41/36.
+#  - The entity rasterizer dropped triangles whose screen winding was negative, but
+#    RendererLivingEntity disables GL_CULL_FACE around the whole model, so both
+#    windings draw. A living model's target is now two_sided and flips such a
+#    triangle instead: the bat 297 -> 10 px. The cost is a handful of pixels where
+#    a model has flat or thin geometry (the sheep's inner faces, the farm's terrain
+#    edge), recorded at their measured values. Paintings, the hand, item icons, the
+#    mooshroom's mushrooms and shadows stay culled, as vanilla draws them (merge
+#    with master, 2026-09-25).
+# Measured residuals: bat_close_f011 keeps a 1-2px content outline along the flying
+# bat's wing membranes (1 unit, 0.022 blocks, thick and near edge-on, where the
+# coverage of the coplanar front and back faces differs by a pixel from GL);
+# ghast_f006's 500 px are rows 200-201, the terrain horizon sitting two rows higher
+# in the native (the same terrain-edge row that terrain_nearest and village carry),
+# with zero ghast pixels over 25; ghast_f011, blaze, magma cube, squid, villager and
+# professions have no pxdiff cluster at the 25-level, 50-pixel threshold; the
+# mooshroom frames and bat_f011 keep under 150 px of edge scatter on the mob. The
+# pigman's held golden sword still goes through ItemRenderer, which the client does
+# not draw yet: it is no longer the cause of any line here.
+mobs2b_bat_close_f006 0.026991 0.033267 0.027944 10
+mobs2b_bat_close_f011 0.070336 0.088839 0.061754 329
+mobs2b_bat_f006 0.019270 0.024480 0.018833 3
+mobs2b_bat_f011 0.023878 0.028388 0.016354 62
+mobs2b_blaze_f006 0.024968 0.030096 0.020323 2
+mobs2b_blaze_f011 0.022312 0.024932 0.009094 3
+mobs2b_ghast_f006 0.079981 0.063930 0.089483 500
+mobs2b_ghast_f011 0.057848 0.063466 0.055586 94
+mobs2b_iron_golem_f006 0.030138 0.034992 0.031560 14
+mobs2b_iron_golem_f011 0.027088 0.028567 0.017786 29
+mobs2b_magma_cube_f006 0.024034 0.026259 0.019858 2
+mobs2b_magma_cube_f011 0.019084 0.019967 0.008563 3
+mobs2b_mooshroom_child_f006 0.038161 0.045643 0.043782 146
+mobs2b_mooshroom_child_f011 0.033324 0.038793 0.031716 137
+mobs2b_mooshroom_f006 0.032375 0.034834 0.030760 64
+mobs2b_mooshroom_f011 0.027688 0.028789 0.020419 63
+mobs2b_pigman_f006 0.023173 0.027766 0.021851 2
+mobs2b_pigman_f011 0.020460 0.021192 0.010395 3
+mobs2b_professions_f006 0.028530 0.032292 0.026700 11
+mobs2b_professions_f011 0.027420 0.024754 0.017984 9
+mobs2b_squid_f006 0.021343 0.025771 0.022624 4
+mobs2b_squid_f011 0.019435 0.021441 0.010922 15
+mobs2b_villager_f006 0.021502 0.026432 0.020982 3
+mobs2b_villager_f011 0.018262 0.019740 0.010063 4
+# hand_* (lane/hand): frame views of out/java/render-src/hand, one recording
+# with the RenderStateProbe hand block: bare arm idle, attack swing, the equip
+# animation down and up, iron pickaxe, its swing, iron sword, sword block,
+# apple, eating, cobblestone, grass, milk drinking, bare-hand dig swing, bow at
+# pull 5 and 20 ticks. pxdiff finds no hand cluster in any of them; the rest is
+# the HUD's cobblestone and grass block icon edges (about 600 px) and terrain
+# clusters on the left. The first nine frames (t 81 to 139) add a darker
+# jungle trunk (about 3,900 px): the chunk dump is from the end of the run and
+# the trunk's light changed after those frames.
+hand_apple 0.570963 0.766757 0.205923 5144
+hand_block 0.066164 0.073017 0.056484 692
+hand_bow_a 0.066633 0.073590 0.057353 734
+hand_bow_b 0.039744 0.056006 0.060261 689
+hand_dig 0.129032 0.171538 0.201552 1045
+hand_drink 0.066911 0.071975 0.057414 688
+hand_eat 0.070033 0.072038 0.058711 691
+hand_equip_down 0.571307 0.766747 0.206187 5144
+hand_equip_up 0.571277 0.766640 0.206209 5144
+hand_grass 0.067384 0.072214 0.056365 692
+hand_idle 0.586307 0.772180 0.206487 5144
+hand_pickaxe 0.571492 0.766776 0.206411 5146
+hand_pickaxe_swing 0.571253 0.766445 0.206172 5143
+hand_swing 0.572102 0.771673 0.206626 5144
+hand_sword 0.571192 0.766515 0.206191 5145
+hand_sword_block 0.570431 0.765788 0.205430 5141
+# mobs2a_*: two in-motion views per staged pair. pxdiff survey measured charged
+# creeper overlay edges, enderman carried-block edges, spider-eye shading,
+# witch-foot shading, and the skeleton held-item content gap. Slime and
+# silverfish have no clusters above pxdiff's default 50-pixel threshold.
+# Merged with mobs2b (2026-09-25): its mirrored-box v fix and the two-sided
+# living model (RendererLivingEntity's GL_CULL_FACE off) lowered enderman,
+# skeleton, witch and silverfish; the slime's outer pass now blends two-sided
+# with depth writes as RenderSlime does, lowering both slime lines.
+mobs2a_creeper_f006 0.025656 0.038842 0.041550 136
+mobs2a_creeper_f011 0.023307 0.033026 0.028715 108
+mobs2a_enderman_f006 0.022268 0.028515 0.022073 12
+mobs2a_enderman_f011 0.019221 0.022014 0.009873 12
+mobs2a_silverfish_f006 0.021370 0.026959 0.021424 6
+mobs2a_silverfish_f011 0.019309 0.021499 0.011485 10
+mobs2a_skeleton_f006 0.022985 0.028247 0.021411 2
+mobs2a_skeleton_f011 0.018928 0.020750 0.011239 4
+mobs2a_slime_f006 0.043477 0.057433 0.045131 2
+mobs2a_slime_f011 0.037800 0.048341 0.029913 3
+mobs2a_spider_f006 0.021265 0.026205 0.021197 2
+mobs2a_spider_f011 0.018918 0.020465 0.010139 5
+mobs2a_witch_f006 0.020538 0.028496 0.022697 5
+mobs2a_witch_f011 0.019345 0.019182 0.012566 7
+# worldfx_* (lane/worldfx): dropped flat items and XP orbs, rain and snow, the
+# first-person screen overlays (underwater, fire, in-block), the pumpkin blur,
+# the portal swirl, and a no-weather up-view control. The measured residuals:
+#  - worldfx_pumpkin, worldfx_portal: the missing first-person hand was the
+#    whole residual; with master's hand pass drawn before the overlays (merge
+#    with master, 2026-09-25) they measure 7 and 5 px.
+#  - worldfx_fire: recorded with hideGUI on, so no hand is drawn on either side;
+#    pxdiff names a content cluster at x 439..489, y 389..479 (the native draws
+#    extra flame content there) and two shading-offset clusters beside it.
+#  - worldfx_orbs: one unresolved cluster on the orb that is drawn teal. The
+#    renderer's tint/light/texel match RenderXPOrb and the recorded rows at the
+#    fragment level, but the oracle's pixels imply a tint_B of 172 against the
+#    formula's 0.1*255 cap of 51, so that recording's orb state does not
+#    describe its frame. The flat items share this pass and this probe and are
+#    pixel-exact (worldfx_flat).
+#  - the rest carry no pxdiff cluster at the default threshold; their px-over-25
+#    counts are scattered single texels on the weather sheets' streaks.
+worldfx_flat 0.013220 0.017218 0.013361 41
+worldfx_fire 0.225786 0.506440 0.190935 3314
+worldfx_hurt 0.011588 0.015827 0.012378 40
+worldfx_orbs 0.299127 0.017772 0.375524 2224
+worldfx_portal 0.249232 0.209860 0.241318 5
+worldfx_pumpkin 0.481391 0.573351 0.568072 7
+worldfx_rain_level 0.056774 0.054357 0.070092 20
+worldfx_rain_up 0.043850 0.041298 0.027469 0
+worldfx_skyup 0.000000 0.000000 0.000000 0
+worldfx_snow_level 0.044606 0.042242 0.043508 236
+worldfx_snow_up 0.008507 0.011080 0.010456 3
+worldfx_underwater 0.653403 0.635978 1.206833 18
+
+# lane/particles: the dig scene carries the destroy-progress crack, which the
+# native overlay draws with its own known stage-3 texture gap (the overlay_dig_*
+# budgets cover the same pass), plus the 172 px hand cluster hand_dig carries.
+particles_dig 0.026659 0.028542 0.027137 68
+
+# The three TNT scenes. Shared residuals: the 371 px cutout-sky cluster
+# (y140-167 x114-138) is the fire block's quad, the same gap the overlay_dig_*
+# budgets carry, and the 84 px content cluster (y468-471 x254-279) is the HUD
+# slot highlight the other scenes with a hotbar item carry. t90 adds ~150 px of
+# unresolved edge around the fire quad and the first explosion frame's Large
+# quads. t99 has only the HUD cluster.
+particles_tnt_t90 0.059185 0.117628 0.163498 448
+# particles_tnt 543 -> 545 px (lane/particles2): renderLitParticles' basis now uses MathHelper's
+# sin table as vanilla does (libm before); two edge pixels of one explosion quad flip. particles_dig
+# lowered by the digging particles' own UV order and float getInterpolatedU.
+particles_tnt 0.060034 0.121377 0.187327 461
+particles_tnt_t99 0.018406 0.008263 0.021131 18
+
+# mobs2b_*: the Ender Dragon and the End crystal. From render-src/mobs2b_dragon,
+# mobs2b_dragon_death, mobs2b_dragon_hurt, mobs2b_crystal and mobs2b_beam.
+# The dragon views are ModelDragon's neck/head/tail chains and the two wing
+# passes. ModelDragon.render enables GL_CULL_FACE for the wing and leg loop
+# (glCullFace(GL_FRONT) for the mirrored pass) and draws the rest with it off
+# as RendererLivingEntity leaves it; drawing the first wing two-sided let the
+# membrane's back face (a box of height 0) tie the front one in depth, the old
+# f036 band of 1255 px (lane/auditfixb, 2026-09-25). hurt_f007 is
+# RenderDragon.renderModel's 50% hurt pass plus RendererLivingEntity's 40% one,
+# drawn again per inheritRenderPass after shouldRenderPass(0) left
+# glBlendFunc(GL_ONE, GL_ONE), so the second draw adds (the old 8587 px were
+# that pass drawn as a second 40% blend). death_f041 adds the
+# death explosion's Random(432L) triangles: the ray geometry matches shape for
+# shape but each ray's additive brightness is off by about 15%, which pxdiff
+# names content/shading-offset on the rays and is the whole of that view's
+# residual. The crystal views are 0.76 and 1.19 with clusters pxdiff names
+# cutout-sky+/content on the base plate and the spinning cubes (a texel-level
+# difference on the 128x64 crystal texture, not geometry: the clusters' boxes
+# coincide).
+mobs2b_beam_f011 0.165230 0.189186 0.193872 1218
+mobs2b_crystal_f006 0.758663 0.938305 1.197356 7630
+mobs2b_crystal_f046 1.190735 1.564591 1.605726 6925
+mobs2b_dragon_death_f006 0.493989 0.406550 0.665130 3145
+mobs2b_dragon_death_f041 3.586122 2.303147 2.028506 24509
+mobs2b_dragon_f036 0.014181 0.014181 0.014178 57
+mobs2b_dragon_f041 0.028703 0.028708 0.028703 117
+mobs2b_dragon_hurt_f006 0.040386 0.092264 0.050081 20
+mobs2b_dragon_hurt_f007 0.199951 0.061431 0.053171 32
+
+# lane/skytex: the star list (RenderGlobal.renderStars), the animated atlas
+# sprites (water, lava, fire, portal, clock, compass: csrc/engine/texanim.c over
+# each recording's state/anim.json) and item frames (raster_itemframe.c), from
+# four recordings in out/java/rendertick. pxdiff survey finds no cluster in any
+# view; the px-over-25 counts are single terrain texels and the HUD slot edges.
+# Without the patch the liquids views measure 3589 to 3873 px and anim_dials_f131
+# 7046; without the stars sky_night_f100 and f141 measure 471 and 377. The stars
+# lowered night-fast from 57 px (0.008760 0.009443 0.008904). toast rose by one
+# level in one pixel: a star now sits under the achievement toast's blended
+# background, whose blend was already a level off there (0.900578 before).
+# The stars also lowered the 60 mob and dragon views recorded at time 13000 (about
+# 0.0004 per channel each, no px-over-25 change); their lines above are the new
+# measurements.
+anim_dials_f100 0.020867 0.011729 0.023009 20
+anim_dials_f101 0.022148 0.013783 0.025571 54
+anim_dials_f102 0.021985 0.013620 0.025407 53
+anim_dials_f103 0.021985 0.013620 0.025407 53
+anim_dials_f106 0.022014 0.013647 0.025434 53
+anim_dials_f131 0.025739 0.025605 0.034048 2
+anim_dials_f132 0.023844 0.029645 0.034029 1
+anim_dials_f133 0.023873 0.029684 0.032126 1
+anim_dials_f140 0.015784 0.008724 0.037480 1
+anim_liquids_f100 0.003584 0.003810 0.003137 16
+anim_liquids_f101 0.003508 0.003474 0.002901 15
+anim_liquids_f102 0.004069 0.004176 0.003828 17
+anim_liquids_f103 0.003935 0.003769 0.003452 14
+anim_liquids_f110 0.004801 0.004545 0.003203 18
+anim_liquids_f123 0.003867 0.003745 0.003127 14
+sky_night_f100 0.000000 0.000002 0.000000 0
+sky_night_f101 0.000000 0.000000 0.000000 0
+sky_night_f141 0.000000 0.000000 0.000002 0
+sky_night_f171 0.025466 0.028545 0.029342 0
+sky_night_f172 0.032377 0.028706 0.028793 0
+torch_wall_f100 0.001564 0.001454 0.001381 6
+torch_wall_f101 0.001564 0.001454 0.001381 6
+torch_wall_f102 0.001564 0.001454 0.001381 6
+torch_wall_f103 0.001564 0.001476 0.001371 6
+torch_wall_f104 0.001564 0.001454 0.001381 6
+torch_wall_f105 0.001586 0.001478 0.001410 6
+torch_wall_f110 0.001559 0.001471 0.001408 6
+torch_wall_f125 0.001556 0.001483 0.001393 6
+# lane/particles2 (C3 particles, 2026-09-26): rendertick/fx_* at particle setting 0 (all). fx_crit_a1
+# carries a one-row registration shift on the just-hit pig's top edge (mob render, 70 px).
+fx_crit_a1 0.064044 0.018931 0.021785 175
+fx_crit_a2 0.029657 0.021204 0.019662 40
+fx_crit_a3 0.028452 0.016037 0.013015 13
+fx_crit_a4 0.024785 0.012271 0.014356 4
+fx_crit_a5 0.023590 0.013232 0.010343 15
+fx_crit_a6 0.019989 0.010446 0.012058 4
+fx_crit_a7 0.015174 0.006753 0.007475 5
+fx_crit_a8 0.015706 0.004150 0.005738 4
+fx_crit_a12 0.006011 0.002774 0.002791 3
+fx_explode_f87 0.061490 0.061368 0.063107 23
+fx_explode_f88 0.066025 0.065803 0.066830 9
+fx_explode_f89 0.073412 0.073385 0.074766 12
+fx_explode_f90 0.076059 0.075905 0.077071 11
+fx_explode_f91 0.075588 0.075268 0.076244 9
+fx_explode_f92 0.074619 0.074317 0.075251 8
+fx_explode_f96 0.071653 0.071224 0.072573 12
+fx_explode_f101 0.042774 0.042513 0.043650 10
+fx_eye_e4 0.000185 0.000122 0.000168 0
+fx_eye_e5 0.000173 0.000112 0.000139 0
+fx_eye_e6 0.000207 0.000122 0.000105 0
+fx_eye_e7 0.000239 0.000144 0.000137 0
+fx_eye_e8 0.000246 0.000168 0.000154 0
+fx_eye_e9 0.000268 0.000195 0.000156 0
+fx_eye_e10 0.000271 0.000193 0.000156 0
+fx_eye_e14 0.000302 0.000273 0.000239 0
+fx_eye_e20 0.000651 0.001512 0.001061 3
+fx_rain_f100 0.033621 0.032321 0.047117 13
+fx_rain_f101 0.033872 0.032667 0.047075 15
+fx_rain_f102 0.033829 0.031674 0.044501 18
+fx_rain_f103 0.035939 0.033224 0.046704 17
+fx_rain_f104 0.034756 0.032560 0.047829 14
+fx_rain_f105 0.033880 0.030699 0.047546 14
+fx_rain_f106 0.032892 0.030935 0.045211 8
+fx_rain_f110 0.033585 0.032018 0.047043 16
+fx_rain_f120 0.035146 0.035522 0.048348 11
+fx_portal_f100 0.009199 0.009180 0.004720 14
+fx_portal_f101 0.009175 0.008453 0.004372 14
+fx_portal_f102 0.009692 0.009246 0.006006 17
+fx_portal_f103 0.010368 0.008648 0.004657 14
+fx_portal_f104 0.009939 0.007699 0.004677 14
+fx_portal_f105 0.009463 0.008377 0.004662 14
+fx_portal_f106 0.009951 0.009014 0.004662 14
+fx_portal_f110 0.010300 0.009773 0.005850 16
+fx_portal_f120 0.008597 0.008843 0.004577 14
+fx_potion_p14 0.003181 0.003403 0.004281 11
+fx_potion_p15 0.004620 0.004637 0.006862 15
+fx_potion_p16 0.004357 0.005030 0.006796 11
+fx_potion_p17 0.005403 0.005933 0.008570 17
+fx_potion_p18 0.004852 0.005518 0.007809 11
+fx_potion_p19 0.005767 0.005484 0.008650 16
+fx_potion_p23 0.004594 0.004342 0.006574 11
+fx_potion_p28 0.003549 0.003210 0.004581 11
+fx_potion_q15 0.004069 0.004955 0.005516 11
+fx_potion_q16 0.005347 0.006245 0.006774 13
+fx_potion_q17 0.005957 0.007238 0.007936 12
+fx_potion_q18 0.006538 0.008185 0.008755 13
+fx_potion_q19 0.006452 0.008182 0.008568 13
+fx_potion_q20 0.006196 0.007797 0.008165 11
+fx_potion_q24 0.005050 0.006577 0.006887 11
+fx_potion_q29 0.003720 0.004486 0.004618 11
+# hudscreens (lane/hudscreens, 2026-09-26): frame views of out/java/hudscreens/hudscreens-s1
+# and hudboss-s1 (durability bars, leaf colours, chat, achievement, potion column,
+# player preview, lit furnace, named merchant, mixed chest, death screen, credits,
+# boss bar); no pxdiff cluster in any, the rest is single texel-edge pixels.
+gui_achieve_inv 0.202488 0.213898 0.139486 0
+gui_chest_mixed 0.251791 0.252849 0.217296 74
+gui_credits_f001 0.000000 0.000000 0.000000 0
+gui_credits_f040 0.013937 0.009548 0.007036 0
+gui_credits_f200 0.022741 0.017545 0.013803 0
+gui_credits_f2100 0.019499 0.016762 0.012937 0
+gui_credits_f600 0.021643 0.016223 0.012190 0
+gui_death_chat 0.294760 0.312141 0.317652 0
+gui_furnace_lit 0.241696 0.246529 0.204703 0
+gui_inventory_effects 0.150420 0.155843 0.125881 0
+gui_inventory_mouse 0.225978 0.231926 0.185927 0
+gui_inventory_preview 0.223992 0.228396 0.189813 0
+gui_merchant_named 0.233538 0.238368 0.196546 0
+hud_achieve 0.028928 0.019928 0.023229 9
+hud_boss_f016 0.060953 0.061571 0.104674 249
+hud_boss_f021 0.034699 0.018965 0.034565 14
+hud_boss_f051 0.032633 0.016764 0.032550 15
+hud_chat_fade 0.026239 0.019270 0.024271 4
+hud_death_chat 0.053759 0.033765 0.049985 105
+hud_leaves 0.029150 0.020065 0.025244 10
+hud_worn 0.011734 0.005811 0.013566 14
+# lane/terender (2026-09-26): the tile-entity renderers (raster_tileent.c) over
+# out/java/rendertick/te_*: chests single, double and trapped with the lid opening
+# and closing, ender chests, signs, skulls, spawners, the seed-42 dungeon, the
+# stronghold portal and the End exit portal. pxdiff survey: no cluster on any of
+# the 43 views; what is left is scattered edge pixels (spawner cage bars, torches,
+# the spawner mobs' outlines, glyph edges).
+te_chests_c1 0.034177 0.035156 0.021404 75
+te_chests_c13 0.046338 0.037488 0.021685 15
+te_chests_c2 0.044889 0.037607 0.020397 14
+te_chests_c4 0.041781 0.033192 0.019557 14
+te_chests_c7 0.042835 0.035575 0.019511 14
+te_chests_f25 0.046304 0.037446 0.021633 15
+te_chests_o1 0.182658 0.221155 0.272731 9
+te_chests_o12 0.206199 0.222875 0.165803 8
+te_chests_o2 0.222592 0.207538 0.176827 9
+te_chests_o4 0.188976 0.211107 0.253825 8
+te_chests_o7 0.207758 0.226510 0.223309 8
+te_dungeon_aim 0.042735 0.033914 0.032353 174
+te_dungeon_c1 0.057609 0.036607 0.028496 209
+te_dungeon_c13 0.042057 0.032702 0.023592 163
+te_dungeon_c2 0.042928 0.033494 0.025024 173
+te_dungeon_c4 0.045841 0.041913 0.027039 169
+te_dungeon_c7 0.042255 0.027876 0.028423 165
+te_dungeon_f25 0.026200 0.024944 0.020543 132
+te_dungeon_o1 0.202366 0.192879 0.208199 1
+te_dungeon_o2 0.190291 0.188029 0.186778 1
+te_dungeon_o4 0.199224 0.187036 0.169431 2
+te_dungeon_o8 0.195065 0.202193 0.201144 1
+te_portal_end_a 0.003737 0.003718 0.005118 4
+te_portal_end_b 0.004025 0.003940 0.005416 4
+te_portal_end_c 0.004111 0.004067 0.005496 4
+te_portal_end_down 0.002500 0.002825 0.002708 6
+te_portal_end_side 0.008009 0.008589 0.008348 34
+te_portal_sh_a 0.009682 0.011024 0.010829 31
+te_portal_sh_b 0.011273 0.013100 0.013527 37
+te_portal_sh_c 0.011292 0.013015 0.013217 34
+te_portal_sh_down 0.009029 0.012527 0.011522 49
+te_portal_sh_side 0.009609 0.010992 0.010544 44
+te_signs_f25 0.044879 0.039759 0.028120 23
+te_signs_left 0.051471 0.049485 0.033760 58
+te_signs_right 0.043435 0.039493 0.027561 29
+te_skulls_f25 0.034699 0.037188 0.028947 23
+te_skulls_left 0.024271 0.029237 0.020253 40
+te_skulls_right 0.022299 0.026247 0.020148 36
+# ent_* (lane/entrender, C2 entity renders, 2026-09-26): frame views of 16
+# recordings in out/java/render-src/ent_* (dev ops, seed 1): arrows flying,
+# stuck and wobbling, ghast and blaze fireballs, the RenderSnowball sprites,
+# primed TNT, falling blocks, a lightning bolt, the fire overlay, held items and
+# armour (with the glint), the witch's potion, the golem's rose, the zombie
+# villager, the charged creeper, the 180-degree death roll, the pickup
+# animation, the hand's slab, snow and plate bounds and its glint, paintings.
+# Negative controls: master's raster draws every recording's views at least
+# 460 px worse (1,058 to 397,378 px; the pickup scene's settled last frame
+# aside), and each view's frame against its neighbour's golden fails by over
+# twice its own count. Known residuals, llvmpipe drawing one geometry twice
+# with depths a unit apart: ent_tnt's flash frames (t70, t77, t78: the unlit
+# white pass z-fights the lit block, up to 3214 px), the witch potion's glint
+# (ent_held2) and the silverfish's red overlay (ent_death x3, x7);
+# ent_creeper's armour edges and ent_armor's arm seams are the rest.
+# The mobs2a_*, mobs2b_pigman, mobs_zombie, blockicons_drops and hud_boss lines
+# above were lowered by this lane: the eyes passes read
+# the lightmap's GL_CLAMP border, the charged creeper's armour writes depth,
+# the biped leg pivot is z 0.1, block item copies keep their offset.
+ent_armor_h5 0.083975 0.102300 0.101561 114
+ent_armor_h6 0.084638 0.086983 0.095148 114
+ent_armor_h8 0.080394 0.075361 0.089835 101
+ent_armor_h12 0.077757 0.074876 0.084939 103
+ent_armor_h20 0.042040 0.041947 0.048053 42
+ent_arrow_a2 0.007943 0.015615 0.009141 1
+ent_arrow_a3 0.008882 0.009248 0.007858 3
+ent_arrow_a4 0.009409 0.007816 0.006169 2
+ent_arrow_a5 0.007506 0.010358 0.008394 2
+ent_arrow_a6 0.007355 0.008016 0.007894 1
+ent_arrow_a7 0.007887 0.008302 0.007699 2
+ent_arrow_a8 0.008102 0.009221 0.006348 2
+ent_arrow_a10 0.012724 0.009209 0.009487 2
+ent_arrow_a15 0.008289 0.009124 0.009241 7
+ent_bolt_d2 0.019650 0.021392 0.021975 16
+ent_bolt_d3 0.021768 0.029069 0.021602 16
+ent_bolt_d4 0.020363 0.023029 0.022470 22
+ent_bolt_d5 0.018872 0.022812 0.021180 12
+ent_bolt_d6 0.021831 0.023749 0.022992 30
+ent_bolt_d8 0.025049 0.026139 0.020653 19
+ent_creeper_k5 0.027371 0.074044 0.065740 266
+ent_creeper_k6 0.028498 0.052869 0.051930 204
+ent_creeper_k8 0.028737 0.046087 0.050083 183
+ent_creeper_k12 0.032523 0.040279 0.038864 59
+ent_creeper_k20 0.029584 0.033899 0.038078 36
+ent_death_x3 0.090301 0.064171 0.040674 388
+ent_death_x7 0.069150 0.043884 0.033694 298
+ent_death_x12 0.033138 0.022056 0.023344 55
+ent_death_x19 0.021451 0.023466 0.022307 7
+ent_falling_c2 0.020380 0.045043 0.025156 4
+ent_falling_c3 0.022070 0.029279 0.022390 3
+ent_falling_c4 0.024849 0.018279 0.021075 1
+ent_falling_c5 0.019267 0.021007 0.021638 2
+ent_falling_c6 0.017289 0.021343 0.019740 2
+ent_falling_c8 0.022934 0.027120 0.015208 2
+ent_falling_c10 0.024595 0.019155 0.019660 3
+ent_falling_c14 0.017718 0.025098 0.021851 2
+ent_fire_e5 0.042303 0.052825 0.028847 74
+ent_fire_e6 0.037456 0.038608 0.027342 55
+ent_fire_e7 0.045975 0.030062 0.031331 75
+ent_fire_e10 0.038059 0.036363 0.031950 67
+ent_fire_e15 0.030872 0.024068 0.028632 45
+ent_fireball_b2 0.019153 0.043730 0.023446 3
+ent_fireball_b3 0.022114 0.029015 0.021848 3
+ent_fireball_b4 0.024893 0.017618 0.020875 2
+ent_fireball_b7 0.020236 0.021882 0.021136 3
+ent_fireball_b12 0.017013 0.016274 0.024817 8
+ent_hand_book 0.169328 0.034638 0.362581 49
+ent_hand_button 0.011902 0.008709 0.011819 39
+ent_hand_carpet 0.011736 0.008658 0.011915 39
+ent_hand_plate 0.012112 0.008455 0.012115 38
+ent_hand_s0 0.050581 0.043023 0.044980 10
+ent_hand_snow 0.011768 0.008655 0.011697 39
+ent_hand_sword 0.131050 0.042821 0.322148 52
+ent_hand_trap 0.011946 0.008992 0.012534 38
+ent_hand_wslab 0.011600 0.009075 0.011022 38
+ent_hand_swing1 0.055677 0.023607 0.114520 49
+ent_hand_swing2 0.033036 0.015401 0.066013 48
+ent_held_f5 0.025637 0.054874 0.036800 12
+ent_held_f6 0.027657 0.041525 0.035917 26
+ent_held_f7 0.030030 0.028691 0.034778 24
+ent_held_f10 0.026332 0.034207 0.031904 26
+ent_held_f20 0.028691 0.030967 0.032050 4
+ent_held2_g5 0.043216 0.074163 0.064442 106
+ent_held2_g6 0.045819 0.059821 0.060785 117
+ent_held2_g8 0.070502 0.048100 0.068967 195
+ent_held2_g12 0.060797 0.049224 0.048602 44
+ent_held2_g20 0.028010 0.032136 0.035290 17
+ent_painting_w5 0.019462 0.026359 0.024912 10
+ent_painting_w6 0.010058 0.008302 0.008572 54
+ent_painting_w7 0.027576 0.027547 0.022651 11
+ent_pickup_p6 0.004262 0.007443 0.004877 2
+ent_pickup_p7 0.004008 0.004742 0.005843 6
+ent_pickup_p8 0.004774 0.007601 0.005652 7
+ent_pickup_p9 0.006284 0.007853 0.006706 12
+ent_pickup_p10 0.016276 0.022824 0.019404 16
+ent_pickup_p11 0.032072 0.041989 0.033277 52
+ent_pickup_p12 0.038578 0.044865 0.034831 80
+ent_pickup_p13 0.018711 0.025510 0.018328 19
+ent_pickup_p14 0.005091 0.004652 0.004084 3
+ent_pickup_p15 0.005208 0.005484 0.005284 11
+ent_pickup_p16 0.005765 0.007319 0.006377 5
+ent_pickup_p17 0.013561 0.017006 0.014281 34
+ent_throw_e1 0.000217 0.000278 0.000176 1
+ent_throw_g1 0.030160 0.020863 0.021150 6
+ent_throw_o1 0.003930 0.005072 0.003515 24
+ent_throw_p1 0.003781 0.004884 0.003367 22
+ent_throw_s1 0.021207 0.020184 0.020933 2
+ent_throw_x1 0.003942 0.005077 0.003523 24
+ent_throw_e2 0.001276 0.001664 0.001054 8
+ent_throw_g2 0.016562 0.017116 0.019733 1
+ent_throw_o2 0.003935 0.005072 0.003515 24
+ent_throw_p2 0.003898 0.005030 0.003464 24
+ent_throw_s2 0.024434 0.019548 0.014291 4
+ent_throw_x2 0.003937 0.005081 0.003523 24
+ent_throw_e3 0.002349 0.003064 0.001939 14
+ent_throw_g3 0.014376 0.017718 0.020470 2
+ent_throw_o3 0.003932 0.005079 0.003518 24
+ent_throw_p3 0.003898 0.005035 0.003469 24
+ent_throw_s3 0.016976 0.017428 0.021363 0
+ent_throw_x3 0.003940 0.005079 0.003523 24
+ent_tnt_t2 0.038298 0.049490 0.038842 3
+ent_tnt_t3 0.040613 0.038122 0.036593 4
+ent_tnt_t9 0.045380 0.041645 0.038869 1
+ent_tnt_t10 0.069948 0.059246 0.070580 100
+ent_tnt_t70 0.402322 0.391581 0.644887 3214
+ent_tnt_t73 0.029677 0.035251 0.033397 1
+ent_tnt_t75 0.030006 0.035795 0.034821 1
+ent_tnt_t77 0.124239 0.107711 0.161978 637
+ent_tnt_t78 0.171070 0.160263 0.237971 981
+ent_zvil_v5 0.022853 0.061407 0.041284 33
+ent_zvil_v6 0.024451 0.041886 0.035568 23
+ent_zvil_v9 0.021263 0.033624 0.035170 27
+ent_zvil_v15 0.019655 0.025856 0.039515 31
+te_spawner_c 0.009585 0.011222 0.007609 47
+te_spawner_b 0.008309 0.009909 0.006601 41
+te_spawner_a 0.008114 0.009595 0.006233 37
+te_spawner_d 0.007201 0.008441 0.005586 35
+te_spawner_down 0.023846 0.028750 0.017052 148
+# cs_* (lane/clientstate, work item C5): the client view state, each frame's
+# camera, lightmap, sky and fog recomputed from the native client state by
+# test_rendertick (out/java/rendertick/cs_*). cs_sprint (the sprint modifier
+# widens the FOV), cs_speed (speed II then slowness II through S20), cs_bow (a
+# bow drawn 24 ticks, then let go), cs_portal (70 ticks in a lit portal, the
+# overlay and the warp fading in, then out; the rows' "inside" list carries
+# the block drawn from inside, which stays in its section's mesh until the
+# next rebuild), cs_storm (thunder at night, a bolt's sky flash), cs_hurt (a
+# pig hit, its red flash; a walk into a cactus, the camera's hurt tilt and the
+# hearts). pxdiff survey: no cluster on 88 views; cs_hurt_k0..k2 carry one
+# 1-row texel-selection line (54 to 56 px) along the pig's snout, present
+# before any client state is involved. Negative controls (out/neg.sh: the
+# frame with its fovModifierHand, timeInPortal, lastLightningBolt or
+# hurtTime taken away) measure 17,689 to 344,909 px.
+cs_bow_a1 0.008933 0.006109 0.012024 7
+cs_bow_a2 0.008497 0.006679 0.011295 13
+cs_bow_a3 0.008565 0.006740 0.012446 21
+cs_bow_a6 0.008133 0.007111 0.013642 16
+cs_bow_b1 0.009265 0.006909 0.013281 17
+cs_bow_b12 0.009841 0.007523 0.012302 17
+cs_bow_b16 0.009846 0.007040 0.011839 13
+cs_bow_b20 0.011097 0.006196 0.011561 14
+cs_bow_b2 0.008250 0.005867 0.011993 12
+cs_bow_b24 0.010046 0.006265 0.012390 11
+cs_bow_b3 0.020104 0.021299 0.022514 43
+cs_bow_b4 0.008219 0.006094 0.012088 16
+cs_bow_b5 0.008277 0.005933 0.011819 13
+cs_bow_b6 0.009094 0.007140 0.012666 24
+cs_bow_b8 0.008619 0.006013 0.011997 9
+cs_bow_w0 0.007919 0.006294 0.013305 14
+cs_hurt_c18 0.040896 0.036529 0.040857 61
+cs_hurt_c19 0.041125 0.036070 0.040669 59
+cs_hurt_c20 0.042994 0.037593 0.041376 60
+cs_hurt_c21 0.040566 0.035873 0.037615 42
+cs_hurt_c22 0.030569 0.026998 0.030452 83
+cs_hurt_c23 0.031699 0.028110 0.030686 61
+cs_hurt_c24 0.038666 0.038081 0.037746 92
+cs_hurt_c25 0.041791 0.041452 0.041089 88
+cs_hurt_c26 0.041991 0.038344 0.039659 67
+cs_hurt_c27 0.042923 0.039886 0.040408 77
+cs_hurt_c28 0.043269 0.039478 0.039964 62
+cs_hurt_c29 0.053086 0.051866 0.048871 115
+cs_hurt_c30 0.039305 0.034792 0.036744 41
+cs_hurt_k0 0.063573 0.053998 0.058272 84
+cs_hurt_k1 0.040454 0.027610 0.030006 83
+cs_hurt_k11 0.047587 0.043504 0.044621 41
+cs_hurt_k2 0.054584 0.032350 0.034353 81
+cs_hurt_k3 0.055269 0.032343 0.030901 40
+cs_hurt_k4 0.037439 0.027147 0.026312 40
+cs_hurt_k6 0.055511 0.045697 0.045101 40
+cs_hurt_k9 0.051781 0.042616 0.044201 41
+cs_hurt_w0 0.054135 0.040308 0.041986 12
+cs_portal_o1 0.246260 0.288478 0.316232 8
+cs_portal_o12 0.303071 0.246141 0.289486 51
+cs_portal_o16 0.240937 0.212776 0.238449 17
+cs_portal_o20 0.271787 0.235605 0.198317 17
+cs_portal_o2 0.326242 0.266940 0.317862 8
+cs_portal_o3 0.296351 0.221816 0.321838 11
+cs_portal_o4 0.329164 0.292806 0.345484 2
+cs_portal_o5 0.337827 0.271180 0.331714 13
+cs_portal_o8 0.336993 0.268445 0.327547 14
+cs_portal_p10 0.370733 0.233938 0.393955 43
+cs_portal_p1 0.367630 0.337544 0.314786 13
+cs_portal_p20 0.306677 0.253984 0.321365 39
+cs_portal_p2 0.101244 0.066215 0.106996 21
+cs_portal_p3 0.332955 0.247917 0.332050 14
+cs_portal_p40 0.368733 0.228737 0.336388 53
+cs_portal_p4 0.296175 0.265486 0.287041 8
+cs_portal_p5 0.331770 0.282092 0.342843 48
+cs_portal_p60 0.330879 0.207170 0.180223 2
+cs_portal_p6 0.327930 0.266267 0.338268 1
+cs_portal_p70 0.250024 0.231213 0.185029 40
+cs_portal_w0 0.367538 0.337349 0.314615 12
+cs_speed_d1 0.003018 0.003918 0.002513 27
+cs_speed_d12 0.002652 0.003432 0.002420 17
+cs_speed_d2 0.002754 0.003523 0.002757 18
+cs_speed_d3 0.008433 0.024754 0.019296 166
+cs_speed_d5 0.002120 0.002740 0.001771 15
+cs_speed_e1 0.002588 0.003257 0.002379 18
+cs_speed_e12 0.002008 0.002622 0.001666 16
+cs_speed_e2 0.004330 0.005633 0.003608 34
+cs_speed_e3 0.002935 0.003774 0.002823 23
+cs_speed_e4 0.002559 0.003269 0.002174 19
+cs_speed_e6 0.002866 0.003762 0.002386 27
+cs_speed_w0 0.002583 0.003252 0.002371 18
+cs_sprint_r1 0.002691 0.003459 0.002703 23
+cs_sprint_r2 0.002027 0.002557 0.001944 14
+cs_sprint_r5 0.003532 0.004233 0.003384 16
+cs_sprint_s10 0.002976 0.003730 0.002988 23
+cs_sprint_s1 0.002220 0.002898 0.001830 15
+cs_sprint_s2 0.001966 0.002552 0.001654 13
+cs_sprint_s3 0.002525 0.003215 0.002142 14
+cs_sprint_s5 0.002005 0.002596 0.001693 14
+cs_sprint_w0 0.002583 0.003252 0.002371 18
+cs_storm_l10 0.037173 0.034978 0.081943 0
+cs_storm_l1 0.045419 0.055769 0.153206 14
+cs_storm_l12 0.037634 0.036253 0.083397 0
+cs_storm_l2 0.037693 0.049053 0.151054 19
+cs_storm_l3 0.039879 0.051029 0.153567 11
+cs_storm_l4 0.048085 0.057750 0.165825 25
+cs_storm_l5 0.036158 0.035700 0.078703 0
+cs_storm_l6 0.038171 0.048509 0.151137 17
+cs_storm_l7 0.037383 0.047177 0.149324 24
+cs_storm_l8 0.036490 0.046775 0.144274 9
+cs_storm_w0 0.033716 0.042416 0.122014 11
+# lane/meshvar (C6): mv_variants (stairs of all 12 materials at metas 0..7,
+# outer and inner corner rings upright and upside down, cobblestone and mossy
+# walls with posts, lines, corners, T, cross, a block above, two high and a
+# gate, every plank, stone brick, stone and wood slab half and double) and
+# mv_glass (glass and stained glass cubes, 16 colours, glass beside stone and
+# stained glass, ice, glass and stained panes touching each other and blocks).
+# Each scene's mesh matches the oracle's sections.bin vertex for vertex. pxdiff
+# survey: no cluster on any view; the residue is 1-row texel-selection lines
+# (mv_variants_nl: the nearest stairs row) and scattered texels. Negative
+# controls: the glass views without BlockBreakable's same-metadata rule 720 to
+# 11,315 px; a variant drawn with its neighbour's icon (table.bin patched:
+# planks, stone bricks, stairs, slabs, walls, stained glass and panes) 226 to
+# 18,056 px.
+mv_variants_hs 0.036844 0.015947 0.009948 56
+mv_variants_cn 0.005625 0.004808 0.004289 46
+mv_variants_cw 0.028091 0.023509 0.019460 278
+mv_variants_nl 0.083160 0.065508 0.054133 662
+mv_variants_nr 0.012388 0.010280 0.008897 104
+mv_variants_pb 0.006845 0.005318 0.004303 55
+mv_variants_pk 0.004286 0.003398 0.002681 36
+mv_variants_pl 0.014274 0.012239 0.009978 132
+mv_variants_pn 0.019879 0.016730 0.018709 217
+mv_variants_sl 0.006262 0.005508 0.004830 54
+mv_variants_sr 0.007560 0.006026 0.004901 50
+mv_variants_we 0.007963 0.006921 0.005774 58
+mv_variants_ww 0.009736 0.009338 0.008392 82
+mv_glass_gb 0.023107 0.025588 0.026569 96
+mv_glass_gf 0.020982 0.020606 0.023546 84
+mv_glass_gl 0.030991 0.047917 0.056950 188
+mv_glass_gp 0.027844 0.029740 0.035504 87
+mv_glass_gr 0.039422 0.074676 0.057765 39
+mv_glass_gs 0.066742 0.058736 0.054586 690
+mv_glass_gt 0.010709 0.011200 0.010090 70
+mv_glass_gx 0.032977 0.038664 0.046812 56
+
+# lane/rerender (2026-09-28): the stale scenes re-recorded on today's oracle as NAME_rr, the
+# rendertick scenes' frame views as SCENE_rr_TAG (csrc/tests/retired_scenes.txt lists the
+# old names). Each line is the measure at acceptance. Lines above their old scene's are the
+# goldens' own change under the clientrand pin (flicker, particles, item phase: old and new
+# goldens differ by 415 to 394,675 px) with no pxdiff cluster of 50 px or more against native,
+# as against the old goldens; fx_crit_rr_a1's one registration cluster (the just-hit pig's
+# back) is 74 px against 70; worldfx_snow_level_rr's golden moved by at most 2 levels of red;
+# terrain1_rr was SKIP (its residue: 5 content clusters of 58 to 99 px on the leaves at the
+# camera). beach_rr and beach6_rr carry their entities (MeshProbe writes them now).
+anim_liquids_rr_f100 0.003498 0.003847 0.003137 16
+anim_liquids_rr_f101 0.003552 0.003510 0.002901 15
+anim_liquids_rr_f102 0.004067 0.004198 0.003828 17
+anim_liquids_rr_f103 0.003932 0.003791 0.003452 14
+anim_liquids_rr_f110 0.004711 0.004516 0.003203 18
+anim_liquids_rr_f123 0.003901 0.003720 0.003149 14
+beach6_rr 1.371075 1.280584 0.475222 5571
+beach_rr 3.201981 3.027413 3.222782 31979
+fx_crit_rr_a1 0.063505 0.026778 0.030118 192
+fx_crit_rr_a12 0.006011 0.002774 0.002791 3
+fx_crit_rr_a2 0.032182 0.016101 0.015037 17
+fx_crit_rr_a3 0.026744 0.016357 0.016596 10
+fx_crit_rr_a4 0.025834 0.020241 0.013859 4
+fx_crit_rr_a5 0.021199 0.012473 0.011436 4
+fx_crit_rr_a6 0.018130 0.010644 0.005747 4
+fx_crit_rr_a7 0.013988 0.005938 0.005206 5
+fx_crit_rr_a8 0.015262 0.005074 0.006143 4
+fx_explode_rr_f101 0.038168 0.037851 0.038844 9
+fx_explode_rr_f87 0.048744 0.049007 0.051134 22
+fx_explode_rr_f88 0.043167 0.043233 0.044799 17
+fx_explode_rr_f89 0.041611 0.041540 0.042845 14
+fx_explode_rr_f90 0.043487 0.043638 0.045326 16
+fx_explode_rr_f91 0.045475 0.045223 0.046311 11
+fx_explode_rr_f92 0.053701 0.053467 0.054472 12
+fx_explode_rr_f96 0.053715 0.053327 0.054369 12
+fx_eye_rr_e10 0.000288 0.000246 0.000273 0
+fx_eye_rr_e14 0.000542 0.000710 0.000693 1
+fx_eye_rr_e20 0.000473 0.000368 0.000449 0
+fx_eye_rr_e4 0.000251 0.000166 0.000261 0
+fx_eye_rr_e5 0.000234 0.000176 0.000227 0
+fx_eye_rr_e6 0.000356 0.000517 0.000278 1
+fx_eye_rr_e7 0.000288 0.000222 0.000273 0
+fx_eye_rr_e8 0.000322 0.000227 0.000285 0
+fx_eye_rr_e9 0.000337 0.000607 0.000371 1
+fx_portal_rr_f100 0.009143 0.009309 0.004691 15
+fx_portal_rr_f101 0.009073 0.008389 0.004391 14
+fx_portal_rr_f102 0.008387 0.008787 0.004557 14
+fx_portal_rr_f103 0.010400 0.008553 0.004664 14
+fx_portal_rr_f104 0.009904 0.007850 0.004686 15
+fx_portal_rr_f105 0.009516 0.008443 0.004718 14
+fx_portal_rr_f106 0.009951 0.009112 0.004701 14
+fx_portal_rr_f110 0.009858 0.009763 0.005333 18
+fx_portal_rr_f120 0.008643 0.008814 0.004584 14
+fx_potion_rr_p14 0.003684 0.003750 0.004689 13
+fx_potion_rr_p15 0.004420 0.004479 0.006577 13
+fx_potion_rr_p16 0.004294 0.005045 0.006726 11
+fx_potion_rr_p17 0.004520 0.005667 0.007433 11
+fx_potion_rr_p18 0.004555 0.005865 0.007667 11
+fx_potion_rr_p19 0.004372 0.005684 0.007494 11
+fx_potion_rr_p23 0.005162 0.005589 0.007860 19
+fx_potion_rr_p28 0.004618 0.004140 0.007045 20
+fx_potion_rr_q15 0.004206 0.004955 0.005269 11
+fx_potion_rr_q16 0.005972 0.006753 0.007194 14
+fx_potion_rr_q17 0.005718 0.006733 0.007258 11
+fx_potion_rr_q18 0.006982 0.008114 0.008711 17
+fx_potion_rr_q19 0.006152 0.007767 0.008126 11
+fx_potion_rr_q20 0.006177 0.007804 0.008131 11
+fx_potion_rr_q24 0.005384 0.006801 0.006694 11
+fx_potion_rr_q29 0.004037 0.005211 0.005345 11
+fx_rain_rr_f100 0.033328 0.031143 0.045882 13
+fx_rain_rr_f101 0.032399 0.030579 0.044862 13
+fx_rain_rr_f102 0.032692 0.030455 0.043784 16
+fx_rain_rr_f103 0.032670 0.031006 0.044728 11
+fx_rain_rr_f104 0.035224 0.031262 0.046875 15
+fx_rain_rr_f105 0.035351 0.030984 0.046219 22
+fx_rain_rr_f106 0.030867 0.027257 0.042611 10
+fx_rain_rr_f110 0.034482 0.032031 0.046111 16
+fx_rain_rr_f120 0.037246 0.039037 0.049656 8
+gui_chest_rr 0.243835 0.228384 0.208160 3
+gui_crafting_rr 0.249095 0.234407 0.214313 3
+gui_death_rr 0.274371 0.266379 0.286258 25
+gui_double_chest_rr 0.247243 0.226717 0.204603 0
+gui_furnace_rr 0.248597 0.233519 0.213766 3
+gui_inventory_rr 1.768040 1.415440 1.174680 4773
+gui_merchant_rr 0.248949 0.234260 0.214166 3
+te_dungeon_rr_aim 0.049439 0.040157 0.029903 167
+te_dungeon_rr_c1 0.061102 0.043186 0.027649 201
+te_dungeon_rr_c13 0.046155 0.032963 0.026183 156
+te_dungeon_rr_c2 0.045946 0.033165 0.026015 164
+te_dungeon_rr_c4 0.039366 0.031087 0.026978 159
+te_dungeon_rr_c7 0.040588 0.030655 0.022790 164
+te_dungeon_rr_f25 0.027964 0.024722 0.021704 136
+te_dungeon_rr_o1 0.199615 0.194555 0.203181 1
+te_dungeon_rr_o2 0.199075 0.190840 0.202396 1
+te_dungeon_rr_o4 0.205125 0.198724 0.198663 1
+te_dungeon_rr_o8 0.197595 0.197019 0.199637 1
+te_portal_end_rr_a 0.003730 0.003696 0.005113 4
+te_portal_end_rr_b 0.003998 0.003930 0.005408 4
+te_portal_end_rr_c 0.004108 0.004067 0.005489 4
+te_portal_end_rr_down 0.002493 0.002837 0.002686 6
+te_portal_end_rr_side 0.007950 0.008504 0.008246 34
+te_portal_sh_rr_a 0.009680 0.011007 0.010778 31
+te_portal_sh_rr_b 0.011239 0.013076 0.013466 37
+te_portal_sh_rr_c 0.011290 0.013017 0.013246 34
+te_portal_sh_rr_down 0.009036 0.012563 0.011549 49
+te_portal_sh_rr_side 0.009775 0.011158 0.010717 45
+terrain1_rr 0.121221 0.122900 0.133402 525
+torch_wall_rr_f100 0.001591 0.001488 0.001408 6
+torch_wall_rr_f101 0.001559 0.001471 0.001408 6
+torch_wall_rr_f102 0.001559 0.001466 0.001393 6
+torch_wall_rr_f103 0.001554 0.001466 0.001393 6
+torch_wall_rr_f104 0.001559 0.001466 0.001408 6
+torch_wall_rr_f105 0.001559 0.001466 0.001393 6
+torch_wall_rr_f110 0.001586 0.001483 0.001378 6
+torch_wall_rr_f125 0.001561 0.001471 0.001408 6
+worldfx_flat_rr 0.013254 0.017267 0.013386 42
+worldfx_orbs_rr 0.296714 0.017142 0.376069 2224
+worldfx_snow_level_rr 0.044394 0.042242 0.041650 239
+worldfx_snow_up_rr 0.007092 0.011080 0.006450 3
+worldfx_underwater_rr 0.653403 0.635978 1.206833 18

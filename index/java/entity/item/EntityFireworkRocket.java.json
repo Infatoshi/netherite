@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/entity/item/EntityFireworkRocket.java",
+  "classes": ["EntityFireworkRocket"],
+  "lines": 222,
+  "side": "common",
+  "category": "entity",
+  "role": "The firework rocket entity: flies upward on a lifetime timer, then explodes into the client-side firework particle show.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf: fireworks = off. The blocks and items stay but using them does nothing, so the rocket entity is never spawned on either side (SPEC: unsupported features are world switches).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "fireworkAge", "sig": "int", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "field", "name": "lifetime", "sig": "int", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "field", "name": "static constants", "sig": "String __OBFID", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityFireworkRocket", "sig": "(World)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "ctor", "name": "EntityFireworkRocket", "sig": "(World,DDDFireworkStack)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": null, "status": "n/a", "note": "DataWatcher index 8; no DataWatcher in the native engine"},
+    {"kind": "method", "name": "isInRangeToRenderDist", "sig": "(D)Z", "native": null, "status": "n/a", "note": "client render culling"},
+    {"kind": "method", "name": "setVelocity", "sig": "(DDD)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "handleHealthUpdate", "sig": "(B)V", "native": null, "status": "n/a", "note": "client-side fireworks show trigger; feature switched off"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "getShadowSize", "sig": "()F", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getBrightness", "sig": "(F)F", "native": null, "status": "n/a", "note": "client lighting"},
+    {"kind": "method", "name": "getBrightnessForRender", "sig": "(F)I", "native": null, "status": "n/a", "note": "client lighting"},
+    {"kind": "method", "name": "canAttackWithItem", "sig": "()Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The firework crafting recipe exists natively (csrc/engine/recipes.h RECIPE_FIREWORKS, ItemDye colour tables) but the rocket entity, its flight and the explosion have no native counterpart; nothing spawns one while world.conf keeps fireworks off. I did not verify any firework-specific snapshot."
+}

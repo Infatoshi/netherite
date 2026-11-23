@@ -1,0 +1,135 @@
+{
+ "path": "csrc/engine/harvest.c",
+ "lines": 285,
+ "role": "Block breaking speed and harvestability: block hardness from the generated registry, the tool classes' fast-on block sets and harvest tests (pickaxe, axe, spade, shears, sword), the inventory lookups, and EntityPlayer's break speed with Efficiency, Haste, Mining Fatigue, water and airborne divisors, ending in Block.getPlayerRelativeBlockHardness.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "getBlockHardness",
+    "getPlayerRelativeBlockHardness"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "canHarvestBlock",
+    "getCurrentPlayerStrVsBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/InventoryPlayer.java",
+   "members": [
+    "func_146023_a",
+    "func_146025_b"
+   ]
+  },
+  {
+   "path": "oracle/src/item/Item.java",
+   "members": [
+    "func_150893_a",
+    "func_150897_b"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemTool.java",
+   "members": [
+    "func_150893_a"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemPickaxe.java",
+   "members": [
+    "field_150915_c",
+    "func_150897_b",
+    "func_150893_a"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemAxe.java",
+   "members": [
+    "field_150917_c",
+    "func_150893_a"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSpade.java",
+   "members": [
+    "field_150916_c",
+    "func_150897_b"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemShears.java",
+   "members": [
+    "func_150897_b",
+    "func_150893_a"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSword.java",
+   "members": [
+    "func_150893_a",
+    "func_150897_b"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "harvest_ids (static ids)",
+   "java": "the Blocks.* and Material.* constants the tool classes compare against",
+   "fields": [
+    "web",
+    "redstone_wire",
+    "tripwire",
+    "wool",
+    "obsidian",
+    "diamond_block",
+    "diamond_ore",
+    "emerald_ore",
+    "emerald_block",
+    "gold_block",
+    "gold_ore",
+    "iron_block",
+    "iron_ore",
+    "lapis_block",
+    "lapis_ore",
+    "redstone_ore",
+    "lit_redstone_ore",
+    "snow_layer",
+    "snow",
+    "material_rock",
+    "material_iron",
+    "material_anvil",
+    "material_wood",
+    "material_plants",
+    "material_vine",
+    "material_leaves",
+    "material_coral",
+    "material_field_151572_C"
+   ]
+  }
+ ],
+ "entry_points": [
+  "harvest_block_id",
+  "block_hardness",
+  "item_str_vs_block",
+  "item_can_harvest",
+  "inventory_str_vs_block",
+  "can_harvest_block",
+  "player_str_vs_block",
+  "player_relative_block_hardness"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 28-33 and 70-74, functions material_named and harvest_block_id: linear strcmp scans of the MATERIALS and BLOCKS tables by name",
+  "lines 201 and 236, functions item_str_vs_block and item_can_harvest: dispatch on strcmp of the item's class_name string"
+ ],
+ "tests": [
+  "csrc/tests/test_harvest.c",
+  "csrc/tests/test_harvestdrops.c"
+ ],
+ "notes": "The Java field names for the tool block sets (field_150915_c etc.) are MCP guesses not checked against the Java files. The pickaxe, axe and spade sets are transcribed block ids in switch statements, despite the header comment saying nothing is transcribed. harvest.h says the in-water /5 is not ported, but player_str_vs_block applies it through p->in_water (line 274). Called by dig.c and survival.c. Evidence recordings: out/java/harvest (seed2, seed42)."
+}

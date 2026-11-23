@@ -1,0 +1,5 @@
+{"n":20,"act":{}}
+{"n":250,"act":{"hold":["forward","sprint","jump"]}}
+{"n":30,"act":{"hold":["attack"]}}
+{"n":1,"act":{"dlook":[-8,0]}}
+{"cmd":"run","class":"ChunkLoadProbe","out":"@OUT@/java/chunkload/smoke"}

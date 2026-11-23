@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/block/BlockDaylightDetector.java",
+  "classes": ["BlockDaylightDetector"],
+  "lines": 121,
+  "side": "common",
+  "category": "block",
+  "role": "The daylight detector: a tile-entity block whose tile entity recomputes the sky-light metadata every 20 ticks; inverted mode and the power output are its redstone half.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/tileticks.c", "symbols": ["detector_update"]},
+    {"file": "csrc/engine/tileentity.c", "symbols": ["te_kind_of_block", "TE_DAYLIGHT_DETECTOR"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/raytrace.c", "symbols": ["block_bounds", "raytrace_collision"]}
+  ],
+  "evidence": ["out/java/snapshots/world-daynight-s1", "csrc/tests/test_tileticks.c", "out/java/raypick/rp-1", "csrc/tests/test_raypick.c", "out/java/snapshots/cov-blkbreak-s1", "out/java/snapshots/cov-blkplace-s1", "out/java/snapshots/cov-blkpower-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockDaylightDetector", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 151: 0.375-high bounds, render type 0."},
+    {"kind": "field", "name": "field_149958_a", "sig": "IIcon[]", "native": null, "status": "n/a", "note": "Top and side icons; atlas lookups."},
+    {"kind": "method", "name": "setBlockBoundsBasedOnState", "sig": "(IBlockAccess,III)V", "native": "csrc/engine/raytrace.c:block_bounds", "status": "exact"},
+    {"kind": "method", "name": "isProvidingWeakPower", "sig": "(IBlockAccess,IIII)I", "native": null, "status": "n/a", "note": "The metadata output as power; redstone off.; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": null, "status": "n/a", "note": "Empty body in Java: the tile entity does the work."},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": null, "status": "n/a", "note": "Empty body in Java."},
+    {"kind": "method", "name": "onBlockAdded", "sig": "(World,III)V", "native": null, "status": "n/a", "note": "Empty body in Java."},
+    {"kind": "method", "name": "func_149957_e", "sig": "(World,III)V", "native": "csrc/engine/tileticks.c:detector_update", "status": "exact", "note": "The 20-tick celestial recompute, tileticks.c:224, with the recorded cos table."},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "canProvidePower", "sig": "()Z", "native": "csrc/engine/blockcb.c:source_provides_power", "status": "exact", "note": "the registry's provides_power flag, read by the door, trapdoor and fence gate neighbour branches (cov-blkpower-s1)"},
+    {"kind": "method", "name": "createNewTileEntity", "sig": "(World,I)TileEntity", "native": "csrc/engine/tileentity.c:te_kind_of_block", "status": "exact", "note": "tileentity.c:211 maps 151 to TE_DAYLIGHT_DETECTOR."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": null, "status": "n/a", "note": "Atlas icons."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."}
+  ],
+  "missing": [],
+  "notes": "world-daynight-s1 covers the day-night cycle the detector's tile entity reads; test_tileticks.c exercises the 20-tick schedule. The metadata write survives (flags 3), so the value is observable even without a consumer. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): reachable only through a world.conf switch that is off (redstone). Formerly listed as missing: BlockDaylightDetector.isProvidingWeakPower (the light level as redstone output) and the inverted-mode toggle are not ported: world.conf redstone = off."
+}

@@ -1,0 +1,41 @@
+{
+  "path": "oracle/src/block/BlockCake.java",
+  "classes": ["BlockCake"],
+  "lines": 173,
+  "side": "common",
+  "category": "block",
+  "role": "The cake: a food block the player eats slice by slice (six slices, then the block vanishes), placed from the cake item which ItemReed places.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/activate.c", "symbols": ["act_run"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["block_on_neighbor_changed"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_add_boxes"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_client_base_tick"]},
+    {"file": "csrc/engine/raytrace.c", "symbols": ["block_bounds", "raytrace_collision"]}
+  ],
+  "evidence": ["csrc/tests/test_activate.c", "out/java/activate/seed2", "out/java/snapshots/pickaxe-complete-s1", "csrc/tests/test_registry.c", "out/java/raypick/rp-1", "csrc/tests/test_raypick.c", "out/java/snapshots/cov-blkbreak-s1", "out/java/snapshots/cov-blkplace-s1", "out/java/clientframes/cov-blkgallery-s1", "out/java/snapshots/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockCake", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 92: hardness 0.5, bounds by meta."},
+    {"kind": "method", "name": "setBlockBoundsBasedOnState", "sig": "(IBlockAccess,III)V", "native": "csrc/engine/raytrace.c:block_bounds", "status": "exact"},
+    {"kind": "method", "name": "setBlockBoundsForItemRender", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "n/a", "note": "only RenderBlocks.renderBlockAsItem calls it (a block's item stack in a GUI, a hand, a dropped item or an enderman's hands); cake have no ItemBlock (Item.registerItems' exclusion set) and endermen do not carry them"},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "exact", "note": "collide.c:527 and 792."},
+    {"kind": "method", "name": "getSelectedBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "partial", "note": "Same bounds; no separate selection call site found; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": null, "status": "n/a", "note": "Standard cube renderer with the atlas icons."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "false."},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "onBlockActivated", "sig": "(World,IIIIIIIFFF)Z", "native": "csrc/engine/activate.c:act_run", "status": "exact", "note": "The eat: canEat(false), food_add, the meta step, the vanish at 6, activate.c:906-918."},
+    {"kind": "method", "name": "func_150036_b", "sig": "(World,IIIIEntityPlayer)Z", "native": "csrc/engine/activate.c:act_run", "status": "exact", "note": "The same machine; the client half is survival.c:4989."},
+    {"kind": "method", "name": "onBlockClicked", "sig": "(World,IIIIEntityPlayer)V", "native": null, "status": "n/a", "note": "Empty body in Java; the cake is eaten through onBlockActivated, not the click."},
+    {"kind": "method", "name": "canPlaceBlockAt", "sig": "(World,III)Z", "native": "csrc/engine/place.c:place_try", "status": "exact", "note": "ItemReed places it (place.c:207 maps item 354, place.c:1556 names the branch)."},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "exact", "note": "canBlockStay: a solid floor or the block pops, blockcb.c:2415."},
+    {"kind": "method", "name": "canBlockStay", "sig": "(World,III)Z", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "exact", "note": "The solid-floor test inside the ID_CAKE case."},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Random)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "0, drops.c:325."},
+    {"kind": "method", "name": "getItemDropped", "sig": "(IRandomI)Item", "native": "csrc/engine/drops.c:drops_break", "status": "n/a", "note": "Block.dropBlockAsItemWithChance asks getItemDropped once per quantityDropped, which is 0 for cake"}
+  ],
+  "missing": [],
+  "notes": "The bakeCake achievement (survival.c:364) is the stat side. The client repeats the eat locally (survival.c:4989) and the server re-runs it from the C08, matching vanilla's double bookkeeping."
+}

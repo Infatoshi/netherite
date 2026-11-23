@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenHell.java",
+  "classes": ["BiomeGenHell"],
+  "lines": 22,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The Nether biome (8): clears every spawn list and spawns ghasts, zombie pigmen and magma cubes.",
+  "scope": "in_scope",
+  "scope_reason": "The Nether is vanilla and in scope (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/spawning.c", "symbols": ["hell_monster", "spawning_list_for", "spawning_hell_list"]},
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES"]}
+  ],
+  "evidence": ["csrc/tests/test_spawning.c", "csrc/tests/test_fortress_spawn.c", "out/java/spawning", "out/java/snapshots/nether-trip-s1"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenHell", "sig": "(int)", "native": "csrc/engine/spawning.c:hell_monster", "status": "exact", "note": "ghast 50, pig zombie 100, magma cube 1, groups 4-4; other lists empty via spawning_list_for"}
+  ],
+  "missing": [],
+  "notes": ""
+}

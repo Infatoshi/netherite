@@ -1,0 +1,87 @@
+{
+  "path": "oracle/src/enchantment/EnchantmentDurability.java",
+  "classes": [
+    "EnchantmentDurability"
+  ],
+  "lines": 55,
+  "side": "common",
+  "category": "item",
+  "role": "The unbreaking enchantment: its metadata row, the damageable-item canApply, and negateDamage, the random damage negation ItemStack.attemptDamageItem draws.",
+  "scope": "in_scope",
+  "scope_reason": "Enchantments reach the world through loot books and villager trades even with the enchanting table off (world.conf enchanting = off); the negation roll is live in the dig probe.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/enchants.h",
+      "symbols": [
+        "ENCHANTS"
+      ]
+    },
+    {
+      "file": "csrc/engine/dig.c",
+      "symbols": [
+        "damage_held"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_damage_stack"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_dig.c",
+    "out/java/dig/r2",
+    "out/java/snapshots/dmg-sources-s1",
+    "out/java/snapshots/melee-mods-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "EnchantmentDurability",
+      "sig": "(II)V",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "row 34: weight 5, breakable, min 5+(l-1)*8, max +50, level 3"
+    },
+    {
+      "kind": "method",
+      "name": "getMinEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxLevel",
+      "sig": "()I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "canApply",
+      "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+      "native": "csrc/engine/enchant.c:can_enchant_item",
+      "status": "n/a",
+      "note": "n/a: reached only through Enchantment.canApply's callers, CommandEnchant and ContainerRepair (anvil = off)"
+    },
+    {
+      "kind": "method",
+      "name": "negateDamage",
+      "sig": "(Lnet/minecraft/item/ItemStack;ILjava/util/Random;)Z",
+      "native": "csrc/engine/dig.c:damage_held",
+      "status": "exact",
+      "note": "dig.c:damage_held for the held tool; survival.c:surv_damage_stack (armour and the sword, with the ItemArmor 60% branch) and combatench.c:damage_item (mob equipment) are the other copies"
+    }
+  ],
+  "missing": []
+}

@@ -1,0 +1,84 @@
+{
+ "classes": [
+  "ClickEvent",
+  "ClickEvent.Action"
+ ],
+ "lines": 130,
+ "side": "common",
+ "category": "other",
+ "role": "One clickable chat-component action (open URL, open file, run command, twitch user info, suggest command) with its value string, held by ChatStyle.",
+ "scope": "not_needed",
+ "scope_reason": "Only reachable through chat lines and the sign/book/chat GUIs. The native client draws no chat (raster_hud.c: 'the chat, player list and scoreboard screens' are not drawn) and the GPU/RL path never reads a click action.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "action",
+   "sig": "ClickEvent.Action",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "value",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ClickEvent",
+   "sig": "(ClickEvent.Action,String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getAction",
+   "sig": "()ClickEvent.Action",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getValue",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "equals",
+   "sig": "(Object)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "toString",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "hashCode",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "Action (enum: OPEN_URL, OPEN_FILE, RUN_COMMAND, TWITCH_USER_INFO, SUGGEST_COMMAND)",
+   "sig": "enum",
+   "native": null,
+   "status": "n/a",
+   "note": "static constants, grouped"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/event/ClickEvent.java"
+}

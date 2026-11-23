@@ -1,0 +1,19 @@
+{
+ "path": "oracle/harness/netherite/oracle/Probe.java",
+ "lines": 354,
+ "role": "Base world-core fuzz probe (kind setblock): random World.setBlock ops on a raw region with the 3x3 chunk hash after each, checked op by op by the native height map and light code; also dispatches the move (Move, ProbeEntity) and feature (FeatureProbe) kinds. Owns Probe.rawChunks, which makes ChunkProviderServer.loadChunk skip populateChunk, and the chunk hash/serialization helpers most other probes reuse.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=Probe (writes out/java/probes/<name>)",
+  "csrc/tests/test_probe.c",
+  "csrc/tests/test_move.c",
+  "csrc/tests/test_seedworld.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_snapshots.c",
+  "oracle/harness/netherite/oracle/*Probe.java (rawChunks, hashAround, fillChunkBytes)"
+ ],
+ "vanilla_hooks": [
+  "oracle/src/world/gen/ChunkProviderServer.java"
+ ],
+ "notes": "Runs on its own thread (the OTHER entity-ID role). Output ops.bin, final.bin.gz, manifest.json. csrc/engine/world.c, snapshot.c and render_blocks.h cite its layouts. lane/keyframes: fillChunkTail (the height maps, heightMapMinimum and the section mask) split out of fillChunkBytes for Snapshot.fillChunkBytes."
+}

@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/world/chunk/IChunkProvider.java",
+  "classes": ["IChunkProvider"],
+  "lines": 69,
+  "side": "common",
+  "category": "chunk",
+  "role": "The chunk source interface implemented by the server chunk cache (ChunkProviderServer), the client cache and every generator (overworld, flat, Nether, End): exists, provide, load, populate, save, unload, creature lists and structure lookup.",
+  "scope": "in_scope",
+  "scope_reason": "The seam every chunk load, populate and creature query passes through.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.c", "symbols": ["world_load_chunk", "world_chunk_loaded", "load_dim_chunk"]},
+    {"file": "csrc/engine/chunkgen.c", "symbols": ["provide_chunk"]},
+    {"file": "csrc/engine/chunkload.c", "symbols": ["cl_unload_step"]}
+  ],
+  "evidence": ["csrc/tests/test_chunkload.c", "csrc/tests/test_worldgen.c", "csrc/tests/test_dims.c"],
+  "members": [
+    {"kind": "method", "name": "chunkExists", "sig": "(int,int)Z", "native": "csrc/engine/world.c:world_chunk_loaded", "status": "exact"},
+    {"kind": "method", "name": "provideChunk", "sig": "(int,int)Chunk", "native": "csrc/engine/world.c:world_load_chunk", "status": "exact"},
+    {"kind": "method", "name": "loadChunk", "sig": "(int,int)Chunk", "native": "csrc/engine/world.c:world_load_chunk", "status": "exact"},
+    {"kind": "method", "name": "populate", "sig": "(IChunkProvider,int,int)V", "native": "csrc/engine/seedworld.c:sw_populate", "status": "exact"},
+    {"kind": "method", "name": "saveChunks", "sig": "(boolean,IProgressUpdate)Z", "native": null, "status": "missing", "note": "No disk saving natively."},
+    {"kind": "method", "name": "unloadQueuedChunks", "sig": "()Z", "native": "csrc/engine/chunkload.c:cl_unload_step", "status": "exact"},
+    {"kind": "method", "name": "canSave", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "makeString", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPossibleCreatures", "sig": "(EnumCreatureType,int,int,int)List", "native": "csrc/engine/serverreplay.c:sr_possible_creatures", "status": "exact"},
+    {"kind": "method", "name": "func_147416_a", "sig": "(World,String,int,int,int)ChunkPosition", "native": "csrc/engine/stronghold.c:stronghold_nearest_loaded", "status": "exact"},
+    {"kind": "method", "name": "getLoadedChunkCount", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "recreateStructures", "sig": "(int,int)V", "native": null, "status": "n/a", "note": "See the generator records."},
+    {"kind": "method", "name": "saveExtraData", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "An interface: C has no vtable for it; the dimension is a switch in world.c load_dim_chunk and the replay's per-dimension callbacks. Per-implementation detail is in the ChunkProviderServer, ChunkProviderGenerate, ChunkProviderHell and ChunkProviderEnd records. The client-side ChunkProviderClient implementation is not covered here."
+}

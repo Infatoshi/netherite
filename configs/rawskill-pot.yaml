@@ -1,0 +1,75 @@
+# rawskill-pot.yaml (lane/rawskill): configs/rawskill.yaml with the shaping as one potential (task.shaping potential,
+# vecenv_task.c task_phi): each step pays the change of -0.3 x the look's angle to the last seen ore cell over 90
+# degrees, -0.1 x the eye's distance to it in blocks, and 0.05 x the crack stage drawn on the ore (a dig let go gives
+# its stages back). The pickup 1, a death -0.5, as rawskill.yaml. 256 envs in 4 groups on 30 workers, each env pinned
+# to the start the make drew for it (starts.pin: every reset the pool's delta path): 32,510 to 34,903 env-steps/s and
+# held-out 0.875 to 0.891 at 2M env-steps in 66 to 70 s, against 16,668 to 23,126 and 99 to 130 s unpinned (two seeds
+# each, beside other lanes' jobs; ppo lr 3e-4, 3 epochs, horizon 64 then). With the ppo below, 400k env-steps: the
+# command 13 to 14 s, held-out 0.922 and 0.938 (seeds 4, 5).
+#   make -C csrc/runtime rawskill [RS_STEPS=N] [RS_SEED=K]   (this file and w1.dk.or are its defaults)
+sim:
+  world:
+    seed: 1
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    cast_precision: 32
+    observation: 16x16
+  engine:
+    device_mesh: 0
+    raycast: host
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: out/runtime/rawskill/train/s1-0
+    worlds: 256
+    groups: 4
+    episode_seconds: 10
+  fidelity:
+    spawning: off
+    random_ticks: off
+    weather: off
+  performance:
+    workers: 30
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: doms
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: none
+    picks: off
+  task:
+    item: 15
+    keys: forward+back+left+right+jump+mine
+    win: 1
+    death: -0.5
+    look: 0.3
+    crack: 0.05
+    dist: 0.1
+    shaping: potential
+  starts:
+    library: out/runtime/rawskill/train
+    curriculum: off
+    pin: on
+  ppo:
+    lr: 1e-3                   # with horizon 8 and 4 epochs (lane/rawskill's grid, seeds 3 to 5): training success
+    ent: 0.01                  # 0.85 at 247k to 360k env-steps, 3.6 to 6.9 s, held-out 0.922 to 0.953; the old 3e-4,
+    clip: 0.2                  # 3 epochs, horizon 64: 998k env-steps (20.8 s) on seed 3, none in 600k on seeds 4, 5
+    gamma: 0.99
+    lam: 0.95
+    epochs: 4
+    mb: 2048
+    horizon: 8
+  net:
+    kind: small
+  run:
+    log_every: 1

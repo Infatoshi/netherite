@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/item/ItemMap.java",
+  "classes": ["ItemMap"],
+  "lines": 311,
+  "side": "common",
+  "category": "item",
+  "role": "The map item (Items.map / Items.filled_map, id 358): holds the MapData for a map damage value, updates it from the player's surroundings each tick, and renders nothing itself.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf maps = off: an empty map stays empty and a filled map from loot never draws, on the oracle side too (WorldConf gates the update path).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/crafting.c", "symbols": ["craft_find_matching"]}
+  ],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "ItemMap", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "n/a", "note": "row 358 (filled_map, hasSubtypes); the empty map shares the class"},
+    {"kind": "method", "name": "func_150912_a", "sig": "(ILnet/minecraft/world/World;)Lnet/minecraft/world/storage/MapData;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMapData", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;)Lnet/minecraft/world/storage/MapData;", "native": null, "status": "n/a", "note": "the native world has no map storage; RecipesMapExtending's port reads a no-data hook instead (crafting.c:map_extend_matches)"},
+    {"kind": "method", "name": "updateMapData", "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/entity/Entity;Lnet/minecraft/world/storage/MapData;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onUpdate", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/Entity;IZ)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150911_c", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/network/Packet;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onCreated", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)V", "native": null, "status": "n/a", "note": "SlotCrafting.onCrafting's native port treats Item.onCreated as a no-op for every item without a map (container.c:craft_out_crafted)"},
+    {"kind": "method", "name": "addInformation", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Ljava/util/List;Z)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Switched off with the rest of the map feature; the crafting recipes that reference the map item (map cloning, map extending) are still matched natively by crafting.c because the gate replays every recipe class."
+}

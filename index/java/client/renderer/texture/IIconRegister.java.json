@@ -1,0 +1,17 @@
+{
+  "path": "oracle/src/client/renderer/texture/IIconRegister.java",
+  "classes": ["IIconRegister"],
+  "lines": 8,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Interface for icon registration: items and blocks call registerIcon(name) during texture-stitching to get their IIcon.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Icon plumbing: the native engine reads icon uv rectangles from the recorded atlas/table dumps (raster_hud.c's item tables, raster_mobs.c ensure_block_atlas) instead of a registration registry.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "registerIcon", "sig": "(String)IIcon", "native": null, "status": "n/a"}
+  ],
+  "missing": []
+}

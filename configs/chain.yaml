@@ -1,0 +1,42 @@
+# chain.yaml (lane/chain, 2026-11-10): the checkpointed search's run file, `make -C csrc/runtime chain-search`.
+# brutetab-chain.yaml's world and observation (seed 42's spawn, render distance 4, the 64x64 ray cast the chain's macros
+# were built on) at vanilla fidelity (no fidelity section: natural spawning on, which the endermen need; the found chain
+# replays on the Java client), every part on the host (device_mesh 0, the ray cast on the host, no renderer: no GPU),
+# every chain macro on (dbench.yaml's list) at master's defaults. The search sets each segment's length itself.
+
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64
+  pipeline:
+    kind: snapshot                 # saved world snapshot (rebranded from legacy gold)
+    start: spawn               # seed 42's spawn
+    worlds: 64
+    groups: 4
+    episode_seconds: 180
+  engine:
+    device_mesh: 0
+    raycast: host
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  performance:
+    workers: 16
+    streams: 2                 # explicit: 2 CUDA streams
+    group: 16                  # explicit: 16 envs/group (64 / 4)
+    batch: 64                 # explicit: 64 total batched envs
+    depth: 4                   # explicit: 4 in-flight pipeline groups
+    layout: any
+    pin: 0
+    place: none
+    tune: off
+
+actions:
+  macros:
+    macros: recipe,strip,food,obsidian,nether,pearl,stronghold,dragon,bportal,strip2
+    picks: off

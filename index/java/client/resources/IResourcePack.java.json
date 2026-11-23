@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/resources/IResourcePack.java",
+  "classes": ["IResourcePack"],
+  "lines": 24,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Interface for one resource pack: stream lookup by ResourceLocation, existence checks, domains, pack.mcmeta metadata, the pack.png image and the pack name.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "getInputStream", "sig": "(ResourceLocation)InputStream", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resourceExists", "sig": "(ResourceLocation)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getResourceDomains", "sig": "()Set", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPackMetadata", "sig": "(IMetadataSerializer,String)IMetadataSection", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPackImage", "sig": "()BufferedImage", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPackName", "sig": "()String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Only the default pack and the vanilla assets are ever loaded in this game; no custom pack is used in agent mode. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Resource-pack interface; the default pack only, read natively as pre-converted files."
+}

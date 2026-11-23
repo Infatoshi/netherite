@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/client/renderer/culling/Frustrum.java",
+  "classes": ["Frustrum"],
+  "lines": 35,
+  "side": "client",
+  "category": "client_render",
+  "role": "ICamera implementation over ClippingHelperImpl: holds the frustum's world position offset and answers AABB-in-frustum for RenderGlobal's section cull and RenderManager's entity cull.",
+  "scope": "in_scope",
+  "scope_reason": "Decides what the compared frame draws.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster.c", "symbols": ["live_culled"]},
+    {"file": "csrc/engine/raster_itemframe.c", "symbols": ["raster_itemframe_in_frustum"]}
+  ],
+  "evidence": [
+    "out/java/render/terrain1",
+    "csrc/tests/test_render.c",
+    "out/java/rendertick/anim_dials"
+  ],
+  "members": [
+    {"kind": "field", "name": "clippingHelper", "sig": "ClippingHelper", "native": null, "status": "n/a", "note": "the native cull uses the frame's matrices directly"},
+    {"kind": "field", "name": "xPosition", "sig": "double", "native": null, "status": "n/a", "note": "the offset is implicit: the native cull works in camera-relative coordinates"},
+    {"kind": "field", "name": "yPosition", "sig": "double", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "zPosition", "sig": "double", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setPosition", "sig": "(DDD)V", "native": "csrc/engine/raster_itemframe.c:raster_itemframe_in_frustum", "status": "exact", "note": "the entity gate for item frames (RenderGlobal.renderEntities)"},
+    {"kind": "method", "name": "isBoxInFrustum", "sig": "(DDDDDD)Z", "native": "csrc/engine/raster.c:live_culled", "status": "exact", "note": "the same 8-corner, 6-plane box test at section level (the camera-relative translate is folded into the matrices)"},
+    {"kind": "method", "name": "isBoundingBoxInFrustum", "sig": "(AxisAlignedBB)Z", "native": "csrc/engine/raster.c:live_culled", "status": "exact", "note": "sections only; entity-level frustum culling is not reproduced"}
+  ],
+  "missing": [],
+  "notes": "The name is vanilla's own misspelling (Frustrum). Section culling is proven by the terrain scenes; I did not find an entity frustum test in the native entity path. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): entity frustum culling is conservative: drawing a culled entity adds no pixels. Formerly listed as missing: Entity-level frustum culling: RenderManager culls entities with this class before doRender; the native entity pass (raster_mobs.c raster_mobs_draw, raster_entities.c raster_entities_draw) applies only the living-entity render-distance range check and draws recorded entities unculled otherwise."
+}

@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderFallingBlock.java",
+  "classes": ["RenderFallingBlock"],
+  "lines": 105,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityFallingBlock as its block: RenderBlocks.renderBlockSandFalling at the entity position (anvils and dragon eggs use their special renderers), skipped when the block below already matches.",
+  "scope": "in_scope",
+  "scope_reason": "Falling sand and gravel occur in gated recordings (world-falling-s1), so their pixels are in the compared frames' scope.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_things.c", "symbols": ["draw_falling"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["rb_mesh_falling_block"]},
+    {"file": "csrc/engine/render_blocks3.c", "symbols": ["rb3_render_anvil_meta"]},
+    {"file": "csrc/play/play.c", "symbols": ["draw_things"]}
+  ],
+  "evidence": ["out/java/snapshots/world-falling-s1", "out/java/render-src/ent_falling", "csrc/tests/test_render.c", "out/java/clientframes/idx-hudfx-s1"],
+  "members": [
+    {"kind": "field", "name": "field_147920_a", "sig": "private final RenderBlocks", "native": "csrc/engine/raster_things.c:draw_falling", "status": "exact"},
+    {"kind": "ctor", "name": "RenderFallingBlock", "sig": "()V", "native": null, "status": "n/a", "note": "shadowSize 0.5"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityFallingBlock,DDD FF)V", "native": "csrc/engine/raster_things.c:draw_falling", "status": "exact", "note": "the sand path (renderBlockSandFalling), and the anvil and dragon egg through RenderBlocks (renderBlockAnvilMetadata with the entity's metadata, renderBlockDragonEgg) over the client world at the cell (rb_mesh_falling_block), each face's colour and brightness; drawn where WorldClient's copy is (pickobj.c's, lastTickPos to the position) and only while the client world's cell is not the block. idx-hudfx-s1 170 to 182 within 16 px; the landing frame 184 carries RenderGlobal's server-world mesh (the landed block a tick early)"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityFallingBlock)ResourceLocation", "native": "csrc/engine/raster_things.c:draw_falling", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "the bridge overload"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "the bridge overload"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: raster_things.c draw_falling: renderBlockSandFalling's six faces with the 0.5/1/0.8/0.6 shades, lighting off, the block brightness at the entity's block. ent_falling: sand, gravel and red sand falling, 8 views within 4 px (master 13,758 to 14,796 px). lane/idxclient: the anvil and dragon egg variants drawn; the falling copies are the client's (pickobj.c), not the server's."
+}

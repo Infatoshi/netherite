@@ -1,0 +1,51 @@
+{
+ "path": "csrc/tests/dump.h",
+ "lines": 60,
+ "role": "Header reader for the oracle's worldgen stage dumps (make -C oracle chunks): parses manifest.json (seed, x0/z0/x1/z1, step) and opens one gzip stream per stage.",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/harness/netherite/oracle/ChunkDump.java",
+   "members": [
+    "manifest",
+    "stage streams"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/DimDump.java",
+   "members": [
+    "manifest",
+    "stage streams"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "dump",
+   "java": "the ChunkDump/DimDump manifest.json fields",
+   "fields": [
+    "dir",
+    "seed",
+    "x0",
+    "z0",
+    "x1",
+    "z1",
+    "step"
+   ]
+  }
+ ],
+ "entry_points": [
+  "manifest_num",
+  "dump_open",
+  "dump_stage",
+  "dump_read"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_dims.c",
+  "csrc/tests/test_seedworld.c",
+  "csrc/tests/test_worldgen.c"
+ ],
+ "notes": "Included by test_dims.c, test_seedworld.c and test_worldgen.c. dump_open keeps a static 4 MB manifest buffer (line 35) and exits(2) on any read error. The java entries name the oracle writers of the format, not vanilla files; the member names there are format parts, not Java members."
+}

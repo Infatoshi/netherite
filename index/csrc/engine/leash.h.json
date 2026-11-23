@@ -1,0 +1,45 @@
+{
+ "path": "csrc/engine/leash.h",
+ "lines": 46,
+ "role": "Declares the lead and leash-knot entry points (leash.c).",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "interactFirst (the lead half)",
+    "updateLeashedState",
+    "clearLeashed",
+    "allowLeashing",
+    "setLeashedToEntity",
+    "recreateLeash",
+    "writeEntityToNBT (Leash)",
+    "readEntityFromNBT (Leashed, Leash)"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "updateLeashedState"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemLead.java",
+   "members": [
+    "onItemUse",
+    "func_150909_a"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "leash_update",
+  "leash_interact_first"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Header only."
+}

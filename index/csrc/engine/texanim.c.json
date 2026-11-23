@@ -1,0 +1,130 @@
+{
+ "path": "csrc/engine/texanim.c",
+ "lines": 350,
+ "role": "The animated atlas sprites: TextureAtlasSprite.updateAnimation's counters, TextureClock and TextureCompass's dials, TextureMap.updateAnimations over the blocks then items atlas, and the upload each does as a patch of a recorded or live RGBA atlas from the recording's dumped source frames (state/anim.json, anim.rgba).",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/texture/TextureAtlasSprite.java",
+   "members": [
+    "updateAnimation",
+    "frameCounter",
+    "tickCounter",
+    "framesTextureData",
+    "func_147965_a"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/texture/TextureClock.java",
+   "members": [
+    "updateAnimation",
+    "field_94239_h",
+    "field_94240_i"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/texture/TextureCompass.java",
+   "members": [
+    "updateAnimation",
+    "updateCompass",
+    "currentAngle",
+    "angleDelta"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/texture/TextureMap.java",
+   "members": [
+    "updateAnimations",
+    "tick",
+    "listAnimatedSprites"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/tileentity/RenderItemFrame.java",
+   "members": [
+    "func_82402_b"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "texanim",
+   "java": "TextureMap.listAnimatedSprites of both atlases",
+   "fields": [
+    "n",
+    "s",
+    "rgba"
+   ]
+  },
+  {
+   "name": "texanim_sprite",
+   "java": "TextureAtlasSprite (origin, size, AnimationMetadataSection, framesTextureData level 0)",
+   "fields": [
+    "name",
+    "kind",
+    "x",
+    "y",
+    "w",
+    "h",
+    "frametime",
+    "nframes",
+    "index",
+    "time",
+    "ndata",
+    "data"
+   ]
+  },
+  {
+   "name": "texanim_state",
+   "java": "frameCounter, tickCounter, TextureClock.field_94239_h/field_94240_i, TextureCompass.currentAngle/angleDelta",
+   "fields": [
+    "fc",
+    "tc",
+    "clock_h",
+    "clock_i",
+    "compass_a",
+    "compass_d"
+   ]
+  },
+  {
+   "name": "texanim_world",
+   "java": "what the dials read: isSurfaceWorld, getCelestialAngle(1.0F), getSpawnPoint, the player's posX/posZ/rotationYaw",
+   "fields": [
+    "world",
+    "surface",
+    "celestial",
+    "spawn_x",
+    "spawn_z",
+    "px",
+    "pz",
+    "yaw"
+   ]
+  }
+ ],
+ "entry_points": [
+  "texanim_load",
+  "texanim_free",
+  "texanim_open",
+  "texanim_state_read",
+  "texanim_tick",
+  "texanim_sprites_from_start",
+  "texanim_dials_tick",
+  "texanim_shown",
+  "texanim_apply",
+  "texanim_compass_frame",
+  "texanim_compass_render_step",
+  "texanim_patch_scene",
+  "texanim_scene",
+  "texanim_live_set"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "texanim_load: malloc of the whole anim.rgba (load time, not the tick)",
+  "the scene cache (scene_dir, scene_anim, scene_state) and the live pointers (live_anim, live_state): static mutable state behind a mutex, for the recorded renderer and the one live client"
+ ],
+ "tests": [
+  "csrc/tests/test_rendertick.c",
+  "csrc/tests/test_render.c"
+ ],
+ "notes": "Recorded scenes: every atlas reader calls texanim_patch_scene, which applies the frame row's state; an item frame's compass moves that state on (texanim_compass_render_step) before the hand and HUD draw. Mipmapped atlases are patched at level 0 only; every recording has mipmaps off."
+}

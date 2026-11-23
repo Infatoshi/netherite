@@ -1,0 +1,44 @@
+{
+  "path": "oracle/src/util/FoodStats.java",
+  "classes": ["FoodStats"],
+  "lines": 163,
+  "side": "common",
+  "category": "player",
+  "role": "The player's hunger state: food level, saturation, exhaustion and the tick timer that regenerates health or starves, saved into player NBT and mirrored to the client in packet S06.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["surv_food", "hud_prev_food"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["food_add_stats", "add_exhaustion", "surv_add_exhaustion", "surv_server_food_tick", "surv_server_food_and_gate"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/surv_food-s1",
+    "out/java/snapshots/surv_eat-s1",
+    "out/java/snapshots/death-starve-s1",
+    "out/java/snapshots/pot-apple-s1",
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/easy-game-s1",
+    "out/java/snapshots/peaceful-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "foodLevel", "sig": "int", "native": "csrc/engine/survival.h:level", "status": "exact", "note": "struct surv_food.level; struct fields grouped in the surv_food struct"},
+    {"kind": "field", "name": "foodSaturationLevel", "sig": "float", "native": "csrc/engine/survival.h:saturation", "status": "exact"},
+    {"kind": "field", "name": "foodExhaustionLevel", "sig": "float", "native": "csrc/engine/survival.h:exhaustion", "status": "exact"},
+    {"kind": "field", "name": "foodTimer", "sig": "int", "native": "csrc/engine/survival.h:timer", "status": "exact"},
+    {"kind": "field", "name": "prevFoodLevel", "sig": "int", "native": "csrc/engine/survival.h:hud_prev_food", "status": "exact", "note": "Only GuiIngame reads it (getPrevFoodLevel, the food bar's flash), on the client player's FoodStats, whose onUpdate never runs (EntityPlayer.onUpdate calls it only when !isRemote), so it stays at its constructed 20: survival.c keeps hud_prev_food 20 for the HUD. The server copy is written and never read."},
+    {"kind": "method", "name": "addStats", "sig": "(int,float)V", "native": "csrc/engine/survival.c:food_add_stats", "status": "exact"},
+    {"kind": "method", "name": "func_151686_a", "sig": "(ItemFood,ItemStack)V (eat)", "native": "csrc/engine/survival.c:food_add_stats", "status": "exact", "note": "the eat flow at survival.c:1824 applies healAmount and saturationModifier through food_add_stats"},
+    {"kind": "method", "name": "onUpdate", "sig": "(EntityPlayer)V", "native": "csrc/engine/survival.c:surv_server_food_tick", "status": "exact", "note": "every difficulty branch off surv.difficulty; naturalRegeneration is always on (the supported gamerules are doDaylightCycle and keepInventory). EASY's 10 hp floor: easy-game-s1 (food 0 from row 18, one heart every 80 ticks to 10.0 at row 817, held to 1021); HARD starves to death: death-starve-s1 (3 hp to 0 at row 254); NORMAL's 1 hp floor and regeneration: surv_food-s1; PEACEFUL spends no food: peaceful-s1 (food held at 4)"},
+    {"kind": "method", "name": "readNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/survival.c:get_i", "status": "exact", "note": "survival.c:730-733 reads foodLevel/foodSaturationLevel/foodExhaustionLevel/foodTickTimer from the player tag"},
+    {"kind": "method", "name": "writeNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/entity_nbt.c:ent_nbt_player", "status": "exact", "note": "the four keys, as the snapshot's player tag writes them (living.c writes the same for the replay's player)"},
+    {"kind": "method", "name": "getFoodLevel", "sig": "()int", "native": "csrc/engine/survival.h:level", "status": "exact"},
+    {"kind": "method", "name": "getPrevFoodLevel", "sig": "()int", "native": "csrc/engine/survival.h:hud_prev_food", "status": "exact", "note": "see prevFoodLevel"},
+    {"kind": "method", "name": "needFood", "sig": "()boolean", "native": "csrc/engine/survival.c:surv_client_use_pressed", "status": "exact", "note": "EntityPlayer.canEat's foodLevel < 20 inline where food is eaten (survival.c: the eat start and the cake's onBlockActivated); surv_food-s1, surv_eat-s1"},
+    {"kind": "method", "name": "addExhaustion", "sig": "(float)V", "native": "csrc/engine/survival.c:surv_add_exhaustion", "status": "exact"},
+    {"kind": "method", "name": "getSaturationLevel", "sig": "()float", "native": "csrc/engine/survival.h:saturation", "status": "exact"},
+    {"kind": "method", "name": "setFoodLevel", "sig": "(int)V", "native": "csrc/engine/survival.c:surv_client_pump", "status": "exact", "note": "the client's S06 (handleUpdateHealth) sets the client player's level and saturation"},
+    {"kind": "method", "name": "setFoodSaturationLevel", "sig": "(float)V", "native": "csrc/engine/survival.c:surv_client_pump", "status": "exact", "note": "the S06, as setFoodLevel"}
+  ],
+  "missing": [],
+  "notes": "Exhaustion's 40.0 cap and the tick's regen/starve thresholds live in surv_server_food_tick; the S06 packet sends level and saturation (survival.c:239-240). The setter/getter status partial reflects direct struct access rather than missing behavior. lane/idxlast 2026-09-27: DF-08 was already covered by easy-game-s1 (EASY) and death-starve-s1 (HARD); every member exact."
+}

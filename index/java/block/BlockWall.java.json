@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/block/BlockWall.java",
+  "classes": ["BlockWall"],
+  "lines": 145,
+  "side": "common",
+  "category": "block",
+  "role": "The cobblestone wall (id 139, normal and mossy): connects to neighbors like a fence, its collision box grows posts and rails, and it stands 1.5 blocks high for entities above it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS", "MATERIALS"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_pool_box", "connects"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]},
+    {"file": "csrc/engine/ai.c", "symbols": ["blocks_movement"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["should_side_be_rendered", "table_icon"]},
+    {"file": "csrc/engine/raytrace.c", "symbols": ["block_bounds", "raytrace_collision"]}
+  ],
+  "evidence": ["csrc/tests/test_move.c", "out/java/raypick/rp-1", "csrc/tests/test_raypick.c", "out/java/rendertick/mv_variants", "out/java/render/mv_variants_sl", "out/java/render/mv_variants_ww", "out/java/render/mv_variants_we", "csrc/tests/test_render.c", "csrc/tests/render_budget.txt", "out/java/snapshots/cov-blkbreak-s1", "out/java/snapshots/cov-blkmisc-s1", "out/java/clientframes/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150092_a", "sig": "static final String[]", "native": null, "status": "n/a", "note": "icon suffixes, client texture bookkeeping"},
+    {"kind": "ctor", "name": "BlockWall", "sig": "(Lnet/minecraft/block/Block;)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 139: the model block's hardness and resistance/3 in the row"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks.c:table_icon", "status": "exact", "note": "Table-driven: RenderTable reads getIcon(side, meta) for every meta off the live block."},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "render_type 32"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "getBlocksMovement", "sig": "(Lnet/minecraft/world/IBlockAccess;III)Z", "native": "csrc/engine/ai.c:blocks_movement", "status": "exact", "note": "false: walls are impassable for pathfinding"},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "setBlockBoundsBasedOnState", "sig": "(Lnet/minecraft/world/IBlockAccess;III)V", "native": "csrc/engine/raytrace.c:block_bounds", "status": "exact"},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;", "native": "csrc/engine/collide.c:collide_pool_box", "status": "exact", "note": "the bounds plus field_149756_F = 1.5, so the box's max Y is 1.5 regardless of the computed height"},
+    {"kind": "method", "name": "func_150091_e", "sig": "(Lnet/minecraft/world/IBlockAccess;III)Z", "native": "csrc/engine/collide.c:connects", "status": "exact", "note": "the same body BlockFence.func_149826_e shares: same object, a fence gate, or an opaque normal block that is not Material.field_151572_C"},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "damageDropped", "sig": "(I)I", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 139: meta passthrough"},
+    {"kind": "method", "name": "shouldSideBeRendered", "sig": "(Lnet/minecraft/world/IBlockAccess;IIII)Z", "native": "csrc/engine/render_blocks.c:should_side_be_rendered", "status": "exact", "note": "the bottom face takes the super path, every other side renders (render_blocks.c:1067); render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"}
+  ],
+  "missing": [],
+  "notes": "test_move.c exercises wall collision through the movement frames; the connects() body is shared with BlockFence, whose record carries the same citation. Pinned by lane/meshvar's mesh scene (out/java/rendertick/mv_variants, 13 views mv_variants_*, each within its budget with no pxdiff cluster; the scene's sections match the oracle's sections.bin vertex for vertex): cobblestone and mossy walls: lone posts, lines along x and z, into a stone block, an L, a T, a cross, a mixed line, a line under a block, a two-high line and a fence gate between walls (a cobblestone wall drawn with the mossy icon measures 18,056 px over 25 against 82)."
+}

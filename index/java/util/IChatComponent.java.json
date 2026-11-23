@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/util/IChatComponent.java",
+  "classes": ["IChatComponent", "IChatComponent.Serializer"],
+  "lines": 281,
+  "side": "common",
+  "category": "util",
+  "role": "Interface of the chat component tree (ChatComponentText, ChatComponentTranslation, ChatComponentStyle) plus its Gson serializer used for the server-list ping and serialized packets.",
+  "scope": "client_cosmetic",
+  "scope_reason": "An interface; the chat lines the HUD draws are built by its implementers (ChatComponentText, ChatComponentTranslation), indexed there.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "setChatStyle", "sig": "(ChatStyle)IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getChatStyle", "sig": "()ChatStyle", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "appendText", "sig": "(String)IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "appendSibling", "sig": "(IChatComponent)IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getUnformattedTextForChat", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getUnformattedText", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFormattedText", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSiblings", "sig": "()List", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "createCopy", "sig": "()IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Serializer.deserialize", "sig": "(JsonElement,Type,JsonDeserializationContext)IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Serializer.serialize", "sig": "(IChatComponent,Type,JsonSerializationContext)JsonElement", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Serializer.serialize", "sig": "(Object,Type,JsonSerializationContext)JsonElement", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Not ported; see ChatComponentStyle for the scope decision. idxaudit 2026-09-27: scope reason rewritten."
+}

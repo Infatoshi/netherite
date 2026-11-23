@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/util/WeightedRandomFishable.java",
+  "classes": ["WeightedRandomFishable"],
+  "lines": 61,
+  "side": "server",
+  "category": "item",
+  "role": "One weighted fishing-loot row: the stack, an optional random-damage fraction and an optional random enchantment, rolled when EntityFishHook lands a catch.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf fishing = off: fishing rods do nothing, so no fishing loot is ever rolled (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_150711_b", "sig": "ItemStack", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_150712_c", "sig": "float", "native": null, "status": "n/a", "note": "damage fraction"},
+    {"kind": "field", "name": "field_150710_d", "sig": "boolean", "native": null, "status": "n/a", "note": "enchant flag"},
+    {"kind": "ctor", "name": "WeightedRandomFishable", "sig": "(ItemStack,int)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150708_a", "sig": "(Random)ItemStack", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150709_a", "sig": "(float)WeightedRandomFishable", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150707_a", "sig": "()WeightedRandomFishable", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "grep of csrc/ for the class and member names found nothing, as expected with fishing switched off."
+}

@@ -1,0 +1,96 @@
+{
+ "classes": [
+  "EntityDiggingFX"
+ ],
+ "lines": 91,
+ "side": "client",
+ "category": "particles",
+ "role": "The block-break particle: layer 1 with the block's side-0 icon, the block's particle gravity, the 0.6 tint and the biome colour multiplier.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "fx_digging_setup",
+    "particles_live_hit",
+    "particles_live_destroy",
+    "new_block_fx",
+    "particles_live_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "particle_quad",
+    "particle_quad"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.c",
+   "symbols": [
+    "client_player_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/particles_dig",
+  "out/java/dig/r2",
+  "csrc/tests/test_render.c",
+  "out/java/rendertick/fx_client",
+  "csrc/tests/test_rendertick.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_145784_a",
+   "sig": "Block",
+   "native": "csrc/engine/particles_live.c:fx_digging_setup",
+   "status": "exact",
+   "note": "live: block_id + block_meta in the fx"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityDiggingFX",
+   "sig": "(World,dddddd,Block,int)",
+   "native": "csrc/engine/particles_live.c:fx_digging_setup",
+   "status": "exact",
+   "note": "icon side 0 resolved from the mesher's icon table at draw time"
+  },
+  {
+   "kind": "method",
+   "name": "applyColourMultiplier",
+   "sig": "(III)EntityDiggingFX",
+   "native": "csrc/engine/particles_live.c:fx_digging_setup",
+   "status": "exact",
+   "note": "grass returns unchanged; leaves take the foliage map; other blocks the 16777215 default"
+  },
+  {
+   "kind": "method",
+   "name": "applyRenderColor",
+   "sig": "(I)EntityDiggingFX",
+   "native": "csrc/engine/particles_live.c:new_block_fx",
+   "status": "exact",
+   "note": "the block's getRenderColor unless grass: leaves, vines, the lily pad (item_color.c), tall grass from the grass colour map; blockcrack under a sprinting entity or an iron golem, blockdust on a fall (EntityBlockDustFX)"
+  },
+  {
+   "kind": "method",
+   "name": "getFXLayer",
+   "sig": "()I",
+   "native": "csrc/engine/particles_live.c:fx_digging_setup",
+   "status": "exact",
+   "note": "1"
+  },
+  {
+   "kind": "method",
+   "name": "renderParticle",
+   "sig": "(Tessellator,FFFFFFFF)V",
+   "native": "csrc/engine/raster_particles.c:particle_quad",
+   "status": "exact",
+   "note": "jittered icon corners in double"
+  }
+ ],
+ "missing": [],
+ "notes": "Both live callers exist: EffectRenderer.addBlockHitEffects (particles_live_hit) and func_147215_a (particles_live_destroy). Gate: the particles_dig render scene. idxaudit 2026-09-27: was in_scope/exact: a reachable behaviour is not native (missing). lane/idxlast 2026-09-27: the sprint's blockcrack (player.c, lane/clientgate) and applyRenderColor are native; fx_client sprints over stone (3 blockcrack FX compared).",
+ "path": "oracle/src/client/particle/EntityDiggingFX.java"
+}

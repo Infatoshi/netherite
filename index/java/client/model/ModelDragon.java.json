@@ -1,0 +1,157 @@
+{
+ "path": "oracle/src/client/model/ModelDragon.java",
+ "classes": [
+  "ModelDragon"
+ ],
+ "lines": 264,
+ "side": "client",
+ "category": "client_model",
+ "role": "The End dragon's model: neck, head, jaw, body, wings and legs, posed from the entity's 24 movement offsets.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "dragon_draw_model",
+    "update_rotations",
+    "dr_base_matrix"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs2b_dragon_f036",
+  "out/java/render/mobs2b_dragon_f041",
+  "out/java/render/mobs2b_dragon_hurt_f006",
+  "out/java/render/mobs2b_dragon_death_f006",
+  "out/java/render/mobs2b_beam_f011",
+  "out/java/render/endfight_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "head",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spine",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "jaw",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "body",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rearLeg",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "frontLeg",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rearLegTip",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "frontLegTip",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rearFoot",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "frontFoot",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "wing",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "wingTip",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "partialTicks",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact",
+   "note": "rides in mob_render_input.partial_tick"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelDragon",
+   "sig": "(float)V",
+   "native": "csrc/engine/raster_mobs.c:DR_HEAD",
+   "status": "exact",
+   "note": "box layout in the DR_* tables (DR_HEAD, DR_JAW, DR_SPINE, DR_BODY, DR_WING, DR_WINGTIP, DR_FRONTLEG, DR_FRONTLEGTIP, DR_FRONTFOOT, DR_REARLEG, DR_REARLEGTIP, DR_REARFOOT)"
+  },
+  {
+   "kind": "method",
+   "name": "setLivingAnimations",
+   "sig": "(EntityLivingBase,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact",
+   "note": "the partial tick is an input"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:dragon_draw_model",
+   "status": "exact",
+   "note": "ModelDragon.render(scale) against EntityDragon's movement offsets (mob_render_input.off)"
+  },
+  {
+   "kind": "method",
+   "name": "updateRotations",
+   "sig": "(double)F",
+   "native": "csrc/engine/raster_mobs.c:update_rotations",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

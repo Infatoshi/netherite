@@ -1,0 +1,11 @@
+{
+ "path": "oracle/harness/netherite/oracle/PlayerDbg.java",
+ "lines": 45,
+ "role": "Throwaway debug probe: dumps the client player's movement state (position, motion, onGround, collision flags, sprint, ySize, fallDistance, movement input, sprint key, movement-speed attribute and sprint modifier) as one JSON result between step commands, to pin a sprint or collision replay divergence to a row. Read-only.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=PlayerDbg, or a script row {\"cmd\":\"run\",\"class\":\"PlayerDbg\"}"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No native test or gate consumes it; no reference in oracle/tests or oracle/Makefile was found."
+}

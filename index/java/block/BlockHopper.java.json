@@ -1,0 +1,326 @@
+{
+  "path": "oracle/src/block/BlockHopper.java",
+  "classes": [
+    "BlockHopper"
+  ],
+  "lines": 263,
+  "side": "common",
+  "category": "block",
+  "role": "The hopper: a container block with a five-slot tile entity and a powered bit; under world.conf redstone = off it only stores (func_145887_i returns at once).",
+  "scope": "in_scope",
+  "scope_reason": "In scope: hoppers are craftable; the oracle places them with a facing, creates the tile entity, opens the hopper window (onBlockActivated and GuiHopper ran in containers2-s42), collides with its five boxes and spills on break. world.conf redstone = off only stops the transfer (TileEntityHopper.java:232).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "hopper_update"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "te_kind_of_block",
+        "render_hopper"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "client_block_activated"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/spill.c",
+      "symbols": [
+        "container_spill",
+        "block_rand",
+        "block_rand_index"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "on_block_placed"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "hopper_enable",
+        "bwl_on_added",
+        "bwl_on_neighbor",
+        "bwl_on_broken"
+      ]
+    },
+    {
+      "file": "csrc/engine/comparator.c",
+      "symbols": [
+        "comparator_override",
+        "comparator_has_override"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/container-break-s1",
+    "out/java/snapshots/containers2-s42",
+    "out/java/snapshots/bed-safe-tops-s1",
+    "out/java/snapshots/rs-mach-s1",
+    "out/java/snapshots/rs-cmp-s1",
+    "out/java/snapshots/rs-brew-s1",
+    "csrc/tests/test_snapshots.c",
+    "out/java/meshes/scene3-2",
+    "csrc/tests/test_meshes.c",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_149922_a",
+      "sig": "Random",
+      "native": "csrc/engine/spill.c:block_rand",
+      "status": "exact",
+      "note": "The Block singleton's own Random (hopper [BR_HOPPER]): det.nbt records it (BlockRands.java), serverreplay_load sets it, a --from run restores it."
+    },
+    {
+      "kind": "field",
+      "name": "field_149921_b",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "client outside texture"
+    },
+    {
+      "kind": "field",
+      "name": "field_149923_M",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "client top texture"
+    },
+    {
+      "kind": "field",
+      "name": "field_149924_N",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "client inside texture"
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockHopper",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 154"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "addCollisionBoxesToList",
+      "sig": "(World,IIILnet/minecraft/util/AxisAlignedBB;Ljava/util/List;Lnet/minecraft/entity/Entity;)V",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "collide.c case 154: the 0.625 base and the four 0.125 walls, then the full-cube bounds again; bed-safe-tops-s1 respawns the player on a hopper and drops it into the bowl rs-mach-s1 walks the player onto a hopper set in the floor."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlaced",
+      "sig": "(World,IIIFFFI)I",
+      "native": "csrc/engine/place.c:on_block_placed",
+      "status": "exact",
+      "note": "the opposite of the clicked side, up read as down: rs-mach-s1 places hoppers on the floor and on two walls"
+    },
+    {
+      "kind": "method",
+      "name": "createNewTileEntity",
+      "sig": "(World,I)Lnet/minecraft/tileentity/TileEntity;",
+      "native": "csrc/engine/tileentity.c:te_kind_of_block",
+      "status": "exact",
+      "note": "case 154 returns TE_HOPPER with the five slots and the cooldown"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(World,IIILnet/minecraft/entity/EntityLivingBase;ItemStack)V",
+      "native": null,
+      "status": "n/a",
+      "note": "only the display-name copy of an anvil-named stack; world.conf anvil = off"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockAdded",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_added",
+      "status": "exact",
+      "note": "func_149919_e (blockcb.c hopper_enable)"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z",
+      "native": "csrc/engine/activate.c:act_live_block",
+      "status": "exact",
+      "note": "the server half opens func_146093_a (survival.c's gui_open_tile); the client half is client_block_activated's case 154"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIIBlock)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_neighbor",
+      "status": "exact",
+      "note": "func_149919_e (blockcb.c hopper_enable)"
+    },
+    {
+      "kind": "method",
+      "name": "func_149919_e",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/blockcb.c:hopper_enable",
+      "status": "exact",
+      "note": "never powered (World.isBlockIndirectlyGettingPowered answers 0 with world.conf redstone = off (World.getIndirectPowerLevelTo, World.java:3585)), so enabled: a disabled bit 8 comes off (flag 4); rs-brew-s1 sets hoppers at metadata 8 and 13 (a no-op fails it)"
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(World,IIIBlockI)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_broken",
+      "status": "exact",
+      "note": "the spill (spill.c container_spill) then World.func_147453_f (comparator.c)"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "render_type 38, dispatched in render_blocks.c"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "normal_block 0 in row 154"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "opaque_cube 0 in row 154"
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture selection"
+    },
+    {
+      "kind": "method",
+      "name": "func_149918_b",
+      "sig": "(I)I",
+      "native": "csrc/engine/tileentity.c:te_kind_of_block",
+      "status": "n/a",
+      "note": "meta & 7, folded into the tile reads"
+    },
+    {
+      "kind": "method",
+      "name": "func_149917_c",
+      "sig": "(I)Z",
+      "native": "csrc/engine/blockcb.c:hopper_enable",
+      "status": "exact",
+      "note": "the enabled test, bit 8 clear"
+    },
+    {
+      "kind": "method",
+      "name": "hasComparatorInputOverride",
+      "sig": "()Z",
+      "native": "csrc/engine/comparator.c:comparator_has_override",
+      "status": "exact",
+      "note": "true (rs-cmp-s1)"
+    },
+    {
+      "kind": "method",
+      "name": "getComparatorInputOverride",
+      "sig": "(World,IIII)I",
+      "native": "csrc/engine/comparator.c:comparator_override",
+      "status": "exact",
+      "note": "calcRedstoneFromInventory over the five slots: rs-cmp-s1 reads a hopper and fills it through its window"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture registration"
+    },
+    {
+      "kind": "method",
+      "name": "func_149916_e",
+      "sig": "(Ljava/lang/String;)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a",
+      "note": "item icon lookup, client only"
+    },
+    {
+      "kind": "method",
+      "name": "getItemIconName",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "item renderer only"
+    },
+    {
+      "kind": "method",
+      "name": "func_149920_e",
+      "sig": "(IBlockAccess,III)Lnet/minecraft/tileentity/TileEntityHopper;",
+      "native": "csrc/engine/tileentity.c:te_kind_of_block",
+      "status": "n/a",
+      "note": "the cast, folded into world_tile_entity"
+    },
+    {
+      "kind": "method",
+      "name": "shouldSideBeRendered",
+      "sig": "(IBlockAccess,IIII)Z",
+      "native": "csrc/engine/render_blocks3.c:rb3_render_hopper",
+      "status": "exact",
+      "note": "true: every face; hopper vertices match in out/java/meshes/scene3-2 (render type 38); render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+    }
+  ],
+  "missing": [],
+  "notes": "The hopper tile entity exists in the tileticks probe census and its updateEntity cooldown half runs (tileticks.c hopper_update). The powered-bit writes are unreachable under redstone = off on both sides. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact."
+}

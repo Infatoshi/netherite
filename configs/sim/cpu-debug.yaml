@@ -1,0 +1,29 @@
+# A small CPU simulator for debugging a scenario without a GPU: 8 worlds in 2 groups, 4 workers, the host ray cast.
+description: 8 worlds, 2 groups, 4 workers, host ray cast (no GPU; a scenario's debug run)
+world:
+  render_distance: 4
+client:
+  observation: 64x64
+  camera: raycast
+  cast_precision: 32
+  ticks_per_step: 1
+engine:
+  tick: host
+  raycast: host
+  device_mesh: 0
+  device_generation: off
+  device_light: off
+  render: none
+pipeline:
+  worlds: 8
+  groups: 2
+performance:
+  workers: 4
+  streams: 0
+  group: 0
+  batch: 0
+  depth: 0
+  layout: doms
+  pin: 0
+  place: none
+  tune: off

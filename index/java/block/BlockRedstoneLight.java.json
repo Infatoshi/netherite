@@ -1,0 +1,114 @@
+{
+ "path": "oracle/src/block/BlockRedstoneLight.java",
+ "classes": [
+  "BlockRedstoneLight"
+ ],
+ "lines": 88,
+ "side": "common",
+ "category": "block",
+ "role": "The redstone lamp (123) and lit lamp (124): turns on when powered and off 4 ticks after power leaves; both drop the unlit lamp.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf redstone = off: the oracle's World.isBlockProvidingPowerTo and getIndirectPowerLevelTo return 0, so no block ever receives power (SPEC Decisions, unsupported features are world switches). The lamp (123) only lights from power, so it is a plain block; the lit lamp (124) cannot be obtained.",
+ "status": "not_applicable",
+ "native": [
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvestdrops.c",
+   "symbols": [
+    "create_stacked_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_drops.c",
+  "csrc/tests/test_harvestdrops.c",
+  "out/java/snapshots/pickblock-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150171_a",
+   "sig": "boolean",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "lit flag; row 124 has light 15"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRedstoneLight",
+   "sig": "(Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 123 and 124"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": null,
+   "status": "n/a",
+   "note": "power checks; always unpowered"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": null,
+   "status": "n/a",
+   "note": "power checks; the unlit lamp does nothing without power"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": null,
+   "status": "n/a",
+   "note": "lit -> unlit; unreachable"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 123/124: the unlit lamp"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  },
+  {
+   "kind": "method",
+   "name": "createStackedBlock",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/harvestdrops.c:create_stacked_block",
+   "status": "exact",
+   "note": "case 123/124"
+  }
+ ],
+ "missing": [
+  "An unpowered lit lamp going dark (onBlockAdded's 4-tick schedule and updateTick setting redstone_lamp) is not native; with redstone off Java does it four ticks after a lit lamp is set (seen while recording pickblock-s1)."
+ ],
+ "notes": "A lit lamp placed by a dev op would schedule its 4-tick turn-off in the oracle; native has no case for that (not a reachable survival state)."
+}

@@ -1,0 +1,114 @@
+{
+ "path": "oracle/src/scoreboard/Score.java",
+ "classes": [
+  "Score"
+ ],
+ "lines": 104,
+ "side": "server",
+ "category": "other",
+ "role": "One score cell: a player name's value under one objective, with the dirty mark that triggers the S3C update.",
+ "scope": "not_needed",
+ "scope_reason": "Only reached when an objective exists; with the scoreboard empty in this game no Score object is ever built.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_96658_a",
+   "sig": "java.util.Comparator (static)",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "theScoreboard",
+   "sig": "Scoreboard",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "theScoreObjective",
+   "sig": "ScoreObjective",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_96654_d",
+   "sig": "String",
+   "status": "n/a",
+   "note": "the player name"
+  },
+  {
+   "kind": "field",
+   "name": "field_96655_e",
+   "sig": "int",
+   "status": "n/a",
+   "note": "the points"
+  },
+  {
+   "kind": "ctor",
+   "name": "Score",
+   "sig": "(Scoreboard,ScoreObjective,String)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_96649_a",
+   "sig": "(I)V",
+   "status": "n/a",
+   "note": "increase the points and mark dirty"
+  },
+  {
+   "kind": "method",
+   "name": "func_96646_b",
+   "sig": "(I)V",
+   "status": "n/a",
+   "note": "decrease the points and mark dirty"
+  },
+  {
+   "kind": "method",
+   "name": "func_96648_a",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "recompute from the criteria and mark dirty"
+  },
+  {
+   "kind": "method",
+   "name": "getScorePoints",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_96647_c",
+   "sig": "(I)V",
+   "status": "n/a",
+   "note": "set the points and mark dirty"
+  },
+  {
+   "kind": "method",
+   "name": "func_96645_d",
+   "sig": "()ScoreObjective",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerName",
+   "sig": "()String",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_96650_f",
+   "sig": "()Scoreboard",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_96651_a",
+   "sig": "(java.util.List)V",
+   "status": "n/a"
+  }
+ ],
+ "missing": []
+}

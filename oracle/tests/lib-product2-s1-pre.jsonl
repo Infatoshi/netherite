@@ -1,0 +1,4 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"PreloadRegion","cx0":-16,"cx1":40,"cz0":-16,"cz1":48,"per_tick":64}
+{"n":70,"act":{}}
+{"cmd":"save","name":"lib-product2-s1"}

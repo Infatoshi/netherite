@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/item/ItemEnderEye.java",
+  "classes": ["ItemEnderEye"],
+  "lines": 184,
+  "side": "server",
+  "category": "item",
+  "role": "The eye of ender: right click on an end portal frame fills it (metadata + 4) and checks the 3x3 ring to spawn the end portal; otherwise it finds the closest stronghold and throws an EntityEnderEye toward it.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/itemuse.c", "symbols": ["eye_use", "frame_has_eye", "look_ray"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_endereye_on_item_use", "place_portal_frame_ok"]},
+    {"file": "csrc/engine/throw.c", "symbols": ["throw_server_use", "looks_at_end_frame"]},
+    {"file": "csrc/engine/projectile.c", "symbols": ["proj_throw_ender_eye", "proj_use_ender_eye", "ender_eye_update"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/throw-items-s1",
+    "csrc/tests/test_eyes.c",
+    "out/java/eyes/eye2"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemEnderEye", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 381"},
+    {"kind": "method", "name": "onItemUse", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/place.c:item_endereye_on_item_use", "status": "exact", "note": "the frame fill, the smoke particles' itemRand draws, the ring walk over Direction offsets and the end portal placement; place.c's place_portal_frame_ok carries the ring check"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/throw.c:throw_server_use", "status": "exact", "note": "the end-frame look check (throw.c looks_at_end_frame), the stronghold search and EntityEnderEye.moveTowards through projectile.c's proj_throw_ender_eye, the itemRand pitch and the stack decrement"}
+  ],
+  "missing": [],
+  "notes": "throw-items-s1 gates three eyes flying toward the stronghold (two dropping, one shattering); test_eyes.c gates the portal assembly against the oracle probe."
+}

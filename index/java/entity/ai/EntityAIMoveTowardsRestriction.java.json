@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIMoveTowardsRestriction.java",
+  "classes": ["EntityAIMoveTowardsRestriction"],
+  "lines": 66,
+  "side": "server",
+  "category": "ai",
+  "role": "Home-radius walk: when the entity is outside its home radius it picks a random candidate toward the home position and paths there (villagers at 0.6, golems and zombies at 1.0).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_setup_kind", "random_target_towards"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-village-full-s42", "out/java/snapshots/fight-zombie-s1", "csrc/tests/test_villagers.c"],
+  "members": [
+    {"kind": "field", "name": "theEntity", "sig": "EntityCreature", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living"},
+    {"kind": "field", "name": "movePosX", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.x"},
+    {"kind": "field", "name": "movePosY", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.y"},
+    {"kind": "field", "name": "movePosZ", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.z"},
+    {"kind": "field", "name": "movementSpeed", "sig": "double", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact"},
+    {"kind": "ctor", "name": "EntityAIMoveTowardsRestriction", "sig": "(EntityCreature,double)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_MOVE_TOWARDS_RESTRICTION, mutex 1"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "isWithinHomeDistanceCurrentPosition blocks (maximum_home_distance != -1 and the home distance holds), then findRandomTargetBlockTowards(16,7) toward the home position"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "!noPath, shared with AIC_MOVE_INDOORS"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "tryMoveToXYZ(movePos, speed)"}
+  ],
+  "missing": [],
+  "notes": "lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

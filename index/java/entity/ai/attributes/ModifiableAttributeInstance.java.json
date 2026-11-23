@@ -1,0 +1,46 @@
+{
+  "path": "oracle/src/entity/ai/attributes/ModifiableAttributeInstance.java",
+  "classes": ["ModifiableAttributeInstance"],
+  "lines": 193,
+  "side": "server",
+  "category": "ai",
+  "role": "The concrete attribute instance: keeps the base value, modifier sets keyed by operation, name and UUID, and lazily recomputes the cached value from base plus the three operation classes.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.h", "symbols": ["attr_instance", "attr_mod"]},
+    {"file": "csrc/engine/living.c", "symbols": ["attrs_instance_init", "attrs_set_base", "attrs_apply", "attrs_remove", "attrs_remove_all", "attrs_value", "attrs_compute", "mod_same"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/auditfix-attr-s1",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_lightning.c",
+    "csrc/tests/test_hostiles.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "attributeMap", "sig": "BaseAttributeMap", "native": null, "status": "n/a", "note": "back-pointer to the owning map; a native attr_instance is an array element of attr_map, no per-instance pointer"},
+    {"kind": "field", "name": "genericAttribute", "sig": "IAttribute", "native": "csrc/engine/living.h:attr_instance", "status": "partial", "note": "the enum field which identifies the attribute"},
+    {"kind": "field", "name": "mapByOperation", "sig": "Map (Integer to Set of AttributeModifier)", "native": null, "status": "n/a", "note": "one flat mods array; computeValue filters by operation instead; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "mapByName", "sig": "Map (String to Set of AttributeModifier)", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "mapByUUID", "sig": "Map (UUID to AttributeModifier)", "native": null, "status": "n/a", "note": "its HashMap bucket order is emulated only when writing NBT (attr_mod_bucket); not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "baseValue", "sig": "double", "native": "csrc/engine/living.h:attr_instance", "status": "exact", "note": "attr_instance.base"},
+    {"kind": "field", "name": "needsUpdate", "sig": "boolean", "native": "csrc/engine/living.h:attr_instance", "status": "exact", "note": "attr_instance.needs_update"},
+    {"kind": "field", "name": "cachedValue", "sig": "double", "native": "csrc/engine/living.h:attr_instance", "status": "exact", "note": "attr_instance.cached"},
+    {"kind": "field", "name": "__OBFID", "sig": "static final String (obfuscation id, grouped)", "native": null, "status": "n/a", "note": "decompiler artifact"},
+    {"kind": "ctor", "name": "ModifiableAttributeInstance", "sig": "(BaseAttributeMap,IAttribute)V", "native": "csrc/engine/living.c:attrs_instance_init", "status": "exact", "note": "seeds base and cache from the default and marks needs_update"},
+    {"kind": "method", "name": "getAttribute", "sig": "()IAttribute", "native": "csrc/engine/living.h:attr_instance", "status": "partial"},
+    {"kind": "method", "name": "getBaseValue", "sig": "()double", "native": "csrc/engine/living.h:attr_instance", "status": "exact"},
+    {"kind": "method", "name": "setBaseValue", "sig": "(double)V", "native": "csrc/engine/living.c:attrs_set_base", "status": "exact"},
+    {"kind": "method", "name": "getModifiersByOperation", "sig": "(int)Collection", "native": "csrc/engine/living.c:attrs_compute", "status": "partial", "note": "no standalone getter; attrs_compute walks the flat list filtering each operation"},
+    {"kind": "method", "name": "func_111122_c", "sig": "()Collection (all modifiers)", "native": "csrc/engine/living.h:attr_instance", "status": "partial", "note": "the flat mods array; no union of three operation sets"},
+    {"kind": "method", "name": "getModifier", "sig": "(UUID)AttributeModifier", "native": "csrc/engine/living.c:mod_same", "status": "partial", "note": "UUID comparison exists only inside apply/remove"},
+    {"kind": "method", "name": "applyModifier", "sig": "(AttributeModifier)V", "native": "csrc/engine/living.c:attrs_apply", "status": "exact"},
+    {"kind": "method", "name": "flagForUpdate", "sig": "()V", "native": null, "status": "n/a", "note": "native sets needs_update inline; the watchable-set registration half has no counterpart; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "removeModifier", "sig": "(AttributeModifier)V", "native": "csrc/engine/living.c:attrs_remove", "status": "exact"},
+    {"kind": "method", "name": "removeAllModifiers", "sig": "()V", "native": "csrc/engine/living.c:attrs_remove_all", "status": "exact"},
+    {"kind": "method", "name": "getAttributeValue", "sig": "()double", "native": "csrc/engine/living.c:attrs_value", "status": "exact"},
+    {"kind": "method", "name": "computeValue", "sig": "()double", "native": "csrc/engine/living.c:attrs_compute", "status": "exact", "note": "operation 0 adds, 1 adds base * amount, 2 multiplies by 1 + amount, then clamps; matches living.c:147's comment"}
+  ],
+  "missing": [],
+  "notes": "Verified computeValue's operation math against attrs_compute (living.c:149) line by line. The ATTR_MAX_MODS=8 cap is a native limit with no Java analogue; Java grows its sets unboundedly. I did not verify whether any recorded entity ever holds more than 8 modifiers on one attribute. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: the three modifier maps (by operation, by name, by UUID) do not exist natively; a flat capped array replaces them and only the NBT write emulates the HashMap bucket order. flagForUpdate's registration in the map's watchable instance set has no native counterpart: no client attribute sync exists. getModifier as a public by-UUID lookup has no direct native counterpart."
+}

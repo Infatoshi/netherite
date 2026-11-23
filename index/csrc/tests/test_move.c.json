@@ -1,0 +1,48 @@
+{
+  "path": "csrc/tests/test_move.c",
+  "lines": 428,
+  "role": "Gate: replays the oracle's Move probe (raw region, shape scatter, spawned entity, recorded moves with a teleport every 50 ops) through csrc/engine/entity.c's moveEntity and block collision boxes, comparing every recorded field bit for bit.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "moveEntity",
+        "setPosition",
+        "setSize"
+      ]
+    },
+    {
+      "path": "oracle/src/block/Block.java",
+      "members": [
+        "addCollisionBoxesToList",
+        "getCollisionBoundingBoxFromPool",
+        "setBlockBoundsBasedOnState"
+      ]
+    },
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "getCollidingBoundingBoxes",
+        "getHeightValue",
+        "setBlock"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "jrandom",
+      "java": "java.util.Random, the probe's only randomness (OPSEED stream)",
+      "fields": [
+        "seed"
+      ]
+    }
+  ],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/moves. Native calls: entity_init, entity_set_size, entity_set_position, entity_move (csrc/engine/entity.h), world_init/world_load_chunk/world_set_block/world_get_height_value. Asserts the probe's draw stream (shape x/z/id/meta, move deltas, teleport y) before blaming physics. The Makefile maps test_move to out/java/moves (DATA_move). Oracle side: oracle/harness/netherite/oracle/Move.java. Recordings: out/java/moves/mv-2, mv-42, mv-7, mv-dense-2."
+}

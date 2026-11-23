@@ -1,0 +1,31 @@
+{
+ "path": "csrc/engine/village.c",
+ "lines": 811,
+ "role": "The village layout: MapGenVillage's spawn test (grid of 32 with separation 8, salt 10387312, biome viability over plains, desert, savanna) and StructureVillagePieces' tree of well, roads and houses built through the weighted piece list, the alternating road and house queues, and the Valid flag.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/MapGenVillage.java", "members": ["canSpawnStructureAtCoords", "villageSpawnBiomes", "getStructureStart", "Start", "hasMoreThanTwoComponents"]},
+  {"path": "oracle/src/world/gen/structure/StructureVillagePieces.java", "members": ["getStructureVillageWeightedPieceList", "func_75079_a", "func_75083_a", "getNextVillageComponent", "getNextVillageStructureComponent", "getNextComponentVillagePath", "canVillageGoDeeper", "getNextComponentNN", "getNextComponentPP", "func_74912_a", "func_74919_a", "func_74898_a", "func_74908_a", "func_74906_a", "func_74900_a", "func_74902_a", "func_74915_a", "func_74921_a", "func_74904_a", "func_74933_a", "func_151559_a", "field_74932_i", "field_74930_j", "structVillagePieceWeight", "inDesert", "canSpawnMoreVillagePiecesOfType", "canSpawnMoreVillagePieces", "field_143014_b", "field_143015_k", "buildComponent"]},
+  {"path": "oracle/src/world/World.java", "members": ["setRandomSeed"]},
+  {"path": "oracle/src/world/biome/WorldChunkManager.java", "members": ["areBiomesViable", "getBiomeGenAt"]}
+ ],
+ "structs": [
+  {"name": "village_world", "java": "MapGenVillage's world reference: the seed and the WorldChunkManager's layer stack, plus the Start's inDesert for the start being built", "fields": ["seed", "layers", "in_desert"]},
+  {"name": "village_biomes", "java": "MapGenVillage.villageSpawnBiomes", "fields": []},
+  {"name": "structure_village", "java": "MapGenVillage as a structure_type vtable", "fields": []}
+ ],
+ "entry_points": ["village_begin", "village_build_component", "structure_village"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 104, function are_biomes_viable: malloc of the biome buffer on every piece test",
+  "line 118, function vill_new: calloc of one piece per structure component (pointer graph of pieces in the start)",
+  "lines 164-165, function weights_add: realloc of the per-start weight list",
+  "line 309, function village_pending_add: realloc growth of the road and house queues",
+  "lines 776-796, function village_make_start: loop until both queues drain, bounded only by the depth (50 / 3) and distance (112) guards",
+  "lines 514 and 535: last_weight compared by pointer identity, including a pointer to removed_weight to mirror Java's reference to a removed list element",
+  "line 734, function village_can_spawn: reads the global populate_world_rand pointer and reseeds that stream when set"
+ ],
+ "tests": ["csrc/tests/test_structures.c", "csrc/tests/test_populate.c", "csrc/tests/test_sblocks.c", "csrc/tests/test_chunkload.c"],
+ "notes": "Layout only: the block half is village_blocks.c (village_blocks, declared here) and villager spawning goes through structure_blocks.c's sc_villager_new. The piece structs (struct piece's village union, enum village_kind, struct village_weight) are in structure.h. Terrain type is fixed at 0 (default world, no superflat). test_structures.c names 'Village' among its overworld types; which of the other tests exercise village layout was inferred from their grep hits for 'village', not verified run by run."
+}

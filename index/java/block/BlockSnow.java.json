@@ -1,0 +1,217 @@
+{
+  "path": "oracle/src/block/BlockSnow.java",
+  "classes": [
+    "BlockSnow"
+  ],
+  "lines": 139,
+  "side": "common",
+  "category": "block",
+  "role": "The snow layer (minecraft:snow_layer, id 78): a 1..8-layer thin block that melts above block light 11, cannot sit without a floor, and drops snowballs when harvested.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_pool_box"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "snow_can_place",
+        "block_on_neighbor_changed"
+      ]
+    },
+    {
+      "file": "csrc/engine/randomtick.c",
+      "symbols": [
+        "rt_snow"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_dispatch"
+      ]
+    },
+    {
+      "file": "csrc/engine/harvestdrops.c",
+      "symbols": [
+        "harvest_block"
+      ]
+    },
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "snow_layer_placeable"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/block_item_model.c",
+      "symbols": [
+        "block_item_model_build"
+      ]
+    },
+    {
+      "file": "csrc/engine/dig.c",
+      "symbols": [
+        "harvest_block"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/scen-snow-farmland-s1",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/render-src/ent_hand",
+    "csrc/tests/test_render.c",
+    "out/java/snapshots/idx-blocks-s1",
+    "out/java/snapshots/idx-randomtick-s1",
+    "out/java/meshes/scene3-42",
+    "csrc/tests/test_meshes.c",
+    "out/java/snapshots/snow-cold-s1",
+    "out/java/snapshots/cov-blkmisc-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockSnow",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "id 78: Material.field_151597_y row, 0.125 bounds, tick_randomly, all in the table"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "texture registration; the native mesher reads the atlas directly"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_pool_box",
+      "status": "exact",
+      "note": "case 78: height is metadata & 7 times 0.125"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsForItemRender",
+      "sig": "()V",
+      "native": "csrc/engine/block_item_model.c:block_item_model_build",
+      "status": "exact",
+      "note": "render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_150154_b",
+      "sig": "(I)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockAt",
+      "sig": "(Lnet/minecraft/world/World;III)Z",
+      "native": "csrc/engine/blockcb.c:snow_can_place",
+      "status": "exact",
+      "note": "the ice/packed-ice refusal, leaves, a full layer below, or an opaque floor"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)V",
+      "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+      "status": "exact",
+      "note": "the snow case re-checks snow_can_place and drops itself without a floor"
+    },
+    {
+      "kind": "method",
+      "name": "func_150155_m",
+      "sig": "(Lnet/minecraft/world/World;III)Z",
+      "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "harvestBlock",
+      "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;IIII)V",
+      "native": "csrc/engine/harvestdrops.c:harvest_block",
+      "status": "exact",
+      "note": "the BlockSnow branch drops (meta & 7) + 1 snowballs and clears the cell"
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+      "native": "csrc/engine/dig.c:harvest_block",
+      "status": "n/a",
+      "note": "Block.dropBlockAsItemWithChance asks getItemDropped once per quantityDropped, which is 0 for a snow layer (a player's break runs BlockSnow.harvestBlock, which drops snowballs itself)"
+    },
+    {
+      "kind": "method",
+      "name": "quantityDropped",
+      "sig": "(Ljava/util/Random;)I",
+      "native": "csrc/engine/drops.c:drops_dispatch",
+      "status": "exact",
+      "note": "case 78: the break path drops nothing"
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(Lnet/minecraft/world/World;IIILjava/util/Random;)V",
+      "native": "csrc/engine/randomtick.c:rt_snow",
+      "status": "exact",
+      "note": "melt above block light 11"
+    },
+    {
+      "kind": "method",
+      "name": "shouldSideBeRendered",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;IIII)Z",
+      "native": "csrc/engine/render_blocks.c:should_side_be_rendered",
+      "status": "exact",
+      "note": "The side-1 always-render rule in the shared cull; the mesh scenes draw every layer height."
+    }
+  ],
+  "missing": [],
+  "notes": "World.c also carries world_can_snow_at / snow_layer_placeable (World.func_147478_e), the weather path that places new layers; the layer's own canPlaceBlockAt rules are shared through snow_can_place. lane/idxblocks: idx-blocks-s1 digs a layer with a shovel and one by hand; idx-randomtick-s1 melts a field of layers over glowstone (block light 14)."
+}

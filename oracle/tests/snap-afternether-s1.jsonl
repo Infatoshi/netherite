@@ -1,0 +1,15 @@
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"run","class":"Roundtrip"}
+{"n":1,"act":{"dlook":[180,0]}}
+{"n":20,"act":{"hold":["forward"]}}
+{"n":100,"act":{}}
+{"n":12,"act":{"hold":["back"]}}
+{"n":1,"act":{"dlook":[20,-5]}}
+{"n":98,"act":{}}
+{"n":1,"act":{"dlook":[-20,5]}}
+{"n":3,"act":{"hold":["forward"]}}
+{"n":3,"act":{"hold":["back"]}}
+{"n":94,"act":{}}
+{"n":1,"act":{"dlook":[45,0]}}
+{"n":60,"act":{"hold":["forward"]}}
+{"n":40,"act":{}}

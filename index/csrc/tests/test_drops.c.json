@@ -1,0 +1,36 @@
+{
+ "path": "csrc/tests/test_drops.c",
+ "lines": 486,
+ "role": "Gate: replays DropsProbe's cases (a block placed, world Random seeded, Block.dropBlockAsItemWithChance called) through drops_break, comparing every spawned entity (item, damage, stack NBT, XP value, position, motion, yaw) and keeping the shared Math.random stream in sync.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "dropBlockAsItemWithChance",
+    "dropBlockAsItem_do",
+    "dropXpOnBlockBreak"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/item/EntityXPOrb.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/DropsProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "Data: out/java/drops/*. After each case the Math stream is restored and advanced four nextDouble per recorded entity. Test code, built only into out/native/test_*; not on the product or GPU path, so no GPU hazards are listed."
+}

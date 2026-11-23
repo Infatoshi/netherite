@@ -1,0 +1,13 @@
+{
+  "path": "oracle/harness/netherite/oracle/PendingTicks.java",
+  "lines": 123,
+  "role": "WorldServer.getPendingBlockUpdates(chunk, false), the pending ticks a chunk's save writes, answered from an index: vanilla walks the world's whole pending tick set per saved chunk (after a fresh world's spawn area 336 chunks are unloaded and saved over the first ticks, a third of a warm member's server thread in a short seed-start replay). The first call on the set as it stands scans as vanilla does; a second call before the set changes (the set and its TreeMap's modCount) indexes each entry under every chunk window it falls in (x in [16cx-2, 16cx+16), z likewise; at most four), in the set's order, and returns a new list per call (null when empty), the same list vanilla builds. Only while no tick is being processed and never for a remove.",
+  "kind": "util",
+  "used_by": [
+    "oracle/src/world/WorldServer.java (getPendingBlockUpdates)"
+  ],
+  "vanilla_hooks": [
+    "oracle/src/world/WorldServer.java"
+  ],
+  "notes": "Checked against vanilla's scan on every indexed call of act2-bisect, pf-blazefall-g7, gold-g6-s42 and s1chain-S2 (1,286 calls, every list the same entries in the same order) before the check was removed; the selfcheck replays every stored recording on it (lane/replaylat)."
+}

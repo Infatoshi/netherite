@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/block_item_model.h",
+ "lines": 29,
+ "role": "Declares the block-as-item model (RenderBlocks.renderBlockAsItem geometry in block-local space) used by the GUI slot, held-item and dropped-item renderers. Also block_item_model_grass_color; chest_texture is 1 normal, 2 ender, 3 trapped.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/RenderBlocks.java", "members": ["renderBlockAsItem"]}
+ ],
+ "structs": [
+  {"name": "block_item_quad", "java": "one Tessellator quad emitted by renderBlockAsItem (position, UV, normal, grass-top tint flag)", "fields": ["p", "uv", "normal", "tint_top"]},
+  {"name": "block_item_model", "java": null, "fields": ["quad", "n", "inner_rotate_y90", "render_pass", "chest_texture"]}
+ ],
+ "entry_points": ["block_item_model_build", "block_item_model_override_box", "block_item_model_grass_color"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_hudscreens.c"],
+ "notes": "Fixed-capacity quad array (192). No test includes it directly; exercised through the pixel gates of raster_hud.c, raster_hand.c and raster_entities.c (not verified which golden frames)."
+}

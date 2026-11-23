@@ -1,0 +1,69 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenBlockBlob.java",
+ "classes": [
+  "WorldGenBlockBlob"
+ ],
+ "lines": 84,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The mossy cobblestone boulder of the mega taiga biomes: walks down to grass, dirt or stone and stamps three random ellipsoids with flag-4 setBlock.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "place_block_blob"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/seedworld/seed1",
+  "out/java/snapshots/cov-megataiga-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150545_a",
+   "sig": "Block",
+   "native": "csrc/engine/decorator.c:place_block_blob",
+   "status": "exact",
+   "note": "Fixed to mossy_cobblestone, the only block vanilla builds it with."
+  },
+  {
+   "kind": "field",
+   "name": "field_150544_b",
+   "sig": "int",
+   "native": "csrc/engine/decorator.c:place_block_blob",
+   "status": "exact",
+   "note": "Fixed to 0, the only size vanilla uses (BiomeGenTaiga field_150643_aG)."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenBlockBlob",
+   "sig": "(Block,int)",
+   "native": null,
+   "status": "n/a",
+   "note": "Constants inlined."
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/decorator.c:place_block_blob",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "No feature probe records this generator; it is covered only through populate/seedworld dumps of mega taiga chunks (not checked that the recorded seeds contain one). Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

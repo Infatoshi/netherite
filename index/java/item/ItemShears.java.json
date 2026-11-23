@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/item/ItemShears.java",
+  "classes": ["ItemShears"],
+  "lines": 43,
+  "side": "common",
+  "category": "item",
+  "role": "The shears (id 359): shear sheep (harvest the fleece, dye stays), cut leaves, web, tall grass, vine and tripwire at speed, taking 1 damage per block.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/harvest.c", "symbols": ["item_str_vs_block", "item_can_harvest"]},
+    {"file": "csrc/engine/dig.c", "symbols": ["item_on_block_destroyed"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["entity_interact"]}
+  ],
+  "evidence": ["csrc/tests/test_harvest.c", "csrc/tests/test_dig.c", "out/java/snapshots/rc-animals-s1", "out/java/snapshots/cat-sheep-full-s1"],
+  "members": [
+    {"kind": "ctor", "name": "ItemShears", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 359: stack 1, maxDamage 238"},
+    {"kind": "method", "name": "onBlockDestroyed", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/block/Block;IIILnet/minecraft/entity/EntityLivingBase;)Z", "native": "csrc/engine/dig.c:item_on_block_destroyed", "status": "exact", "note": "the shears branch: 1 damage on leaves, web, tall grass, vine and tripwire, super's damage-0 path otherwise"},
+    {"kind": "method", "name": "func_150897_b", "sig": "(Lnet/minecraft/block/Block;)Z", "native": "csrc/engine/harvest.c:item_can_harvest", "status": "exact", "note": "web, redstone_wire, tripwire"},
+    {"kind": "method", "name": "func_150893_a", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/block/Block;)F", "native": "csrc/engine/harvest.c:item_str_vs_block", "status": "exact", "note": "15 on web and leaves, 5 on wool, else super's 1"}
+  ],
+  "missing": [],
+  "notes": "Shearing a sheep (the fleece drops and the watcher-16 sheared bit) is survival.c:entity_interact's sheep branch; the interaction list is sheep, cow, mooshroom and breeding items. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records cat-sheep-full-s1, whose native replay starts before the behaviour."
+}

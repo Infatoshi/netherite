@@ -1,0 +1,62 @@
+{
+ "path": "oracle/src/client/model/ModelSheep1.java",
+ "classes": [
+  "ModelSheep1"
+ ],
+ "lines": 57,
+ "side": "client",
+ "category": "client_model",
+ "role": "The sheep's wool layer: the grown-out quadruped boxes drawn over the body in the fleece colour.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_sheep",
+    "pose_model",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs_sheep_f006",
+  "out/java/render/mobs_sheep_f011",
+  "out/java/render/mobs_sheep_f016",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_78152_i",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact",
+   "note": "the eat angle rides in mob_render_input.eat_head_x"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelSheep1",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_sheep",
+   "status": "exact",
+   "note": "the wool=1 variant; the fur pass uses the fleece colour and the sheep_fur texture"
+  },
+  {
+   "kind": "method",
+   "name": "setLivingAnimations",
+   "sig": "(EntityLivingBase,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact",
+   "note": "EntitySheep.func_70894_j/func_70890_k are fed from sheep_timer as eat_head_y/eat_head_x"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

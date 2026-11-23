@@ -1,0 +1,10 @@
+{"n":280,"act":{"hold":["forward"]}}
+{"n":100,"act":{"dlook":[-40,0],"hold":["forward"]}}
+{"n":120,"act":{"hold":["back"]}}
+{"n":200,"act":{"dlook":[0,45],"hold":["attack"]}}
+{"n":40,"act":{"hold":["use"]}}
+{"n":200,"act":{"dlook":[0,-50],"hold":["attack"]}}
+{"n":120,"act":{"hold":["back"]}}
+{"n":280,"act":{"hold":["forward"]}}
+{"n":60,"act":{"hold":["back"]}}
+{"cmd":"save","name":"cp-far-s1"}

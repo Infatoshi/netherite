@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntityEnderChestRenderer.java",
+  "classes": ["TileEntityEnderChestRenderer"],
+  "lines": 70,
+  "side": "client",
+  "category": "client_render",
+  "role": "TileEntitySpecialRenderer for TileEntityEnderChest: draws ModelChest with the ender.png texture, rotated by the block metadata facing, lid opening from the interpolated field_145972_a angle with the same cubic ease as the normal chest.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+   {
+    "file": "csrc/engine/raster_tileent.c",
+    "symbols": [
+     "render_chest",
+     "model_chest",
+     "lid_angle"
+    ]
+   }
+  ],
+  "evidence": [
+   "out/java/rendertick/te_chests",
+   "out/java/render/te_chests_f25",
+   "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_147520_b", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_tileent.c:tex", "status": "exact"},
+    {"kind": "field", "name": "field_147521_c", "sig": "ModelChest", "native": "csrc/engine/raster_tileent.c:model_chest", "status": "exact"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntityEnderChest,D,D,D,F)V", "native": "csrc/engine/raster_tileent.c:render_chest", "status": "exact"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntity,D,D,D,F)V", "native": null, "status": "n/a", "note": "bridge overload"}
+  ],
+  "missing": [],
+  "notes": "te_chests holds ender chests at all four facings; the lid path is the chest's (raster_tileents_lid_tick steps it)."
+}

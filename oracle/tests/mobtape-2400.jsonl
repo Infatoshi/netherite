@@ -1,0 +1,14 @@
+{"cmd":"run","class":"MobFree","radius":4,"mobs":true}
+{"cmd":"run","class":"Snapshot"}
+{"n":200,"act":{"hold":["forward"]}}
+{"n":200,"act":{"hold":["back"]}}
+{"n":200,"act":{"hold":["forward"]}}
+{"n":200,"act":{"hold":["back"]}}
+{"n":200,"act":{"hold":["forward"]}}
+{"n":200,"act":{"hold":["back"]}}
+{"n":200,"act":{"hold":["forward"]}}
+{"n":200,"act":{"hold":["back"]}}
+{"n":200,"act":{"hold":["forward"]}}
+{"n":200,"act":{"hold":["back"]}}
+{"n":200,"act":{"hold":["forward"]}}
+{"n":200,"act":{"hold":["back"]}}

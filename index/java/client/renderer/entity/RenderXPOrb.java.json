@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderXPOrb.java",
+  "classes": ["RenderXPOrb"],
+  "lines": 97,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders the XP orb: a camera-facing quad whose texture tile follows the orb's XP value and whose color pulses from xpColor and the partial tick.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_entities.c", "symbols": ["raster_orb_quad", "render_world_orbs", "raster_entities_live"]},
+    {"file": "csrc/play/play.c", "symbols": ["draw_hitboxes"]}
+  ],
+  "evidence": ["out/java/render/worldfx_orbs", "csrc/tests/test_render.c", "out/java/clientframes/cr-drops-s1", "out/java/clientframes/cr-pickup-s1"],
+  "members": [
+    {"kind": "field", "name": "experienceOrbTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_entities.c:live_entity_tex", "status": "exact", "note": "static constant, grouped; the orb texture bytes the live path loads"},
+    {"kind": "ctor", "name": "RenderXPOrb", "sig": "()V (shadowSize 0.15, shadowOpaque 0.75)", "native": "csrc/engine/raster_entities.c:render_world_orbs", "status": "exact", "note": "shadowSize 0.15 and shadowOpaque 0.75 feed Render.doRenderShadowAndFire, which draws only under fancyGraphics (Render.java:313); every oracle run's options have it false (Main.optionsFor: fancyGraphics from a replayed tape's header, else false), so the shadow is never in a golden"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityXPOrb,double,double,double,float,float)V", "native": "csrc/engine/raster_entities.c:raster_orb_quad", "status": "exact", "note": "the tile-by-value quad, the xpColor pulse, the 0.3 scale and the +120 block-light boost: the live client's orbs are judged in every clientframes recording's drops check (cr-drops-s1, cr-pickup-s1, the cr-sweep-gold orbs) within budget; the old worldfx_orbs scene's residual is that scene's recorded state"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityXPOrb)ResourceLocation", "native": "csrc/engine/raster_entities.c:live_entity_tex", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "play.c's live path computes EntityXPOrb.getBrightnessForRender's +120 block-light boost before calling raster_entities_live; that boost is EntityXPOrb's, not this file's, but the quad consumes it. lane/idxclient: closed: the shadow is fancy-only (off in every oracle run); the live orb draw is proven by the frame judge's drops checks."
+}

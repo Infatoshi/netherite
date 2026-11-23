@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/item/ItemFireworkCharge.java",
+  "classes": ["ItemFireworkCharge"],
+  "lines": 225,
+  "side": "client",
+  "category": "item",
+  "role": "The firework charge: the Explosion NBT helpers (func_150903_a, func_150902_a), the two-pass icon with the charge colour, and the tooltip lines describing a charge.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: a firework star is craftable in survival (RecipeFireworks is live) and sits in the inventory, the hotbar, the hand and on the ground, where its icon's overlay is tinted from the Explosion colours (getColorFromItemStack pass 1), and hovering it in a container screen draws addInformation's lines.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/firework.c", "symbols": ["firework_charge_color", "firework_info_lines", "explosion_lines", "explosion_key", "get_byte", "DYE_KEYS"]},
+    {"file": "csrc/engine/crafting.c", "symbols": ["firework_dye_color", "craft_dye_firework_color"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["draw_stack", "tooltip_lines", "item_icon_tint"]},
+    {"file": "csrc/engine/raster_entities.c", "symbols": ["raster_flat_item_quad"]}
+  ],
+  "evidence": [
+    "out/java/clientframes/misc-fwstar-s1",
+    "out/java/snapshots/misc-fireworks-s1",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150904_a", "sig": "IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "ctor", "name": "ItemFireworkCharge", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "n/a", "note": "row 402"},
+    {"kind": "method", "name": "getIconFromDamageForRenderPass", "sig": "(II)IIcon", "native": null, "status": "n/a", "note": "client render"},
+    {"kind": "method", "name": "getColorFromItemStack", "sig": "(ItemStack,I)I", "native": "csrc/engine/firework.c:firework_charge_color", "status": "exact", "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-misc-fwstar-s1"},
+    {"kind": "method", "name": "requiresMultipleRenderPasses", "sig": "()Z", "native": null, "status": "n/a", "note": "client render"},
+    {"kind": "method", "name": "func_150903_a", "sig": "(ItemStack,String)NBTBase", "native": "csrc/engine/firework.c:explosion_key", "status": "exact", "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-misc-fwstar-s1"},
+    {"kind": "method", "name": "addInformation", "sig": "(ItemStack,EntityPlayer,List,Z)V", "native": "csrc/engine/firework.c:firework_info_lines", "status": "exact", "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-misc-fwstar-s1"},
+    {"kind": "method", "name": "func_150902_a", "sig": "(NBTTagCompound,List)V", "native": "csrc/engine/firework.c:explosion_lines", "status": "exact", "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-misc-fwstar-s1"},
+    {"kind": "method", "name": "registerIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client icons"}
+  ],
+  "missing": [],
+  "notes": "lane/idxmisc 2026-09-27: clientframes misc-fwstar-s1 (from checkpoint misc-fwstar-s1, crafted by oracle/tests/misc-fwstar-s1-pre.jsonl: a red star in the hand, a red and blue burst star with a trail and a twinkle under the pointer, a lime-faded blue star in a rocket, then the red star dropped and looked at) passes test_snapshots, play_check and frame_judge. What the frames still differ in is not this item's: the hand's second pass is drawn under GL_LESS on master (ItemRenderer; lane/idxclient 85473019 draws it under GL_LEQUAL), the inventory's player preview and the toast's slide (t=12 and t=19 budgets). Item frames draw no second pass for any item (RenderItemFrame's own gap). Fixed on the way for every two-pass dropped item: the second pass under GL_LEQUAL and the up normal's light factor (1.37) kept past 1 so that the tint is what GL clamps (raster_entities.c raster_flat_item_quad). idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

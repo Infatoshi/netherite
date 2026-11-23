@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/world/IWorldAccess.java",
+  "classes": ["IWorldAccess"],
+  "lines": 71,
+  "side": "common",
+  "category": "world",
+  "role": "The world listener interface: WorldManager on the server (entity tracker add/remove, block-change and sound packets) and RenderGlobal on the client (re-mesh marks, sounds, particles, break progress).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/tracker.h", "symbols": ["tracker_add", "tracker_remove"]},
+    {"file": "csrc/engine/particles_live.h", "symbols": []}
+  ],
+  "evidence": ["csrc/tests/test_snapshots.c"],
+  "members": [
+    {"kind": "method", "name": "markBlockForUpdate", "sig": "(int,int,int)V", "native": null, "status": "partial", "note": "world.c notes the server's block-change packet mark is folded into the set path, not a listener"},
+    {"kind": "method", "name": "markBlockForRenderUpdate", "sig": "(int,int,int)V", "native": null, "status": "n/a", "note": "client re-mesh mark; the native renderer rebuilds from the world state"},
+    {"kind": "method", "name": "markBlockRangeForRenderUpdate", "sig": "(int,int,int,int,int,int)V", "native": null, "status": "n/a", "note": "no state; comments in activate.c and servertick.c say so"},
+    {"kind": "method", "name": "playSound", "sig": "(String,double,double,double,float,float)V", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "playSoundToNearExcept", "sig": "(EntityPlayer,String,double,double,double,float,float)V", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "spawnParticle", "sig": "(String,double,double,double,double,double,double)V", "native": null, "status": "partial", "note": "client particles live in particles_live.c; not every particle name is ported"},
+    {"kind": "method", "name": "onEntityCreate", "sig": "(Entity)V", "native": "csrc/engine/tracker.h:tracker_add", "status": "partial", "note": "server WorldManager -> EntityTracker.trackEntity"},
+    {"kind": "method", "name": "onEntityDestroy", "sig": "(Entity)V", "native": "csrc/engine/tracker.h:tracker_remove", "status": "partial"},
+    {"kind": "method", "name": "playRecord", "sig": "(String,int,int,int)V", "native": null, "status": "n/a", "note": "audio, no state"},
+    {"kind": "method", "name": "broadcastSound", "sig": "(int,int,int,int,int)V", "native": null, "status": "n/a", "note": "global sound (wither/dragon death)"},
+    {"kind": "method", "name": "playAuxSFX", "sig": "(EntityPlayer,int,int,int,int,int)V", "native": null, "status": "partial", "note": "many call sites note 'no state'; the 2001 break particles go through particles_live.c"},
+    {"kind": "method", "name": "destroyBlockPartially", "sig": "(int,int,int,int,int)V", "native": null, "status": "partial", "note": "survival.h carries RenderGlobal's local destroy progress; not a listener"},
+    {"kind": "method", "name": "onStaticEntitiesChanged", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No listener abstraction in C; each effect is inlined where it matters. I did not check that tracker_add is called from every entity spawn path. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): interface, marker or abstract base; its behavior lives in the subclasses' ports."
+}

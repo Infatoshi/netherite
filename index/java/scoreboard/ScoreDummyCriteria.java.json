@@ -1,0 +1,49 @@
+{
+ "path": "oracle/src/scoreboard/ScoreDummyCriteria.java",
+ "classes": [
+  "ScoreDummyCriteria"
+ ],
+ "lines": 30,
+ "side": "server",
+ "category": "other",
+ "role": "The dummy criteria: its per tick value is always 0 and only commands change it.",
+ "scope": "not_needed",
+ "scope_reason": "Its instances are registered into IScoreObjectiveCriteria's registry, which stays empty of objectives in this game; func_96635_a never runs.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_96644_g",
+   "sig": "String",
+   "status": "n/a",
+   "note": "the criteria name"
+  },
+  {
+   "kind": "ctor",
+   "name": "ScoreDummyCriteria",
+   "sig": "(String)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_96636_a",
+   "sig": "()String",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_96635_a",
+   "sig": "(java.util.List)I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isReadOnly",
+   "sig": "()Z",
+   "status": "n/a"
+  }
+ ],
+ "missing": []
+}

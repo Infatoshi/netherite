@@ -1,0 +1,19 @@
+{
+ "path": "csrc/engine/raytrace.h",
+ "lines": 69,
+ "role": "Declares the block ray walk (World.func_147447_a and World.rayTraceBlocks) and the MovingObjectPosition block form rt_mop it returns, plus raytrace_block_bounds.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/World.java", "members": ["func_147447_a", "rayTraceBlocks"]},
+  {"path": "oracle/src/util/MovingObjectPosition.java", "members": ["typeOfHit", "blockX", "blockY", "blockZ", "sideHit", "hitVec"]},
+  {"path": "oracle/src/block/Block.java", "members": ["collisionRayTrace", "canCollideCheck"]}
+ ],
+ "structs": [
+  {"name": "rt_mop", "java": "MovingObjectPosition of type BLOCK: blockX/Y/Z, sideHit and hitVec; type RT_MISS marks the uncollidable stop returnLastUncollidableBlock hands back", "fields": ["hit", "type", "x", "y", "z", "hx", "hy", "hz"]}
+ ],
+ "entry_points": ["raytrace_blocks", "raytrace_trace", "raytrace_block_bounds", "raytrace_collision", "raytrace_negative_stairs_nearest"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_explosions.c", "csrc/tests/test_itemuse.c", "csrc/tests/test_projectiles.c", "csrc/tests/test_raypick.c", "csrc/tests/test_snapshots.c"],
+ "notes": "Header only; implementation in raytrace.c. Its opening comment names BlockTorch as the only bounds override, which is out of date (the .c also shapes slabs, doors, buttons, fences and walls)."
+}

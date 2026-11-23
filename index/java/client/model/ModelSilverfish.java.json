@@ -1,0 +1,88 @@
+{
+ "path": "oracle/src/client/model/ModelSilverfish.java",
+ "classes": [
+  "ModelSilverfish"
+ ],
+ "lines": 89,
+ "side": "client",
+ "category": "client_model",
+ "role": "The silverfish's model: seven body segments and three wing plates wiggling along the body.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_silverfish",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs2a_silverfish_f006",
+  "out/java/render/mobs2a_silverfish_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "silverfishBodyParts",
+   "sig": "ModelRenderer[]",
+   "native": "csrc/engine/raster_mobs.c:model_silverfish",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "silverfishWings",
+   "sig": "ModelRenderer[]",
+   "native": "csrc/engine/raster_mobs.c:model_silverfish",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_78170_c",
+   "sig": "float[]",
+   "native": "csrc/engine/raster_mobs.c:model_silverfish",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "silverfishBoxLength",
+   "sig": "int[][]",
+   "native": "csrc/engine/raster_mobs.c:model_silverfish",
+   "status": "exact",
+   "note": "baked into the parts"
+  },
+  {
+   "kind": "field",
+   "name": "silverfishTexturePositions",
+   "sig": "int[][]",
+   "native": "csrc/engine/raster_mobs.c:model_silverfish",
+   "status": "exact",
+   "note": "baked into the parts"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelSilverfish",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_silverfish",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_silverfish",
+   "status": "exact",
+   "note": "the per-segment wiggle from ageInTicks"
+  }
+ ],
+ "missing": []
+}

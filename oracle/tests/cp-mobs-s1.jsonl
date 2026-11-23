@@ -1,0 +1,8 @@
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"run","class":"Roundtrip"}
+{"n":100,"act":{"hold":["forward"]}}
+{"n":100,"act":{"hold":["back"]}}
+{"n":100,"act":{"dlook":[40,0],"hold":["forward"]}}
+{"n":100,"act":{"hold":["back"]}}
+{"n":100,"act":{"dlook":[-80,0],"hold":["forward"]}}
+{"n":100,"act":{"hold":["back"]}}

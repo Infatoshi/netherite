@@ -1,0 +1,46 @@
+{
+  "path": "oracle/src/command/ServerCommandManager.java",
+  "classes": [
+    "ServerCommandManager"
+  ],
+  "lines": 136,
+  "side": "server",
+  "category": "commands",
+  "role": "Registers every vanilla command into the CommandHandler and implements IAdminCommand to broadcast chat.type.admin feedback to operators.",
+  "scope": "in_scope",
+  "scope_reason": "In scope since lane/idxclient: the chat takes typed input (GuiChat, the live client's T and slash), so a player types commands; the integrated server without cheats answers each (only tell, me, help and seed are allowed) and its tab completion reads the command map (csrc/engine/chatcmd.c).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcmd.c",
+      "symbols": [
+        "CMD",
+        "KEYS"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/idx-chattype-s1",
+    "out/java/snapshots/idx-chatsleep-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "ServerCommandManager",
+      "sig": "()V",
+      "native": "csrc/engine/chatcmd.c:CMD",
+      "status": "exact",
+      "note": "the integrated server's 31 commands in order (none of the dedicated server's), their names, aliases and usage keys"
+    },
+    {
+      "kind": "method",
+      "name": "func_152372_a",
+      "sig": "(ICommandSender,ICommand,int,String,Object[])V",
+      "native": null,
+      "status": "n/a",
+      "note": "notifyAdmins: only commands the player may not run call it (tell, me, help and seed do not)"
+    }
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: the registration as chatcmd.c's CMD and KEYS tables. idx-chattype-s1."
+}

@@ -1,0 +1,20 @@
+# What the generated sessions never do (divergences.md, "Known untested").
+# A line is listed while its probe (an extended regex, case-sensitive) matches
+# none of the generators: csrc/tests/playfuzz/playgen.h, gen.c, ends.c,
+# agentgen.c and csrc/tests/rawfuzz/gen.c. When a generator learns the action (and
+# names it), the line drops out by itself; a probe of "-" is always listed
+# (a gap no word in the generators can show). Directed recordings may cover
+# the same ground: this is the random search's blind spot, not the suite's.
+gap	probe
+typing in the chat or a command (T, /), and chat links	chat
+creative mode, or any game mode change	[Cc]reative|gamemode|game_mode
+a difficulty change inside a session	difficulty
+weather forced by a dev op (a storm on demand; rain comes only by itself)	weather|thunder
+a name tag on a mob	name.?tag|\(421,
+a mob spawner staged or sought out	spawner
+a dispenser or dropper	dispenser|dropper|\(23,|\(158,
+a sign placed	\bsigns?\b|\(323,
+the options, video settings or controls screens	GuiOptions|video|controls
+F2 (screenshot) or F11 (fullscreen)	"F2"|"F11"
+a generated session as long as a Minecraft day (24,000 ticks): sessions plan 900 to 5,000 ticks; days pass only across chained sessions	-
+two players, or a second client: every start is single-player	-

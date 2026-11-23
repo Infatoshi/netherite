@@ -1,0 +1,156 @@
+{
+  "path": "oracle/src/block/BlockEventData.java",
+  "classes": [
+    "BlockEventData"
+  ],
+  "lines": 75,
+  "side": "common",
+  "category": "block",
+  "role": "The block event record WorldServer.addBlockEvent queues: a coordinate, a block, an event id and a parameter, deduped per tick and delivered to the block's onBlockEventReceived.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "add_event"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/activate/full2",
+    "csrc/tests/test_activate.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "coordX",
+      "sig": "int",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "exact",
+      "note": "v[0]"
+    },
+    {
+      "kind": "field",
+      "name": "coordY",
+      "sig": "int",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "exact",
+      "note": "v[1]"
+    },
+    {
+      "kind": "field",
+      "name": "coordZ",
+      "sig": "int",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "exact",
+      "note": "v[2]"
+    },
+    {
+      "kind": "field",
+      "name": "field_151344_d",
+      "sig": "Block",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "exact",
+      "note": "v[3], the block id"
+    },
+    {
+      "kind": "field",
+      "name": "eventID",
+      "sig": "int",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "exact",
+      "note": "v[4]"
+    },
+    {
+      "kind": "field",
+      "name": "eventParameter",
+      "sig": "int",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "exact",
+      "note": "v[5]"
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockEventData",
+      "sig": "(IIILnet/minecraft/block/Block;II)V",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "exact",
+      "note": "the dedupe-and-append in activate.c's add_event"
+    },
+    {
+      "kind": "method",
+      "name": "func_151340_a",
+      "sig": "()I",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "n/a",
+      "note": "the getter, folded into the event rows"
+    },
+    {
+      "kind": "method",
+      "name": "func_151342_b",
+      "sig": "()I",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "n/a",
+      "note": "same"
+    },
+    {
+      "kind": "method",
+      "name": "func_151341_c",
+      "sig": "()I",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "n/a",
+      "note": "same"
+    },
+    {
+      "kind": "method",
+      "name": "func_151339_d",
+      "sig": "()Lnet/minecraft/block/Block;",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "n/a",
+      "note": "same"
+    },
+    {
+      "kind": "method",
+      "name": "func_151338_e",
+      "sig": "()I",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "n/a",
+      "note": "same"
+    },
+    {
+      "kind": "method",
+      "name": "func_151336_f",
+      "sig": "()I",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "n/a",
+      "note": "same"
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "debug only"
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Ljava/lang/Object;)Z",
+      "native": "csrc/engine/activate.c:add_event",
+      "status": "exact",
+      "note": "the six-field equality is the dedupe test"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "unused in the queue path"
+    }
+  ],
+  "missing": [],
+  "notes": "The queue is activate.c's ACT_MAX_EVENTS event list; its consumers are the note block and comparator events (both dead under redstone = off in this game) and the recorded paths of the activate probe."
+}

@@ -1,0 +1,109 @@
+{
+ "path": "oracle/src/enchantment/EnchantmentThorns.java",
+ "classes": [
+  "EnchantmentThorns"
+ ],
+ "lines": 79,
+ "side": "server",
+ "category": "combat",
+ "role": "The Thorns enchantment: its registry row plus the damage reflection EnchantmentHelper.func_151384_a runs over the attacker when a wearer is hit.",
+ "scope": "in_scope",
+ "scope_reason": "The enchanting table is a plain block (world.conf enchanting=off), but the enchantment registry itself is kept: loot books and mob equipment carry enchantments (DEVLOG 2026-09-25, 'Kept: enchantment data and effects').",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/enchants.h",
+   "symbols": [
+    "ENCHANTS",
+    "CAN_APPLY_TOGETHER"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "can_apply_together"
+   ]
+  },
+  {
+   "file": "csrc/engine/combatench.c",
+   "symbols": [
+    "thorns",
+    "damage_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_loot.c",
+  "out/java/loot/seed2",
+  "csrc/tests/test_trades.c",
+  "out/java/trades/seed2",
+  "out/java/snapshots/dmg-sources-s1",
+  "out/java/snapshots/melee-mods-s1",
+  "out/java/snapshots/thorns-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EnchantmentThorns",
+   "sig": "(int,int)V",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "setName('thorns') is the row's name field (effect 7, armor_torso)"
+  },
+  {
+   "kind": "method",
+   "name": "getMinEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row min_enchantability {10,30,50}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_enchantability {61,71,81}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxLevel",
+   "sig": "()I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_level 3"
+  },
+  {
+   "kind": "method",
+   "name": "canApply",
+   "sig": "(ItemStack)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "Enchantment.canApply is read only by ContainerRepair (world.conf anvil = off) and /enchant; the random enchantment roll (mob equipment, villager trades, loot) goes through the type's canEnchantItem (enchant.c:can_enchant_item), which is the path survival reaches."
+  },
+  {
+   "kind": "method",
+   "name": "func_151367_b",
+   "sig": "(EntityLivingBase,Entity,int)V",
+   "native": "csrc/engine/combatench.c:thorns",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_92094_a",
+   "sig": "(int,Random)Z",
+   "native": "csrc/engine/combatench.c:thorns",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_92095_b",
+   "sig": "(int,Random)I",
+   "native": "csrc/engine/combatench.c:thorns",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "The canApplyTogether row (thorns refuses other thorns) is exact in CAN_APPLY_TOGETHER. lane/idxblocks: reviewed."
+}

@@ -1,0 +1,23 @@
+# play-gate.yaml: the vector env against the pool's plain replay (lane/divlib, csrc/runtime/vecenv.mk rl-play-gate):
+# seed 42's world as the kills' library holds it (easy, render distance 4) at vanilla fidelity, every part on the host,
+# no renderer. The start is the gate's (vecplay --start: a library checkpoint start); pipeline.start is the link the
+# gate makes to it (out/runtime/playgate/start), absent until the gate has run.
+#   make -C csrc/runtime rl-play-gate [PLG_START=LIB/ID/start]
+world:
+  seed: 42
+  difficulty: easy
+  render_distance: 4
+client:
+  ticks_per_step: 1
+  camera: raycast
+  observation: 32x32
+engine:
+  device_mesh: 0
+  raycast: host
+  device_generation: off
+  device_light: off
+  render: none
+  tick: host
+pipeline:
+  kind: gold
+  start: out/runtime/playgate/start

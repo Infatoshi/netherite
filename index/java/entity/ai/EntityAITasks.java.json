@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/entity/ai/EntityAITasks.java",
+  "classes": ["EntityAITasks", "EntityAITasks.EntityAITaskEntry"],
+  "lines": 200,
+  "side": "server",
+  "category": "ai",
+  "role": "The AI scheduler every EntityLiving runs: holds the task entries and the executing list, ticks at rate 3, decides by priority and mutex bits which tasks may run, and drives shouldExecute/continue/start/reset/update.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_tasks_update", "can_use_mask", "tasks_compatible", "task_index_of", "add_task", "add_task_full", "add_target_task", "add_target_task_full", "ai_remove_task", "ai_setup_kind"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_tasks", "ai_entry", "ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/cp-mobs-s1", "out/java/snapshots/persist-village-full-s42", "out/java/snapshots/rc-animals-s1", "csrc/tests/test_animals.c", "csrc/tests/test_villagers.c", "csrc/tests/test_hostiles.c"],
+  "members": [
+    {"kind": "field", "name": "taskEntries", "sig": "List", "native": "csrc/engine/living.h:ai_tasks", "status": "exact", "note": "ai_tasks.entries[AI_MAX_ENTRIES] with n; a fixed array instead of the ArrayList"},
+    {"kind": "field", "name": "executingTaskEntries", "sig": "List", "native": "csrc/engine/living.h:ai_tasks", "status": "exact", "note": "ai_tasks.executing[AI_MAX_ENTRIES] with nexec, entry indices instead of object references"},
+    {"kind": "field", "name": "theProfiler", "sig": "Profiler", "native": null, "status": "n/a", "note": "profiler section bookkeeping only; dropped with the profiler"},
+    {"kind": "field", "name": "tickCount", "sig": "int", "native": "csrc/engine/living.h:ai_tasks", "status": "exact", "note": "ai_tasks.tick_count"},
+    {"kind": "field", "name": "tickRate", "sig": "int", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "the native loop hardcodes % 3; the Java field defaults to 3 and is never changed"},
+    {"kind": "ctor", "name": "EntityAITasks", "sig": "(Profiler)V", "native": "csrc/engine/living.h:ai_tasks", "status": "exact", "note": "the struct is embedded in struct living and zero-initialized"},
+    {"kind": "method", "name": "addTask", "sig": "(int,EntityAIBase)V", "native": "csrc/engine/ai.c:add_task", "status": "exact", "note": "add_task/add_task_full for normal tasks, add_target_task/add_target_task_full for target tasks"},
+    {"kind": "method", "name": "removeTask", "sig": "(EntityAIBase)V", "native": "csrc/engine/ai.c:ai_remove_task", "status": "exact", "note": "removes by task class, resets it if executing, and renumbers the executing indices"},
+    {"kind": "method", "name": "onUpdateTasks", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "the tick-rate gate, the continue-or-reset pass, the shouldExecute pass with a deferred start list, then start and update loops in the same order"},
+    {"kind": "method", "name": "canContinue", "sig": "(EntityAITaskEntry)Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "inlined into ai_tasks_update"},
+    {"kind": "method", "name": "canUse", "sig": "(EntityAITaskEntry)Z", "native": "csrc/engine/ai.c:can_use_mask", "status": "exact", "note": "priority/mutex test over the executing entries (a mask kept through the 3-tick pass, lane/mobtick); isInterruptible is true for every task (EntityAIBase has no override), so only the executing tasks are read"},
+    {"kind": "method", "name": "areTasksCompatible", "sig": "(EntityAITaskEntry,EntityAITaskEntry)Z", "native": "csrc/engine/ai.c:tasks_compatible", "status": "exact", "note": "(mutexA & mutexB) == 0"},
+    {"kind": "field", "name": "EntityAITaskEntry.action", "sig": "EntityAIBase", "native": "csrc/engine/living.h:ai_entry", "status": "exact", "note": "ai_entry.t (the ai_task state)"},
+    {"kind": "field", "name": "EntityAITaskEntry.priority", "sig": "int", "native": "csrc/engine/living.h:ai_entry", "status": "exact", "note": "ai_entry.priority"},
+    {"kind": "ctor", "name": "EntityAITaskEntry", "sig": "(int,EntityAIBase)V", "native": "csrc/engine/ai.c:add_task", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The task identity is an AIC_* enum value in the engine instead of an object reference; the mutex bits and priorities live in the same ai_entry. EntityAIBase (the abstract task base) is folded into the ai_task struct and the ai_should_execute/continue/start/reset/update dispatch. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

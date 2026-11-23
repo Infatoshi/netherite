@@ -1,0 +1,26 @@
+{
+ "path": "csrc/engine/smelting.h",
+ "lines": 19,
+ "role": "Declares smelt_result and smelt_experience, FurnaceRecipes' two lookups, and documents Java's result-keyed experience quirk.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/item/crafting/FurnaceRecipes.java",
+   "members": [
+    "getSmeltingResult",
+    "getSmeltingExperience"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "smelt_result",
+  "smelt_experience"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_crafting.c"
+ ],
+ "notes": ""
+}

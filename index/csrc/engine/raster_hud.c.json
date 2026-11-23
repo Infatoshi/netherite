@@ -1,0 +1,46 @@
+{
+ "path": "csrc/engine/raster_hud.c",
+ "lines": 2318,
+ "role": "The 2D overlay rasterizer drawn over a finished world frame: GuiIngame's HUD (crosshair, hotbar with RenderItem's icons, durability bars and glint, health/armor/food/air bars, XP, held-item name, the chat, the boss bar, vignette, pumpkin blur, portal swirl), the achievement toast, and the open GuiScreen pass (inventory with the player preview and the potion column, crafting table, furnace, chest, villager trade, death, pause, the credits roll) with FontRenderer text and its formatting codes.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/gui/GuiIngame.java", "members": ["renderGameOverlay", "renderVignette", "renderBossHealth", "func_110327_a", "renderInventorySlot", "renderPumpkinBlur", "func_130015_b"]},
+  {"path": "oracle/src/client/gui/Gui.java", "members": ["drawTexturedModalRect"]},
+  {"path": "oracle/src/client/gui/FontRenderer.java", "members": ["readFontTexture", "renderDefaultChar", "renderString", "getStringWidth", "drawStringWithShadow", "sizeStringToWidth", "getFormatFromString", "wrapFormattedStringToWidth", "drawSplitString", "renderStringAtPos"]},
+  {"path": "oracle/src/client/renderer/entity/RenderItem.java", "members": ["renderItemIntoGUI", "renderGlint", "renderItemOverlayIntoGUI"]},
+  {"path": "oracle/src/client/gui/achievement/GuiAchievement.java", "members": ["func_146254_a", "func_146256_a"]},
+  {"path": "oracle/src/client/gui/inventory/GuiContainer.java", "members": ["drawScreen", "func_146977_a"]},
+  {"path": "oracle/src/client/gui/GuiMerchant.java", "members": ["drawScreen", "func_146976_a", "func_146979_b"]},
+  {"path": "oracle/src/util/MathHelper.java", "members": ["ceiling_float_int", "ceiling_double_int"]},
+  {"path": "oracle/src/client/gui/GuiNewChat.java", "members": ["func_146230_a"]},
+  {"path": "oracle/src/client/gui/GuiWinGame.java", "members": ["initGui", "func_146575_b", "drawScreen"]},
+  {"path": "oracle/src/client/renderer/InventoryEffectRenderer.java", "members": ["func_147044_g", "drawScreen"]},
+  {"path": "oracle/src/client/gui/GuiScreen.java", "members": ["func_146285_a", "func_146283_a"]},
+  {"path": "oracle/src/entity/boss/BossStatus.java", "members": ["setBossStatus", "healthScale", "statusBarTime", "bossName"]},
+  {"path": "oracle/src/client/gui/inventory/GuiFurnace.java", "members": ["func_146976_a"]},
+  {"path": "oracle/src/client/gui/inventory/GuiInventory.java", "members": ["func_146976_a"]}
+ ],
+ "structs": [
+  {"name": "tex", "java": null, "fields": ["px", "w", "h", "min", "mag"]},
+  {"name": "hud_uv", "java": "TextureAtlasSprite min/max u/v of one block-atlas icon", "fields": ["min_u", "max_u", "min_v", "max_v"]},
+  {"name": "hud", "java": "the GL state of the overlay pass (bound texture, current colour, blend) plus the glint's item mask", "fields": ["rgb", "w", "h", "sx", "sy", "tex", "color", "text_blend", "item_mask", "mask_x", "mask_y", "mask_w", "mask_h", "mask_record"]},
+  {"name": "hvert", "java": null, "fields": ["x", "y", "u", "v"]},
+  {"name": "block_vertex", "java": null, "fields": ["x", "y", "z", "u", "v"]},
+  {"name": "gui", "java": "GuiIngame's per-frame inputs from the recorded hud JSON", "fields": ["h", "scene", "icons", "widgets", "achievement", "vignette", "glint", "items", "blocks", "pumpkin", "chest", "font", "hud", "bar", "toast", "sw", "sh"]}
+ ],
+ "entry_points": ["raster_hud", "raster_hud_draw", "raster_hud_toast", "raster_gui_live", "raster_hud_boss_set", "raster_hud_credits_lines"],
+ "tick_path": false,
+ "gpu": [
+  "line 1208-1210: static mutable toast_gui, toast_hh, toast_pending carry the deferred toast between raster_hud_draw and raster_hud_toast",
+  "line 1214-1217, function raster_hud_draw: static texture cache (loaded_scene, ascii, icons, widgets, ...) reloaded from disk when the scene path changes",
+  "line 1359, file scope: static screen_sheet[5] container sheet cache",
+  "line 69-77, function read_state: reads state/frames.jsonl from disk with getline on every raster_hud call",
+  "line 708, function block_item_icon: malloc of a full-frame depth buffer per block item icon",
+  "line 981, function draw_slot: calloc of the glint item mask per slot",
+  "line 1505+, function raster_gui_live: reads gui_ascii.rgba and the other sheets from disk on every call",
+  "boss_status: BossStatus's statics as file-scope mutable state (render only, not in the tick)",
+  "draw_chat: a static chat rebuilt per frame (render only)"
+ ],
+ "tests": ["csrc/tests/hud_live_test.c", "csrc/tests/hud_frame_gate.sh", "csrc/tests/raster.c", "csrc/tests/test_render.c", "csrc/tests/test_hudscreens.c"],
+ "notes": "No header of its own: raster_hud, raster_hud_draw, raster_hud_live and raster_gui_live are declared in raster.h; raster_hud_live and the item-name lookups live in hud_live.c. The file comment says chat, player list, scoreboard, debug screen, first-person hand and the durability bar are not drawn. Render only, never inside the server tick. Member lists are from the file's comments; I did not diff each function line by line against Java."
+}

@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/network/login/server/S00PacketDisconnect.java",
+  "classes": ["S00PacketDisconnect"],
+  "lines": 61,
+  "side": "server",
+  "category": "network",
+  "role": "The login phase's disconnect: a chat component describing why the login was refused.",
+  "scope": "not_needed",
+  "scope_reason": "Login-phase plumbing. Logins are never refused in the oracle (offline mode, one player) and the native engine never disconnects.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149605_a", "sig": "IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "S00PacketDisconnect", "sig": "(IChatComponent)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerLoginClient)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasPriority", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149603_c", "sig": "()IChatComponent", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

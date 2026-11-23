@@ -1,0 +1,29 @@
+{
+ "path": "csrc/engine/features_trees_small.c",
+ "lines": 569,
+ "role": "The small tree generators of population and sapling growth: WorldGenTrees (oak, and the jungle variant with vines and cocoa pods), WorldGenForest (birch and tall birch), WorldGenSwamp (swamp oak with vines), WorldGenShrub (jungle bush), the lone-jungle-sapling fallback, and their FeatureProbe rows.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenTrees.java", "members": ["WorldGenTrees", "generate", "growVines", "minTreeHeight", "vinesGrow", "metaWood", "metaLeaves"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenForest.java", "members": ["generate", "field_150531_a"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenSwamp.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenShrub.java", "members": ["WorldGenShrub", "generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenAbstractTree.java", "members": ["func_150523_a"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenerator.java", "members": ["func_150516_a", "func_150515_a"]},
+  {"path": "oracle/src/block/BlockSapling.java", "members": ["func_149878_d"]}
+ ],
+ "structs": [
+  {"name": "TREES, JUNGLE, FOREST, SWAMP, SHRUB", "java": "the tree rows appended to oracle/harness/netherite/oracle/FeatureProbe.java's FEATURES table (jungle has one row per minTreeHeight 4..10)", "fields": ["name", "config", "y0", "y1", "margin", "block", "count", "generate"]},
+  {"name": "COCOA_DX, COCOA_DZ", "java": "Direction.offsetX/offsetZ through Direction.rotateOpposite for the cocoa pod placement", "fields": []}
+ ],
+ "entry_points": ["features_trees_small_for", "feature_trees", "feature_jungle_tree", "features_sapling_jungle", "feature_forest", "feature_swamp", "feature_shrub"],
+ "tick_path": true,
+ "gpu": [
+  "line 89, function grow_vines: for(;;) bounded by the 4-vine counter",
+  "line 343, function feature_swamp: while loop down through water, bounded only by terrain",
+  "line 454, function feature_shrub: while loop down through air and leaves, bounded by y > 0",
+  "lines 57-60, function mat_is: material identity by strcmp on names on every check"
+ ],
+ "tests": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "Writes go through features_tree_write, so sapling growth (randomtick.c, features_sapling_jungle) gets flag 3. The leaves' breakBlock persistence callback is in world.c, not here. Java field names minTreeHeight/vinesGrow/metaWood/metaLeaves are MCP names from memory, not verified against oracle/src."
+}

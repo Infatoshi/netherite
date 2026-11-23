@@ -1,0 +1,314 @@
+{
+ "path": "oracle/src/block/BlockPortal.java",
+ "classes": [
+  "BlockPortal",
+  "BlockPortal.Size"
+ ],
+ "lines": 426,
+ "side": "common",
+ "category": "block",
+ "role": "The nether portal block (id 90): the obsidian-frame search that fills a portal, the frame re-check that breaks it, the per-entity portal flag, the overworld pigman spawn roll and the purple particles.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "portal_frame_ok",
+    "portal_run_along",
+    "portal_frame_height",
+    "portal_size_init",
+    "portal_size_ok",
+    "portal_size_place",
+    "portal_try_create",
+    "block_on_neighbor_changed"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "place_portal_frame_ok"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "update_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity.c",
+   "symbols": [
+    "entity_move_ex"
+   ]
+  },
+  {
+   "file": "csrc/engine/portal.c",
+   "symbols": [
+    "portal_entity_set_in_portal"
+   ]
+  },
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_random_display_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "should_side_be_rendered"
+   ]
+  },
+  {
+   "file": "csrc/engine/collide.c",
+   "symbols": [
+    "collide_add_boxes"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "block_bounds",
+    "raytrace_collision"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_portal_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "spawner_spawn_creature"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_set_in_portal_cb"
+   ]
+  },
+  {
+   "file": "csrc/engine/item_entity.c",
+   "symbols": [
+    "ie_set_in_portal"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/ride-portal-s1",
+  "csrc/tests/test_portals.c",
+  "csrc/tests/test_raypick.c",
+  "csrc/tests/test_rendertick.c",
+  "out/java/portals/seed2",
+  "out/java/portals/seed42",
+  "out/java/raypick/rp-1",
+  "out/java/rendertick/fx_portal",
+  "out/java/snapshots/nether-trip-s1",
+  "out/java/snapshots/nether-trip2-s42",
+  "out/java/snapshots/pickblock-s1",
+  "out/java/snapshots/portal-mobs-s42",
+  "out/java/snapshots/portal-pigspawn-s1",
+  "out/java/snapshots/portalframes-s1",
+  "out/java/snapshots/portallava-s1",
+  "out/java/snapshots/portalbreak-s1",
+  "out/java/snapshots/nether-fight-s1",
+  "out/java/snapshots/cov-blkmisc-s1",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150001_a",
+   "sig": "static int[][]",
+   "native": "csrc/engine/blockcb.c:portal_size_init",
+   "status": "exact",
+   "note": "per-axis width and along directions"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockPortal",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 90: portal material, tick_randomly"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/servertick.c:update_tick",
+   "status": "exact",
+   "note": "case 90: the nextInt(2000) < difficulty roll, the walk down to a solid top surface and the isNormalCube check; a hit is servertick's portal_spawn, the replay's sr_portal_spawn (ItemMonsterPlacer.spawnCreature through spawner_spawn_creature, then timeUntilPortal 300)"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(World,III)AxisAlignedBB",
+   "native": "csrc/engine/collide.c:collide_add_boxes",
+   "status": "exact",
+   "note": "no box"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsBasedOnState",
+   "sig": "(IBlockAccess,III)V",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact",
+   "note": "the shape, and a meta-0 portal (Teleporter.makePortal's) gets its axis written back with flag 2 in a server world (not the client's, is_remote)"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150000_e",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/blockcb.c:portal_try_create",
+   "status": "exact",
+   "note": "called from fire_on_block_added; fire.c's header comment calling it unported is stale"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+   "status": "exact",
+   "note": "case ID_PORTAL: both Size scans and the removal"
+  },
+  {
+   "kind": "method",
+   "name": "shouldSideBeRendered",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": "csrc/engine/render_blocks.c:should_side_be_rendered",
+   "status": "exact",
+   "note": "verbatim; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Random)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 90: nothing"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderBlockPass",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "pass 1 in the registry (not re-read); render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+  },
+  {
+   "kind": "method",
+   "name": "onEntityCollidedWithBlock",
+   "sig": "(World,IIIIEntity)V",
+   "native": "csrc/engine/entity.c:entity_move_ex",
+   "status": "exact",
+   "note": "id 90 calls set_in_portal: the player's portal_entity_set_in_portal (sr_player_set_in_portal and player.c cp_set_in_portal skip a riding player, ride-portal-s1), living.c's living_set_in_portal_cb (not riding, not ridden), item_entity.c's ie_set_in_portal; projectile.c's arrow cell walk and the throwable's portal ray hit call ie_set_in_portal"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the particles and every draw, checked per tick against the spawn log in fx_portal"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149999_b",
+   "sig": "(I)I",
+   "native": "csrc/engine/render_blocks.c:should_side_be_rendered",
+   "status": "exact",
+   "note": "meta & 3, inlined"
+  },
+  {
+   "kind": "ctor",
+   "name": "Size",
+   "sig": "(World,IIII)V",
+   "native": "csrc/engine/blockcb.c:portal_size_init",
+   "status": "exact",
+   "note": "the downward scan, the run and the width"
+  },
+  {
+   "kind": "method",
+   "name": "Size.func_150853_a",
+   "sig": "(IIII)I",
+   "native": "csrc/engine/blockcb.c:portal_run_along",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Size.func_150858_a",
+   "sig": "()I",
+   "native": "csrc/engine/blockcb.c:portal_frame_height",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Size.func_150857_a",
+   "sig": "(Block)Z",
+   "native": "csrc/engine/blockcb.c:portal_frame_ok",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Size.func_150860_b",
+   "sig": "()Z",
+   "native": "csrc/engine/blockcb.c:portal_size_ok",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Size.func_150859_c",
+   "sig": "()V",
+   "native": "csrc/engine/blockcb.c:portal_size_place",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Size fields",
+   "sig": "World, axis, dirs, existing count, origin, height, width",
+   "native": "csrc/engine/blockcb.c:portal_size_init",
+   "status": "exact",
+   "note": "struct portal_size"
+  }
+ ],
+ "missing": [],
+ "notes": "place.c also has its own frame scan (place_portal_frame_ok) for the placement probe. Teleport itself is portal.c's Teleporter port, indexed with that file."
+}

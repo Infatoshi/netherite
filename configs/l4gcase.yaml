@@ -1,0 +1,47 @@
+# l4gcase.yaml (lane/ladder15): configs/l4case.yaml with actions.table_key paused (NWRL_VEC_TABLEKEY's key 13): the
+# random policy's CPU case at L4g plus surface and mine (1040195583), no GPU:
+#   CUDA_VISIBLE_DEVICES= out/runtime/train/brutetab --run configs/l4gcase.yaml --macros 1040195583 --ep-seconds 1200 --seed K
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: host
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: spawn               # seed 42's spawn
+    worlds: 32
+    groups: 2
+    episode_seconds: 300
+  fidelity:
+    spawning: off
+    spawn_types: monster,creature,ambient,water
+    mobs: all
+    random_ticks: off
+    weather: off
+  performance:
+    workers: 16
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: any
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: base
+    picks: off
+    policy_tool: on
+    gui: cursor
+    table_key: paused

@@ -1,0 +1,19 @@
+{
+ "path": "csrc/engine/light.c",
+ "lines": 114,
+ "role": "Chunk's block-array constructor section mask and Chunk.generateSkylightMap over flat arrays: the height map and precipitation reset, then the top-down sky light fill (skipped for the Nether's hasNoSky provider).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["Chunk", "generateSkylightMap", "func_150808_b", "getTopFilledSegment"]},
+  {"path": "oracle/src/world/chunk/storage/ExtendedBlockStorage.java", "members": ["setExtSkylightValue"]}
+ ],
+ "structs": [],
+ "entry_points": ["block_opacity", "skylight_map", "skylight_map_nosky", "light_pass"],
+ "tick_path": true,
+ "gpu": [
+  "lines 45-56, function height_map_of: per-column while loop from the top filled section down, bounded by 256",
+  "lines 81-90, function skylight_map: per-column do-while bounded by y > 0 and light > 0"
+ ],
+ "tests": ["csrc/tests/test_worldgen.c"],
+ "notes": "Reached in the tick through world.c and chunkgen.c when a chunk is generated. Only the initial generateSkylightMap is here; the relight propagation (World.updateLightByType, Chunk.relightBlock, block light) is not in this file. Loops are bounded, no allocation, no globals."
+}

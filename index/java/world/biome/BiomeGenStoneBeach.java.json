@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenStoneBeach.java",
+  "classes": ["BiomeGenStoneBeach"],
+  "lines": 20,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The Stone Beach biome (25): no passive mobs, stone top and filler, no trees, reeds, cacti or dead bushes.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES"]},
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["biome_has_creatures"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_populate.c", "csrc/tests/test_spawning.c", "out/java/chunks", "out/java/populate"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenStoneBeach", "sig": "(int)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "counts in deco_of case 25; stone top/filler in BIOMES; cleared creature list in biome_has_creatures"}
+  ],
+  "missing": [],
+  "notes": "Whether a stone beach column was present in the cited chunk dumps was not checked."
+}

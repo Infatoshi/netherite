@@ -1,0 +1,46 @@
+{
+ "path": "csrc/engine/nbtbin.h",
+ "lines": 43,
+ "role": "Declares the growable byte buffer, the binary NBT writer, the SHA-1 hash (nbtbin_long) and its per-key memo (nbtbin_long_memo) implemented in nbtbin.c, and documents the JDK 8 HashMap order rule the writer reproduces.",
+ "layer": "io",
+ "java": [
+  {
+   "path": "oracle/src/nbt/CompressedStreamTools.java",
+   "members": [
+    "write"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagCompound.java",
+   "members": [
+    "write"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "nbtbin",
+   "java": "the DataOutput byte stream CompressedStreamTools.write targets",
+   "fields": [
+    "p",
+    "n",
+    "cap"
+   ]
+  }
+ ],
+ "entry_points": [
+  "nbtbin_init",
+  "nbtbin_free",
+  "nbtbin_write_root",
+  "nbtbin_long",
+  "nbtbin_long_memo"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "lines 17-20, struct nbtbin: a heap-grown buffer (uint8_t *p)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": ""
+}

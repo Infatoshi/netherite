@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/VillageProbe.java",
+ "lines": 1005,
+ "role": "Village and villager probe: flattens a region of raw chunks, builds three villages of door houses (some outer doors age out), spawns villagers, then ticks them with the village collection, sieges, breeding and iron golem spawning for thousands of ticks from a set time, recording per-tick entity states, spawn records, village states, block writes, periodic NBT hashes and Det RNG state.",
+ "kind": "probe",
+ "used_by": [
+  "oracle/Makefile run target (make -C oracle run CLASS=VillageProbe), dispatched by Oracle.java; manifest kind \"villagers\"",
+  "csrc/tests/test_villagers.c (same ENT_STATE_BYTES 320 and SPAWN_BYTES 100 record layout; DEVLOG cites out/java/villagers/vil-2)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Runs on its own thread while the server is parked; pins Collections.shuffle's Random to opseed+999 and calls Trace.restart. Defaults: radius 5, ring 3, 4800 ticks, timestart 11000, opseed 11. out/java/villagers is empty in this worktree, so no recording was checked. test_villagers.c does not name the probe class; the link is by record layout and DEVLOG."
+}

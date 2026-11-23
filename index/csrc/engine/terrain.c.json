@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/terrain.c",
+ "lines": 150,
+ "role": "The overworld density pass of ChunkProviderGenerate: the provider's noise generators built in constructor order, the 5x33x5 density field (func_147423_a) with biome-weighted depth and scale, and its trilinear interpolation into stone, water and air (func_147424_a).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/ChunkProviderGenerate.java", "members": ["ChunkProviderGenerate(World,long,boolean)", "rand", "field_147431_j", "field_147432_k", "field_147429_l", "field_147430_m", "noiseGen5", "noiseGen6", "mobSpawnerNoise", "parabolicField", "func_147424_a", "func_147423_a"]},
+  {"path": "oracle/src/util/MathHelper.java", "members": ["denormalizeClamp"]}
+ ],
+ "structs": [],
+ "entry_points": ["terrain_init", "terrain_density"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_worldgen.c"],
+ "notes": "All arrays are stack locals of fixed size (825 doubles per noise); loops are fixed-bound. Called from chunkgen.c when a chunk is generated, inside the server tick as chunks load. denormalize_clamp is a local copy of MathHelper.denormalizeClamp; the MathHelper path was assumed at oracle/src/util/MathHelper.java and is checked by tools/index_check.c. The biome layer stack (layers.c) and noise generators (noise.c) are separate files."
+}

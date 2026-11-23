@@ -1,0 +1,38 @@
+{
+ "path": "csrc/tests/test_activate.c",
+ "lines": 777,
+ "role": "Gate: replays the oracle's ActivateProbe dump (first half of ItemInWorldManager.activateBlockOrUseItem, as NetHandlerPlayServer drives a C08) through activate.c and compares per case the block events, spawned item entities, block writes, inventory and caseout record, the 3x3 chunk hash every 64 cases and the whole region at the end.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/server/management/ItemInWorldManager.java",
+   "members": [
+    "activateBlockOrUseItem"
+   ]
+  },
+  {
+   "path": "oracle/src/network/NetHandlerPlayServer.java",
+   "members": [
+    "processPlayerBlockPlacement"
+   ]
+  },
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "onBlockActivated"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/ActivateProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "Data: out/java/activate/*. Native calls: act_init, act_case_begin, act_run, act_case_end, ticks_walk, world_load_chunk. Keeps a per-kind tally (cases, true returns, GUIs, chats, events, entities). Which block kinds the recordings cover was not listed here. Test code, built only into out/native/test_*; not on the product or GPU path, so no GPU hazards are listed."
+}

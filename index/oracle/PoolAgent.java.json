@@ -1,0 +1,13 @@
+{
+  "path": "oracle/harness/netherite/oracle/PoolAgent.java",
+  "lines": 151,
+  "role": "The pool member's java agent (-javaagent:CLASSES/poolagent.jar, pool members only; a fresh JVM never loads it): at class load it rewrites each net.minecraft class whose initializer calls Det.splitRandom (Item, EnchantmentHelper, TileEntityEnchantmentTable, NetHandlerPlayServer, NetHandlerLoginServer) so that every constructor and static method first marks the class touched (the JDK's internal ASM, the call at offset 0). Pool clears the marks at each world launch; Snapshot.detState asks Pool.absentSplit, which lists a split only if its owner was initialized before the pristine point, was touched by the run, or the split was drawn: what a fresh JVM, which registers a split when its owner is initialized, would list.",
+  "kind": "harness",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Pool.java (absentSplit, clear)",
+    "oracle/Makefile (CLASSES/poolagent.jar, pool-start)",
+    "oracle/tests/poolauto.sh (shared members)"
+  ],
+  "vanilla_hooks": [],
+  "notes": "Without it (a member started by hand without -javaagent) det.nbt lists every split, as before 2026-09-27: EnchantmentHelper's and the enchantment table's appeared in a member's det.nbt where a fresh JVM had not initialized them (the only pool-versus-fresh file difference lane/oracletick and lane/warmoracle found). Owners' static fields are all private, so a constructor or static method running is the only way a run initializes one (JLS 12.4.1). In a coverage member (JaCoCo's agent ahead of it on the command line) premain also installs CovInit's transformer."
+}

@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/entity/ai/attributes/IAttributeInstance.java",
+  "classes": ["IAttributeInstance"],
+  "lines": 31,
+  "side": "server",
+  "category": "ai",
+  "role": "Interface of one entity's instance of an attribute: base value, modifier set and the cached computed value.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.h", "symbols": ["attr_instance"]},
+    {"file": "csrc/engine/living.c", "symbols": ["attrs_set_base", "attrs_apply", "attrs_remove", "attrs_remove_all", "attrs_value", "mod_same"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/auditfix-attr-s1",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_lightning.c"
+  ],
+  "members": [
+    {"kind": "method", "name": "getAttribute", "sig": "()IAttribute", "native": "csrc/engine/living.h:attr_instance", "status": "partial", "note": "the instance identifies its attribute by the enum field which, not by an IAttribute reference"},
+    {"kind": "method", "name": "getBaseValue", "sig": "()double", "native": "csrc/engine/living.h:attr_instance", "status": "exact", "note": "direct read of attr_instance.base"},
+    {"kind": "method", "name": "setBaseValue", "sig": "(double)V", "native": "csrc/engine/living.c:attrs_set_base", "status": "exact"},
+    {"kind": "method", "name": "func_111122_c", "sig": "()Collection (all modifiers)", "native": "csrc/engine/living.h:attr_instance", "status": "partial", "note": "the flat mods[ATTR_MAX_MODS] array stands for the collection; no per-operation sets, and ATTR_MAX_MODS caps it at 8"},
+    {"kind": "method", "name": "getModifier", "sig": "(UUID)AttributeModifier", "native": "csrc/engine/living.c:mod_same", "status": "partial", "note": "no standalone by-UUID lookup; the duplicate check inside attrs_apply/remove is the only UUID comparison"},
+    {"kind": "method", "name": "applyModifier", "sig": "(AttributeModifier)V", "native": "csrc/engine/living.c:attrs_apply", "status": "exact", "note": "attrs_apply's duplicate guard is the Java IllegalArgumentException for an already-applied UUID"},
+    {"kind": "method", "name": "removeModifier", "sig": "(AttributeModifier)V", "native": "csrc/engine/living.c:attrs_remove", "status": "exact", "note": "removes every UUID match from the flat list, equivalent to Java's removal from the three maps"},
+    {"kind": "method", "name": "removeAllModifiers", "sig": "()V", "native": "csrc/engine/living.c:attrs_remove_all", "status": "exact"},
+    {"kind": "method", "name": "getAttributeValue", "sig": "()double", "native": "csrc/engine/living.c:attrs_value", "status": "exact", "note": "needs_update/cached lazy recompute preserved"}
+  ],
+  "missing": [],
+  "notes": "Interface only in Java; native folds it into struct attr_instance (living.h:70) plus the attrs_* functions in living.c. The interface's func_111122_c name is the SRG spelling kept in the source; no MCP name exists for it. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): interface, marker or abstract base; its behavior lives in the subclasses' ports. Formerly listed as missing: getModifier as a public by-UUID lookup has no direct native counterpart; only the internal duplicate check compares UUIDs."
+}

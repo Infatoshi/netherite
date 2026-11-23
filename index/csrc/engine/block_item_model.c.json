@@ -1,0 +1,26 @@
+{
+ "path": "csrc/engine/block_item_model.c",
+ "lines": 208,
+ "role": "Builds the quads RenderBlocks.renderBlockAsItem draws for a block item: full cubes and slabs (render types 0, 31, 39, 16, 26), stairs (10), fence (11), wall (32), and the chest (22) from ModelChest's boxes; other render types return -1. Also the cactus item (render type 13's sides a sixteenth in), the ender and trapped chest textures, and the grass item's top colour (block_item_model_grass_color).",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/RenderBlocks.java", "members": ["renderBlockAsItem"]},
+  {"path": "oracle/src/client/model/ModelChest.java", "members": ["chestLid", "chestBelow", "chestKnob"]},
+  {"path": "oracle/src/client/model/ModelBox.java", "members": ["ModelBox"]}
+ ],
+ "structs": [
+  {"name": "block_item_model", "java": null, "fields": ["quad", "n", "inner_rotate_y90", "render_pass", "chest_texture"]}
+ ],
+ "entry_points": [
+  "block_item_model_build",
+  "block_item_model_override_box",
+  "block_item_model_grass_color"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 26-30, file scope: static mutable table and atlas pointers (the process's, rbshare.h), mesher, tessellator and loaded-scene name cached across calls (not reentrant)",
+  "line 39-53, function load: takes the scene's shared render table and atlas (rbshare.h) and rebuilds the mesher whenever the scene name changes"
+ ],
+ "tests": ["csrc/tests/test_hudscreens.c"],
+ "notes": "Client render only, outside the tick, so the hazards do not touch the GPU sim contract. Special cases: furnace/dispenser/dropper forced to meta 3, render type 16 (piston) to meta 1, slabs at height 0.5. Missing render types (crossed squares, torches, liquids, cactus and other special item renderers) fall back to the caller. ModelBox member name cited as the constructor; the chest UV unfolding was read from comments, not diffed against ModelBox.java line by line. lane/entrender: setBlockBoundsForItemRender's bounds for slabs, snow, carpet, trapdoor, buttons and pressure plates."
+}

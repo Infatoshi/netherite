@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/client/shader/Shader.java",
+  "classes": ["Shader"],
+  "lines": 119,
+  "side": "client",
+  "category": "client_render",
+  "role": "One post-processing pass: a ShaderManager plus in/out framebuffers and aux framebuffers; loadShader sets the sampler, size, ProjMat and Time uniforms and draws the fullscreen quad through the program.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Post-processing shader pipeline. In 1.7.10 a ShaderGroup is only built by EntityRenderer's super-secret-settings path (shaderResourceLocations) and spectator mob vision, neither reachable in this game; the native renderer implements the fixed-function pipeline in C (csrc/engine/raster.c and the raster_* files) and never compiles shader programs.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "Shader", "sig": "(IResourceManager,String,Framebuffer,Framebuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "deleteShader", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "addAuxFramebuffer", "sig": "(String,Object,int,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "preLoadShader", "sig": "()V", "native": null, "status": "n/a", "note": "fixed-function state reset before the pass"},
+    {"kind": "method", "name": "setProjectionMatrix", "sig": "(Matrix4f)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadShader", "sig": "(float)V", "native": null, "status": "n/a", "note": "sets DiffuseSampler, AuxSize, ProjMat, InSize, OutSize, Time, ScreenSize then draws the quad"},
+    {"kind": "method", "name": "getShaderManager", "sig": "()ShaderManager", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "manager", "sig": "ShaderManager", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "framebufferIn", "sig": "Framebuffer", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "framebufferOut", "sig": "Framebuffer", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "listAuxFramebuffers", "sig": "List", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "listAuxNames", "sig": "List", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "listAuxWidths", "sig": "List", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "listAuxHeights", "sig": "List", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "projectionMatrix", "sig": "Matrix4f", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

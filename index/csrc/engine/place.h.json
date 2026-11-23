@@ -1,0 +1,119 @@
+{
+ "path": "csrc/engine/place.h",
+ "lines": 106,
+ "role": "Declares the placement port: the placer pose and placed stack structs, place_try (ItemStack.tryPlaceItemIntoWorld), the would-use query the client swing reads, the per-case stream setup, and the rail, tripwire, torch, portal-frame, fire and drop helpers blockcb.c calls.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/item/ItemStack.java",
+   "members": [
+    "tryPlaceItemIntoWorld"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockRailBase.java",
+   "members": [
+    "onBlockAdded",
+    "onNeighborBlockChange"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTripWire.java",
+   "members": [
+    "onBlockAdded"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTorch.java",
+   "members": [
+    "canPlaceBlockAt",
+    "func_150107_m"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockPortal.java",
+   "members": [
+    "onNeighborBlockChange"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLiquid.java",
+   "members": [
+    "func_149799_m"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFire.java",
+   "members": [
+    "func_149847_e",
+    "onBlockAdded"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockSkull.java",
+   "members": [
+    "breakBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": [
+    "posX",
+    "posY",
+    "posZ",
+    "rotationYaw",
+    "rotationPitch",
+    "yOffset"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "struct placer",
+   "java": "EntityPlayerMP posX, posY, posZ, rotationYaw, rotationPitch, yOffset",
+   "fields": [
+    "px",
+    "py",
+    "pz",
+    "yaw",
+    "pitch",
+    "y_offset"
+   ]
+  },
+  {
+   "name": "struct place_stack",
+   "java": "ItemStack item id, stackSize, itemDamage",
+   "fields": [
+    "item",
+    "count",
+    "damage"
+   ]
+  }
+ ],
+ "entry_points": [
+  "place_try",
+  "place_would_use",
+  "place_set_case",
+  "place_world_state",
+  "place_lava_fizz",
+  "place_fire_flammable_near",
+  "place_fire_tick_draw",
+  "place_dispenser_seeder",
+  "place_block_drop",
+  "place_skull_break_drop",
+  "place_item_drop",
+  "place_rail_on_added",
+  "place_rail_on_neighbor",
+  "place_tripwire_on_added",
+  "place_torch_can_support",
+  "place_torch_can_stay",
+  "place_torch_wall_ok",
+  "place_portal_frame_ok"
+ ],
+ "tick_path": true,
+ "gpu": ["its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"],
+ "tests": [
+  "csrc/tests/test_place.c"
+ ],
+ "notes": "EntityPlayerMP's fields named for struct placer are inherited from Entity; the path is the placer class the header names. place_torch_can_support is declared here but its definition lives in blockcb.c."
+}

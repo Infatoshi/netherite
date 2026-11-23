@@ -1,0 +1,42 @@
+{
+  "path": "oracle/src/item/ItemFood.java",
+  "classes": ["ItemFood"],
+  "lines": 139,
+  "side": "server",
+  "category": "item",
+  "role": "The food base class: heal amount, saturation modifier, wolf-favourite meat, the always-edible flag and the eat-time potion fields; onEaten feeds FoodStats, plays the burp and runs onFoodEaten.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "ITEM_FOOD", "heal_amount", "saturation", "always_edible", "wolfs_meat"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_server_eat_tick", "sr_pot_food_effect", "food_add_stats", "surv_server_food_tick"]},
+    {"file": "csrc/engine/potion.c", "symbols": ["potion_apply_food"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/surv_food-s1",
+    "out/java/snapshots/surv_eat-s1",
+    "out/java/snapshots/rc-items-s1",
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/food-potato-s1",
+    "out/java/snapshots/food-chicken-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "itemUseDuration", "sig": "int", "native": "csrc/engine/survival.c:surv_server_eat_tick", "status": "exact", "note": "the 32-tick use timer"},
+    {"kind": "field", "name": "healAmount, saturationModifier, isWolfsFavoriteMeat, alwaysEdible, potionId, potionDuration, potionAmplifier, potionEffectProbability", "sig": "int / float / boolean", "native": "csrc/engine/items.h:heal_amount", "status": "partial", "note": "heal, saturation, wolfs_meat and always_edible are ITEMS fields; the potion fields are hardcoded per item id in survival.c's sr_pot_food_effect instead of per-instance fields"},
+    {"kind": "ctor", "name": "ItemFood(int, float, boolean)", "sig": "(IFZ)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "every food row carries heal, saturation and wolfs_meat"},
+    {"kind": "ctor", "name": "ItemFood(int, boolean)", "sig": "(IZ)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact"},
+    {"kind": "method", "name": "onEaten", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/survival.c:surv_server_eat_tick", "status": "exact", "note": "the stack decrement, food_add_stats into FoodStats and the burp"},
+    {"kind": "method", "name": "onFoodEaten", "sig": "(ItemStack,World,EntityPlayer)V", "native": "csrc/engine/potion.c:potion_apply_food", "status": "partial", "note": "potion.c:potion_apply_food (called by survival.c:sr_pot_food_effect with World.rand): the golden apples, the pufferfish, and the ItemFood potion fields per item (rotten flesh hunger 30 0.8, spider eye poison 5 1.0, raw chicken hunger 30 0.3, poisonous potato poison 5 0.6) with the probability draw; per-instance fields are not carried. food-potato-s1, food-chicken-s1"},
+    {"kind": "method", "name": "getMaxItemUseDuration", "sig": "(ItemStack)I", "native": "csrc/engine/survival.c:surv_server_eat_tick", "status": "exact", "note": "the 32-tick eat"},
+    {"kind": "method", "name": "getItemUseAction", "sig": "(ItemStack)EnumAction", "native": null, "status": "n/a", "note": "client animation"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/survival.c:surv_server_eat_tick", "status": "exact", "note": "the canEat(alwaysEdible) gate and setItemInUse; the hunger gate runs in surv_server_food_tick"},
+    {"kind": "method", "name": "func_150905_g", "sig": "(ItemStack)I", "native": "csrc/engine/items.h:heal_amount", "status": "exact"},
+    {"kind": "method", "name": "func_150906_h", "sig": "(ItemStack)F", "native": "csrc/engine/items.h:saturation", "status": "exact"},
+    {"kind": "method", "name": "isWolfsFavoriteMeat", "sig": "()Z", "native": "csrc/engine/items.h:wolfs_meat", "status": "n/a", "note": "n/a: both callers are EntityWolf's (wolves = off)"},
+    {"kind": "method", "name": "setPotionEffect(int,I,I,F)", "sig": "(IIIF)ItemFood", "native": "csrc/engine/potion.c:potion_apply_food", "status": "partial", "note": "the per-item calls are folded into potion.c:potion_apply_food's table"},
+    {"kind": "method", "name": "setAlwaysEdible", "sig": "()ItemFood", "native": "csrc/engine/items.h:always_edible", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "surv_food-s1 and surv_eat-s1 gate the eating flow and the hunger/exhaustion side; pot-apple-s1 and pot-poison-s1 gate the food potion effects. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): every reachable food's potion effect is in potion.c:potion_apply_food's table (the poisonous potato was missing until lane/itemuse, food-potato-s1); the per-fish rows need fishing (off). Formerly listed as missing: ItemFood's potion fields are hardcoded per item id in survival.c instead of carried per instance, so any food id outside the table eats without its effect. ItemFishFood's per-subtype heal and saturation (func_150905_g/func_150906_h overrides) are absent from the generated rows."
+}

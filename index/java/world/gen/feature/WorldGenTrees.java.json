@@ -1,0 +1,119 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenTrees.java",
+ "classes": [
+  "WorldGenTrees"
+ ],
+ "lines": 250,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The ordinary oak (and small jungle tree): trunk of minTreeHeight+0..2, a four-layer leaf crown, and for jungle variants vines on trunk and leaves plus cocoa pods.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_trees_small.c",
+   "symbols": [
+    "gen_trees",
+    "grow_vines",
+    "feature_trees",
+    "feature_jungle_tree",
+    "features_sapling_jungle"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "place_tree"
+   ]
+  },
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "feature_trees"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-trees-2",
+  "out/java/probes/fe-trees-42",
+  "out/java/probes/fe-jungle-2",
+  "out/java/probes/fe-jungle-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "minTreeHeight",
+   "sig": "int",
+   "native": "csrc/engine/features_trees_small.c:gen_trees",
+   "status": "exact",
+   "note": "Argument."
+  },
+  {
+   "kind": "field",
+   "name": "vinesGrow",
+   "sig": "boolean",
+   "native": "csrc/engine/features_trees_small.c:gen_trees",
+   "status": "exact",
+   "note": "Argument."
+  },
+  {
+   "kind": "field",
+   "name": "metaWood",
+   "sig": "int",
+   "native": "csrc/engine/features_trees_small.c:gen_trees",
+   "status": "exact",
+   "note": "Argument."
+  },
+  {
+   "kind": "field",
+   "name": "metaLeaves",
+   "sig": "int",
+   "native": "csrc/engine/features_trees_small.c:gen_trees",
+   "status": "exact",
+   "note": "Argument."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenTrees",
+   "sig": "(boolean)",
+   "native": "csrc/engine/features_trees_small.c:feature_trees",
+   "status": "exact",
+   "note": "Oak, height 4, no vines."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenTrees",
+   "sig": "(boolean,int,int,int,boolean)",
+   "native": "csrc/engine/features_trees_small.c:gen_trees",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_trees_small.c:gen_trees",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "growVines",
+   "sig": "(World,int,int,int,int)V",
+   "native": "csrc/engine/features_trees_small.c:grow_vines",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/village/VillageSiege.java",
+  "classes": ["VillageSiege"],
+  "lines": 227,
+  "side": "server",
+  "category": "ai",
+  "role": "The zombie siege: once a night at midnight it rolls 1 in 10, then looks for a player in a village of 10+ doors and 20+ villagers and picks a spawn point on the rim. In 1.7.10 func_75527_a never returns its vector, so the siege draws but never spawns a zombie.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/villagers.h", "symbols": ["village_siege"]},
+    {"file": "csrc/engine/villagers.c", "symbols": ["vs_init", "vs_tick", "calc_celestial_angle", "vs_muster"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["village_siege_tick", "servertick_village_siege"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["sr_siege_muster"]}, {"file": "csrc/engine/serverreplay.h", "symbols": ["vs"]}
+  ],
+  "evidence": ["out/java/snapshots/world-daynight-s1", "csrc/tests/test_servertick.c", "out/java/snapshots/village-siege-s42"],
+  "members": [
+    {"kind": "field", "name": "worldObj", "sig": "World", "native": "csrc/engine/villagers.h:world", "status": "exact"},
+    {"kind": "field", "name": "field_75535_b", "sig": "boolean", "native": "csrc/engine/villagers.h:field_75535_b", "status": "exact"},
+    {"kind": "field", "name": "field_75536_c", "sig": "int (phase, -1 start)", "native": "csrc/engine/villagers.h:field_75536_c", "status": "exact", "note": "restored from the snapshot's siegeC (serverreplay.c)"},
+    {"kind": "field", "name": "field_75533_d", "sig": "int (zombies left)", "native": "csrc/engine/villagers.h:field_75533_d", "status": "exact"},
+    {"kind": "field", "name": "field_75534_e", "sig": "int (spawn delay)", "native": "csrc/engine/villagers.h:field_75534_e", "status": "exact"},
+    {"kind": "field", "name": "theVillage", "sig": "Village", "native": "csrc/engine/villagers.h:the_village", "status": "exact", "note": "a snapshot's villages.nbt siegeV index"},
+    {"kind": "field", "name": "field_75532_g/field_75538_h/field_75539_i", "sig": "int (spawn center)", "native": "csrc/engine/villagers.h:field_75532_g", "status": "exact"},
+    {"kind": "ctor", "name": "VillageSiege", "sig": "(World)", "native": "csrc/engine/villagers.c:vs_init", "status": "exact"},
+    {"kind": "method", "name": "tick", "sig": "()V", "native": "csrc/engine/servertick.c:village_siege_tick", "status": "exact", "note": "after VillageCollection.tick (servertick_village_siege from the replay's tail); the post-muster countdown is unreachable in vanilla"},
+    {"kind": "method", "name": "func_75529_b", "sig": "()Z", "native": "csrc/engine/villagers.c:vs_muster", "status": "exact", "note": "(int) truncation of the player position; the overworld player (serverreplay.c:sr_siege_muster)"},
+    {"kind": "method", "name": "spawnZombie", "sig": "()Z", "native": null, "status": "n/a", "note": "unreachable: func_75529_b never returns true in 1.7.10"},
+    {"kind": "method", "name": "func_75527_a", "sig": "(int,int,int)Vec3", "native": "csrc/engine/villagers.c:vs_muster", "status": "exact", "note": "the 10x3 World.rand draws; the discarded Vec3 makes the spawn test draw-neutral"}
+  ],
+  "missing": [],
+  "notes": "func_75527_a never returns its vector in 1.7.10, so the siege draws but never spawns (village-siege-s42: three midnights roll 1, then 32 World.rand draws per muster tick; without them the replay fails at the first muster tick). One player is the env's shape."
+}

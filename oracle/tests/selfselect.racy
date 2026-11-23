@@ -1,0 +1,29 @@
+# Classes whose coverage follows thread timing (lane/covcache's proof,
+# fresh JVM against fresh JVM): a run's data may lack a method that another
+# run of the same tape takes. make selfcheck SELECT=1 runs every recording
+# when a class whose internal name starts with one of these lines changes
+# (tests/SelfSelect.java). A line with a dot names one method, Class.name
+# (every overload): a change to it selects every recording.
+# NetworkManager.setConnectionState on netty's loop against the server thread's compare
+net/minecraft/network/NetHandlerPlayServer
+net/minecraft/network/NetworkManager
+# a reloaded chunk read back from its region file, or from the save still in flight
+net/minecraft/nbt/
+net/minecraft/world/chunk/storage/
+net/minecraft/world/storage/ThreadedFileIOBase
+net/minecraft/world/storage/IThreadedFileIO
+netherite/oracle/ChunkIO
+# outputPercentRemaining on a 1 s wall clock while the spawn area loads
+net/minecraft/server/MinecraftServer
+# the skin loader's 2-thread executor and its callback on the client loop
+net/minecraft/client/resources/SkinManager
+net/minecraft/client/Minecraft
+# Harness code a pool member runs once per JVM or outside the job's window
+# (the first job's thread-local and static helpers, a job that takes the
+# prelaunched world never calls launch itself): a pooled coverage run can
+# lack a method a fresh JVM runs (lane/selfselect: pooled against fresh
+# coverage of the same harness)
+netherite/oracle/Oracle.launch
+netherite/oracle/RowHash$1.initialValue
+netherite/oracle/RowHash$2.<init>
+netherite/oracle/RowHash$Hasher.<init>

@@ -1,0 +1,53 @@
+{
+ "path": "oracle/src/world/storage/IPlayerFileData.java",
+ "classes": [
+  "IPlayerFileData"
+ ],
+ "lines": 22,
+ "side": "server",
+ "category": "world",
+ "role": "Interface for reading and writing a player's .dat file (implemented by SaveHandler); ServerConfigurationManager uses it when a player joins or the server saves.",
+ "scope": "in_scope",
+ "scope_reason": "Player save and reload happen in the played game (play-reload tapes); the interface carries no behavior of its own. Deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/snapshot.c",
+   "symbols": [
+    "snapshot_load"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/play-reload-s1",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "members": [
+  {
+   "kind": "method",
+   "name": "writePlayerData",
+   "sig": "(EntityPlayer)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "readPlayerData",
+   "sig": "(EntityPlayer)NBTTagCompound",
+   "native": "csrc/engine/snapshot.c:snapshot_load",
+   "status": "exact",
+   "note": "the player as the oracle's save held it (player_server.nbt)"
+  },
+  {
+   "kind": "method",
+   "name": "getAvailablePlayerDat",
+   "sig": "()String[]",
+   "native": null,
+   "status": "n/a",
+   "note": "Server player listing; single-player game."
+  }
+ ],
+ "missing": [],
+ "notes": "Interface only; the implementation is SaveHandler. The snapshot format is the oracle's own (Snapshot.java), so the native read is a stand-in for readPlayerData, not a port of it. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

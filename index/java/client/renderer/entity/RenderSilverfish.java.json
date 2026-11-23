@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderSilverfish.java",
+  "classes": ["RenderSilverfish"],
+  "lines": 105,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the silverfish: ModelSilverfish and a 180-degree death rotation (overriding RendererLivingEntity's 90).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_silverfish", "model_vertex", "raster_mobs_draw", "texture_names", "death_max_rotation"]}
+  ],
+  "evidence": [
+    "out/java/clientframes/cov-zoo-s1",
+    "out/java/render/mobs2a_silverfish_f006",
+    "out/java/render/mobs2a_silverfish_f011",
+    "csrc/tests/test_render.c",
+    "out/java/render-src/ent_death"
+  ],
+  "members": [
+    {"kind": "field", "name": "silverfishTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constant, grouped; the TEX_SILVERFISH entry"},
+    {"kind": "ctor", "name": "RenderSilverfish", "sig": "()V (ModelSilverfish, shadow 0.3)", "native": "csrc/engine/raster_mobs.c:model_silverfish", "status": "exact"},
+    {"kind": "method", "name": "getDeathMaxRotation", "sig": "(EntitySilverfish)float", "native": "csrc/engine/raster_mobs.c:death_max_rotation", "status": "exact"},
+    {"kind": "method", "name": "doRender", "sig": "(EntitySilverfish,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntitySilverfish)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntitySilverfish,int,float)V", "native": null, "status": "n/a", "note": "always returns -1; nothing to port"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getDeathMaxRotation", "sig": "(EntityLivingBase)float (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: the 180-degree death roll (ent_death, deaths 3, 7, 12, 19 with a zombie's 90 beside); the red overlay on a dying spider adds twice (the eyes pass leaves GL_ONE, GL_ONE)."
+}

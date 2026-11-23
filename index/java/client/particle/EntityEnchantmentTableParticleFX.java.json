@@ -1,0 +1,88 @@
+{
+ "classes": [
+  "EntityEnchantmentTableParticleFX"
+ ],
+ "lines": 84,
+ "side": "client",
+ "category": "particles",
+ "role": "The enchanting table's page-turn particle: flying glyph with quadratic brightness ramp.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: a placed enchanting table with bookshelves two blocks away spawns 'enchantmenttable' from BlockEnchantmentTable.randomDisplayTick (BlockEnchantmentTable.java:62) on the client.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "new_enchant",
+    "fx_update",
+    "particles_live_light",
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/rendertick/fx_redstone",
+  "csrc/tests/test_rendertick.c",
+  "out/java/clientframes/cov-fx-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  },
+  {
+   "kind": "field",
+   "name": "field_70565_a",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.h:base_scale",
+   "status": "exact",
+   "note": "the scale"
+  },
+  {
+   "kind": "field",
+   "name": "field_70568_aq, field_70567_ar, field_70566_as",
+   "sig": "double",
+   "native": "csrc/engine/particles_live.h:home_x",
+   "status": "exact",
+   "note": "the start position"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityEnchantmentTableParticleFX",
+   "sig": "(World,DDDDDD)V",
+   "native": "csrc/engine/particles_live.c:new_enchant",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBrightnessForRender",
+   "sig": "(F)I",
+   "native": "csrc/engine/particles_live.c:particles_live_light",
+   "status": "exact",
+   "note": "the age-lifted block light"
+  },
+  {
+   "kind": "method",
+   "name": "getBrightness",
+   "sig": "(F)F",
+   "native": "csrc/engine/particles_live.c:particles_live_light",
+   "status": "n/a",
+   "note": "not read by the particle passes: EffectRenderer and EntityFX.renderParticle read getBrightnessForRender (as the other particles' getBrightness records say) (lane/covclient)"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/particles_live.c:fx_update",
+   "status": "exact",
+   "note": "PLIVE_ENCHANT"
+  }
+ ],
+ "missing": [],
+ "notes": "No behavior is ported. The scene renderer csrc/engine/raster_particles.c draws whatever class names the recorded state dump lists (base quads or icon quads), so a dump containing this class would render, but nothing constructs or ticks it natively. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxlast 2026-09-27: stale; ported by lane/idxredstone (BlockEnchantmentTable.randomDisplayTick's glyphs), fx_redstone compares 258 of them field by field.",
+ "path": "oracle/src/client/particle/EntityEnchantmentTableParticleFX.java"
+}

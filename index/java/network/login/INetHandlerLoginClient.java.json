@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/network/login/INetHandlerLoginClient.java",
+  "classes": ["INetHandlerLoginClient"],
+  "lines": 15,
+  "side": "client",
+  "category": "network",
+  "role": "Client-side interface for the login state: encryption request, login success and disconnect during the login phase.",
+  "scope": "not_needed",
+  "scope_reason": "Login-phase plumbing. Offline-mode login is a state flip with no observable game effect (the client's name and uuid are fixed), and the native engine starts from the oracle snapshot instead of a login sequence.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "handleEncryptionRequest", "sig": "(S01PacketEncryptionRequest)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "handleLoginSuccess", "sig": "(S02PacketLoginSuccess)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "handleDisconnect", "sig": "(S00PacketDisconnect)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

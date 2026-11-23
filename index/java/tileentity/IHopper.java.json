@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/tileentity/IHopper.java",
+  "classes": ["IHopper"],
+  "lines": 27,
+  "side": "common",
+  "category": "tileentity",
+  "role": "Interface for anything that pulls items like a hopper (the hopper block and the hopper minecart): its world and position.",
+  "scope": "switched_off",
+  "scope_reason": "Only the hopper transfer code (TileEntityHopper.func_145891_a) reads it, and world.conf redstone = off makes hoppers only store; hopper minecarts are off with minecarts = off.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "getWorldObj", "sig": "()World", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getXPos", "sig": "()D", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getYPos", "sig": "()D", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getZPos", "sig": "()D", "native": null, "status": "n/a"}
+  ],
+  "missing": []
+}

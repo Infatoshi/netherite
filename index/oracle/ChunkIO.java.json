@@ -1,0 +1,16 @@
+{
+ "path": "oracle/harness/netherite/oracle/ChunkIO.java",
+ "lines": 328,
+ "role": "The oracle's chunk writer: AnvilChunkLoader.saveChunk hands every save to it as its own deep copy (detach), and one background thread writes them in save order, each one, so the region files are what synchronous writes give; the loader's pending list only serves reads (a pending chunk that loads reads a copy, loading) and is purged on the server thread once a chunk's saves are all on disk. The server never waits for the writer; settle() (ThreadedFileIOBase.waitForFinish, before every agent command that may read the save, replay setup) returns once every queued write is on disk.",
+ "kind": "harness",
+ "used_by": [
+  "oracle/src/world/storage/ThreadedFileIOBase.java (queueIO, waitForFinish)",
+  "oracle/harness/netherite/oracle/Oracle.java (commands, replay setup)",
+  "oracle/harness/netherite/oracle/Pool.java (teardown)",
+  "oracle/src/world/chunk/storage/AnvilChunkLoader.java (loadChunk: loading; saveChunk: detach)"
+ ],
+ "vanilla_hooks": [
+  "oracle/src/world/storage/ThreadedFileIOBase.java"
+ ],
+ "notes": "Replaces the synchronous writeNextIO loop the queueIO hook ran on the server thread; ThreadedFileIOBase.queueIO of a chunk loader is a no-op while the oracle runs (detach queued the save). detach copies because vanilla's NBT shares the live chunk's arrays and a relight before the writer reached it changed the file (lane/rerecaudit). lane/oracletick: loadChunk no longer settles every queued write (the server waited for hundreds after each 900-tick autosave; 31% of a fuzz replay's server tick under I/O pressure) and saveChunk never waits: a later save of a chunk still pending is written after the earlier one (the loader's list replaces it in place, which would make the stale bytes left in a region file's sectors depend on the writer's timing), and a load of a pending chunk reads a copy of its NBT (vanilla's chunk shares the arrays of the NBT it reads). Region files are byte-identical to master's (gold-g12-s42's G12 save, pf-g10-1005 and cp-nether-s1 SAVEEND, combat-mobs-s1's overlay twice). A step or GoldBot command does not settle (Oracle.readOnly). Region timestamps are the pinned save clock."
+}

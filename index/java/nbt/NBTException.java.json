@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/nbt/NBTException.java",
+  "classes": [
+    "NBTException"
+  ],
+  "lines": 11,
+  "side": "common",
+  "category": "nbt",
+  "role": "The checked exception JsonToNBT throws for a malformed tag string.",
+  "scope": "not_needed",
+  "scope_reason": "Its only throwers are JsonToNBT (the tag-string parser) and the command classes and chat GUI that call it; commands are unused in this game and the chat screen is never opened by the agent or play inputs.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "NBTException",
+      "sig": "(Ljava/lang/String;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "No native parser of the vanilla tag-string format exists; the native dev ops carry NBT as JSON in the tape, not as vanilla tag strings."
+    }
+  ],
+  "missing": [],
+  "notes": "Cited callers verified in oracle/src: GuiChat, CommandSummon, CommandSetBlock, CommandTestForBlock, CommandGive. None is reachable in the recorded game, so there is nothing to port and no evidence to cite."
+}

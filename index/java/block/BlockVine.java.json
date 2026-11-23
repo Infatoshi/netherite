@@ -1,0 +1,254 @@
+{
+  "path": "oracle/src/block/BlockVine.java",
+  "classes": [
+    "BlockVine"
+  ],
+  "lines": 418,
+  "side": "common",
+  "category": "block",
+  "role": "The vine (id 106): clings to walls by its four face bits, spreads on random ticks up and along walls, drops nothing without shears, tints by biome foliage color.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS",
+        "MATERIALS"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "vine_update",
+        "vine_attach_ok",
+        "block_on_neighbor_changed"
+      ]
+    },
+    {
+      "file": "csrc/engine/randomtick.c",
+      "symbols": [
+        "rt_vine",
+        "randomtick_update_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_dispatch"
+      ]
+    },
+    {
+      "file": "csrc/engine/harvestdrops.c",
+      "symbols": [
+        "harvest_block"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_pool_box"
+      ]
+    },
+    {
+      "file": "csrc/engine/features_plants.c",
+      "symbols": [
+        "vine_can_place_on_side",
+        "vine_neighbor"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "vine_wall_ok",
+        "can_replace"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks.c",
+      "symbols": [
+        "biome_color"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks3.c",
+      "symbols": [
+        "rb3_render_vine"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/dig.c",
+      "symbols": [
+        "harvest_block"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_worldgen.c",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/idx-blocks-s1",
+    "out/java/snapshots/idx-randomtick-s1",
+    "out/java/meshes/scene3-42",
+    "csrc/tests/test_meshes.c",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockVine",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "id 106: Material.vine row, tick_randomly, render_type 20"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsForItemRender",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "full-cube bounds for the held item; the vine renders as full-cube faces anyway"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_pool_box",
+      "status": "exact",
+      "note": "case 106: null"
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockOnSide",
+      "sig": "(Lnet/minecraft/world/World;IIII)Z",
+      "native": "csrc/engine/place.c:can_replace",
+      "status": "exact",
+      "note": "The func_150093_a wall test per side in placement; idx-blocks-s1 hangs vines on a stone wall by hand."
+    },
+    {
+      "kind": "method",
+      "name": "func_150093_a",
+      "sig": "(Lnet/minecraft/block/Block;)Z",
+      "native": "csrc/engine/raytrace.c:vine_support",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_150094_e",
+      "sig": "(Lnet/minecraft/world/World;III)Z",
+      "native": "csrc/engine/blockcb.c:vine_update",
+      "status": "exact",
+      "note": "clears the face bits that lost their wall, removes the vine when none is left and no vine above"
+    },
+    {
+      "kind": "method",
+      "name": "getBlockColor",
+      "sig": "()I",
+      "native": "csrc/engine/render_blocks.c:biome_color",
+      "status": "n/a",
+      "note": "its only callers are RenderBlocks.renderBlockLilyPad (the lily pad's own) and BlockGrass.getRenderColor (grass's own); nothing asks this block"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderColor",
+      "sig": "(I)I",
+      "native": "csrc/engine/render_blocks.c:biome_color",
+      "status": "exact",
+      "note": "render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+    },
+    {
+      "kind": "method",
+      "name": "colorMultiplier",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;III)I",
+      "native": "csrc/engine/render_blocks.c:biome_color",
+      "status": "exact",
+      "note": "biome foliage color per position"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)V",
+      "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+      "status": "exact",
+      "note": "the vine case runs func_150094_e and drops the vine when it fails"
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(Lnet/minecraft/world/World;IIILjava/util/Random;)V",
+      "native": "csrc/engine/randomtick.c:rt_vine",
+      "status": "exact",
+      "note": "the quarter chance, the 5-vine neighborhood scan, and the up/along/drop spread with its direction rolls from World.rand"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlaced",
+      "sig": "(Lnet/minecraft/world/World;IIIFFFFI)I",
+      "native": "csrc/engine/place.c:on_block_placed",
+      "status": "exact",
+      "note": "The side-to-face-bit mapping; idx-blocks-s1 places vines on two faces of a wall."
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+      "native": "csrc/engine/drops.c:drops_dispatch",
+      "status": "n/a",
+      "note": "Block.dropBlockAsItemWithChance asks getItemDropped once per quantityDropped, which is 0 for vines (shears go through BlockVine.harvestBlock)"
+    },
+    {
+      "kind": "method",
+      "name": "quantityDropped",
+      "sig": "(Ljava/util/Random;)I",
+      "native": "csrc/engine/drops.c:drops_dispatch",
+      "status": "exact",
+      "note": "0"
+    },
+    {
+      "kind": "method",
+      "name": "harvestBlock",
+      "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;IIII)V",
+      "native": "csrc/engine/harvestdrops.c:harvest_block",
+      "status": "exact",
+      "note": "the shears branch drops the vine itself"
+    }
+  ],
+  "missing": [],
+  "notes": "WorldGenVines (the jungle decoration) is in features_plants.c and covered by test_worldgen.c. The render_blocks3.c vine renderer symbol was seen as rb3_render_vine at render_blocks3.c:891's area; verify if tools/index_check.c fails. lane/idxblocks: idx-blocks-s1 places vines by hand and breaks one with shears (the vine kept: BlockVine.harvestBlock, added to dig.c) and one by hand; idx-randomtick-s1 lets a wall of vines spread by random tick."
+}

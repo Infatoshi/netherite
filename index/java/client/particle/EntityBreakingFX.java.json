@@ -1,0 +1,87 @@
+{
+ "classes": [
+  "EntityBreakingFX"
+ ],
+ "lines": 67,
+ "side": "client",
+ "category": "particles",
+ "role": "The thrown or destroyed item's icon particle: layer 2, item icon uv with the jitter.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "fx_brf",
+    "fx_update",
+    "new_breaking",
+    "particles_live_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "particle_quad",
+    "render_scale",
+    "draw_list",
+    "particles_live_from_json"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_rendertick.c",
+  "out/java/render/fx_potion_p14",
+  "out/java/render/fx_potion_p15",
+  "out/java/rendertick/fx_eye",
+  "out/java/rendertick/fx_potion"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityBreakingFX",
+   "sig": "(World,double,double,double,Item)",
+   "native": "csrc/engine/particles_live.c:new_breaking",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityBreakingFX",
+   "sig": "(World,double,double,double,Item,int)",
+   "native": "csrc/engine/particles_live.c:new_breaking",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityBreakingFX",
+   "sig": "(World,double,double,double,double,double,double,Item,int)",
+   "native": "csrc/engine/particles_live.c:new_breaking",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getFXLayer",
+   "sig": "()",
+   "native": "csrc/engine/particles_live.c:kind_layer",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderParticle",
+   "sig": "(Tessellator,float,float,float,float,float,float)",
+   "native": "csrc/engine/raster_particles.c:particle_quad",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Ported in csrc/engine/particles_live.c (constructor new_breaking, onUpdate in fx_update, getBrightnessForRender in fx_brf) and drawn by csrc/engine/raster_particles.c (draw_list, render_scale for the scale renderParticle animates). test_rendertick replays each recorded tick natively and compares every FX field bit for bit with the next frame row (lane/particles2).",
+ "path": "oracle/src/client/particle/EntityBreakingFX.java"
+}

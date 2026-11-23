@@ -1,0 +1,139 @@
+{
+  "path": "index/assets.json",
+  "groups": [
+    {
+      "name": "textures/blocks",
+      "files": 356,
+      "used_natively": "partly",
+      "native": ["csrc/engine/render_blocks.c", "csrc/engine/raster_texture.c", "csrc/engine/block_item_model.c", "csrc/engine/render_blocks3.c"],
+      "notes": "349 png plus 7 .mcmeta animation companions (fire_layer_0/1, lava_flow, lava_still, portal, water_flow, water_still). Never read as PNGs: the client stitches these sprites into the TextureMap at textures/atlas/blocks.png (TextureMap.locationBlocksTexture, also referenced by GuiIngame and GuiAchievements), and MeshProbe/MeshScene dump that stitched atlas from GL as atlas.rgba / atlas_N.rgba / atlas.json in each render scene's dir; native raster_texture.c (raster_texture_load) and render_blocks.c (rb_atlas_load, table.bin's sprite rects) read those dumps. block_item_model.c and render_blocks3.c use the same atlas for GUI block icons."
+    },
+    {
+      "name": "textures/items",
+      "files": 216,
+      "used_natively": "partly",
+      "native": ["csrc/engine/raster_hud.c", "csrc/engine/raster_entities.c", "csrc/engine/raster_hand.c", "csrc/engine/raster_particles.c", "csrc/engine/hud_live.c"],
+      "notes": "214 png plus clock.png.mcmeta and compass.png.mcmeta (their vanilla animation frames). Stitched into textures/atlas/items.png (TextureMap.locationItemsTexture); RenderStateProbe.dumpAtlas binds that atlas and writes state/gui_items.rgba plus the sprite rects in state/gui.json, which raster_hud.c, raster_entities.c, raster_hand.c and raster_particles.c load. out/assets/items.rgba is the prebaked 256x256 fallback for live rendering (raster_entities.c live_entity_tex). Item names come from state/item_names.json (ItemTable.dumpGui), not from lang."
+    },
+    {
+      "name": "textures/entity",
+      "files": 88,
+      "used_natively": "partly",
+      "native": ["csrc/engine/raster_mobs.c", "csrc/engine/raster_entities.c", "csrc/engine/raster_hand.c", "csrc/play/play.c", "csrc/engine/raster_tileent.c"],
+      "notes": "42 of the 88 are prebaked into out/assets (from the jar, csrc/assets.tsv)/mobs/*.rgba and loaded by raster_mobs.c read_texture (texture_names table): steve.rgba is textures/entity/steve.png, pigman.rgba is zombie_pigman.png, mooshroom.rgba is cow/mooshroom.png, shadow.rgba is textures/misc/shadow.png, the rest map by name. RenderStateProbe.mobTextures also dumps 40 of them per scene as <name>.rgba plus mobs.json, and read_texture prefers the scene copy over the prebaked one. raster_entities.c renders paintings (textures/painting group) and squid; raster_hand.c uses steve.rgba as the first-person skin fallback. Unused natively (no native model renders them): the 15 horse files and horse armor (world.conf horses=off), wolf x4 (wolves=off), cat/ocelot x4 (ocelots=off), wither x3 (wither=off), boat, minecart, sign, beacon_beam, lead_knot, snowman, zombie_villager, end_portal, enchanting_table_book, endercrystal_beam is used, and 6 of the 7 chest sheets (only chest/normal.png is dumped, as gui_chest; christmas, christmas_double, ender, normal_double, trapped, trapped_double are not). The tile-entity textures (chest/normal, normal_double, trapped, trapped_double, ender, sign.png, end_portal.png; the skulls reuse the mob skins and steve.png) are dumped per render recording by TileEntityRenderProbe as state/te_*.rgba and prebaked as out/assets/te/*.rgba for the live client; raster_tileent.c reads the scene copy first. The christmas chest pair is unused (see TileEntityChestRenderer)."
+    },
+    {
+      "name": "textures/gui",
+      "files": 34,
+      "used_natively": "partly",
+      "native": ["csrc/Makefile", "csrc/engine/raster_hud.c", "csrc/tests/png2rgba.c", "csrc/play/play.c"],
+      "notes": "The five container sheets the native live GUI draws (container/inventory.png, container/crafting_table.png, container/furnace.png, container/generic_54.png, container/villager.png) are decoded straight from the jar by the native Makefile's png2rgba rule into out/native/gui/<name>.rgba (csrc/engine/raster_hud.c screen_texture, make -C csrc play). widgets.png, icons.png and achievement/achievement_background.png are read back from GL by RenderStateProbe.hudTextures into state/gui.json + state/gui_*.rgba for the HUD pass. The remaining 26 are screens the native engine never renders: title/minecraft.png, title/mojang.png and the six title/background/panorama_N.png (main menu), options_background, demo_background, resource_packs, stream_indicator, book, stats_icons, the four creative_inventory tabs, and the containers for switched-off features (the dev host, beacon, brewing_stand, dispenser, enchanting_table, hopper per world.conf) plus container/horse.png (horses=off)."
+    },
+    {
+      "name": "textures/environment",
+      "files": 6,
+      "used_natively": "partly",
+      "native": ["csrc/engine/raster.c", "csrc/engine/raster_tileent.c"],
+      "notes": "rain.png and snow.png are dumped per scene by RenderStateProbe.hudTextures (state/gui_rain.rgba, state/gui_snow.rgba) and loaded by raster.c for weather and the live rain/snow sheets table. clouds.png, end_sky.png, sun.png and moon_phases.png (RenderGlobal's locationCloudsPng/locationEndSkyPng/locationSunPng/locationMoonPhasesPng) have no oracle dumper: raster.c instead reads sun.rgba, moon_phases.rgba and clouds.rgba from the scene dir and end_sky from the prebaked out/assets/end_sky.rgb, and per DEVLOG (2026-09-24) nothing in the tree produces those RGBA twins, they are copied between scene recordings. RenderEndPortal's end_sky.png layer is dumped by TileEntityRenderProbe (state/te_end_sky.rgba) and prebaked into out/assets (from the jar, csrc/assets.tsv)/te/end_sky.rgba."
+    },
+    {
+      "name": "textures/misc",
+      "files": 10,
+      "used_natively": "partly",
+      "native": ["csrc/engine/raster_hud.c", "csrc/engine/raster.c", "csrc/engine/raster_mobs.c"],
+      "notes": "6 png plus 4 .mcmeta companions (enchanted_item_glint, pumpkinblur, shadow, vignette; the mcmeta carry the vanilla animation/blur metadata). All six pngs except unknown_pack.png are dumped by the oracle probes and read natively: vignette and enchanted_item_glint and pumpkinblur via RenderStateProbe.hudTextures into state/gui_vignette.rgba / gui_glint.rgba / gui_pumpkin.rgba (raster_hud.c), underwater.png via hudTextures and skinTexture into state/gui_underwater.rgba with the prebaked out/assets/misc/underwater.rgba fallback (raster.c), shadow.png via RenderStateProbe.mobTextures into the mobs list (TEX_SHADOW, out/assets/mobs/shadow.rgba). unknown_pack.png belongs to the resource-pack screen and is unused."
+    },
+    {
+      "name": "textures/particle",
+      "files": 2,
+      "used_natively": "partly",
+      "native": ["csrc/engine/raster_particles.c", "csrc/engine/raster.c", "csrc/engine/particles_live.c"],
+      "notes": "particles.png is dumped by RenderStateProbe.hudTextures as state/gui_particles.rgba and prebaked into out/assets (from the jar, csrc/assets.tsv)/particles.rgba (128x128); raster.c and raster_particles.c load it for the particle pass, particles_live.c for the live client. footprint.png (EntityFootStepFX's step particle) has no native counterpart found; the native particle kinds do not include footprints as far as I verified."
+    },
+    {
+      "name": "textures/map",
+      "files": 2,
+      "used_natively": "no",
+      "native": [],
+      "notes": "map_background.png and map_icons.png (MapItemRenderer). world.conf sets maps=off, so the map item never draws and these are never reached on either side."
+    },
+    {
+      "name": "textures/colormap",
+      "files": 2,
+      "used_natively": "partly",
+      "native": ["csrc/engine/render_blocks.c"],
+      "notes": "grass.png and foliage.png are loaded by GrassColorReloadListener and FoliageColorReloadListener into the ColorizerGrass/FoliageColor buffers, RenderTable writes those buffers into table.bin, and native render_blocks.c rb_table_load reads them as grass_map/foliage_map (65536 int32 each) with colormap_lookup for biome tinting. The native never reads the PNGs, only the table.bin copy."
+    },
+    {
+      "name": "textures/painting",
+      "files": 1,
+      "used_natively": "partly",
+      "native": ["csrc/engine/raster_entities.c"],
+      "notes": "paintings_kristoffer_zetterstrand.png (RenderPainting.field_110807_a) is read back from GL by the painting scene recording as painting.rgba; csrc/engine/raster_entities.c render_painting loads scene painting.rgba and draws all 26 EnumArt variants. No probe class in oracle/harness dumps it (I searched every oracle file and every lane's tree); like the environment RGBA twins the file is copied between scene dirs. Native/assets has no painting.rgba, so a live painting scene needs the scene copy."
+    },
+    {
+      "name": "textures/models",
+      "files": 12,
+      "used_natively": "no",
+      "native": [],
+      "notes": "The armor layer_1/layer_2 files for iron, gold, chainmail, diamond and leather (with the two leather overlays), drawn by the biped armor layer renderers. Armor rendering is not ported to the native engine and armor is never recorded in the render scenes I checked, so all 12 are unused."
+    },
+    {
+      "name": "textures/effect",
+      "files": 1,
+      "used_natively": "no",
+      "native": [],
+      "notes": "dither.png, loaded by ShaderGroup for the post-processing shader chains (\"textures/effect/<name>.png\"). The post chains are off, so it is never reached."
+    },
+    {
+      "name": "shaders/post",
+      "files": 22,
+      "used_natively": "no",
+      "native": [],
+      "notes": "The 22 post-processing effect chains selectable only through EntityRenderer.activateNextShader (the super secret settings key in a dev-mode world); the list in EntityRenderer.shaderResourceLocations names exactly these 22 json files. OpenGlHelper.shadersSupported requires GL 2.1 shaders plus a framebuffer object, and the pinned options never activate a shader group, so the oracle never loads any of them and the native engine has no counterpart."
+    },
+    {
+      "name": "shaders/program",
+      "files": 58,
+      "used_natively": "no",
+      "native": [],
+      "notes": "The GLSL vertex/fragment programs (.fsh/.vsh) and their uniform JSONs for the same post chains, plus the shared helpers the chains compose (blit, blur, downscale, overlay, bloom). Unused for the same reason as shaders/post; no native file references the shaders directory."
+    },
+    {
+      "name": "font",
+      "files": 1,
+      "used_natively": "no",
+      "native": [],
+      "notes": "glyph_sizes.bin, the 65536-byte per-glyph width table FontRenderer.readGlyphSizes loads. The native HUD instead recomputes per-glyph widths from the ascii.png texels (csrc/engine/raster_hud.c font_widths, the FontRenderer.readFontTexture path) and renders the ascii font only, so glyph_sizes.bin and the whole unicode font path (see textures/font) are not ported."
+    },
+    {
+      "name": "textures/font",
+      "files": 224,
+      "used_natively": "partly",
+      "native": ["csrc/engine/raster_hud.c", "csrc/engine/raster_tileent.c"],
+      "notes": "ascii.png is dumped by RenderStateProbe.hudTextures as state/gui_ascii.rgba (the default font texture, Minecraft's new FontRenderer(textures/font/ascii.png)) and raster_hud.c renders HUD text from it. ascii_sga.png (the standard galactic font) and the 222 unicode_page_NN.png pages (FontRenderer.getUnicodePageLocation, enabled by the forceUnicodeFont option) have no native counterpart; the native font pass is ascii-only. Sign text (raster_tileent.c) draws from the same ascii.png, dumped as state/te_ascii.rgba and prebaked into out/assets (from the jar, csrc/assets.tsv)/te/ascii.rgba."
+    },
+    {
+      "name": "lang",
+      "files": 1,
+      "used_natively": "partly",
+      "native": ["csrc/engine/lang.c", "csrc/engine/chatcomp.c", "csrc/engine/survival.c", "csrc/engine/raster_hud.c", "csrc/engine/firework.c"],
+      "notes": "tools/langgen.c extracts the checked engine keys from en_US.lang in the user jar to out/native/lang_generated.h. Engine chat, achievements, potions, enchantments, firework tooltips and screen labels use it; item display names still come from state/item_names.json (ItemTable.dumpGui)."
+    },
+    {
+      "name": "texts",
+      "files": 3,
+      "used_natively": "no",
+      "native": ["csrc/engine/survival.c"],
+      "notes": "end.txt and credits.txt are the GuiWinGame poem and credits (GuiWinGame reads them line by line); csrc/engine/survival.c tracks the credits screen state (screen_credits, its respawn and escape handling) but never renders the text, so the files are unused natively. splashes.txt has no consumer in oracle/src at all: GuiMainMenu is not in the trimmed client source, so nothing reads the splash list."
+    },
+    {
+      "name": "sounds",
+      "files": 0,
+      "used_natively": "no",
+      "native": [],
+      "notes": "The owned client jar carries no sound assets at all: no sounds/ directory and no sounds/sounds.txt index (unzip -l 'assets/*' lists 1039 entries, none under sounds/). oracle/Makefile's make deps takes the client jar for resources only, and the vanilla SoundManager/SoundHandler paths in oracle/src have no assets to load. The client_audio side of vanilla is unimplemented in the native engine; there is nothing to port from this jar."
+    }
+  ],
+  "notes": "Counts from unzip -l out/java/client/1.7.10.jar 'assets/*' on 2026-09-25: 1039 entries total, 1026 resource files plus 13 .mcmeta animation/metadata companions (7 under textures/blocks, 2 under textures/items, 4 under textures/misc). Sum of group counts: 954 textures + 80 shaders + 1 font + 1 lang + 3 texts = 1039. Path convention: entries above are 'assets/minecraft/<group>'; every entry lives under assets/minecraft (no other namespace in the jar). The two stitched atlas ResourceLocations in the vanilla source (textures/atlas/blocks.png, textures/atlas/items.png) do not exist as jar files, they name the runtime TextureMap atlases built from the blocks and items sprites. Not verified: exact vanilla consumers for unknown_pack.png (no oracle/src reference found; it belongs to the resource-pack screens whose classes are not in the trimmed tree) and whether any native particle pass draws footprint.png (no reference found, recorded as unused)."
+}

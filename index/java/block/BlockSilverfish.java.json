@@ -1,0 +1,195 @@
+{
+  "path": "oracle/src/block/BlockSilverfish.java",
+  "classes": [
+    "BlockSilverfish"
+  ],
+  "lines": 196,
+  "side": "common",
+  "category": "block",
+  "role": "The monster egg (97): a stone, cobblestone or stone-brick lookalike that spawns a silverfish when broken and drops nothing; the static maps between host blocks and egg metas used by the silverfish AI and worldgen.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/dig.c",
+      "symbols": [
+        "dig_fish",
+        "base_harvest"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_dig_adopt"
+      ]
+    },
+    {
+      "file": "csrc/engine/hostiles_silverfish.c",
+      "symbols": [
+        "silverfish_spawn_from_egg",
+        "silverfish_update_entity_action_state"
+      ]
+    },
+    {
+      "file": "csrc/engine/decorator.c",
+      "symbols": [
+        "hills_post",
+        "D_MONSTER_EGG"
+      ]
+    },
+    {
+      "file": "csrc/engine/stronghold_blocks.c",
+      "symbols": [
+        "SHB_MONSTER_EGG"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks.c",
+      "symbols": [
+        "table_icon"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    },
+    {
+      "file": "csrc/engine/harvestdrops.c",
+      "symbols": [
+        "harvestdrops_create_stacked_block"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/fight-silverfish-s1",
+    "csrc/tests/test_hostiles.c",
+    "csrc/tests/test_dig.c",
+    "out/java/dig/r2",
+    "out/java/structures/s2",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/idx-blocks-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_150198_a",
+      "sig": "static String[]",
+      "native": null,
+      "status": "n/a",
+      "note": "variant names"
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockSilverfish",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 97: clay-like material, hardness 0.75 in the registry (the ctor's 0 is overridden by Blocks' setHardness)"
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)IIcon",
+      "native": "csrc/engine/render_blocks.c:table_icon",
+      "status": "exact",
+      "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "atlas registration"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockDestroyedByPlayer",
+      "sig": "(World,IIII)V",
+      "native": "csrc/engine/dig.c:dig_fish",
+      "status": "exact",
+      "note": "the fish spawn after removeBlock; survival.c constructs it in the live server"
+    },
+    {
+      "kind": "method",
+      "name": "quantityDropped",
+      "sig": "(Random)I",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "n/a",
+      "note": "BlockSilverfish overrides dropBlockAsItemWithChance (it spawns the silverfish) without quantityDropped"
+    },
+    {
+      "kind": "method",
+      "name": "func_150196_a",
+      "sig": "(Block)Z",
+      "native": "csrc/engine/hostiles_silverfish.c:silverfish_update_entity_action_state",
+      "status": "exact",
+      "note": "ids 1, 4, 98 as hide hosts"
+    },
+    {
+      "kind": "method",
+      "name": "func_150195_a",
+      "sig": "(Block,I)I",
+      "native": "csrc/engine/hostiles_silverfish.c:silverfish_update_entity_action_state",
+      "status": "exact",
+      "note": "the host to egg meta map, inlined"
+    },
+    {
+      "kind": "method",
+      "name": "func_150197_b",
+      "sig": "(I)ImmutablePair",
+      "native": null,
+      "status": "n/a",
+      "note": "Read only by EntitySilverfish's ally summon when doMobGriefing is false (the egg is put back as its host block); the supported gamerules are doDaylightCycle and keepInventory, so survival play keeps mobGriefing true and the egg is broken instead (func_147480_a, ported)."
+    },
+    {
+      "kind": "method",
+      "name": "createStackedBlock",
+      "sig": "(I)ItemStack",
+      "native": "csrc/engine/harvestdrops.c:harvestdrops_create_stacked_block",
+      "status": "exact",
+      "note": "Stone, cobblestone or a stone brick variant by metadata; the silk-touch break still spawns the fish from onBlockDestroyedByPlayer, whose constructor draws come before the drop (dig.c:dig_fish)."
+    },
+    {
+      "kind": "method",
+      "name": "dropBlockAsItemWithChance",
+      "sig": "(World,IIIIFI)V",
+      "native": "csrc/engine/dig.c:base_harvest",
+      "status": "exact",
+      "note": "the second fish (fish B) in place of a drop"
+    },
+    {
+      "kind": "method",
+      "name": "getDamageValue",
+      "sig": "(World,III)I",
+      "native": "csrc/engine/pickblock.c:block_get_damage",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "getSubBlocks",
+      "sig": "(Item,CreativeTabs,List)V",
+      "native": null,
+      "status": "n/a",
+      "note": "creative tab listing, client only"
+    }
+  ],
+  "missing": [],
+  "notes": "Eggs generate in extreme hills veins (decorator.c hills_post) and stronghold corridors. harvestdrops.c excludes block 97 from its probe on purpose. func_150197_b's use was inferred from silverfish_spawn_from_egg's name, not traced line by line. lane/idxblocks: idx-blocks-s1 hand-digs a stone monster egg and the silverfish comes out."
+}

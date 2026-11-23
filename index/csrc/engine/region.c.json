@@ -1,0 +1,26 @@
+{
+ "path": "csrc/engine/region.c",
+ "lines": 357,
+ "role": "Read-only vanilla Anvil region reader for checkpoint starts: RegionFile's 4 KiB sector table and zlib or gzip chunk stream, a binary NBT parser for the tag kinds a chunk carries, and the Level compound returned as a canonical nbt tree; also enumerates every chunk present in a save's region files.",
+ "layer": "io",
+ "java": [
+  {"path": "oracle/src/world/chunk/storage/RegionFile.java", "members": ["getChunkDataInputStream", "getOffset"]},
+  {"path": "oracle/src/world/chunk/storage/AnvilChunkLoader.java", "members": ["loadChunk", "readChunkFromNBT"]},
+  {"path": "oracle/src/nbt/CompressedStreamTools.java", "members": ["read"]},
+  {"path": "oracle/src/nbt/NBTBase.java", "members": ["func_150284_a"]}
+ ],
+ "structs": [],
+ "entry_points": ["region_load_chunk", "region_level_terrain_populated", "region_enumerate"],
+ "tick_path": false,
+ "gpu": [
+  "line 19 and 33, functions read_whole and inflate_zlib: malloc of the whole region file and the inflated chunk per load",
+  "line 31-55, function inflate_zlib: unbounded retry loop doubling the output buffer until the stream fits",
+  "line 252-274, function region_load_chunk: the same unbounded doubling loop for gzip chunks",
+  "line 75-213, functions nbt_bin_compound and nbt_bin_value: mutual recursion over nested compounds and lists, depth-limited to 64",
+  "line 153, function nbt_bin_value: 64 KiB stack buffer per string tag",
+  "line 300-314, function region_load_chunk: renders and reparses every Level field through canonical text to copy the tree",
+  "line 331-355, function region_enumerate: opens up to 4096 region files (rx, rz in -32..31) and grows the output with realloc"
+ ],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Called only from serverreplay.c's checkpoint start (--from), before any tick runs. Chunks outside region rx/rz -32..31 (block coordinates beyond about +-32768) are not enumerated. Tag type 12 (long array) is parsed though 1.7.10 never writes it. region_level_terrain_populated reads only TerrainPopulated; the header's mention of LastUpdate is not implemented here. test_snapshots.c exercises it only through checkpoint snapshots (cp-*), which I did not confirm run in the default suite."
+}

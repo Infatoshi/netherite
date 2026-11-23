@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/world/chunk/storage/ChunkLoader.java",
+  "classes": ["ChunkLoader", "ChunkLoader.AnvilConverterData"],
+  "lines": 166,
+  "side": "server",
+  "category": "chunk",
+  "role": "Legacy McRegion chunk reader and converter: parses an old 128-high chunk compound and rewrites it as Anvil sections with biomes from the chunk manager.",
+  "scope": "not_needed",
+  "scope_reason": "Only AnvilSaveConverter's world upgrade calls it; worlds here are always created fresh in Anvil format.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "load", "sig": "(NBTTagCompound)ChunkLoader.AnvilConverterData", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "convertToAnvilFormat", "sig": "(AnvilConverterData,NBTTagCompound,WorldChunkManager)V", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "AnvilConverterData.lastUpdated, terrainPopulated, heightmap, blockLight, skyLight, data, blocks, entities, field_151564_i, field_151563_j, x, z", "sig": "converter record fields", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "AnvilConverterData", "sig": "(int,int)", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": ""
+}

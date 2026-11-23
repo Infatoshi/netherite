@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/raster_glx.c",
+ "lines": 240,
+ "role": "The fixed-function GL state the world entity passes draw with: a Mesa-exact modelview (rs_gl_*), RenderHelper's two item lights in eye space under the camera modelview, the normal through the inverse transpose with GL_RESCALE_NORMAL, glColor, the lightmap coordinates and a texture matrix, feeding the entity quad rasterizer; ModelBox display lists and renderItemIn2D on top.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/RenderHelper.java", "members": ["enableStandardItemLighting"]},
+  {"path": "oracle/src/client/model/ModelBox.java", "members": ["render"]},
+  {"path": "oracle/src/client/model/TexturedQuad.java", "members": ["draw", "flipFace"]},
+  {"path": "oracle/src/client/renderer/ItemRenderer.java", "members": ["renderItemIn2D"]},
+  {"path": "oracle/src/client/renderer/Tessellator.java", "members": ["setNormal"]}
+ ],
+ "structs": [
+  {"name": "glx", "java": "the GL state a Render class draws under: modelview, lights, glColor, glNormal3f, the lightmap coordinates, GL_TEXTURE", "fields": ["t", "mv", "light", "color", "lighting", "normal", "lb", "ls", "tex_matrix", "tm"]}
+ ],
+ "entry_points": ["glx_init", "glx_lit", "glx_quad", "glx_model_box", "glx_item_in_2d"],
+ "tick_path": false,
+ "gpu": [
+  "per-quad struct copies of the raster target (glx_quad); no allocation, no statics but the white texel"
+ ],
+ "tests": ["csrc/tests/test_render.c"],
+ "notes": "lane/entrender. Mirrors raster_hand.c's hand_ctx for the world passes (fog on, the camera modelview)."
+}

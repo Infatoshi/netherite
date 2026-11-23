@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/util/LongHashMap.java",
+  "classes": ["LongHashMap", "LongHashMap.Entry"],
+  "lines": 289,
+  "side": "common",
+  "category": "util",
+  "role": "A hash map keyed by longs, used for chunk-keyed lookups (ChunkProviderServer, PlayerManager, BiomeCache, Teleporter) and by MapGenStructure's structureMap.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/jhashmap.h", "symbols": ["jhm64", "jhm64_init", "jhm64_put", "jhm64_contains", "jhm64_order"]},
+    {"file": "csrc/engine/populate.c", "symbols": ["jhm64_put", "jhm64_contains"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_structures.c",
+    "csrc/tests/test_populate.c",
+    "csrc/tests/test_worldgen.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "table/capacity/count/versionIterator", "sig": "Entry[]/int (table state)", "native": "csrc/engine/jhashmap.h:jhm64", "status": "partial", "note": "only the structureMap use was ported (populate.c keeps the per-generator maps as jhm64 keyed by chunk key); the chunk-cache users keep flat arrays instead"},
+    {"kind": "method", "name": "getNumHashElements", "sig": "()int", "native": "csrc/engine/jhashmap.h:jhm64_size", "status": "partial"},
+    {"kind": "method", "name": "getValueByKey", "sig": "(long)Object", "native": "csrc/engine/jhashmap.h:jhm64_contains", "status": "partial", "note": "populate.c reads by probing jhm64_contains and indexing its own piece list; no value-returning get"},
+    {"kind": "method", "name": "containsItem", "sig": "(long)boolean", "native": "csrc/engine/jhashmap.h:jhm64_contains", "status": "exact"},
+    {"kind": "method", "name": "add", "sig": "(long,Object)V", "native": "csrc/engine/jhashmap.h:jhm64_put", "status": "exact"},
+    {"kind": "method", "name": "resizeTable", "sig": "(int)V", "native": "csrc/engine/jhashmap.h:jhm64_init", "status": "partial", "note": "JDK-8 chain-split order emulated in jhashmap.c, fixed capacity"},
+    {"kind": "method", "name": "copyHashTableTo", "sig": "(LongHashMap.Entry[])V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "remove", "sig": "(long)Object", "native": null, "status": "n/a", "note": "no removal in the structureMap use; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "createKey", "sig": "(int,long,Object,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Entry.getKey/getHash/getValue/equals/hashCode/toString", "sig": "nested Entry accessors", "native": null, "status": "n/a", "note": "the entry's own accessors: LongHashMap reads the fields directly; getKey is called only by Entry.equals and Entry.toString, which have no caller in oracle/src (entries are never compared or printed)"}
+  ],
+  "missing": [],
+  "notes": "jhashmap.c's jhm64 half exists to reproduce the JDK 8 HashMap iteration order that MapGenStructure's structureMap (a LongHashMap) iterates in; only that use was traced. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: LongHashMap.remove has no native counterpart; nothing removes from the ported structure maps. The chunk-cache users (ChunkProviderClient, PlayerManager, BiomeCache, Teleporter) replace the map with their own arrays rather than a shared port."
+}

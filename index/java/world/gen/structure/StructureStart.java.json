@@ -1,0 +1,201 @@
+{
+ "path": "oracle/src/world/gen/structure/StructureStart.java",
+ "classes": [
+  "StructureStart"
+ ],
+ "lines": 182,
+ "side": "server",
+ "category": "worldgen",
+ "role": "One structure instance (a mineshaft, village, stronghold, temple or fortress): its ordered list of pieces and their union box, the per-chunk generateStructure that builds the pieces meeting a population box, the two height-settling helpers, and its NBT save and load.",
+ "scope": "in_scope",
+ "scope_reason": "Every structure that uses it is vanilla and in scope (SPEC Decisions: villages on, mineshafts, strongholds, temples and the Nether fortress vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/structure.c",
+   "symbols": [
+    "start_init",
+    "start_add",
+    "start_update_bb",
+    "start_mark_available_height",
+    "start_set_random_height",
+    "start_find_intersecting",
+    "start_nbt",
+    "start_free",
+    "structure_walk"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure.h",
+   "symbols": [
+    "struct start",
+    "bbox_intersects"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure_blocks.c",
+   "symbols": [
+    "sc_generate"
+   ]
+  },
+  {
+   "file": "csrc/engine/populate.c",
+   "symbols": [
+    "start_sizeable",
+    "populate_add_start"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/structures/s2",
+  "out/java/structures/s42",
+  "out/java/structures/vi-2",
+  "out/java/structures/nf-2",
+  "out/java/sblocks",
+  "out/java/populate/pop21",
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_populate.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "components",
+   "sig": "LinkedList<StructureComponent>",
+   "native": "csrc/engine/structure.h:pieces",
+   "status": "exact",
+   "note": "struct start's pieces array (heap, realloc-grown) in build order."
+  },
+  {
+   "kind": "field",
+   "name": "boundingBox",
+   "sig": "StructureBoundingBox",
+   "native": "csrc/engine/structure.h:bb",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_143024_c",
+   "sig": "int (start chunk x)",
+   "native": "csrc/engine/structure.h:chunk_x",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_143023_d",
+   "sig": "int (start chunk z)",
+   "native": "csrc/engine/structure.h:chunk_z",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "StructureStart",
+   "sig": "() / (int,int)",
+   "native": "csrc/engine/structure.c:start_init",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBoundingBox",
+   "sig": "()StructureBoundingBox",
+   "native": null,
+   "status": "exact",
+   "note": "Direct field read of struct start.bb."
+  },
+  {
+   "kind": "method",
+   "name": "getComponents",
+   "sig": "()LinkedList",
+   "native": null,
+   "status": "exact",
+   "note": "Direct read of struct start.pieces."
+  },
+  {
+   "kind": "method",
+   "name": "generateStructure",
+   "sig": "(World,Random,StructureBoundingBox)V",
+   "native": "csrc/engine/structure_blocks.c:sc_generate",
+   "status": "exact",
+   "note": "Pieces meeting the box in list order; one whose addComponentParts fails is removed. Checked write for write by test_sblocks and test_populate."
+  },
+  {
+   "kind": "method",
+   "name": "updateBoundingBox",
+   "sig": "()V",
+   "native": "csrc/engine/structure.c:start_update_bb",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_143021_a",
+   "sig": "(int,int)NBTTagCompound",
+   "native": "csrc/engine/structure.c:start_nbt",
+   "status": "exact",
+   "note": "id, ChunkX, ChunkZ, BB, Children; test_structures compares it to the oracle's start dumps."
+  },
+  {
+   "kind": "method",
+   "name": "func_143022_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:start_nbt",
+   "status": "exact",
+   "note": "Subclass hook; the village's Valid key is written inside start_nbt."
+  },
+  {
+   "kind": "method",
+   "name": "func_143020_a",
+   "sig": "(World,NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "the start's saved components: those generateStructure dropped are absent from the snapshot's list, and the survivors' state restored"
+  },
+  {
+   "kind": "method",
+   "name": "func_143017_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_add_start",
+   "status": "exact",
+   "note": "the village start's Valid: recomputed by the rebuild from the same seed and pieces"
+  },
+  {
+   "kind": "method",
+   "name": "markAvailableHeight",
+   "sig": "(World,Random,int)V",
+   "native": "csrc/engine/structure.c:start_mark_available_height",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRandomHeight",
+   "sig": "(World,Random,int,int)V",
+   "native": "csrc/engine/structure.c:start_set_random_height",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isSizeableStructure",
+   "sig": "()Z",
+   "native": "csrc/engine/populate.c:start_sizeable",
+   "status": "exact",
+   "note": "Latched when the start is built: the village's Valid flag, true for every other type (populate_nether.c sets it 1 for the fortress)."
+  },
+  {
+   "kind": "method",
+   "name": "func_143019_e",
+   "sig": "()I",
+   "native": null,
+   "status": "exact",
+   "note": "Reads struct start.chunk_x."
+  },
+  {
+   "kind": "method",
+   "name": "func_143018_f",
+   "sig": "()I",
+   "native": null,
+   "status": "exact",
+   "note": "Reads struct start.chunk_z."
+  }
+ ],
+ "missing": [],
+ "notes": "GPU-contract note: struct start holds a realloc-grown array of heap-allocated struct piece pointers (structure.c start_add), a pointer graph built during chunk population. The per-structure subclasses (MapGenVillage.Start, the stronghold Start, the fortress Start) are recorded with their own files. I did not open every evidence directory; the ones cited exist and test_structures/test_sblocks/test_populate read those trees per their headers. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

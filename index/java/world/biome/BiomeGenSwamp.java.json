@@ -1,0 +1,123 @@
+{
+ "path": "oracle/src/world/biome/BiomeGenSwamp.java",
+ "classes": [
+  "BiomeGenSwamp"
+ ],
+ "lines": 93,
+ "side": "common",
+ "category": "worldgen",
+ "role": "Swampland (6): swamp trees, blue orchids, lily pads, clay, mushrooms, a noise-driven grass colour, fixed foliage and water tints, and an extra slime spawn row.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "deco_of",
+    "flower_choice",
+    "place_tree",
+    "TR_SWAMP"
+   ]
+  },
+  {
+   "file": "csrc/engine/surface.c",
+   "symbols": [
+    "column",
+    "SURF_SWAMP"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "biome_color",
+    "water_color_multiplier"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.h",
+   "symbols": [
+    "RB_KIND_SWAMP",
+    "RB_KIND_CONST"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "spawning_list_for",
+    "swamp_monster",
+    "can_spawn_here_slime"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_worldgen.c",
+  "csrc/tests/test_meshes.c",
+  "out/java/populate",
+  "csrc/tests/test_biome_spawn.c",
+  "out/java/biome_spawn/bs-1",
+  "out/java/snapshots/swamp-night-s2",
+  "out/java/clientframes/cov-foliage-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a",
+   "note": "obfuscation id"
+  },
+  {
+   "kind": "ctor",
+   "name": "BiomeGenSwamp",
+   "sig": "(int)",
+   "native": "csrc/engine/decorator.c:deco_of",
+   "status": "exact",
+   "note": "decorator counts exact (case 6); waterColorMultiplier in render_blocks rb_biome.water; the extra EntitySlime monster row (weight 1, 1-1) is spawning.c swamp_monster (BiomeSpawnProbe, swamp-night-s2)"
+  },
+  {
+   "kind": "method",
+   "name": "func_150567_a",
+   "sig": "(Random)WorldGenAbstractTree",
+   "native": "csrc/engine/decorator.c:place_tree",
+   "status": "exact",
+   "note": "TR_SWAMP"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeGrassColor",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:biome_color",
+   "status": "exact",
+   "note": "RB_KIND_SWAMP noise at 0.0225; cov-foliage-s1 (through BiomeGenMutated) and pix-biome-s7"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeFoliageColor",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:biome_color",
+   "status": "exact",
+   "note": "RB_KIND_CONST 6975545; cov-foliage-s1 (through BiomeGenMutated) and pix-biome-s7"
+  },
+  {
+   "kind": "method",
+   "name": "func_150572_a",
+   "sig": "(Random,int,int,int)String",
+   "native": "csrc/engine/decorator.c:flower_choice",
+   "status": "exact",
+   "note": "blue orchid, case 6"
+  },
+  {
+   "kind": "method",
+   "name": "func_150573_a",
+   "sig": "(World,Random,Block[],byte[],int,int,double)V",
+   "native": "csrc/engine/surface.c:column",
+   "status": "exact",
+   "note": "the water/lily loop breaks on the null y=255 cell so it never places; native keeps it as a no-op (SURF_SWAMP)"
+  }
+ ],
+ "missing": [],
+ "notes": "The slime row is checked by test_biome_spawn.c against BiomeSpawnProbe and by swamp-night-s2, which fails at row 19 without it. Closed by lane/idxworld (verification): the swamp's colours, trees, slime row and witch huts are held by the gates in evidence (swamp-night-s2 fails at row 19 without the slime row)."
+}

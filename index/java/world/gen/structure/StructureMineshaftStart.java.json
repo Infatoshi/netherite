@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/world/gen/structure/StructureMineshaftStart.java",
+  "classes": ["StructureMineshaftStart"],
+  "lines": 21,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The mineshaft's structure start: a Room at (cx*16+2, cz*16+2), its recursive buildComponent, updateBoundingBox, then markAvailableHeight(10).",
+  "scope": "in_scope",
+  "scope_reason": "Mineshafts are vanilla worldgen and on (SPEC Decisions: only the chest minecarts are switched off).",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/mineshaft.c", "symbols": ["mineshaft_make_start", "room_new"]}, {"file": "csrc/engine/structure.c", "symbols": ["start_update_bb", "start_mark_available_height"]}],
+  "evidence": ["csrc/tests/test_structures.c", "out/java/structures/s2", "out/java/structures/s42", "out/java/structures/te-1"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "StructureMineshaftStart", "sig": "()V", "native": null, "status": "n/a", "note": "The empty constructor MapGenStructureIO uses before an NBT load."},
+    {"kind": "ctor", "name": "StructureMineshaftStart", "sig": "(World,Random,int,int)V", "native": "csrc/engine/mineshaft.c:mineshaft_make_start", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "Gate not re-run for this record."
+}

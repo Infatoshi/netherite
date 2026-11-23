@@ -1,0 +1,174 @@
+{"cmd": "run", "class": "MobFree", "radius": 0}
+{"cmd": "run", "class": "Snapshot"}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 16, "act": {"hold": ["back"]}}
+{"n": 10, "act": {}}
+{"n": 20, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 18, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {"hold": ["sneak", "back"]}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 14, "act": {"hold": ["back"]}}
+{"n": 10, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back"]}}

@@ -1,0 +1,186 @@
+{
+ "path": "oracle/src/block/BlockSapling.java",
+ "classes": [
+  "BlockSapling"
+ ],
+ "lines": 241,
+ "side": "common",
+ "category": "block",
+ "role": "Saplings (id 6, six wood types): the light-gated random growth stage bit, then the tree generator per type (2x2 for spruce, jungle and dark oak), and bonemeal at 45%.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "rt_sapling",
+    "sapling_grow",
+    "sapling_of_type",
+    "sapling_bonemeal",
+    "randomtick_bonemeal_can",
+    "randomtick_bonemeal_chance",
+    "RT_SAPLING"
+   ]
+  },
+  {
+   "file": "csrc/engine/features.h",
+   "symbols": [
+    "features_sapling_jungle",
+    "features_bigtree_scaled"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "bush_can_stay"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "can_place_block_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "table_icon"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/plant-sapling-s1",
+  "out/java/ticks/ticks-s2",
+  "out/java/ticks/ticks-s42",
+  "csrc/tests/test_ticks.c",
+  "csrc/tests/test_itemuse.c",
+  "out/java/snapshots/world-crops-s1",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149882_a",
+   "sig": "static String[]",
+   "native": null,
+   "status": "n/a",
+   "note": "wood names"
+  },
+  {
+   "kind": "field",
+   "name": "field_149881_b",
+   "sig": "static IIcon[]",
+   "native": null,
+   "status": "n/a",
+   "note": "client"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockSapling",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 6: bounds 0.1..0.9 x 0.8 high"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/randomtick.c:rt_sapling",
+   "status": "exact",
+   "note": "BlockBush's check, then light >= 9 and nextInt(7)"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149879_c",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/randomtick.c:rt_sapling",
+   "status": "exact",
+   "note": "the stage bit 8 or the growth; sapling_bonemeal for the bonemeal path"
+  },
+  {
+   "kind": "method",
+   "name": "func_149878_d",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/randomtick.c:sapling_grow",
+   "status": "exact",
+   "note": "generator pick (a big tree's constructor draws its Det.newRandom seeder long), 2x2 search, clear with flag 4, restore on failure; the mega pine grows through feature_megapine_grow, without the decorator's podzol pass (plant-sapling-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149880_a",
+   "sig": "(World,IIIII)Z",
+   "native": "csrc/engine/randomtick.c:sapling_of_type",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "damageDropped",
+   "sig": "(I)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 6: clamp(meta & 7, 0, 5)"
+  },
+  {
+   "kind": "method",
+   "name": "getSubBlocks",
+   "sig": "(Item,CreativeTabs,List)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative tab listing, client only"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration"
+  },
+  {
+   "kind": "method",
+   "name": "func_149851_a",
+   "sig": "(World,IIIZ)Z",
+   "native": "csrc/engine/randomtick.c:randomtick_bonemeal_can",
+   "status": "exact",
+   "note": "always true"
+  },
+  {
+   "kind": "method",
+   "name": "func_149852_a",
+   "sig": "(World,RandomIII)Z",
+   "native": "csrc/engine/randomtick.c:randomtick_bonemeal_chance",
+   "status": "exact",
+   "note": "world.rand.nextFloat() < 0.45"
+  },
+  {
+   "kind": "method",
+   "name": "func_149853_b",
+   "sig": "(World,RandomIII)V",
+   "native": "csrc/engine/randomtick.c:sapling_bonemeal",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "The tree generators are the WorldGen* ports in features_trees.c and features_trees_small.c, indexed with those files. features.h documents the lone jungle sapling fallback."
+}

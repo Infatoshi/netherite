@@ -1,0 +1,80 @@
+{
+  "path": "oracle/src/command/server/CommandMessage.java",
+  "classes": [
+    "CommandMessage"
+  ],
+  "lines": 89,
+  "side": "server",
+  "category": "commands",
+  "role": "The /tell command (aliases w, msg): sends a private gray italic chat line to one named player.",
+  "scope": "in_scope",
+  "scope_reason": "In scope since lane/idxclient: the chat takes typed input (GuiChat, the live client's T and slash), so a player types commands; the integrated server without cheats answers each (only tell, me, help and seed are allowed) and its tab completion reads the command map (csrc/engine/chatcmd.c).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcmd.c",
+      "symbols": [
+        "cmd_tell",
+        "command_tabs"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/idx-chattype-s1",
+    "out/java/snapshots/idx-chatsleep-s1"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandAliases",
+      "sig": "()Ljava/util/List;",
+      "native": "csrc/engine/chatcmd.c:KEYS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()Ljava/lang/String;",
+      "native": "csrc/engine/chatcmd.c:CMD",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()I",
+      "native": "csrc/engine/chatcmd.c:can_use",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)Ljava/lang/String;",
+      "native": "csrc/engine/chatcmd.c:CMD",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,[Ljava/lang/String;)V",
+      "native": "csrc/engine/chatcmd.c:cmd_tell",
+      "status": "exact",
+      "note": "in single player the one target is the sender: commands.message.sameTarget, or the not-found line"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,[Ljava/lang/String;)Ljava/util/List;",
+      "native": "csrc/engine/chatcmd.c:command_tabs",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isUsernameIndex",
+      "sig": "([Ljava/lang/String;I)Z",
+      "native": "csrc/engine/chatcmd.c:execute",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: /tell, /w and /msg. idx-chattype-s1."
+}

@@ -1,0 +1,128 @@
+{
+ "path": "oracle/src/client/model/ModelSpider.java",
+ "classes": [
+  "ModelSpider"
+ ],
+ "lines": 153,
+ "side": "client",
+ "category": "client_model",
+ "role": "The spider and cave spider's model: head, neck, body and eight legs with the per-leg swing phases.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_spider",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs2a_spider_f006",
+  "out/java/render/mobs2a_spider_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "spiderHead",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderNeck",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderBody",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderLeg1",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderLeg2",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderLeg3",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderLeg4",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderLeg5",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderLeg6",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderLeg7",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spiderLeg8",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelSpider",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_spider",
+   "status": "exact",
+   "note": "the per-leg swing phases are in model_spider"
+  }
+ ],
+ "missing": []
+}

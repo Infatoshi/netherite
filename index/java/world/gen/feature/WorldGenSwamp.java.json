@@ -1,0 +1,69 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenSwamp.java",
+ "classes": [
+  "WorldGenSwamp"
+ ],
+ "lines": 192,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Swamp oak: walks down through water, builds a short oak with a wide crown and hangs vines from the leaves.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_trees_small.c",
+   "symbols": [
+    "feature_swamp",
+    "grow_vines"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "place_tree"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-swamp-2",
+  "out/java/probes/fe-swamp-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenSwamp",
+   "sig": "()",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_trees_small.c:feature_swamp",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generateVines",
+   "sig": "(World,int,int,int,int)V",
+   "native": "csrc/engine/features_trees_small.c:grow_vines",
+   "status": "exact",
+   "note": "Same shape as WorldGenTrees.growVines; one C helper serves both."
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

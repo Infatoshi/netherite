@@ -1,0 +1,51 @@
+{
+  "path": "oracle/src/block/ITileEntityProvider.java",
+  "classes": [
+    "ITileEntityProvider"
+  ],
+  "lines": 30,
+  "side": "common",
+  "category": "block",
+  "role": "The interface blocks implement when they own a tile entity: create the tile entity, and get a callback when it is broken.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "te_new"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "bwl_on_broken"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/te-chest-s1",
+    "out/java/snapshots/te-furnace-s1",
+    "csrc/tests/test_tileticks.c"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "createNewTileEntity",
+      "sig": "(Lnet/minecraft/world/World;II)Lnet/minecraft/tileentity/TileEntity;",
+      "native": "csrc/engine/tileentity.c:te_new",
+      "status": "exact",
+      "note": "the kind switch at te_new builds each provider's tile entity (TE_CHEST, TE_FURNACE, TE_SKULL, ...)"
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;I)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_broken",
+      "status": "exact",
+      "note": "the per-block break hook runs the provider's breakBlock body (container drops, skull drop, sign/hopper teardown)"
+    }
+  ],
+  "missing": [],
+  "notes": "Implemented by BlockContainer and its subclasses plus BlockSkull, BlockFlowerPot, BlockBed and the other single-tile-entity blocks; each carries its own record. The te-* snapshot recordings and test_tileticks.c exercise the tile entity lifecycle."
+}

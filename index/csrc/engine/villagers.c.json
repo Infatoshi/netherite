@@ -1,0 +1,182 @@
+{
+ "path": "csrc/engine/villagers.c",
+ "lines": 1067,
+ "role": "The living village system: VillageDoorInfo, Village (door list, centre and radius, villager and golem counts, iron golem spawning, reputation, mating season), VillageCollection (villager positions, door scan, new door merge), VillageSiege's start test, and the villager and iron golem entity halves (construction, AI tick, trading hooks, child creation, spawn helper).",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/village/VillageDoorInfo.java",
+   "members": [
+    "getDistanceSquared",
+    "getInsideDistanceSquare",
+    "getInsidePosX",
+    "getInsidePosY",
+    "getInsidePosZ",
+    "isInside",
+    "doorOpeningRestrictionCounter",
+    "lastActivityTimestamp",
+    "isDetachedFromVillageFlag"
+   ]
+  },
+  {
+   "path": "oracle/src/village/Village.java",
+   "members": [
+    "tick",
+    "addVillageDoorInfo",
+    "findNearestDoor",
+    "findNearestDoorUnrestricted",
+    "getVillageDoorInfo",
+    "isInRange",
+    "getReputationForPlayer",
+    "setReputationForPlayer",
+    "setDefaultPlayerReputation",
+    "isMatingSeason",
+    "endMatingSeason",
+    "isAnnihilated",
+    "removeDeadAndOutOfRangeDoors",
+    "removeDeadAndOldAgressors",
+    "updateNumVillagers",
+    "updateNumIronGolems",
+    "tryGetIronGolemSpawningLocation",
+    "isValidIronGolemSpawningLocation",
+    "updateVillageRadiusAndCenter",
+    "addOrRenewAgressor",
+    "findNearestVillageAggressor",
+    "func_82685_c"
+   ]
+  },
+  {
+   "path": "oracle/src/village/VillageCollection.java",
+   "members": [
+    "tick",
+    "addVillagerPosition",
+    "findNearestVillage",
+    "getVillageDoorAt",
+    "dropOldestVillagerPosition",
+    "addNewDoorsToVillageOrCreateVillage",
+    "addDoorToNewListIfAppropriate",
+    "isWoodenDoorAt"
+   ]
+  },
+  {
+   "path": "oracle/src/village/VillageSiege.java",
+   "members": [
+    "tick",
+    "func_75529_b",
+    "func_75527_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityVillager.java",
+   "members": [
+    "updateAITick",
+    "getRecipes",
+    "useRecipe",
+    "func_110297_a_",
+    "onSpawnWithEgg",
+    "createChild",
+    "timeUntilReset",
+    "needsInitilization",
+    "randomTickDivider",
+    "isLookingForHome",
+    "lastBuyingPlayer",
+    "wealth"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityIronGolem.java",
+   "members": [
+    "updateAITick",
+    "onLivingUpdate",
+    "setHoldingRose",
+    "attackTimer",
+    "holdRoseTick",
+    "homeCheckTimer",
+    "attackEntityAsMob"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityAgeable.java",
+   "members": [
+    "onLivingUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDoor.java",
+   "members": [
+    "func_150014_a"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "vdi_dist_sq",
+  "vdi_inside_dist_sq",
+  "vdi_inside_x",
+  "vdi_inside_y",
+  "vdi_inside_z",
+  "vdi_is_inside",
+  "door_calc_inside_dir",
+  "door_set_open",
+  "v_init",
+  "v_add_door",
+  "v_tick",
+  "v_find_nearest_door",
+  "v_find_nearest_door_unrestricted",
+  "v_get_door_at",
+  "v_is_in_range",
+  "v_get_reputation",
+  "v_set_reputation",
+  "v_set_default_player_reputation",
+  "v_is_mating_season",
+  "v_end_mating_season",
+  "v_is_annihilated",
+  "vc_init",
+  "vc_add_villager_position",
+  "vc_get_door_at",
+  "vc_find_nearest_village",
+  "vc_tick",
+  "vs_init",
+  "vs_tick",
+  "villager_construct",
+  "villager_on_living_update",
+  "villager_on_spawn_with_egg",
+  "villager_update_ai_tick",
+  "villager_get_recipes",
+  "villager_player_trade",
+  "villager_func_110297_a_",
+  "villager_create_child",
+  "iron_golem_construct",
+  "iron_golem_on_living_update",
+  "iron_golem_update_ai_tick",
+  "iron_golem_set_holding_rose",
+  "vil_spawn_living",
+  "v_add_or_renew_agressor",
+  "v_find_nearest_aggressor",
+  "v_find_low_reputation_player",
+  "iron_golem_attack_entity_as_mob",
+  "vc_load",
+  "vc_resolve_agressors",
+  "vs_muster",
+  "villager_revenge_village",
+  "villager_death_village",
+  "iron_golem_death_village"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 157, function v_add_door: malloc of each door (village.doors is an array of pointers); doors removed at lines 186-188 are never freed",
+  "lines 323 and 332, function v_tick: calloc of a new iron golem and its an_ent inside the tick",
+  "lines 873 and 882, function villager_create_child: calloc of the child and its an_ent",
+  "lines 962 and 982, function vil_spawn_living: calloc per spawned living",
+  "lines 338, 888 and 988: append to the an_world list with no capacity check here",
+  "lines 538-539, function vc_tick: memmove of struct village entries when one is annihilated; living->village pointers into vc->villages (lines 757 and 934) can then point at a different or stale village",
+  "lines 222-229 and 245-252: villager and golem counts scan the whole an_world entity list",
+  "lines 256-260, function class_is: block class identity by strcmp on names",
+  "line 636, function calc_celestial_angle: libm cos (glibc, not fdlibm) in the siege's day test"
+ ],
+ "tests": [
+  "csrc/tests/test_villagers.c",
+  "csrc/tests/test_trades.c"
+ ],
+ "notes": "VillageSiege.func_75527_a never returns a position in vanilla 1.7.10 (the Vec3 is created and dropped), so vs_tick burns the draws and never starts a siege; native matches, and spawnZombie is not ported. vs_tick floors the player position with mh_floor where Java casts with (int), which differs for negative coordinates; it considers one player only. In the whole-server replay the village collection is absent (no villages.dat), per the comment at line 748, so vc_add_villager_position is skipped and vc_find_nearest_village returns NULL. Not ported: Village reputation effects on attack (addOrRenewAgressor callers), villages.dat NBT read/write, the villager's mating and play AI (those live in ai.c if anywhere, not checked). door_set_open is BlockDoor.func_150014_a's metadata flip with a write callback. EntityVillager.onLivingUpdate is the EntityAgeable growing-age step."
+}

@@ -1,0 +1,19 @@
+{
+ "path": "csrc/engine/blockcb.h",
+ "lines": 97,
+ "role": "Declares the block callbacks World.setBlock runs (onBlockAdded, onNeighborBlockChange, breakBlock, the torch's scheduled tick, the diode and button neighbour notifies, the bush and stay checks) and the global blockcb_env that supplies the World.rand stream, Det roles and item-drop sink.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/block/Block.java", "members": ["onBlockAdded", "onNeighborBlockChange", "breakBlock", "canPlaceBlockAt"]},
+  {"path": "oracle/src/block/BlockTorch.java", "members": ["updateTick"]},
+  {"path": "oracle/src/block/BlockRedstoneDiode.java", "members": ["func_149911_e"]},
+  {"path": "oracle/src/block/BlockButton.java", "members": ["func_150042_a"]},
+  {"path": "oracle/src/block/BlockBush.java", "members": ["func_149854_a"]}
+ ],
+ "structs": [{"name": "blockcb_env", "java": "World.rand plus the Det streams and the EntityItem sink a dropping callback uses", "fields": ["world_rand", "det", "role", "item_drop", "ctx"]}],
+ "entry_points": ["blockcb_env", "bwl_on_added", "block_on_neighbor_changed", "block_torch_update_tick", "bwl_on_broken", "blockcb_diode_notify", "blockcb_button_notify", "blockcb_bush_floor_ok", "blockcb_can_stay"],
+ "tick_path": true,
+ "gpu": ["line 45: extern struct blockcb_env blockcb_env, a process-global environment with a function pointer and void *ctx that callers swap around their calls"],
+ "tests": ["csrc/tests/test_itemuse.c"],
+ "notes": "The header comment says only probe-reached bodies are ported; blockcb.c has since grown the temple redstone blocks, rails, doors and portals."
+}

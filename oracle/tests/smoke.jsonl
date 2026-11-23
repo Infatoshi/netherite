@@ -1,0 +1,9 @@
+{"n":20,"act":{"hold":["forward"]}}
+{"n":10,"act":{"hold":["forward","jump"]}}
+{"n":1,"act":{"dlook":[90,20]}}
+{"n":30,"act":{"hold":["forward","sprint"]}}
+{"n":40,"act":{"hold":["attack"],"press":["attack"]},"frame":true}
+{"n":1,"act":{"press":["inventory"]},"frame":true}
+{"n":5,"act":{}}
+{"n":1,"act":{"gui":[["close"]]},"frame":true}
+{"n":20,"act":{"hold":["back"]},"frame":true}

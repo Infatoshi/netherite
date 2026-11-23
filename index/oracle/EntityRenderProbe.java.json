@@ -1,0 +1,15 @@
+{
+ "path": "oracle/harness/netherite/oracle/EntityRenderProbe.java",
+ "lines": 375,
+ "role": "RenderStateProbe's entity extras: each frame row's \"ents\" (the weather effects and loaded entities with a native render: arrows, fireballs, the RenderSnowball sprites, primed TNT, falling blocks, lightning bolts, items and orbs, with RenderManager's position, yaw and lightmap and the range and blockExists gates), each mob's equipment and model switches, EntityPickupFX's fields and entity, and the arrow, zombie villager, painting and armour textures (state/entities.json).",
+ "kind": "recorder",
+ "used_by": [
+  "oracle/harness/netherite/oracle/RenderStateProbe.java",
+  "csrc/engine/raster_things.c",
+  "csrc/engine/raster_mobs.c",
+  "csrc/engine/raster_particles.c",
+  "csrc/engine/raster_entities.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "lane/entrender. Reads at the fog hook, before the frame draws."
+}

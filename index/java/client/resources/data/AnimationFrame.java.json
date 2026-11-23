@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/resources/data/AnimationFrame.java",
+  "classes": ["AnimationFrame"],
+  "lines": 34,
+  "side": "client",
+  "category": "client_resources",
+  "role": "One frame of a texture animation from a texture's .mcmeta: its index into the sprite sheet and its optional per-frame time.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Metadata consumed as data: RenderStateProbe.animFrames dumps each animated sprite's frame index and time (state/anim.json), which csrc/engine/texanim.c reads; the Java object never runs natively.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "AnimationFrame", "sig": "(int)V", "native": null, "status": "n/a", "note": "frameTime defaults to -1 (use the section default)"},
+    {"kind": "ctor", "name": "AnimationFrame", "sig": "(int,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasNoTime", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrameTime", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrameIndex", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "frameIndex", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "frameTime", "sig": "int", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "idxaudit 2026-09-27: scope reason rewritten."
+}

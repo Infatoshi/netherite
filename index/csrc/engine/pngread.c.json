@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/pngread.c",
+ "lines": 104,
+ "role": "A minimal zlib-backed PNG decoder for the build and the gates: 8-bit non-interlaced RGB or RGBA with every filter type, returning packed RGBA; used to load the oracle's golden frames and the client jar's GUI sheets.",
+ "layer": "io",
+ "java": [],
+ "structs": [],
+ "entry_points": ["png_read_rgba"],
+ "tick_path": false,
+ "gpu": [
+  "lines 30, 52, 66, 72: malloc and realloc of the file, IDAT, inflate and pixel buffers (load time only, never in the tick)",
+  "line 25, function png_read_rgba: filesystem read"
+ ],
+ "tests": ["csrc/tests/test_render.c", "csrc/tests/png2rgba.c"],
+ "notes": "No Java counterpart: vanilla loads PNGs through ImageIO (TextureUtil), which this does not port. Only test_render.c and the png2rgba.c tool call it; no file under csrc/engine or csrc/play does."
+}

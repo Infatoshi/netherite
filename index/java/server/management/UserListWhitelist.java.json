@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/server/management/UserListWhitelist.java",
+  "classes": ["UserListWhitelist"],
+  "lines": 64,
+  "side": "server",
+  "category": "server",
+  "role": "The whitelist.json list: a UserList keyed by the profile's UUID, with case-insensitive name lookup.",
+  "scope": "not_needed",
+  "scope_reason": "Checked by ServerConfigurationManager.func_152607_e only while whiteListEnforced is set (the /whitelist command path); the oracle never enables it.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "UserListWhitelist", "sig": "(File)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152682_a", "sig": "(JsonObject)UserListEntry", "native": null, "status": "n/a", "note": "builds a UserListWhitelistEntry"},
+    {"kind": "method", "name": "func_152685_a", "sig": "()String[]", "native": null, "status": "n/a", "note": "whitelisted names"},
+    {"kind": "method", "name": "func_152704_b", "sig": "(GameProfile)String", "native": null, "status": "n/a", "note": "the UUID string as key"},
+    {"kind": "method", "name": "func_152706_a", "sig": "(String)GameProfile", "native": null, "status": "n/a", "note": "case-insensitive name lookup"},
+    {"kind": "method", "name": "func_152681_a", "sig": "(Object)String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

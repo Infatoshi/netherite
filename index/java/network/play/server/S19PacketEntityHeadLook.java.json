@@ -1,0 +1,120 @@
+{
+ "path": "oracle/src/network/play/server/S19PacketEntityHeadLook.java",
+ "classes": [
+  "S19PacketEntityHeadLook"
+ ],
+ "lines": 70,
+ "side": "server",
+ "category": "network",
+ "role": "The entity's head yaw, sent whenever it moved 4/256 of a turn from the last sent value.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/tracker.c",
+   "symbols": [
+    "tracker_entry_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_handle_packet"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_clientworld.c",
+  "out/java/snapshots/fight-creeper-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149384_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "entity id, rides tracker_packet.id"
+  },
+  {
+   "kind": "field",
+   "name": "field_149383_b",
+   "sig": "byte",
+   "status": "exact",
+   "note": "head yaw byte, rides tracker_packet.head_yaw"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(Entity,byte)V",
+   "status": "exact",
+   "native": "csrc/engine/tracker.c:tracker_entry_tick",
+   "note": "the head-yaw branch of the tracker pass"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+   "note": "TRACKER_PKT_S19 case: sets the client entity's head_yaw"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_149381_a",
+   "sig": "(World)Lnet/minecraft/entity/Entity;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149380_c",
+   "sig": "()B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": []
+}

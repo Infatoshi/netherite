@@ -1,0 +1,31 @@
+{
+ "path": "csrc/engine/populate.h",
+ "lines": 203,
+ "role": "Declares the overworld populate driver: the PopulateProbe stage ids and hook, the structure start and HashMap-ordered structure map records, the populate state (world, population Random, noise, four maps, End rand), the global world-Random and Det hooks the structure pieces use, and every call part of ChunkProviderGenerate.populate.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/ChunkProviderGenerate.java", "members": ["populate", "rand"]},
+  {"path": "oracle/src/world/gen/structure/MapGenStructure.java", "members": ["structureMap", "generateStructuresInChunk"]},
+  {"path": "oracle/src/world/gen/structure/StructureStart.java", "members": ["isSizeableStructure"]},
+  {"path": "oracle/src/world/gen/MapGenBase.java", "members": ["func_151539_a"]},
+  {"path": "oracle/src/world/biome/BiomeGenBase.java", "members": ["getFloatTemperature", "field_150605_ac", "field_150606_ad"]},
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["func_150809_p", "getTopFilledSegment", "getPrecipitationHeight"]},
+  {"path": "oracle/src/world/biome/WorldChunkManager.java", "members": ["func_150795_a"]},
+  {"path": "oracle/src/server/MinecraftServer.java", "members": ["initialWorldChunkLoad"]}
+ ],
+ "structs": [
+  {"name": "struct populate_stage_hook", "java": null, "fields": ["fn", "ctx"]},
+  {"name": "struct pop_start", "java": "StructureStart plus its latched isSizeableStructure", "fields": ["start", "sizeable"]},
+  {"name": "struct pop_map", "java": "MapGenStructure.structureMap (a java.util.HashMap keyed by chunk)", "fields": ["starts", "n", "cap", "keys"]},
+  {"name": "struct populate", "java": "ChunkProviderGenerate's populate state: rand, the two placement longs, BiomeGenBase's temperature and flower noise, the four structure generators, and the End World's rand", "fields": ["world", "rand", "mul_x", "mul_z", "temp_noise", "flower_noise", "stage", "maps", "order", "cap_order", "end_rand"]}
+ ],
+ "entry_points": ["populate_init", "populate_free", "populate_offer_chunk", "populate_add_start", "populate_biome_spawn_search", "populate_initial_chunks", "populate_map_size", "populate_150809_p", "populate_seed", "populate_structures", "populate_structures_count", "populate_lakes", "populate_dungeons", "populate_freeze", "populate_stage_now", "populate_top_filled_segment", "populate_precipitation_height", "populate_float_temperature", "decorator_decorate", "populate_reseed"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "struct pop_map: heap-grown starts array plus a jhm64 hash map whose iteration order is part of the semantics",
+  "struct populate: order scratch is heap-grown (order, cap_order)"
+ ],
+ "tests": ["csrc/tests/test_populate.c", "csrc/tests/test_spawning.c"],
+ "notes": "decorator_decorate and the decorator negatives are declared here and defined in decorator.c."
+}

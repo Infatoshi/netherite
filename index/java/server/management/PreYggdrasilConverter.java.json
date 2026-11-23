@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/server/management/PreYggdrasilConverter.java",
+  "classes": ["PreYggdrasilConverter"],
+  "lines": 102,
+  "side": "server",
+  "category": "server",
+  "role": "The pre-1.7 name-to-UUID migration helper for old servers' banned-ips.txt, banned-players.txt, ops.txt and white-list.txt.",
+  "scope": "not_needed",
+  "scope_reason": "Migration of a pre-Yggdrasil server's flat-text lists; the oracle always starts a fresh world and never runs a conversion.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_152732_e", "sig": "static Logger", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_152728_a", "sig": "static File banned-ips.txt", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_152729_b", "sig": "static File banned-players.txt", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_152730_c", "sig": "static File ops.txt", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_152731_d", "sig": "static File white-list.txt", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152717_a", "sig": "(MinecraftServer,Collection,ProfileLookupCallback)V", "native": null, "status": "n/a", "note": "look names up online or fall back to the offline UUID"},
+    {"kind": "method", "name": "func_152719_a", "sig": "(String)String", "native": null, "status": "n/a", "note": "one old name to its UUID string"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game; the whole class is a conversion-time helper."
+}

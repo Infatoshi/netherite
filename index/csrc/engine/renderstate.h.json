@@ -1,0 +1,21 @@
+{
+ "path": "csrc/engine/renderstate.h",
+ "lines": 119,
+ "role": "Interface of the per-frame render state: struct rs_in (the options, EntityRenderer carried state, render view entity, world time and weather and viewpoint material a frame reads) and struct rs_out (sky, fog, cloud colours, celestial angle, lightmap, projection and modelview, GL fog state), plus the hand camera and Mesa-style fixed-function matrix helpers. Implemented in renderstate.c and checked against netherite.oracle.RenderStateProbe's dump.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/EntityRenderer.java", "members": ["updateLightmap", "updateFogColor", "setupFog", "setupCameraTransform", "orientCamera", "setupViewBobbing", "hurtCameraEffect", "renderHand", "torchFlickerX", "torchFlickerY", "fogColor1", "fogColor2", "fovModifierHand", "fovModifierHandPrev", "rendererUpdateCount", "camRoll", "prevCamRoll", "cameraZoom", "debugViewDirection"]},
+  {"path": "oracle/src/world/World.java", "members": ["getSkyColor", "getFogColor", "getCloudColour", "getStarBrightness", "getCelestialAngle", "getSunBrightness", "lastLightningBolt", "cloudColour"]},
+  {"path": "oracle/src/world/WorldProvider.java", "members": ["calcSunriseSunsetColors", "lightBrightnessTable"]},
+  {"path": "oracle/src/client/renderer/ActiveRenderInfo.java", "members": []}
+ ],
+ "structs": [
+  {"name": "rs_in", "java": "GameSettings fields (renderDistanceChunks, viewBobbing, clouds, thirdPersonView, anaglyph, debugCamEnable, fovSetting, gammaSetting), EntityRenderer's carried fields, the render view entity's positions/angles/hurt/death/potion state, World time, rain/thunder strengths, lastLightningBolt, cloudColour, WorldProvider flags and lightBrightnessTable, the biome temperature and sky colour, the partial tick, and the ActiveRenderInfo viewpoint material", "fields": ["rd", "bob", "clouds", "tpv", "ana", "dbgcam", "fov", "gamma", "dw", "dh", "tfx", "tfy", "fc1", "fc2", "fmh", "fmhp", "ruc", "roll", "proll", "zoom", "dvd", "ppx", "ppy", "ppz", "px", "py", "pz", "yaw", "pyaw", "pit", "ppit", "yoff", "dwm", "pdwm", "ecyaw", "pecyaw", "ecpit", "pepit", "hurt", "mhurt", "death", "aaty", "hp", "portal", "pportal", "sleep", "crea", "brf", "resp", "nv", "nvd", "blind", "bldur", "wb", "conf", "wt", "rain", "prain", "thu", "pthu", "lbolt", "cloud", "dim", "nosky", "voidp", "xzfog", "voidf", "temp", "skytemp", "lbt", "pt", "mat"]},
+  {"name": "rs_out", "java": "the World getters' results, EntityRenderer.fogColorRed/Green/Blue and farPlaneDistance, the lightmap texture's 256 colours, the projection and modelview matrices and camera position setupCameraTransform leaves, and the GL fog state after setupFog(0)", "fields": ["ang", "angr", "sun", "star", "sky", "fog", "cloud", "rise_ok", "rise", "fcr", "fcg", "fcb", "far", "lm", "proj", "mv", "camx", "camy", "camz", "cloudfog", "gfogc", "gfogs", "gfoge", "gfogd", "gfogm"]}
+ ],
+ "entry_points": ["renderstate_compute", "renderstate_hand_camera", "rs_gl_identity", "rs_gl_mult", "rs_gl_rotate", "rs_gl_translate", "rs_gl_scale", "renderstate_torch_flicker", "renderstate_celestial", "rs_flicker", "renderstate_torch_flicker_step"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_renderstate.c"],
+ "notes": "Header only; the hazards (if any) live in renderstate.c, which this record does not review. Callers seen: csrc/play/play.c (renderstate_compute, renderstate_hand_camera) and csrc/engine/raster_hand.c (rs_gl_translate). Pure function of its inputs, no global state declared here. The Java member lists come from the header comment and field comments, not from reading renderstate.c against each Java method."
+}

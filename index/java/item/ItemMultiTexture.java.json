@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/item/ItemMultiTexture.java",
+  "classes": ["ItemMultiTexture"],
+  "lines": 52,
+  "side": "common",
+  "category": "item",
+  "role": "ItemBlock for the multi-texture blocks (dirt, planks, sapling, sand, sandstone, log, flowers): passes the damage through as the placed metadata and picks the name suffix by damage.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_get_metadata"]}
+  ],
+  "evidence": ["csrc/tests/test_place.c"],
+  "members": [
+    {"kind": "field", "name": "field_150941_b", "sig": "Block", "native": null, "status": "n/a", "note": "the icon-source block"},
+    {"kind": "field", "name": "field_150942_c", "sig": "String[]", "native": null, "status": "n/a", "note": "the name suffixes"},
+    {"kind": "ctor", "name": "ItemMultiTexture", "sig": "(Lnet/minecraft/block/Block;Lnet/minecraft/block/Block;[Ljava/lang/String;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "setMaxDamage(0), setHasSubtypes(true) in the rows"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMetadata", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact", "note": "the passthrough branch the ItemMultiTexture class name falls into"},
+    {"kind": "method", "name": "getUnlocalizedName", "sig": "(Lnet/minecraft/item/ItemStack;)Ljava/lang/String;", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

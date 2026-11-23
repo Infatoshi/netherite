@@ -1,0 +1,272 @@
+{
+ "path": "oracle/src/client/audio/SoundManager.java",
+ "classes": [
+  "SoundManager",
+  "SoundManager.SoundSystemStarterThread"
+ ],
+ "lines": 500,
+ "side": "client",
+ "category": "client_audio",
+ "role": "Drives the paulscode SoundSystem: starts it on a loader thread, plays, stops, pauses and resumes sources, applies category volumes and the listener position, and ticks moving and delayed sounds.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148623_a",
+   "sig": "static Marker",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "static Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148622_c",
+   "sig": "SoundHandler",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148619_d",
+   "sig": "GameSettings",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148620_e",
+   "sig": "SoundSystemStarterThread",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148617_f",
+   "sig": "boolean loaded",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148618_g",
+   "sig": "int tick counter",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148629_h",
+   "sig": "BiMap channel->sound",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148630_i",
+   "sig": "Map sound->channel",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148627_j",
+   "sig": "Map sound->pool entry",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148628_k",
+   "sig": "Multimap category->channel",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148625_l",
+   "sig": "List tickable sounds",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148626_m",
+   "sig": "Map delayed sounds",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148624_n",
+   "sig": "Map channel->start tick",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "SoundManager",
+   "sig": "(SoundHandler,GameSettings)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148596_a",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "reload; netherite hook returns at once in agent mode so the sound system never starts"
+  },
+  {
+   "kind": "method",
+   "name": "func_148608_i",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "start loader thread"
+  },
+  {
+   "kind": "method",
+   "name": "func_148595_a",
+   "sig": "(SoundCategory)F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148601_a",
+   "sig": "(SoundCategory,F)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148613_b",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "unload"
+  },
+  {
+   "kind": "method",
+   "name": "func_148614_c",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "stop all"
+  },
+  {
+   "kind": "method",
+   "name": "func_148605_d",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "per-tick update"
+  },
+  {
+   "kind": "method",
+   "name": "func_148597_a",
+   "sig": "(ISound)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "isPlaying"
+  },
+  {
+   "kind": "method",
+   "name": "func_148602_b",
+   "sig": "(ISound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "stop"
+  },
+  {
+   "kind": "method",
+   "name": "func_148611_c",
+   "sig": "(ISound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "play; uses UUID.randomUUID for channel names"
+  },
+  {
+   "kind": "method",
+   "name": "func_148606_a",
+   "sig": "(ISound,SoundPoolEntry)F",
+   "native": null,
+   "status": "n/a",
+   "note": "clamped pitch"
+  },
+  {
+   "kind": "method",
+   "name": "func_148594_a",
+   "sig": "(ISound,SoundPoolEntry,SoundCategory)F",
+   "native": null,
+   "status": "n/a",
+   "note": "clamped volume"
+  },
+  {
+   "kind": "method",
+   "name": "func_148610_e",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "pause all"
+  },
+  {
+   "kind": "method",
+   "name": "func_148604_f",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "resume all"
+  },
+  {
+   "kind": "method",
+   "name": "func_148599_a",
+   "sig": "(ISound,I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "play delayed"
+  },
+  {
+   "kind": "method",
+   "name": "func_148612_a",
+   "sig": "(ResourceLocation)URL",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148615_a",
+   "sig": "(EntityPlayer,F)V",
+   "native": null,
+   "status": "n/a",
+   "note": "listener"
+  },
+  {
+   "kind": "ctor",
+   "name": "SoundSystemStarterThread",
+   "sig": "()",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "SoundSystemStarterThread.playing",
+   "sig": "(String)Z",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "The oracle's only hook here (line 78) keeps the sound system off in agent mode, which also removes its loader thread and UUID draws from recorded runs. Human play (make play without agent) still has sound."
+}

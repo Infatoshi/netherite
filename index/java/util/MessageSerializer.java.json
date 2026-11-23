@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/util/MessageSerializer.java",
+  "classes": ["MessageSerializer"],
+  "lines": 55,
+  "side": "common",
+  "category": "network",
+  "role": "The netty MessageToByteEncoder that writes a packet's varint id from the sendable map followed by its encoded body, and updates the network statistics.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_152500_c", "sig": "NetworkStatistics", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "MessageSerializer", "sig": "(NetworkStatistics)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "encode", "sig": "(ChannelHandlerContext,Packet,ByteBuf)V", "native": null, "status": "missing", "note": "native packet emission fills packet structs (csrc/engine/tracker.c) instead of bytes"},
+    {"kind": "method", "name": "encode", "sig": "(ChannelHandlerContext,Object,ByteBuf)V", "native": null, "status": "n/a", "note": "bridge overload"}
+  ],
+  "missing": [
+    "The varint-id encode is not ported; csrc/engine/tracker.c emits packet structs directly."
+  ],
+  "notes": "See MessageDeserializer."
+}

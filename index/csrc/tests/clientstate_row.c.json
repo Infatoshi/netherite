@@ -1,0 +1,23 @@
+{
+  "path": "csrc/tests/clientstate_row.c",
+  "lines": 67,
+  "role": "Tool for the cs_* negative controls: a frame row with fovModifierHand, timeInPortal, lastLightningBolt or hurtTime taken away, recomputed through renderstate_compute and printed for jq to splice over the row's out and g blocks (out/neg.sh in the lane).",
+  "layer": "tool",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "setupCameraTransform",
+        "updateLightmap",
+        "updateFogColor"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": []
+}

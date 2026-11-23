@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntityRendererDispatcher.java",
+  "classes": ["TileEntityRendererDispatcher"],
+  "lines": 158,
+  "side": "client",
+  "category": "client_render",
+  "role": "The tile-entity render dispatch table: maps each TileEntity class to its TileEntitySpecialRenderer, computes the interpolated camera/player state the renderers share, and culls + draws every TE in view with its lightmap coords.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+   {
+    "file": "csrc/engine/raster_tileent.c",
+    "symbols": [
+     "raster_tileents_draw",
+     "raster_tileents_scene",
+     "set_lights"
+    ]
+   }
+  ],
+  "evidence": ["out/java/rendertick/te_chests", "out/java/rendertick/te_signs", "out/java/rendertick/te_skulls", "out/java/rendertick/te_spawner", "out/java/rendertick/te_dungeon", "out/java/rendertick/te_portal_sh", "out/java/rendertick/te_portal_end", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "mapSpecialRenderers", "sig": "Map", "native": "csrc/engine/raster_tileent.c:raster_tileents_draw", "status": "exact", "note": "the class-to-renderer map is the kind switch; the beacon, piston and enchanting-table renderers belong to switched-off features"},
+    {"kind": "field", "name": "instance", "sig": "TileEntityRendererDispatcher (static)", "native": null, "status": "n/a", "note": "GL, texture-manager or font plumbing; the renderers read their inputs directly"},
+    {"kind": "field", "name": "field_147557_n", "sig": "FontRenderer", "native": null, "status": "n/a", "note": "GL, texture-manager or font plumbing; the renderers read their inputs directly"},
+    {"kind": "field", "name": "staticPlayerX, staticPlayerY, staticPlayerZ", "sig": "double (static)", "native": "csrc/engine/raster_tileent.c:raster_tileents_draw", "status": "exact"},
+    {"kind": "field", "name": "field_147553_e", "sig": "TextureManager", "native": null, "status": "n/a", "note": "GL, texture-manager or font plumbing; the renderers read their inputs directly"},
+    {"kind": "field", "name": "field_147550_f", "sig": "World", "native": null, "status": "n/a", "note": "GL, texture-manager or font plumbing; the renderers read their inputs directly"},
+    {"kind": "field", "name": "field_147551_g", "sig": "EntityLivingBase", "native": null, "status": "n/a", "note": "GL, texture-manager or font plumbing; the renderers read their inputs directly"},
+    {"kind": "field", "name": "field_147562_h, field_147563_i", "sig": "float", "native": null, "status": "n/a", "note": "GL, texture-manager or font plumbing; the renderers read their inputs directly"},
+    {"kind": "field", "name": "field_147560_j, field_147561_k, field_147558_l", "sig": "double", "native": "csrc/engine/raster_tileent.c:raster_tileents_draw", "status": "exact"},
+    {"kind": "ctor", "name": "TileEntityRendererDispatcher", "sig": "()", "native": "csrc/engine/raster_tileent.c:raster_tileents_draw", "status": "exact", "note": "the class-to-renderer map is the kind switch; the beacon, piston and enchanting-table renderers belong to switched-off features"},
+    {"kind": "method", "name": "getSpecialRendererByClass", "sig": "(Class)TileEntitySpecialRenderer", "native": "csrc/engine/raster_tileent.c:raster_tileents_draw", "status": "exact", "note": "the class-to-renderer map is the kind switch; the beacon, piston and enchanting-table renderers belong to switched-off features"},
+    {"kind": "method", "name": "hasSpecialRenderer", "sig": "(TileEntity)Z", "native": "csrc/engine/raster_tileent.c:raster_tileents_draw", "status": "exact", "note": "the class-to-renderer map is the kind switch; the beacon, piston and enchanting-table renderers belong to switched-off features"},
+    {"kind": "method", "name": "getSpecialRenderer", "sig": "(TileEntity)TileEntitySpecialRenderer", "native": "csrc/engine/raster_tileent.c:raster_tileents_draw", "status": "exact", "note": "the class-to-renderer map is the kind switch; the beacon, piston and enchanting-table renderers belong to switched-off features"},
+    {"kind": "method", "name": "func_147542_a", "sig": "(World,TextureManager,FontRenderer,EntityLivingBase,F)V", "native": "csrc/engine/raster_tileent.c:raster_tileents_scene", "status": "exact", "note": "the viewer position (lastTickPos at the partial tick) comes with the recorded frame"},
+    {"kind": "method", "name": "func_147544_a", "sig": "(TileEntity,F)V", "native": "csrc/engine/raster_tileent.c:raster_tileents_draw", "status": "exact"},
+    {"kind": "method", "name": "func_147549_a", "sig": "(TileEntity,D,D,D,F)V", "native": "csrc/engine/raster_tileent.c:raster_tileents_draw", "status": "exact", "note": "the class-to-renderer map is the kind switch; the beacon, piston and enchanting-table renderers belong to switched-off features"},
+    {"kind": "method", "name": "func_147543_a", "sig": "(World)V", "native": null, "status": "n/a", "note": "GL, texture-manager or font plumbing; the renderers read their inputs directly"},
+    {"kind": "method", "name": "func_147548_a", "sig": "()FontRenderer", "native": null, "status": "n/a", "note": "GL, texture-manager or font plumbing; the renderers read their inputs directly"}
+  ],
+  "missing": [],
+  "notes": "RenderGlobal.renderEntities' block-entity loop: RenderGlobal.tileEntities in its own order (the chunk rebuilds' HashSet order, which the recording carries), each within 64 blocks of the viewer drawn with the lightmap at getLightBrightnessForSkyBlocks and glColor white, under the item lighting set with the camera modelview. GL state a renderer leaves (the skull's culling and rescaling, the spawner's mob restoring culling) carries to the next as vanilla's does. The pass draws after the entities (raster.c draw_mesh). Every view of the seven te_* recordings is within budget with no pxdiff cluster."
+}

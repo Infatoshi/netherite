@@ -1,0 +1,107 @@
+{
+ "path": "csrc/engine/hostiles_spider.c",
+ "lines": 507,
+ "role": "EntitySpider and EntityCaveSpider as old-AI mobs (EntityCreature.updateEntityActionState over pathToEntity, the dark-only target search, the leap and the touch attack, the cave spider's poison), their drops and potion immunity, and the 1-in-100 spider jockey whose EntitySkeleton rider is built and queued here.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntitySpider.java",
+   "members": [
+    "EntitySpider",
+    "applyEntityAttributes",
+    "onUpdate",
+    "findPlayerToAttack",
+    "attackEntity",
+    "dropFewItems",
+    "setInWeb",
+    "isPotionApplicable",
+    "setBesideClimbableBlock",
+    "onSpawnWithEgg",
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityCaveSpider.java",
+   "members": [
+    "EntityCaveSpider",
+    "applyEntityAttributes",
+    "attackEntityAsMob"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMob.java",
+   "members": [
+    "onLivingUpdate",
+    "attackEntity",
+    "attackEntityAsMob",
+    "applyEntityAttributes"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "updateEntityActionState",
+    "updateWanderPath",
+    "pathToEntity",
+    "entityToAttack",
+    "hasAttacked",
+    "fleeingTick"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "getBrightness",
+    "getDistanceToEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "canEntityBeSeen"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntitySkeleton.java",
+   "members": [
+    "EntitySkeleton",
+    "onSpawnWithEgg"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "spider_construct",
+  "spider_on_living_update",
+  "spider_update_entity_action_state",
+  "spider_on_update_tail",
+  "spider_set_beside_climbable_block",
+  "spider_attack_entity_as_mob",
+  "spider_drop_few_items",
+  "spider_write_kind_nbt",
+  "spider_is_potion_applicable",
+  "spider_jockey_check",
+  "egg_take_pending_partner",
+  "egg_add_pending_partner",
+  "spider_group_potion",
+  "spider_spawn_jockey_skeleton"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 100, function spider_path_to_target: free of the old creature_path and a heap-allocated path from ai_creature_path_to_entity every repath inside the tick",
+  "line 131, function spider_update_wander_path: heap-allocated path from ai_creature_path_to_xyz inside the tick",
+  "line 341, function spider_update_entity_action_state: free of creature_path inside the tick",
+  "lines 280-297, function spider_update_entity_action_state: path-follow loop bounded only by the path length, trip count data-dependent",
+  "line 155, function spider_construct: set_in_web function pointer stored on the entity",
+  "line 455, function spider_jockey_check: calloc of an an_ent for the rider inside the tick",
+  "line 488, function spider_spawn_jockey_skeleton: calloc of the rider struct living inside the tick",
+  "line 453, function spider_jockey_check: living_mount links rider and vehicle by pointer",
+  "spider_spawn_jockey_skeleton runs the rider's onSpawnWithEgg through living_skeleton_on_spawn_with_egg, so the spider's onSpawnWithEgg does not re-enter the dispatch",
+  "references to other livings (entity_to_attack, attack_target, last targets, a projectile's shooter) are lrefs read through lv_get, and the old AI's path a pathref (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_hostiles.c"
+ ],
+ "notes": "Recorded against the oracle's HostileProbe (test_hostiles.c filters kinds spider,cavespider and compares the climb flag). The skeleton_* functions declared in hostiles_spider.h are implemented in hostiles_skeleton.c, not here. The fleeingTick speed modifier removal is an empty branch (the modifier is never applied). EntityPlayerMP creative drop of the target is not ported (the probe's player is a plain EntityPlayer). Java member list inferred from the file's comments, not diffed line by line."
+}

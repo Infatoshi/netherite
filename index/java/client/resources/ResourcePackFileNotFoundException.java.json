@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/resources/ResourcePackFileNotFoundException.java",
+  "classes": ["ResourcePackFileNotFoundException"],
+  "lines": 14,
+  "side": "client",
+  "category": "client_resources",
+  "role": "FileNotFoundException subclass that names the missing resource and the resource pack it was looked up in.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Error reporting for the resource pack system. The native engine reads assets straight from the scene/assets directory and reports missing files by exiting with a message (see the live_read paths in csrc/engine/raster.c).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "ResourcePackFileNotFoundException", "sig": "(File,String)V", "native": null, "status": "n/a", "note": "formats the pack name into the message"}
+  ],
+  "missing": [],
+  "notes": null
+}

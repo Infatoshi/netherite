@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/FeatureProbeLakes.java",
+ "lines": 126,
+ "role": "The lakes lane's rows for the feature probe: wrappers that carry a manifest note for WorldGenLakes, WorldGenIcePath, WorldGenIceSpike and WorldGenDesertWells without changing generate.",
+ "kind": "probe",
+ "used_by": [
+  "FeatureProbe.java (fe-waterlake-*, fe-lavalake-*, fe-lakes-cold-*, fe-icepath-*, fe-icespike-*, fe-desertwell-*)",
+  "csrc/tests/test_feature.c",
+  "csrc/engine/features_lakes.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "features_lakes.c is linked by the feature names, not by a citation of this class (not verified symbol by symbol). No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

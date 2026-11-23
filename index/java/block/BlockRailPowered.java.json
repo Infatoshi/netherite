@@ -1,0 +1,109 @@
+{
+ "path": "oracle/src/block/BlockRailPowered.java",
+ "classes": [
+  "BlockRailPowered"
+ ],
+ "lines": 192,
+ "side": "common",
+ "category": "block",
+ "role": "The golden (27) and activator (157) rails: straight-only rails whose bit 8 is the powered state, propagated up to 8 rails along the track from a powered rail.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "rail_on_neighbor",
+    "place_rail_on_added"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "rail_on_added",
+    "rail_neighbor",
+    "is_rail_powered_form"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks2.c",
+   "symbols": [
+    "rb2_render_rail"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/place/big2",
+  "out/java/place/big42",
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_structures.c",
+  "out/java/structures/s2",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150059_b",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "powered icon"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRailPowered",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 27 and 157, powered-form flag true"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration"
+  },
+  {
+   "kind": "method",
+   "name": "func_150058_a",
+   "sig": "(World,IIIIZI)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the along-track search for a powered rail; with redstone off no rail is ever powered, so it always ends false"
+  },
+  {
+   "kind": "method",
+   "name": "func_150057_a",
+   "sig": "(World,IIIZII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "same search step"
+  },
+  {
+   "kind": "method",
+   "name": "func_150048_a",
+   "sig": "(World,IIIIIBlock)V",
+   "native": "csrc/engine/blockcb.c:rail_neighbor",
+   "status": "exact",
+   "note": "the powered bit stays clear: every input is zero with redstone off and a fresh rail never carries bit 8 (documented in place.c rail_on_neighbor)"
+  }
+ ],
+ "missing": [],
+ "notes": "Exact under the world.conf redstone = off rule; the power search itself is not ported and would be needed if redstone comes back. Golden rails generate nowhere in 1.7.10 worldgen."
+}

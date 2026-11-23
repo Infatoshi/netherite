@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/ParticleLog.java",
+ "lines": 118,
+ "role": "The render-state recorder's particle spawn log: an IWorldAccess put first in the client world's worldAccesses, so every World.spawnParticle and playAuxSFX is logged with its arguments and the client streams (world Random, Det seeder, Math.random, entity IDs) before RenderGlobal acts, and every onEntityCreate with the streams after the constructor.",
+ "kind": "recorder",
+ "used_by": [
+  "oracle/harness/netherite/oracle/RenderStateProbe.java (tickStart, the frame row's spawns and tick0)",
+  "csrc/tests/test_rendertick.c (the particle tick replay)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No vanilla hook: it registers through World.worldAccesses by reflection. The logged caller is three stack frames past World and WorldClient, so display-tick spawns name randomDisplayTick (doVoidFogParticles is a WorldClient frame) and a crit emitter's spawns name its two constructors rather than handleAnimation; the test matches on those."
+}

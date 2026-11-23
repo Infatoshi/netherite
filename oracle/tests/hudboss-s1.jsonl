@@ -1,0 +1,5 @@
+{"cmd":"run","class":"SceneSetup","dim":0,"x":0.5,"y":105.5,"z":12.5,"yaw":180.0,"pitch":-8.0,"time":6000,"clearOthers":true,"platform":{"x":0,"y":100,"z":0,"radius":20,"id":7},"entities":[{"type":"dragon","x":0.0,"y":108.0,"z":-8.0,"yaw":0.0,"health":140.0}]}
+{"n":15,"act":{"look":[180,-8],"opts":{"hide":0}},"frame":"@OUT@/java/hudscreens/hudboss-s1/golden_f016.png"}
+{"n":5,"act":{"look":[180,-8],"opts":{"hide":0}},"frame":"@OUT@/java/hudscreens/hudboss-s1/golden_f021.png"}
+{"n":30,"act":{"look":[180,-8],"opts":{"hide":0}},"frame":"@OUT@/java/hudscreens/hudboss-s1/golden_f051.png"}
+{"cmd":"run","class":"MeshProbe","out":"@OUT@/java/hudscreens/hudboss-s1","radius":4,"allowEmpty":true}

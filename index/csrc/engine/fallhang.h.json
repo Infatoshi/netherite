@@ -1,0 +1,218 @@
+{
+ "path": "csrc/engine/fallhang.h",
+ "lines": 203,
+ "role": "Declares the falling-block and hanging-entity pool (EntityFallingBlock, EntityPainting, EntityItemFrame), its per-chunk section lists, the drop and sound hooks, and the constructors, NBT load/write, placement and tick entry points.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/item/EntityFallingBlock.java",
+   "members": [
+    "field_145811_e",
+    "field_145814_a",
+    "field_145812_b",
+    "field_145813_c",
+    "field_145809_g",
+    "field_145816_i",
+    "field_145815_h",
+    "field_145808_f",
+    "field_145810_d",
+    "onUpdate",
+    "fall",
+    "writeEntityToNBT",
+    "readEntityFromNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityHanging.java",
+   "members": [
+    "field_146063_b",
+    "field_146064_c",
+    "field_146062_d",
+    "hangingDirection",
+    "tickCounter1",
+    "setDirection",
+    "onValidSurface",
+    "onUpdate",
+    "onBroken"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityPainting.java",
+   "members": [
+    "EntityPainting",
+    "art"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItemFrame.java",
+   "members": [
+    "EntityItemFrame",
+    "itemDropChance"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFalling.java",
+   "members": [
+    "field_149832_M",
+    "func_149830_m"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDragonEgg.java",
+   "members": [
+    "func_150018_e"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemHangingEntity.java",
+   "members": [
+    "onItemUse"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "fh_drop",
+   "java": "an EntityItem built by Entity.entityDropItem, recorded then discarded",
+   "fields": [
+    "entity_id",
+    "uuid_msb",
+    "uuid_lsb",
+    "x",
+    "y",
+    "z",
+    "motion_x",
+    "motion_y",
+    "motion_z",
+    "yaw",
+    "hover",
+    "item",
+    "damage",
+    "count",
+    "delay",
+    "age",
+    "tag"
+   ]
+  },
+  {
+   "name": "fh_env",
+   "java": null,
+   "fields": [
+    "ctx",
+    "drop",
+    "aux_sfx"
+   ]
+  },
+  {
+   "name": "fh_ent",
+   "java": "Entity plus EntityFallingBlock and EntityHanging/EntityPainting/EntityItemFrame fields, one struct for the three kinds",
+   "fields": [
+    "e",
+    "fw",
+    "kind",
+    "entity_id",
+    "is_dead",
+    "spawn_index",
+    "rand",
+    "uuid_msb",
+    "uuid_lsb",
+    "ticks_existed",
+    "rotation_yaw",
+    "prev_rotation_yaw",
+    "rotation_pitch",
+    "last_tick_x",
+    "last_tick_y",
+    "last_tick_z",
+    "added_to_chunk",
+    "chunk_x",
+    "chunk_y",
+    "chunk_z",
+    "block",
+    "meta",
+    "time",
+    "drop_item",
+    "hurt_entities",
+    "hurt_amount",
+    "hurt_max",
+    "broke",
+    "tile_entity_data",
+    "tile_x",
+    "tile_y",
+    "tile_z",
+    "dir",
+    "tick_counter1",
+    "art",
+    "rot",
+    "item",
+    "item_damage"
+   ]
+  },
+  {
+   "name": "fh_removal",
+   "java": null,
+   "fields": [
+    "tick",
+    "spawn_index",
+    "entity_id",
+    "reason",
+    "extra",
+    "pos_y"
+   ]
+  },
+  {
+   "name": "fh_chunk",
+   "java": "Chunk.entityLists for this pool (16 y sections, insertion order)",
+   "fields": [
+    "used",
+    "cx",
+    "cz",
+    "n",
+    "ent"
+   ]
+  },
+  {
+   "name": "fh_world",
+   "java": "the World.loadedEntityList slice holding these kinds",
+   "fields": [
+    "w",
+    "det",
+    "role",
+    "list",
+    "n",
+    "chunks",
+    "nchunks",
+    "capchunks"
+   ]
+  }
+ ],
+ "entry_points": [
+  "fh_init",
+  "fh_free",
+  "fh_set_fall_instantly",
+  "fh_spawn_falling",
+  "fh_adopt_falling",
+  "fh_spawn_falling_nbt",
+  "fh_spawn_painting",
+  "fh_spawn_frame",
+  "fh_spawn_hanging_nbt",
+  "fh_set_direction",
+  "fh_valid_surface",
+  "fh_place_hanging",
+  "fh_added_to_world",
+  "fallhang_update_tick",
+  "fh_tick",
+  "fh_tick_one",
+  "fh_unload_chunk",
+  "fh_write_nbt"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 48: extern global mutable fh_env (function-pointer hooks)",
+  "lines 51-86, struct fh_ent: back pointer fw, nbt *tile_entity_data heap tree, embedded struct entity with function pointers",
+  "structs fh_chunk and fh_world: the list holds fh pool slots and each chunk section a slot-index list in the arena slab; fh_ent come from the pool (fh_ent_alloc) and a knot is named by fhref (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_fallhang.c"
+ ],
+ "notes": "FH_MAX_ENTITIES (2048) per world, where fh_list_push stops the program with a message; a section holds as many as its world. EntityHanging field SRG names in the java list are from memory of 1.7.10 MCP, not verified against oracle/src."
+}

@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/entity/item/EntityMinecartChest.java",
+  "classes": ["EntityMinecartChest"],
+  "lines": 51,
+  "side": "common",
+  "category": "entity",
+  "role": "The chest minecart: a 27-slot container cart that mineshaft corridors generate, filled with chest loot.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: with minecarts = off the oracle still builds and fills every mineshaft corridor's chest cart (StructureMineshaftPieces.java:299: same draws, never spawned); the constructor's draws and getSizeInventory's 27 (the slot bound WeightedRandomChestContent draws against) are live, and native builds the same record (structure_blocks.c sc_cart_new). getSizeInventory ran in 22 recordings.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/structure_blocks.c",
+      "symbols": ["sc_cart_new"]
+    }
+  ],
+  "evidence": ["out/java/sblocks/s2-a", "out/java/sblocks/s42a", "csrc/tests/test_sblocks.c", "out/java/snapshots/pf-pickpackets-g19", "out/java/snapshots/pf-tripwire-g13", "out/java/snapshots/surv_death-late-s1"],
+  "members": [
+    {"kind": "field", "name": "static constants", "sig": "String __OBFID", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityMinecartChest", "sig": "(World)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "ctor", "name": "EntityMinecartChest", "sig": "(World,DDD)V", "native": "csrc/engine/structure_blocks.c:sc_cart_new", "status": "exact", "note": "the constructor's Det draws (id, rand, UUID, through Entity(World)) and the 27 loot-filled slots, built during mineshaft generation; test_sblocks checks each cart's id, UUID, position and Items step by step (s2-a, s42a). Spawning it is the minecarts switch"},
+    {"kind": "method", "name": "killMinecart", "sig": "(DamageSource)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "getSizeInventory", "sig": "()I", "native": "csrc/engine/structure_blocks.c:sc_cart_new", "status": "exact", "note": "CART_SLOTS 27, the bound generateChestContents draws each slot against (nextInt(getSizeInventory())); the cart record holds the filled slots"},
+    {"kind": "method", "name": "getMinecartType", "sig": "()I", "native": null, "status": "n/a", "note": "returns 1; feature switched off"},
+    {"kind": "method", "name": "func_145817_o", "sig": "()Block", "native": null, "status": "n/a", "note": "display tile Blocks.chest; feature switched off"},
+    {"kind": "method", "name": "getDefaultDisplayTileOffset", "sig": "()I", "native": null, "status": "n/a", "note": "returns 8; feature switched off"}
+  ],
+  "missing": [],
+  "notes": "The cart is built and filled during mineshaft generation (csrc/engine/mineshaft_blocks.c:corridor_cart calls sc_cart_new with the generateChestContents loot stacks) but never added to any entity list, exactly as world.conf's minecarts = off comment says. No killMinecart or ride path exists natively; lane/idxmisc 2026-09-27: the loot contents are verified: test_sblocks compares every constructed cart (id, UUID, position, Items) against the StructureBlocksProbe recordings out/java/sblocks/s2-a and s42a (PASS), and the carts' draws run in every seed recording that generates a mineshaft corridor. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

@@ -1,0 +1,202 @@
+{
+ "path": "oracle/src/world/chunk/storage/RegionFile.java",
+ "classes": [
+  "RegionFile",
+  "RegionFile.ChunkBuffer"
+ ],
+ "lines": 373,
+ "side": "server",
+ "category": "chunk",
+ "role": "One .mca region file of 32x32 chunks: a 4 KiB offset table, a timestamp table and 4 KiB sectors holding length-prefixed zlib or gzip chunk NBT; allocates sectors on write and tracks free ones.",
+ "scope": "in_scope",
+ "scope_reason": "The on-disk form of a saved chunk; the native checkpoint start reads it. Deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/region.c",
+   "symbols": [
+    "region_load_chunk",
+    "region_enumerate",
+    "read_whole",
+    "inflate_zlib"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/cp-mobs-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "emptySector",
+   "sig": "static byte[4096]",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "fileName",
+   "sig": "File",
+   "native": "csrc/engine/region.c:region_load_chunk",
+   "status": "exact",
+   "note": "r.RX.RZ.mca path built per read."
+  },
+  {
+   "kind": "field",
+   "name": "dataFile",
+   "sig": "RandomAccessFile",
+   "native": "csrc/engine/region.c:read_whole",
+   "status": "exact",
+   "note": "read whole"
+  },
+  {
+   "kind": "field",
+   "name": "offsets",
+   "sig": "int[1024]",
+   "native": "csrc/engine/region.c:region_load_chunk",
+   "status": "exact",
+   "note": "Parsed from the header bytes on each read."
+  },
+  {
+   "kind": "field",
+   "name": "chunkTimestamps",
+   "sig": "int[1024]",
+   "native": null,
+   "status": "n/a",
+   "note": "Not read; no game effect."
+  },
+  {
+   "kind": "field",
+   "name": "sectorFree",
+   "sig": "ArrayList<Boolean>",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "field",
+   "name": "sizeDelta",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "lastModified",
+   "sig": "long",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "RegionFile",
+   "sig": "(File)",
+   "native": "csrc/engine/region.c:read_whole",
+   "status": "exact",
+   "note": "the read side; a file under 8192 bytes has no chunk to read"
+  },
+  {
+   "kind": "method",
+   "name": "getChunkDataInputStream",
+   "sig": "(int,int)DataInputStream",
+   "native": "csrc/engine/region.c:region_load_chunk",
+   "status": "exact",
+   "note": "Sector lookup, length, compression byte 1 (gzip) or 2 (zlib)."
+  },
+  {
+   "kind": "method",
+   "name": "getChunkDataOutputStream",
+   "sig": "(int,int)DataOutputStream",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "write",
+   "sig": "(int,int,byte[],int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "write",
+   "sig": "(int,byte[],int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "outOfBounds",
+   "sig": "(int,int)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "C masks cx & 31."
+  },
+  {
+   "kind": "method",
+   "name": "getOffset",
+   "sig": "(int,int)I",
+   "native": "csrc/engine/region.c:region_load_chunk",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isChunkSaved",
+   "sig": "(int,int)Z",
+   "native": "csrc/engine/region.c:region_enumerate",
+   "status": "n/a",
+   "note": "only AnvilSaveConverter's McRegion conversion calls it; the saves here are Anvil"
+  },
+  {
+   "kind": "method",
+   "name": "setOffset",
+   "sig": "(int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "setChunkTimestamp",
+   "sig": "(int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "close",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "ChunkBuffer.chunkX, ChunkBuffer.chunkZ",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ChunkBuffer",
+   "sig": "(RegionFile,int,int)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "ChunkBuffer.close",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  }
+ ],
+ "missing": [],
+ "notes": "region_enumerate only scans region coordinates -32..31 (chunks -1024..1023). Gates not re-run. write's chunk timestamp is netherite.oracle.Oracle.saveClockMillis() / 1000 (the save clock pin, lane/rerecaudit). The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings). region_enumerate scans region coordinates -32..31 (chunks -1024 to 1023 blocks x 16): a save's chunks lie within the ground the recordings walk."
+}

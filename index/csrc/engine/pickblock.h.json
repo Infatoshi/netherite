@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/pickblock.h",
+ "lines": 15,
+ "role": "Declares pick_block_item, the block half of Minecraft.func_147112_ai (pickblock.c).",
+ "layer": "client",
+ "java": [
+  {"path": "oracle/src/client/Minecraft.java", "members": ["func_147112_ai"]}
+ ],
+ "structs": [],
+ "entry_points": ["pick_block_item"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": ""
+}

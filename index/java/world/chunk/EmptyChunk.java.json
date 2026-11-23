@@ -1,0 +1,283 @@
+{
+  "path": "oracle/src/world/chunk/EmptyChunk.java",
+  "classes": [
+    "EmptyChunk"
+  ],
+  "lines": 188,
+  "side": "common",
+  "category": "chunk",
+  "role": "The placeholder chunk a provider returns for an unloaded position when it will not load one (ChunkProviderServer.defaultEmptyChunk with loadChunkOnProvideRequest off, and the client cache): air everywhere, light 0, height 0, writes accepted and discarded, no entities or tile entities.",
+  "scope": "in_scope",
+  "scope_reason": "The oracle runs with loadChunkOnProvideRequest false, so every read or write off the loaded set in the server tick hits EmptyChunk semantics.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "chunk_for",
+        "world_get_block",
+        "world_get_meta",
+        "world_get_light",
+        "world_can_block_see_the_sky",
+        "world_set_block",
+        "world_get_height_value"
+      ]
+    },
+    {
+      "file": "csrc/engine/servertick.c",
+      "symbols": [
+        "tick_empty_chunk"
+      ]
+    },
+    {
+      "file": "csrc/engine/randomtick.c",
+      "symbols": [
+        "rt_chunk",
+        "block_light_do"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_servertick.c",
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/replay2-walk-s1",
+    "out/java/snapshots/fresh-s42"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "__OBFID",
+      "sig": "static String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "EmptyChunk",
+      "sig": "(World,int,int)",
+      "native": null,
+      "status": "n/a",
+      "note": "No object; an absent chunk (NULL) with the world's no_generate flag stands for it."
+    },
+    {
+      "kind": "method",
+      "name": "isAtLocation",
+      "sig": "(int,int)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getHeightValue",
+      "sig": "(int,int)I",
+      "native": "csrc/engine/world.c:world_get_height_value",
+      "status": "exact",
+      "note": "NULL chunk answers 0."
+    },
+    {
+      "kind": "method",
+      "name": "generateHeightMap",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "No-op."
+    },
+    {
+      "kind": "method",
+      "name": "generateSkylightMap",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "No-op."
+    },
+    {
+      "kind": "method",
+      "name": "func_150810_a",
+      "sig": "(int,int,int)Block",
+      "native": "csrc/engine/world.c:world_get_block",
+      "status": "exact",
+      "note": "Air."
+    },
+    {
+      "kind": "method",
+      "name": "func_150808_b",
+      "sig": "(int,int,int)I",
+      "native": null,
+      "status": "n/a",
+      "note": "EmptyChunk overrides every Chunk method that calls it (generateSkylightMap, func_150807_a, which alone reaches relightBlock) except func_150809_p's func_150811_f, which runs only once isTerrainPopulated is set, never on an EmptyChunk"
+    },
+    {
+      "kind": "method",
+      "name": "func_150807_a",
+      "sig": "(int,int,int,Block,int)Z",
+      "native": "csrc/engine/world.c:world_set_block",
+      "status": "exact",
+      "note": "Returns true: the write is reported, runs the light check and the notify, stores nothing (world.c 1385)."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockMetadata",
+      "sig": "(int,int,int)I",
+      "native": "csrc/engine/world.c:world_get_meta",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockMetadata",
+      "sig": "(int,int,int,int)Z",
+      "native": "csrc/engine/world.c:world_set_block",
+      "status": "n/a",
+      "note": "World.setBlockMetadataWithNotify reaches it only for a chunk the client has not received (ChunkProviderClient's blank chunk); every client metadata write is at a block the player or a packet touches, in a loaded chunk; on the server, chunkExists guards it"
+    },
+    {
+      "kind": "method",
+      "name": "getSavedLightValue",
+      "sig": "(EnumSkyBlock,int,int,int)I",
+      "native": "csrc/engine/world.c:world_get_light",
+      "status": "exact",
+      "note": "0 under no_generate."
+    },
+    {
+      "kind": "method",
+      "name": "setLightValue",
+      "sig": "(EnumSkyBlock,int,int,int,int)V",
+      "native": null,
+      "status": "n/a",
+      "note": "No-op."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockLightValue",
+      "sig": "(int,int,int,int)I",
+      "native": "csrc/engine/randomtick.c:block_light_do",
+      "status": "exact",
+      "note": "0."
+    },
+    {
+      "kind": "method",
+      "name": "addEntity",
+      "sig": "(Entity)V",
+      "native": null,
+      "status": "n/a",
+      "note": "No-op."
+    },
+    {
+      "kind": "method",
+      "name": "removeEntity",
+      "sig": "(Entity)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "removeEntityAtIndex",
+      "sig": "(Entity,int)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "canBlockSeeTheSky",
+      "sig": "(int,int,int)Z",
+      "native": "csrc/engine/servertick.c:tick_empty_chunk",
+      "status": "exact",
+      "note": "false; the lightning roll on an empty chunk is refused."
+    },
+    {
+      "kind": "method",
+      "name": "func_150806_e",
+      "sig": "(int,int,int)TileEntity",
+      "native": null,
+      "status": "n/a",
+      "note": "null."
+    },
+    {
+      "kind": "method",
+      "name": "addTileEntity",
+      "sig": "(TileEntity)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_150812_a",
+      "sig": "(int,int,int,TileEntity)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "removeTileEntity",
+      "sig": "(int,int,int)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "onChunkLoad",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "onChunkUnload",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setChunkModified",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getEntitiesWithinAABBForEntity",
+      "sig": "(Entity,AxisAlignedBB,List,IEntitySelector)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Adds nothing."
+    },
+    {
+      "kind": "method",
+      "name": "getEntitiesOfTypeWithinAAAB",
+      "sig": "(Class,AxisAlignedBB,List,IEntitySelector)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "needsSaving",
+      "sig": "(boolean)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRandomWithSeed",
+      "sig": "(long)Random",
+      "native": "csrc/engine/spawning.c:chunk_random",
+      "status": "n/a",
+      "note": "only EntitySlime.getCanSpawnHere calls it, on the server, for a slime placed in a loaded chunk (the spawner's and the provider's chunks load on request), never an EmptyChunk"
+    },
+    {
+      "kind": "method",
+      "name": "isEmpty",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getAreLevelsEmpty",
+      "sig": "(int,int)Z",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "WorldServer.func_147456_g's per-chunk tick over an empty chunk keeps only its draws (servertick.c tick_empty_chunk). func_150808_b is an unverified edge read, not a known divergence. Gates not re-run."
+}

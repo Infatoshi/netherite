@@ -1,0 +1,43 @@
+{
+ "path": "csrc/engine/features_plants.c",
+ "lines": 607,
+ "role": "The small decoration features of overworld population ported from oracle/src/world/gen/feature: sand and gravel disks, clay, flowers and mushrooms, tall grass, dead bush, reeds, cactus, pumpkins, lily pads, double plants, melons and vines, with the canBlockStay/canPlaceBlockAt rules each consults, and their FeatureProbePlants table rows.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenSand.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenClay.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenFlowers.java", "members": ["generate", "func_150550_a"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenTallGrass.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenDeadBush.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenReed.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenCactus.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenPumpkin.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenWaterlily.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenDoublePlant.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenMelon.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenVines.java", "members": ["generate"]},
+  {"path": "oracle/src/block/BlockBush.java", "members": ["func_149854_a", "canPlaceBlockAt"]},
+  {"path": "oracle/src/block/BlockMushroom.java", "members": ["canBlockStay"]},
+  {"path": "oracle/src/block/BlockDeadBush.java", "members": ["func_149854_a"]},
+  {"path": "oracle/src/block/BlockReed.java", "members": ["canBlockStay", "canPlaceBlockAt"]},
+  {"path": "oracle/src/block/BlockCactus.java", "members": ["canBlockStay"]},
+  {"path": "oracle/src/block/BlockPumpkin.java", "members": ["canPlaceBlockAt"]},
+  {"path": "oracle/src/block/BlockLilyPad.java", "members": ["canPlaceBlockAt"]},
+  {"path": "oracle/src/block/BlockDoublePlant.java", "members": ["canPlaceBlockAt", "func_149889_c"]},
+  {"path": "oracle/src/block/BlockVine.java", "members": ["func_150093_a", "canPlaceBlockOnSide"]},
+  {"path": "oracle/src/world/World.java", "members": ["doesBlockHaveSolidTopSurface", "getFullBlockLightValue", "isAirBlock"]}
+ ],
+ "structs": [
+  {"name": "SAND, CLAY, FLOWERS, TALLGRASS, DEADBUSH, REED, CACTUS, PUMPKIN, WATERLILY, DOUBLE_PLANT, MELON, VINES", "java": "the rows of oracle/harness/netherite/oracle/FeatureProbePlants.java's per-feature table, config order", "fields": ["name", "config", "y0", "y1", "margin", "block", "count", "generate"]},
+  {"name": "VINE_META", "java": "1 << Direction.facingToDirection[Facing.oppositeSide[side]] for sides 2..5", "fields": []}
+ ],
+ "entry_points": ["features_plants_for", "feature_sand", "feature_clay", "feature_flowers", "feature_tallgrass", "feature_deadbush", "feature_reed", "feature_cactus", "feature_pumpkin", "feature_waterlily", "feature_double_plant", "feature_melon", "feature_vines"],
+ "tick_path": true,
+ "gpu": [
+  "lines 38-41 and 74-86: material and block-class identity by strcmp on names on every check (cost, not state)",
+  "lines 209-216 and 243-250, functions feature_tallgrass and feature_deadbush: for(;;) walk down the column bounded by y <= 0",
+  "lines 578-608, function features_plants_for: string-compare lookup table"
+ ],
+ "tests": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "The feature_* functions are non-static but only reached through features_plants_for (no other file names them; decorator.c goes through the table). BlockPumpkin.onBlockAdded is not ported because its golem build is switched off (world.conf built_golems = off). The Nether mushroom variant of WorldGenFlowers lives in features_nether.c. BLK_* ids come from an included header."
+}

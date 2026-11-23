@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/world/EnumDifficulty.java",
+  "classes": ["EnumDifficulty"],
+  "lines": 45,
+  "side": "common",
+  "category": "world",
+  "role": "The four difficulties (peaceful, easy, normal, hard) with their ids and lang keys.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/servertick.h", "symbols": ["servertick_set_ambient"]},
+    {"file": "csrc/engine/survival.h", "symbols": ["surv_world_setup"]},
+    {"file": "csrc/engine/dev.c", "symbols": []}
+  ],
+  "evidence": ["out/java/snapshots/death-starve-s1", "csrc/tests/test_servertick.c"],
+  "members": [
+    {"kind": "field", "name": "PEACEFUL/EASY/NORMAL/HARD", "sig": "enum constants", "native": "csrc/engine/servertick.h:difficulty", "status": "exact", "note": "carried as a plain int 0..3"},
+    {"kind": "field", "name": "difficultyEnums", "sig": "static EnumDifficulty[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "difficultyId", "sig": "int", "native": "csrc/engine/servertick.h:difficulty", "status": "exact"},
+    {"kind": "field", "name": "difficultyResourceKey", "sig": "String", "native": null, "status": "n/a", "note": "lang key for the options screen"},
+    {"kind": "ctor", "name": "EnumDifficulty", "sig": "(int,String)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getDifficultyId", "sig": "()I", "native": "csrc/engine/servertick.h:difficulty", "status": "exact"},
+    {"kind": "method", "name": "getDifficultyEnum", "sig": "(int)EnumDifficulty", "native": null, "status": "n/a", "note": "id % 4; C uses the int directly and dev.c rejects values outside 0..3"},
+    {"kind": "method", "name": "getDifficultyResourceKey", "sig": "()String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The enum is just an int in C (servertick.difficulty, surv.difficulty, spawner difficulty). death-starve-s1 is recorded on hard per DEVLOG."
+}

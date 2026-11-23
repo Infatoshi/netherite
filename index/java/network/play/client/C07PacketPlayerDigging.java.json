@@ -1,0 +1,39 @@
+{
+  "path": "oracle/src/network/play/client/C07PacketPlayerDigging.java",
+  "classes": ["C07PacketPlayerDigging"],
+  "lines": 87,
+  "side": "client",
+  "category": "network",
+  "role": "Digging actions: status 0 start, 1 abort, 2 stop/finish, 3 drop whole stack, 4 drop one item, 5 shoot bow/eat finish, carrying the block coords and face.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["client_out"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_c07", "surv_client_click_block", "surv_client_damage_block", "process_c07", "surv_server_dig_update", "drop_one_item", "surv_server_tick_start"]}
+  ],
+  "evidence": [
+    "out/java/dig/r2",
+    "out/java/dig/r42",
+    "out/java/snapshots/pickaxe-complete-s1",
+    "csrc/tests/test_dig.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149511_a (x)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c07_x[]"},
+    {"kind": "field", "name": "field_149509_b (y)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c07_y[]"},
+    {"kind": "field", "name": "field_149510_c (z)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c07_z[]"},
+    {"kind": "field", "name": "field_149507_d (face)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c07_side[]"},
+    {"kind": "field", "name": "field_149508_e (status)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c07[]"},
+    {"kind": "ctor", "name": "C07PacketPlayerDigging", "sig": "(IIIII)V", "native": "csrc/engine/survival.c:surv_c07", "status": "exact", "note": "the client-side queue helper; the dig flow's packets are built by surv_client_click_block (abandon 1 / begin 0), surv_client_damage_block and the drop/eat paths in surv_client_input"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/survival.c:process_c07", "status": "exact", "note": "process_c07 dispatches status 3/4 to drop_one_item, 5 to the bow/eat finish, and 0/1/2 into the dig machine (dig.c); surv_server_tick_start walks co->c07[] into it"},
+    {"kind": "method", "name": "func_149505_c", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149503_d", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149502_e", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149501_f", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149506_g", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "ctor", "name": "C07PacketPlayerDigging", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [],
+  "notes": "A delayed break's draws land in surv_server_dig_update (the fork-and-hand-back dig.c contract); surv_server_dig_packet and surv_server_c08_tail are declared in survival.h but defined nowhere, so they were not cited."
+}

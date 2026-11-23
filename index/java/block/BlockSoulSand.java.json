@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/block/BlockSoulSand.java",
+  "classes": ["BlockSoulSand"],
+  "lines": 34,
+  "side": "common",
+  "category": "block",
+  "role": "Soul sand (id 88): a full block whose collision box is 0.875 high and that halves the horizontal motion of entities standing in it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS", "MATERIALS"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_pool_box", "collide_entity_effect"]}
+  ],
+  "evidence": ["out/java/snapshots/scen-soulsand-ice-s1", "out/java/drops/s2", "out/java/harvestdrops/s2", "csrc/tests/test_drops.c", "csrc/tests/test_harvestdrops.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockSoulSand", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 88: Material.sand row and static bounds in the table"},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;", "native": "csrc/engine/collide.c:collide_pool_box", "status": "exact", "note": "case 88: the 0.125-lowered top"},
+    {"kind": "method", "name": "onEntityCollidedWithBlock", "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/Entity;)V", "native": "csrc/engine/collide.c:collide_entity_effect", "status": "exact", "note": "case 88 returns COLLIDE_EFFECT_SOUL_SAND; the movement code damps motionX/Z by 0.4 (collide.h documents the contract)"}
+  ],
+  "missing": [],
+  "notes": "No recording or test was found that walks on soul sand, so the damping is verified only by reading collide.c and the movement code that consumes the effect. The wither build on soul sand lives in BlockSkull.func_149965_a and is dead under world.conf wither = off. Evidence added by the triage 2026-09-25, out/plan/remaining-2026-09-25.md: the drops and harvestdrops probes break this block at every tool (s2 and s42)."
+}

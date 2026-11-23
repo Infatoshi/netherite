@@ -1,0 +1,91 @@
+{
+ "path": "csrc/engine/nbtbin.c",
+ "lines": 447,
+ "role": "Writes an nbt tree as Minecraft's binary NBT exactly as CompressedStreamTools.write does (tag ids, modified UTF-8 names, big-endian payloads, compound fields in JDK 8 HashMap iteration order), and hashes it to the first 8 bytes of SHA-1, the per-entity nbt hash the oracle rows carry; nbtbin_long_memo keeps each key's last scratch bytes, written bytes and block states so an unchanged entity costs a memcmp of its scratch build and a changed one a SHA-1 resumed at its first changed block.",
+ "layer": "io",
+ "java": [
+  {
+   "path": "oracle/src/nbt/CompressedStreamTools.java",
+   "members": [
+    "write",
+    "func_150663_a"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagCompound.java",
+   "members": [
+    "write",
+    "func_150298_a"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagList.java",
+   "members": [
+    "write"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagString.java",
+   "members": [
+    "write"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagByteArray.java",
+   "members": [
+    "write"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagIntArray.java",
+   "members": [
+    "write"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTBase.java",
+   "members": [
+    "getId"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "memo_slot",
+   "java": null,
+   "fields": [
+    "raw",
+    "rawn",
+    "rawcap",
+    "root",
+    "p",
+    "n",
+    "cap",
+    "st",
+    "stcap",
+    "v"
+   ]
+  }
+ ],
+ "entry_points": [
+  "nbtbin_init",
+  "nbtbin_free",
+  "nbtbin_write_root",
+  "nbtbin_long",
+  "nbtbin_long_memo"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "function grow: realloc-grown output buffer",
+  "function write_compound: stack order and count arrays up to 64 fields, malloc beyond",
+  "functions write_compound and write_payload: mutual recursion over the tree depth",
+  "function write_compound: output order reproduces JDK 8 HashMap bucket order from String.hashCode (interned with the key) and insertion order",
+  "function nbtbin_long_memo: realloc of a slot's block states and scratch copy",
+  "function grow: exit(1) on allocation failure"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Used by entity_nbt.c's ent_digest_add (through nbtbin_long_memo keyed by entity id) to fold each entity's nbt hash into the state hash compared against the oracle's Rows.nbtLong (oracle/harness/netherite/oracle/Rows.java). The memo's value is always the SHA-1 of the root's own bytes: a build with the same scratch bytes and root is the same tree (nbtjson.h's scratch contract), and otherwise the bytes are written and compared by 64-byte block. It checks state rather than advancing it, so tick_path is false. put_utf reproduces DataOutputStream.writeUTF including the 0xC0 0x80 NUL encoding and the 65535 byte cap (it truncates rather than throwing); an all-ASCII string or key is copied directly."
+}

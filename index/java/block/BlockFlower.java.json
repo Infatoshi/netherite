@@ -1,0 +1,39 @@
+{
+  "path": "oracle/src/block/BlockFlower.java",
+  "classes": ["BlockFlower"],
+  "lines": 121,
+  "side": "common",
+  "category": "block",
+  "role": "The two flower blocks (yellow_flower 37, red_flower 38 with its nine colour metas): a BlockBush that sits on grass, dirt or farmland and drops itself with its meta.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/features_plants.c", "symbols": ["feature_flowers", "PL_YELLOW_FLOWER", "PL_RED_FLOWER"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["block_on_neighbor_changed"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/randomtick.c", "symbols": ["flower_block"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_populate.c",
+    "csrc/tests/test_feature.c",
+    "out/java/snapshots/rc-items-s1",
+    "out/java/snapshots/bonemeal-ff-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149860_M", "sig": "String[][]", "native": null, "status": "n/a", "note": "client texture names"},
+    {"kind": "field", "name": "field_149859_a", "sig": "String[]", "native": null, "status": "n/a", "note": "client texture names"},
+    {"kind": "field", "name": "field_149858_b", "sig": "String[]", "native": null, "status": "n/a", "note": "client texture names"},
+    {"kind": "field", "name": "field_149861_N", "sig": "IIcon[]", "native": null, "status": "n/a", "note": "client textures"},
+    {"kind": "field", "name": "field_149862_O", "sig": "int", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "the two constructor variants are the two rows 37 and 38"},
+    {"kind": "ctor", "name": "BlockFlower", "sig": "(I)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "rows 37 and 38, the plants material"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a", "note": "client texture selection"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client texture registration"},
+    {"kind": "method", "name": "damageDropped", "sig": "(I)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 35/37/38: the meta rides the drop"},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Item,Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a", "note": "creative inventory only"},
+    {"kind": "method", "name": "func_149857_e", "sig": "(Ljava/lang/String;)Lnet/minecraft/block/BlockFlower;", "native": "csrc/engine/randomtick.c:flower_block", "status": "exact", "note": "the bone meal flower: a field_149859_a name is the red flower at its index as metadata"},
+    {"kind": "method", "name": "func_149856_f", "sig": "(Ljava/lang/String;)I", "native": "csrc/engine/randomtick.c:flower_block", "status": "exact", "note": "the bone meal flower: a field_149859_a name is the red flower at its index as metadata"}
+  ],
+  "missing": [],
+  "notes": "The plant behaviour itself is BlockBush's (features_plants.c's placement floor test and blockcb.c's neighbour drop), and the flowers are placed by the decorator's feature_flowers rows, verified by the populate and feature probes. The BlockFlower-specific overrides are only drops and creative-pick helpers."
+}

@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/item/ItemEnderPearl.java",
+  "classes": ["ItemEnderPearl"],
+  "lines": 40,
+  "side": "server",
+  "category": "item",
+  "role": "The throwable ender pearl: consumes one (except creative), plays the itemRand pitch and spawns an EntityEnderPearl that teleports the thrower and deals 5 fall damage on impact.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/throw.c", "symbols": ["throw_server_use", "throw_client_use", "spawn_throwable", "item_rand_float", "pearl_impact"]},
+    {"file": "csrc/engine/projectile.c", "symbols": ["pearl_on_impact"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/throw-items-s1",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemEnderPearl", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 368, max stack 16"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/throw.c:throw_server_use", "status": "exact", "note": "the creative refusal, the stack decrement, the itemRand pitch and the EntityEnderPearl spawn; the impact teleport and the 5.0F fall damage live in throw.c's pearl_impact and projectile.c's pearl_on_impact"}
+  ],
+  "missing": [],
+  "notes": "throw-items-s1 gates a pearl thrown onto a stone hill with the teleport and 5 damage."
+}

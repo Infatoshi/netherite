@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/item/ItemFishFood.java",
+  "classes": ["ItemFishFood", "ItemFishFood.FishType"],
+  "lines": 226,
+  "side": "server",
+  "category": "item",
+  "role": "Raw and cooked fish: four FishType subtypes (cod, salmon, clownfish, pufferfish) with per-type heal and saturation (cooked variants bigger), the pufferfish's poison/hunger/confusion on eating, and the pufferfish's brewing-ingredient string.",
+  "scope": "switched_off",
+  "scope_reason": "Fish are only obtainable by fishing (off) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "ITEM_FOOD", "heal_amount"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_server_eat_tick", "sr_pot_food_effect"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150907_b", "sig": "boolean", "native": "csrc/engine/items.h:ITEMS", "status": "partial", "note": "rows 349 and 350 carry the raw and cooked variants as separate items with has_subtypes"},
+    {"kind": "ctor", "name": "ItemFishFood", "sig": "(Z)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact"},
+    {"kind": "method", "name": "func_150905_g", "sig": "(ItemStack)I", "native": "csrc/engine/items.h:heal_amount", "status": "missing", "note": "the generated rows show heal 0: the per-FishType heal amounts are not in the registry, so eating fish heals nothing"},
+    {"kind": "method", "name": "func_150906_h", "sig": "(ItemStack)F", "native": "csrc/engine/items.h:saturation", "status": "missing", "note": "same: the per-FishType saturation is not in the rows"},
+    {"kind": "method", "name": "getPotionEffect", "sig": "(ItemStack)String", "native": null, "status": "n/a", "note": "the pufferfish brewing string; brewing is switched off (world.conf brewing)"},
+    {"kind": "method", "name": "registerIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client icons"},
+    {"kind": "method", "name": "onFoodEaten", "sig": "(ItemStack,World,EntityPlayer)V", "native": "csrc/engine/survival.c:sr_pot_food_effect", "status": "missing", "note": "the pufferfish's poison 1200 amp 3, hunger 300 amp 2 and confusion 300 amp 1 are not in survival.c's hardcoded food effects"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "method", "name": "getSubItems", "sig": "(Item,CreativeTabs,List)V", "native": null, "status": "n/a", "note": "creative menu"},
+    {"kind": "method", "name": "getUnlocalizedName(ItemStack)", "sig": "(ItemStack)String", "native": null, "status": "n/a", "note": "client naming"},
+    {"kind": "field", "name": "FishType enum: COD, SALMON, CLOWNFISH, PUFFERFISH with func_150976_a, func_150972_b, func_150975_c, func_150967_d, func_150970_e, func_150977_f, func_150974_a, func_150978_a and the icon accessors", "sig": "enum", "native": null, "status": "missing", "note": "the per-type food values and the subtype map are not modelled anywhere"}
+  ],
+  "missing": [
+    "ItemFishFood.func_150905_g and func_150906_h: the per-FishType heal and saturation are missing (the generated ITEMS rows carry 0).",
+    "ItemFishFood.onFoodEaten: the pufferfish's three potion effects are absent from survival.c's food-effect table.",
+    "The FishType enum's subtype values are not modelled."
+  ],
+  "notes": "Fishing itself is switched off, so fish only enter the world through loot or trades; eating raw fish in this state heals nothing, which is a known gap, not a verified divergence against a recording."
+}

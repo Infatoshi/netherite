@@ -1,0 +1,29 @@
+{
+ "classes": [
+  "EntityFireworkOverlayFX"
+ ],
+ "lines": 34,
+ "side": "client",
+ "category": "particles",
+ "role": "The firework explosion's flash overlay: layer 0, four ticks, expanding alpha-faded quad.",
+ "scope": "switched_off",
+ "scope_reason": "Built only by a firework rocket's explosion (EntityFireworkStarterFX), and world.conf fireworks = off stops every rocket from launching (ItemFirework.java:22).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  }
+ ],
+ "missing": [
+  "Fireworks are forced off by world.conf (fireworks = off); no native counterpart is needed."
+ ],
+ "notes": "world.conf fireworks = off with the SPEC 'Unsupported features are world switches' decision, so this class is never constructed in the oracle either. idxaudit 2026-09-27: scope reason rewritten and scope relabeled client_cosmetic -> switched_off.",
+ "path": "oracle/src/client/particle/EntityFireworkOverlayFX.java"
+}

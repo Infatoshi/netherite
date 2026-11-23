@@ -1,0 +1,12 @@
+{
+  "path": "oracle/harness/netherite/oracle/BlockRands.java",
+  "lines": 114,
+  "role": "The container Block singletons' own Randoms (BlockChest.field_149955_b, BlockFurnace.field_149933_a, BlockDispenser.field_149942_b, BlockHopper.field_149922_a, BlockBrewingStand.field_149961_a): written into det.nbt by Snapshot and set back from a checkpoint's pre/det.nbt when a --from run starts.",
+  "kind": "snapshot",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Snapshot.java",
+    "oracle/harness/netherite/oracle/Oracle.java"
+  ],
+  "vanilla_hooks": [],
+  "notes": "Reflection only, no oracle/src hook. csrc/engine/serverreplay.c reads the same keys into spill.c's block_rand."
+}

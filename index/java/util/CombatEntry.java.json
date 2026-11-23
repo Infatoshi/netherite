@@ -1,0 +1,167 @@
+{
+  "path": "oracle/src/util/CombatEntry.java",
+  "classes": [
+    "CombatEntry"
+  ],
+  "lines": 57,
+  "side": "server",
+  "category": "combat",
+  "role": "One recorded hit in a CombatTracker: the damage source, the tick, the pre-hit health, the fall distance and a fall-damage block name, all used only to build death messages.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: CombatTracker.func_94550_c reads each entry's damage source and amount to pick the entity credited with a kill (EntityLivingBase.func_94060_bK: the player's score, stat.mobKills, stat.entityKilledBy); entries were built in 92 of 154 recordings. Native carries them in survival.c surv_combat (the player's tracker) and living.c's death credit (the killing blow, the only entry left at a death).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "combat_entry",
+        "combat_killer",
+        "combat_reset"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.h",
+      "symbols": [
+        "surv_combat",
+        "surv_combat_entry"
+      ]
+    },
+    {
+      "file": "csrc/engine/chatmsg.c",
+      "symbols": [
+        "chatmsg_death",
+        "chatmsg_combat_add",
+        "killer_name",
+        "chatmsg_entity_name",
+        "chatmsg_dtype"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/chat-achieve-s1",
+    "out/java/snapshots/chat-bed-refuse-s1",
+    "out/java/snapshots/chat-deaths-s1",
+    "out/java/snapshots/chat-deaths2-s1",
+    "out/java/snapshots/chat-build-s1",
+    "out/java/snapshots/chat-climbfall-s1",
+    "out/java/snapshots/chat-edge-knock-s1",
+    "out/java/snapshots/chat-idx-blast-s1",
+    "out/java/snapshots/chat-fight-witch-s1",
+    "out/java/snapshots/chat-fight-enderman-s1",
+    "out/java/snapshots/chat-death-drown-s1",
+    "out/java/snapshots/chat-death-lava-s1",
+    "out/java/snapshots/chat-death-starve-s1",
+    "out/java/snapshots/chat-act2-s1",
+    "out/java/snapshots/chat-surv2-bed-s1",
+    "out/java/snapshots/idx-killcredit-s1",
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/cactus-armor-s1",
+    "out/java/snapshots/night-fight-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "damageSrc",
+      "sig": "DamageSource",
+      "native": "csrc/engine/survival.h:surv_combat_entry",
+      "status": "exact",
+      "note": "kind (getEntity()'s living kind, for func_94060_bK), dtype (the damageType) and name (the entity's name) per entry"
+    },
+    {
+      "kind": "field",
+      "name": "field_94567_b",
+      "sig": "int (the tick of the hit)",
+      "native": null,
+      "status": "n/a",
+      "note": "never read (CombatTracker keeps its own field_94555_c, surv_combat last_tick)"
+    },
+    {
+      "kind": "field",
+      "name": "field_94568_c",
+      "sig": "float",
+      "native": "csrc/engine/survival.h:surv_combat_entry",
+      "status": "exact",
+      "note": "damage, the landed amount func_94563_c returns"
+    },
+    {
+      "kind": "field",
+      "name": "field_94565_d",
+      "sig": "float (health before the hit)",
+      "native": null,
+      "status": "n/a",
+      "note": "never read"
+    },
+    {
+      "kind": "field",
+      "name": "field_94566_e",
+      "sig": "String (fall-damage block name)",
+      "native": "csrc/engine/survival.h:surv_combat_entry",
+      "status": "exact",
+      "note": "label: func_94545_a's ladder, vines or water at the hit"
+    },
+    {
+      "kind": "field",
+      "name": "field_94564_f",
+      "sig": "float (fall distance)",
+      "native": "csrc/engine/survival.h:surv_combat_entry",
+      "status": "exact",
+      "note": "fall, the fighter's fallDistance at the hit"
+    },
+    {
+      "kind": "ctor",
+      "name": "CombatEntry",
+      "sig": "(DamageSource,int,float,float,String,float)V",
+      "native": "csrc/engine/survival.c:combat_entry",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getDamageSrc",
+      "sig": "()DamageSource",
+      "native": "csrc/engine/chatmsg.c:chatmsg_death",
+      "status": "exact",
+      "note": "the source's type and entity (and combat_killer's kind)"
+    },
+    {
+      "kind": "method",
+      "name": "func_94563_c",
+      "sig": "()float",
+      "native": "csrc/engine/survival.c:combat_killer",
+      "status": "exact",
+      "note": "also chatmsg.c chatmsg_combat_add (killer_name's running best)"
+    },
+    {
+      "kind": "method",
+      "name": "func_94559_f",
+      "sig": "()boolean",
+      "native": "csrc/engine/survival.c:combat_entry",
+      "status": "exact",
+      "note": "a living attacker enters combat (in_combat)"
+    },
+    {
+      "kind": "method",
+      "name": "func_94562_g",
+      "sig": "()String",
+      "native": "csrc/engine/chatmsg.c:chatmsg_death",
+      "status": "exact",
+      "note": "death.fell.accident.<label>"
+    },
+    {
+      "kind": "method",
+      "name": "func_151522_h",
+      "sig": "()IChatComponent",
+      "native": "csrc/engine/chatmsg.c:chatmsg_entity_name",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_94561_i",
+      "sig": "()float",
+      "native": "csrc/engine/survival.c:combat_entry",
+      "status": "exact",
+      "note": "outOfWorld answers Float.MAX_VALUE"
+    }
+  ],
+  "missing": [],
+  "notes": "The entries feed the kill credit (func_94550_c through EntityLivingBase.func_94060_bK: survival.c combat_killer, idx-killcredit-s1) and the death message (CombatTracker.func_151521_b: chatmsg.c chatmsg_death, checked per row with the S02s). A killing blow clears the older entries before it is added (func_94549_h sees the fighter dead), so at a death the tracker holds that blow alone: the death.fell.assist, finish and killer lines are unreachable, and func_94544_f answers the blow itself. The held item's .item forms need a named item (an anvil, world.conf anvil = off). Recordings: chat-climbfall-s1 (ladder, vines), chat-deaths-s1 (arrow, fireball, inWall, outOfWorld), chat-deaths2-s1 (inFire, mob), chat-edge-knock-s1 (lava.player through the revenge target), chat-idx-blast-s1 (explosion.player), chat-fight-witch-s1 (indirectMagic), chat-act2-s1 (fell.accident.generic), chat-surv2-bed-s1 (fall). The tracker is not in the snapshot: a death within 100 ticks (300 in combat) of a hit taken before the snapshot tick would name what native does not know. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/combattracker: surv_combat no longer holds the entries (the 64-entry array aborted at the 65th, a long fight in armour or leaning on a cactus): combat_entry folds each entry into what the death reads, the last entry, func_94544_f's longest fall and the entry it answers, and func_94550_c's best living and best player by damage over kinds (combat_killer) and over names (chatmsg.c chatmsg_combat_add, killer_name), so there is no cap; cactus-armor-s1 (about 100 entries, death.attack.cactus) and night-fight-s1 (about 400, death.attack.mob, entityKilledBy.Zombie) aborted before."
+}

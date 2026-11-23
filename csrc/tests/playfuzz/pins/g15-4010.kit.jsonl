@@ -1,0 +1,11 @@
+{"tick":2,"class":"Dev","cmd":{"op":"tp","x":-4035.5,"y":46.0,"z":-1696.5}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":8,"item":329,"count":1}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":6,"item":398,"count":1}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":0,"item":259,"count":1}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":3,"item":373,"count":1,"meta":8195}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":4,"item":46,"count":16}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":2,"item":368,"count":16}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":5,"item":420,"count":4}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-4039,"y0":46,"z0":-1703,"x1":-4033,"y1":48,"z1":-1698,"id":0,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-4039,"y0":45,"z0":-1703,"x1":-4033,"y1":45,"z1":-1698,"id":1,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"summon","name":"Pig","x":-4035.5,"y":46.0,"z":-1698.5}}

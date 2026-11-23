@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/item/crafting/RecipesFood.java",
+  "classes": ["RecipesFood"],
+  "lines": 26,
+  "side": "common",
+  "category": "crafting",
+  "role": "Registers the food recipes: mushroom stew, cookies, melon block, melon and pumpkin seeds, pumpkin pie, fermented spider eye, blaze powder, magma cream.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c"],
+  "members": [
+    {"kind": "method", "name": "addRecipes", "sig": "(Lnet/minecraft/item/crafting/CraftingManager;)V", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "the 9 recipes unrolled into baked shaped and shapeless rows"}
+  ],
+  "missing": [],
+  "notes": null
+}

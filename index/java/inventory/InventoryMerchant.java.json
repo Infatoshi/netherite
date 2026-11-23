@@ -1,0 +1,227 @@
+{
+ "classes": [
+  "InventoryMerchant"
+ ],
+ "lines": 250,
+ "side": "common",
+ "category": "inventory",
+ "role": "The 3-slot trading inventory (two buys, the recipe's sell), with resetRecipeAndSlots matching the current recipe and refilling the sell slot.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_merchant_reset",
+    "container_merchant_set_recipe_index",
+    "inv_set",
+    "inv_decr",
+    "inv_take"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "merchant",
+    "current_recipe",
+    "current_recipe_index"
+   ]
+  },
+  {
+   "file": "csrc/engine/trades.c",
+   "symbols": [
+    "trades_can_be_used"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_can_interact"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/trade-full-s1",
+  "csrc/tests/test_trades.c",
+  "out/java/trades",
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/trade-prof-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "theMerchant",
+   "sig": "IMerchant",
+   "native": "csrc/engine/container.h:merchant_use",
+   "status": "exact",
+   "note": "the useRecipe and func_110297_a_ halves are the container's callbacks"
+  },
+  {
+   "kind": "field",
+   "name": "theInventory",
+   "sig": "ItemStack[]",
+   "native": "csrc/engine/container.h:merchant",
+   "status": "exact",
+   "note": "3 stacks: 0/1 the buys, 2 the sell"
+  },
+  {
+   "kind": "field",
+   "name": "thePlayer",
+   "sig": "EntityPlayer",
+   "native": null,
+   "status": "n/a",
+   "note": "single player"
+  },
+  {
+   "kind": "field",
+   "name": "currentRecipe",
+   "sig": "MerchantRecipe",
+   "native": "csrc/engine/container.h:current_recipe",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "currentRecipeIndex",
+   "sig": "int",
+   "native": "csrc/engine/container.h:current_recipe_index",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "InventoryMerchant",
+   "sig": "(EntityPlayer,IMerchant)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact",
+   "note": "the merchant inventory of CONTAINER_MERCHANT"
+  },
+  {
+   "kind": "method",
+   "name": "getSizeInventory",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:merchant",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlot",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.h:merchant",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(II)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_decr",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "inventoryResetNeededOnSlotChange",
+   "sig": "(I)Z",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact",
+   "note": "the INV_MERCHANT slots-0/1 trigger inside inv_set"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlotOnClosing",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_take",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setInventorySlotContents",
+   "sig": "(ILnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryName",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInventoryNameLocalized",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryStackLimit",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:merchant",
+   "status": "exact",
+   "note": "1"
+  },
+  {
+   "kind": "method",
+   "name": "isUseableByPlayer",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "n/a",
+   "note": "n/a: ContainerMerchant.canInteractWith asks the villager's customer; nothing asks the merchant inventory"
+  },
+  {
+   "kind": "method",
+   "name": "openInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "closeInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValidForSlot",
+   "sig": "(ILnet/minecraft/item/ItemStack;)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onInventoryChanged",
+   "sig": "()V",
+   "native": "csrc/engine/container.c:slot_changed",
+   "status": "exact",
+   "note": "resetRecipeAndSlots from every Slot.onSlotChanged (putStack, a plain slot's onPickupFromSlot, the mode-0 click's closing call); trade-full-s1 row 71 merged wool into the input with no reset before lane/villagetrade."
+  },
+  {
+   "kind": "method",
+   "name": "resetRecipeAndSlots",
+   "sig": "()V",
+   "native": "csrc/engine/container.c:container_merchant_reset",
+   "status": "exact",
+   "note": "the recipe match over slots 0/1 through trades_can_be_used, the sell into slot 2, then the villager's sound half"
+  },
+  {
+   "kind": "method",
+   "name": "getCurrentRecipe",
+   "sig": "()Lnet/minecraft/village/MerchantRecipe;",
+   "native": "csrc/engine/container.h:current_recipe",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setCurrentRecipeIndex",
+   "sig": "(I)V",
+   "native": "csrc/engine/container.c:container_merchant_set_recipe_index",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "trade-full-s1 covers the whole flow: 7 buys of 7 maxUses until the recipe locks, close, 50 idle ticks with timeUntilReset expiring, reopen, and a trsel back to recipe 0. lane/idxblocks: reviewed. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): containers2-s42. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour.",
+ "path": "oracle/src/inventory/InventoryMerchant.java"
+}

@@ -1,0 +1,74 @@
+{
+  "path": "oracle/src/network/NettyEncryptionTranslator.java",
+  "classes": [
+    "NettyEncryptionTranslator"
+  ],
+  "lines": 55,
+  "side": "common",
+  "category": "network",
+  "role": "The shared AES cipher driver behind the encrypting encoder and decoder: copies the readable bytes into a scratch buffer and runs Cipher.update in place.",
+  "scope": "not_needed",
+  "scope_reason": "Reached only through NettyEncryptingDecoder and NettyEncryptingEncoder, which an online-mode login alone installs; the oracle's in-process LocalChannel connection never enables encryption.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_150507_a",
+      "sig": "Cipher",
+      "native": null,
+      "status": "n/a",
+      "note": "The cipher instance; never built in the recorded game."
+    },
+    {
+      "kind": "field",
+      "name": "field_150505_b",
+      "sig": "byte[]",
+      "native": null,
+      "status": "n/a",
+      "note": "The inbound scratch buffer."
+    },
+    {
+      "kind": "field",
+      "name": "field_150506_c",
+      "sig": "byte[]",
+      "native": null,
+      "status": "n/a",
+      "note": "The outbound scratch buffer."
+    },
+    {
+      "kind": "ctor",
+      "name": "NettyEncryptionTranslator",
+      "sig": "(LCipher;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_150502_a",
+      "sig": "(LByteBuf;)[B",
+      "native": null,
+      "status": "n/a",
+      "note": "Drains the ByteBuf into the scratch buffer."
+    },
+    {
+      "kind": "method",
+      "name": "func_150503_a",
+      "sig": "(LChannelHandlerContext;LByteBuf;)LByteBuf;",
+      "native": null,
+      "status": "n/a",
+      "note": "Decrypt into a fresh heap buffer."
+    },
+    {
+      "kind": "method",
+      "name": "func_150504_a",
+      "sig": "(LByteBuf;LByteBuf;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Encrypt into the outbound buffer."
+    }
+  ],
+  "missing": [],
+  "notes": "If a future lane adds a real TCP client, the CryptManager key exchange and this cipher path come with it."
+}

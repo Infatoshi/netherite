@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/sha1.h",
+ "lines": 19,
+ "role": "Declares sha1() and the stepwise init/blocks/final form a caller keeping the state after whole blocks uses (nbtbin_long_memo).",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "sha1",
+  "sha1_init",
+  "sha1_blocks",
+  "sha1_final"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Header for sha1.c."
+}

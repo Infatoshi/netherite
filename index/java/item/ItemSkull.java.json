@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/item/ItemSkull.java",
+  "classes": ["ItemSkull"],
+  "lines": 200,
+  "side": "common",
+  "category": "item",
+  "role": "The skull item (id 397): places the skull block with the side as its facing metadata and fills the skull tile entity's type and rotation.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_skull_on_item_use", "item_get_metadata"]}
+  ],
+  "evidence": ["csrc/tests/test_place.c"],
+  "members": [
+    {"kind": "field", "name": "skullTypes", "sig": "String[]", "native": null, "status": "n/a", "note": "icon names"},
+    {"kind": "field", "name": "field_94587_a", "sig": "String[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_94586_c", "sig": "IIcon[]", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ItemSkull", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 397, hasSubtypes"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": "csrc/engine/place.c:item_skull_on_item_use", "status": "exact", "note": "side-0 refusal, the solid-material check, the side as metadata, the yaw quadrant for floor skulls, and the tile entity's type and rotation"},
+    {"kind": "method", "name": "getSubItems", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMetadata", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "n/a", "note": "n/a: only ItemBlock.onItemUse calls getMetadata; ItemSkull is an Item that places through its own onItemUse"},
+    {"kind": "method", "name": "getUnlocalizedName", "sig": "(Lnet/minecraft/item/ItemStack;)Ljava/lang/String;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getItemStackDisplayName", "sig": "(Lnet/minecraft/item/ItemStack;)Ljava/lang/String;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "registerIcons", "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The wither skull's wither-building use is switched off separately (world.conf wither = off). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): player-owned skulls come only from commands or creative. Formerly listed as missing: onItemUse's damage-3 branch: the SkullOwner NBT (the GameProfile read and func_152106_a write) is not ported; the tile entity gets its type and rotation but no owner."
+}

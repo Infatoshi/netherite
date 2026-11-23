@@ -1,0 +1,216 @@
+{
+  "path": "oracle/src/creativetab/CreativeTabs.java",
+  "classes": [
+    "CreativeTabs",
+    "the 12 tab singletons' anonymous subclasses (tabBlock..tabInventory)"
+  ],
+  "lines": 310,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The creative inventory's tab bar: the 12 singleton tabs, their icons, labels, scroll and title flags, and the item listing each tab shows (including enchanted books by type).",
+  "scope": "client_cosmetic",
+  "scope_reason": "Creative-inventory presentation only. Creative mode is out of scope for the native engine (csrc/engine/dig.h: the dig probe is a survival player, the creative paths need a NetHandlerPlayServer), and the tab lists are client GUI the GPU/RL path does not need.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "statics (creativeTabArray and the 12 tab singletons tabBlock..tabInventory)",
+      "sig": "CreativeTabs[12] / CreativeTabs",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "tabIndex",
+      "sig": "I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "tabLabel",
+      "sig": "Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "backgroundImageName",
+      "sig": "Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "hasScrollbar",
+      "sig": "Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "drawTitle",
+      "sig": "Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_111230_s",
+      "sig": "[Lnet/minecraft/enchantment/EnumEnchantmentType;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_151245_t",
+      "sig": "Lnet/minecraft/item/ItemStack;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "CreativeTabs",
+      "sig": "(ILjava/lang/String;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getTabIndex",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getTabLabel",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getTranslatedTabLabel",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getIconItemStack",
+      "sig": "()Lnet/minecraft/item/ItemStack;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getTabIconItem",
+      "sig": "()Lnet/minecraft/item/Item;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_151243_f",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getBackgroundImageName",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setBackgroundImageName",
+      "sig": "(Ljava/lang/String;)Lnet/minecraft/creativetab/CreativeTabs;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "drawInForegroundOfTab",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setNoTitle",
+      "sig": "()Lnet/minecraft/creativetab/CreativeTabs;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "shouldHidePlayerInventory",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setNoScrollbar",
+      "sig": "()Lnet/minecraft/creativetab/CreativeTabs;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getTabColumn",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isTabInFirstRow",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_111225_m",
+      "sig": "()[Lnet/minecraft/enchantment/EnumEnchantmentType;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_111229_a",
+      "sig": "([Lnet/minecraft/enchantment/EnumEnchantmentType;)Lnet/minecraft/creativetab/CreativeTabs;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_111226_a",
+      "sig": "(Lnet/minecraft/enchantment/EnumEnchantmentType;)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "displayAllReleventItems",
+      "sig": "(Ljava/util/List;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addEnchantmentBooksToList",
+      "sig": "(Ljava/util/List;[Lnet/minecraft/enchantment/EnumEnchantmentType;)V",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "csrc/engine/container.c does carry a creative flag for inventory-click mode 3, but no tab definitions or item listings are ported."
+}

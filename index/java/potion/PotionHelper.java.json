@@ -1,0 +1,202 @@
+{
+ "path": "oracle/src/potion/PotionHelper.java",
+ "classes": [
+  "PotionHelper"
+ ],
+ "lines": 612,
+ "side": "common",
+ "category": "item",
+ "role": "The brewing bit language: parses the effect requirement strings against a potion damage value, computes the liquid color and the ingredient bit operations.",
+ "scope": "in_scope",
+ "scope_reason": "The parser runs for every potion item damage value: the witch's thrown potions, the splash paths and the cauldron fill.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/potion.c",
+   "symbols": [
+    "potion_get_effects_for_damage",
+    "potion_calc_liquid_color",
+    "potion_all_ambient",
+    "check_flag",
+    "is_flag_set",
+    "is_flag_unset",
+    "count_set_flags",
+    "helper_eval",
+    "parse_potion_effects"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/potions/seed2",
+  "out/java/potions/seed42",
+  "csrc/tests/test_potions.c",
+  "out/java/snapshots/fight-witch-s1",
+  "out/java/snapshots/surv_eat-s1",
+  "out/java/snapshots/fight-witch-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_77924_a",
+   "sig": "String (static, null)",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "sugarEffect through field_151423_m (the static effect strings)",
+   "sig": "String[] (static)",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:parse_potion_effects",
+   "note": "the requirement and amplifier strings live in a static table in potion.c"
+  },
+  {
+   "kind": "field",
+   "name": "potionRequirements",
+   "sig": "java.util.HashMap (static)",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_get_effects_for_damage"
+  },
+  {
+   "kind": "field",
+   "name": "potionAmplifiers",
+   "sig": "java.util.HashMap (static)",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_get_effects_for_damage"
+  },
+  {
+   "kind": "field",
+   "name": "field_77925_n",
+   "sig": "java.util.HashMap (static)",
+   "status": "n/a",
+   "note": "the liquid color cache; the native computes per query"
+  },
+  {
+   "kind": "field",
+   "name": "potionPrefixes",
+   "sig": "String[] (static)",
+   "status": "missing",
+   "note": "potion prefix names are client GUI text"
+  },
+  {
+   "kind": "method",
+   "name": "checkFlag",
+   "sig": "(int,int)Z",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:check_flag"
+  },
+  {
+   "kind": "method",
+   "name": "isFlagSet",
+   "sig": "(int,int)I",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:is_flag_set"
+  },
+  {
+   "kind": "method",
+   "name": "isFlagUnset",
+   "sig": "(int,int)I",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:is_flag_unset"
+  },
+  {
+   "kind": "method",
+   "name": "func_77909_a",
+   "sig": "(int)I",
+   "status": "n/a",
+   "note": "n/a: ItemPotion.getItemStackDisplayName asks for the prefix only for a potion with no effects (awkward, mundane, thick), which only brewing makes (brewing = off); no loot, drop or trade gives one"
+  },
+  {
+   "kind": "method",
+   "name": "calcPotionLiquidColor",
+   "sig": "(java.util.Collection)I",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_calc_liquid_color"
+  },
+  {
+   "kind": "method",
+   "name": "func_82817_b",
+   "sig": "(java.util.Collection)Z",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_all_ambient"
+  },
+  {
+   "kind": "method",
+   "name": "func_77915_a",
+   "sig": "(int,Z)I",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_calc_liquid_color",
+   "note": "the cached form computes per query"
+  },
+  {
+   "kind": "method",
+   "name": "func_77905_c",
+   "sig": "(int)String",
+   "status": "n/a",
+   "note": "n/a: ItemPotion.getItemStackDisplayName asks for the prefix only for a potion with no effects (awkward, mundane, thick), which only brewing makes (brewing = off); no loot, drop or trade gives one"
+  },
+  {
+   "kind": "method",
+   "name": "func_77904_a",
+   "sig": "(ZZZIIIII)I",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:helper_eval"
+  },
+  {
+   "kind": "method",
+   "name": "countSetFlags",
+   "sig": "(int)I",
+   "status": "n/a",
+   "native": "csrc/engine/potion.c:count_set_flags",
+   "note": "n/a: only func_77904_a's =, > and < operators call it, and no requirement or amplifier string of PotionHelper's tables uses them"
+  },
+  {
+   "kind": "method",
+   "name": "parsePotionEffects",
+   "sig": "(String,III)I",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:parse_potion_effects"
+  },
+  {
+   "kind": "method",
+   "name": "getPotionEffects",
+   "sig": "(int,Z)java.util.List",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_get_effects_for_damage"
+  },
+  {
+   "kind": "method",
+   "name": "brewBitOperations",
+   "sig": "(IIZZZ)I",
+   "status": "n/a",
+   "native": "csrc/engine/potion.c:parse_potion_effects",
+   "note": "n/a: its one caller is applyIngredient (brewing = off)"
+  },
+  {
+   "kind": "method",
+   "name": "applyIngredient",
+   "sig": "(int,String)I",
+   "status": "n/a",
+   "note": "n/a: its one caller is TileEntityBrewingStand.func_145936_a (brewing = off: a stand never brews)"
+  },
+  {
+   "kind": "method",
+   "name": "func_77908_a",
+   "sig": "(IIIIII)I",
+   "status": "n/a",
+   "note": "n/a: ItemPotion.getItemStackDisplayName asks for the prefix only for a potion with no effects (awkward, mundane, thick), which only brewing makes (brewing = off); no loot, drop or trade gives one"
+  },
+  {
+   "kind": "ctor",
+   "name": "PotionHelper",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: a static-only class; nothing in oracle/src constructs it (no new PotionHelper())"
+  }
+ ],
+ "missing": [
+  "applyIngredient, func_77908_a, func_77909_a and func_77905_c with the potionPrefixes table: no native counterpart; the first is brewing (switched off), the rest are the potion item's display name path",
+  "field_77925_n's liquid color cache: the native computes the color per query instead of caching"
+ ],
+ "notes": "The requirement strings are kept verbatim in potion.c's table and parsed by the same recursive scheme; the witch's aggressive throws are the exercise (hostiles_witch.c:67)."
+}

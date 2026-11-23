@@ -1,0 +1,54 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenIceSpike.java",
+ "classes": [
+  "WorldGenIceSpike"
+ ],
+ "lines": 132,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Ice Plains Spikes spike: a tapered packed-ice spire above and below the surface, occasionally a tall one.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_lakes.c",
+   "symbols": [
+    "feature_icespike"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "spikes_pre"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-icespike-2",
+  "out/java/probes/fe-icespike-42",
+  "out/java/seedworld/seed1",
+  "out/java/snapshots/cov-icespikes-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_lakes.c:feature_icespike",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

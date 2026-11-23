@@ -1,0 +1,260 @@
+{
+ "path": "oracle/src/world/gen/structure/MapGenStructure.java",
+ "classes": [
+  "MapGenStructure"
+ ],
+ "lines": 305,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The base of every structure generator: the per-type structureMap of starts, the candidate walk that tests and builds starts around a generated chunk, the per-chunk block pass, point-in-structure queries for spawn lists, the nearest-structure search for eyes of ender, and saving starts to the world's structure data.",
+ "scope": "in_scope",
+ "scope_reason": "Every overworld and Nether structure goes through it. The save-writing side is deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain; triage 2026-09-25, out/plan/remaining-2026-09-25.md). The read side is a real item (B4).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/structure.c",
+   "symbols": [
+    "structure_walk",
+    "structure_types",
+    "structure_type_by_name"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure.h",
+   "symbols": [
+    "structure_type",
+    "start"
+   ]
+  },
+  {
+   "file": "csrc/engine/populate.c",
+   "symbols": [
+    "populate_offer_chunk",
+    "populate_structures",
+    "populate_add_start",
+    "map_order",
+    "step_box",
+    "populate_restore_pieces"
+   ]
+  },
+  {
+   "file": "csrc/engine/populate.h",
+   "symbols": [
+    "pop_map",
+    "pop_start"
+   ]
+  },
+  {
+   "file": "csrc/engine/populate_nether.c",
+   "symbols": [
+    "populate_hell_fortress_at",
+    "populate_hell_offer_chunk",
+    "populate_hell_structures"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_swamp_hut_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/stronghold.c",
+   "symbols": [
+    "stronghold_nearest_impl"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_fortress_spawn.c",
+  "csrc/tests/test_eyes.c",
+  "out/java/structures/s2",
+  "out/java/structures/nf-2",
+  "out/java/populate/pop42_01",
+  "out/java/fortress_spawn/fs-2",
+  "out/java/eyes/eye2",
+  "out/java/snapshots/struct-cp-s42",
+  "out/java/snapshots/cov-structload-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_143029_e",
+   "sig": "MapGenStructureData",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "its content arrives through structures.json; the file is the oracle's"
+  },
+  {
+   "kind": "field",
+   "name": "structureMap",
+   "sig": "Map<Long,StructureStart> (HashMap)",
+   "native": "csrc/engine/populate.h:pop_map",
+   "status": "exact",
+   "note": "Starts in insertion order plus a jhashmap of chunk keys; map_order reproduces the HashMap values() order."
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_143025_a",
+   "sig": "abstract ()String",
+   "native": "csrc/engine/structure.h:structure_type",
+   "status": "exact",
+   "note": "structure_type.name."
+  },
+  {
+   "kind": "method",
+   "name": "func_151538_a",
+   "sig": "(World,int,int,int,int,Block[])V",
+   "native": "csrc/engine/populate.c:populate_offer_chunk",
+   "status": "exact",
+   "note": "Also structure_walk for the gate's region walk; the nextInt() before canSpawn is kept."
+  },
+  {
+   "kind": "method",
+   "name": "func_151538_a crash-report callables",
+   "sig": "anonymous Callable x3",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generateStructuresInChunk",
+   "sig": "(World,Random,int,int)Z",
+   "native": "csrc/engine/populate.c:populate_structures",
+   "status": "exact",
+   "note": "populate_hell_structures for the Nether."
+  },
+  {
+   "kind": "method",
+   "name": "hasStructureAt",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/populate_nether.c:populate_hell_fortress_at",
+   "status": "exact",
+   "note": "Only ChunkProviderHell calls it in 1.7.10."
+  },
+  {
+   "kind": "method",
+   "name": "func_143028_c",
+   "sig": "(int,int,int)StructureStart",
+   "native": "csrc/engine/serverreplay.c:sr_swamp_hut_at",
+   "status": "exact",
+   "note": "Specialized per caller: the temple map for witch huts, populate_hell_fortress_at for fortresses."
+  },
+  {
+   "kind": "method",
+   "name": "func_142038_b",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/populate_nether.c:populate_hell_fortress_at",
+   "status": "exact",
+   "note": "The 'first sizeable start whose box contains the point' branch."
+  },
+  {
+   "kind": "method",
+   "name": "func_151545_a",
+   "sig": "(World,int,int,int)ChunkPosition",
+   "native": "csrc/engine/stronghold.c:stronghold_nearest_impl",
+   "status": "exact",
+   "note": "its only 1.7.10 caller is World.findClosestStructure for the eye of ender (strongholds); the other structures never answer it; a start read back from the save (structures.json Stronghold.portal 0, stronghold_note_start) links no portal room and points at the staircase"
+  },
+  {
+   "kind": "method",
+   "name": "getCoordList",
+   "sig": "()List",
+   "native": "csrc/engine/stronghold.c:stronghold_nearest_impl",
+   "status": "n/a",
+   "note": "the base's only caller, func_151545_a, is reached through ChunkProviderGenerate.func_147416_a only for \"Stronghold\", whose MapGenStronghold overrides getCoordList (and through ChunkProviderFlat, not in this world)"
+  },
+  {
+   "kind": "method",
+   "name": "func_143027_a",
+   "sig": "(World)V",
+   "native": "csrc/engine/populate.c:populate_add_start",
+   "status": "exact",
+   "note": "the saved starts rebuilt from their chunks, their components' saved state restored (populate_restore_pieces)"
+  },
+  {
+   "kind": "method",
+   "name": "func_143026_a",
+   "sig": "(int,int,StructureStart)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "canSpawnStructureAtCoords",
+   "sig": "abstract (int,int)Z",
+   "native": "csrc/engine/structure.h:structure_type",
+   "status": "exact",
+   "note": "structure_type.can_spawn."
+  },
+  {
+   "kind": "method",
+   "name": "getStructureStart",
+   "sig": "abstract (int,int)StructureStart",
+   "native": "csrc/engine/structure.h:structure_type",
+   "status": "exact",
+   "note": "structure_type.make_start."
+  },
+  {
+   "kind": "ctor",
+   "name": "MapGenStructure$1",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MapGenStructure.func_151538_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "MapGenStructure$1.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MapGenStructure.func_151538_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "MapGenStructure$2",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MapGenStructure.func_151538_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "MapGenStructure$2.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MapGenStructure.func_151538_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "MapGenStructure$3",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MapGenStructure.func_151538_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "MapGenStructure$3.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MapGenStructure.func_151538_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  }
+ ],
+ "missing": [],
+ "notes": "Starts are malloc'd pointer trees (struct start -> struct piece*) grown with realloc; a GPU port needs them flattened. Gate not re-run for this record. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings). A start's saved state reaches the native engine from the oracle's snapshot: structures.json lists each MapGenStructure's starts in the structureMap's order with every component's box, HPos, VCount and once-set flags (populate_restore_pieces), so a start rebuilt from its seeded chunk holds what the saved NBT held (struct-cp-s42, persist-village-s42)."
+}

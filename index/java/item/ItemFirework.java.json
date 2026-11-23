@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/item/ItemFirework.java",
+  "classes": ["ItemFirework"],
+  "lines": 82,
+  "side": "server",
+  "category": "item",
+  "role": "The firework rocket: right click on a block spawns an EntityFireworkRocket with the stack's NBT; the tooltip lists flight and explosion lines.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf fireworks = off: 'fireworks do nothing'. ItemFirework.onItemUse begins with the WorldConf.fireworks hook and returns false, in the oracle as well.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/crafting.c", "symbols": ["fireworks_matches"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/iu-off-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemFirework", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "n/a", "note": "row 401"},
+    {"kind": "method", "name": "onItemUse", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": null, "status": "n/a", "note": "the WorldConf.fireworks hook refuses before anything spawns; EntityFireworkRocket is not ported"},
+    {"kind": "method", "name": "addInformation", "sig": "(ItemStack,EntityPlayer,List,Z)V", "native": null, "status": "n/a", "note": "client tooltip"}
+  ],
+  "missing": [],
+  "notes": "The firework crafting recipes themselves are still implemented in crafting.c's fireworks_matches (the recipe is vanilla even though the rocket does nothing), gated by the crafting tests. lane/itemuse: iu-off-s1 uses it with world.conf's switch off (used on the ground and in the air: nothing happens)."
+}

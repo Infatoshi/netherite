@@ -1,0 +1,64 @@
+{
+  "path": "csrc/tests/test_lightning.c",
+  "lines": 306,
+  "role": "Gate: replays the oracle's lightning2 scene (six bolts at six strike scenes: empty, pig to pigman, villager to witch, creeper to charged, item, player) through csrc/engine/lightning.c and serverreplay.c for 30 ticks and compares bolt state, fire cells, target health, fire, pigman NBT and the end Det state.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/entity/effect/EntityLightningBolt.java",
+      "members": [
+        "<init>",
+        "onUpdate"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "onStruckByLightning"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/passive/EntityPig.java",
+      "members": [
+        "onStruckByLightning"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/passive/EntityVillager.java",
+      "members": [
+        "onStruckByLightning"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityCreeper.java",
+      "members": [
+        "onStruckByLightning"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "ref",
+      "java": "Det start.txt/end.txt snapshot",
+      "fields": [
+        "seed",
+        "ids",
+        "seeder",
+        "math",
+        "names",
+        "state",
+        "used",
+        "nsplits"
+      ]
+    }
+  ],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "line 64, function add_ent: realloc growth of the entity list (harness only)"
+  ],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/lightning. Native calls: lightning_constructor_fire, lightning_adopt, lightning_tick with serverreplay_lightning_strike as the strike callback, animal_construct, villager_construct, creeper_construct, player_construct, living_init, living_nbt_text, ie_adopt_item, an_add_living, det_*. Loads chunks 90..116 x 90..110 by fixed bounds. Skips (returns 0) when the manifest kind is not lightning2; honours difficulty and fire_off. Oracle side: oracle/harness/netherite/oracle/LightningProbe.java. Recordings: out/java/lightning/light2, light2-easy, light2-no-fire, light42. Villager/pig class paths assumed at oracle/src/entity/passive; the checker verifies they exist."
+}

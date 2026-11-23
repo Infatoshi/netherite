@@ -1,0 +1,53 @@
+{
+ "path": "oracle/src/enchantment/EnumEnchantmentType.java",
+ "classes": [
+  "EnumEnchantmentType"
+ ],
+ "lines": 55,
+ "side": "server",
+ "category": "combat",
+ "role": "The eleven enchantment target types and canEnchantItem, the item-class switch mapEnchantmentData uses to pick the candidates for a stack.",
+ "scope": "in_scope",
+ "scope_reason": "The enchanting table is a plain block (world.conf enchanting=off), but the enchantment registry itself is kept: loot books and mob equipment carry enchantments (DEVLOG 2026-09-25, 'Kept: enchantment data and effects').",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/enchants.h",
+   "symbols": [
+    "enum enchant_type"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "can_enchant_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_loot.c",
+  "out/java/loot/seed2",
+  "csrc/tests/test_trades.c",
+  "out/java/trades/seed2"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "enum constants (all..bow)",
+   "sig": "EnumEnchantmentType[11]",
+   "native": "csrc/engine/enchants.h:enum enchant_type",
+   "status": "exact",
+   "note": "same declaration order, E_ALL..E_BOW"
+  },
+  {
+   "kind": "method",
+   "name": "canEnchantItem",
+   "sig": "(Item)Z",
+   "native": "csrc/engine/enchant.c:can_enchant_item",
+   "status": "exact",
+   "note": "the ItemArmor armorType branches, the ItemSword/ItemTool/ItemBow/ItemFishingRod instanceof chain and the breakable isDamageable test, over items.h's item kinds"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/cpsave.c",
+ "lines": 45,
+ "role": "A checkpoint start's save directory (lane/divlib): CPDIR/save where it is a directory, else a refusal naming the path, and with CPDIR/save.tar.zst present saying the save is packed and how to unpack it (harvest.sh --unpack). Before it session.c took CPDIR/save on trust and a packed library's starts generated every chunk their checkpoint's save held.",
+ "layer": "io",
+ "java": [
+  {"path": "oracle/src/world/chunk/storage/AnvilChunkLoader.java", "members": ["loadChunk"]}
+ ],
+ "structs": [],
+ "entry_points": ["cpsave_resolve"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c", "csrc/runtime/playgate.sh"],
+ "notes": "Called from session.c resolve_checkpoint at a session's open, never in the tick: only for a start whose tape header names a checkpoint (start.kind checkpoint). Seed and join snapshots never reach it. rl-play-gate's refusal cases (save missing, packed) pin it."
+}

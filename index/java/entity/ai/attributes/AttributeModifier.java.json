@@ -1,0 +1,40 @@
+{
+  "path": "oracle/src/entity/ai/attributes/AttributeModifier.java",
+  "classes": ["AttributeModifier"],
+  "lines": 111,
+  "side": "server",
+  "category": "ai",
+  "role": "One attribute modifier: an amount, an operation (0 add, 1 multiply base, 2 multiply total) and a UUID key, applied to an attribute instance by potions, equipment and spawn bonuses.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.h", "symbols": ["attr_mod"]},
+    {"file": "csrc/engine/living.c", "symbols": ["mod_same", "attr_mod_bucket"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/auditfix-attr-s1",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_hostiles.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "amount", "sig": "double", "native": "csrc/engine/living.h:attr_mod", "status": "exact"},
+    {"kind": "field", "name": "operation", "sig": "int", "native": "csrc/engine/living.h:attr_mod", "status": "exact"},
+    {"kind": "field", "name": "name", "sig": "String", "native": "csrc/engine/living.h:attr_mod", "status": "exact"},
+    {"kind": "field", "name": "id", "sig": "UUID", "native": "csrc/engine/living.h:attr_mod", "status": "exact", "note": "uuid_msb/uuid_lsb pair"},
+    {"kind": "field", "name": "isSaved", "sig": "boolean", "native": "csrc/engine/living.h:attr_mod", "status": "exact", "note": "saved flag; attr_mod also carries from_item for equipment modifiers that never reach NBT"},
+    {"kind": "field", "name": "__OBFID", "sig": "static final String (obfuscation id, grouped)", "native": null, "status": "n/a", "note": "decompiler artifact"},
+    {"kind": "ctor", "name": "AttributeModifier", "sig": "(String,double,int)V", "native": null, "status": "partial", "note": "native sites build struct attr_mod inline; the random-UUID draw this ctor gets from netherite.oracle.Det.uuid() appears per use site (spawning.c draws the spawn-bonus modifier's UUID off the seeder)"},
+    {"kind": "ctor", "name": "AttributeModifier", "sig": "(UUID,String,double,int)V", "native": "csrc/engine/living.h:attr_mod", "status": "partial", "note": "fields are set at every use site; the Validate checks (non-empty name, operation in 0..2) have no native counterpart"},
+    {"kind": "method", "name": "getID", "sig": "()UUID", "native": "csrc/engine/living.h:attr_mod", "status": "exact", "note": "C reads attr_mod.uuid_msb/uuid_lsb directly"},
+    {"kind": "method", "name": "getName", "sig": "()String", "native": "csrc/engine/living.h:attr_mod", "status": "exact", "note": "attr_mod.name[40]"},
+    {"kind": "method", "name": "getOperation", "sig": "()int", "native": "csrc/engine/living.h:attr_mod", "status": "exact"},
+    {"kind": "method", "name": "getAmount", "sig": "()double", "native": "csrc/engine/living.h:attr_mod", "status": "exact"},
+    {"kind": "method", "name": "isSaved", "sig": "()boolean", "native": "csrc/engine/living.h:attr_mod", "status": "exact"},
+    {"kind": "method", "name": "setSaved", "sig": "(boolean)AttributeModifier", "native": "csrc/engine/living.h:attr_mod", "status": "exact", "note": "mod.saved; the unsaved sprint boost and the from_item equipment modifiers are excluded from the Attributes tag in attr_instance_nbt"},
+    {"kind": "method", "name": "equals", "sig": "(Object)boolean", "native": "csrc/engine/living.c:mod_same", "status": "partial", "note": "mod_same compares only the UUID; Java also compares amount, operation and name"},
+    {"kind": "method", "name": "hashCode", "sig": "()int", "native": "csrc/engine/living.c:attr_mod_bucket", "status": "partial", "note": "attr_mod_bucket reproduces id.hashCode's HashMap bucket spread for NBT ordering, not the method itself"},
+    {"kind": "method", "name": "toString", "sig": "()String", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"}
+  ],
+  "missing": [],
+  "notes": "The modifier model lives as struct attr_mod (living.h:56). Use sites seen: potion.c potion_apply_attributes (potion.moveSpeed/moveSlowdown/health boost/damage boost modifiers), spawning.c (random spawn bonus UUID draw), serverreplay.c cp_restore_living (func_151475_a NBT read), entity_nbt.c player_attributes. I did not verify any client-side AttributeModifier use. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers; toString and Validate are debug only. Formerly listed as missing: toString has no native counterpart (debug output only). equals compares only the UUID in native (mod_same), while Java also compares amount, operation and name. the four-argument constructor's Validate checks (non-empty name, operation in 0..2) are enforced nowhere in native."
+}

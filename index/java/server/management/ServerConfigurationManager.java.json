@@ -1,0 +1,667 @@
+{
+ "path": "oracle/src/server/management/ServerConfigurationManager.java",
+ "classes": [
+  "ServerConfigurationManager"
+ ],
+ "lines": 1102,
+ "side": "server",
+ "category": "player",
+ "role": "The server's player roster: login and logout, player NBT save and load, respawn and dimension transfer, the packet broadcasts and the view-distance plumbing.",
+ "scope": "in_scope",
+ "scope_reason": "The single local player's whole server-side life runs through it; world.conf switches none of it (the ban, op and whitelist lists it also owns are never written, so those paths are constants). Deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain); tab-list pings are multiplayer; game-type plumbing is survival-only (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "serverreplay_load",
+    "serverreplay_bind_player",
+    "sr_transfer_player",
+    "serverreplay_enter",
+    "serverreplay_respawn_conquered",
+    "serverreplay_queue_packets",
+    "sr_travel_place"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_load",
+    "surv_server_fresh",
+    "surv_server_sync_inventory",
+    "surv_stats_login",
+    "surv_stats_flush"
+   ]
+  },
+  {
+   "file": "csrc/engine/chunkload.c",
+   "symbols": [
+    "cl_login",
+    "cl_logout",
+    "cl_c03",
+    "cl_view_radius"
+   ]
+  },
+  {
+   "file": "csrc/engine/portal.c",
+   "symbols": [
+    "portal_transfer_entity"
+   ]
+  },
+  {
+   "file": "csrc/engine/session.c",
+   "symbols": [
+    "session_row"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/end-nobed-exit-s1",
+  "out/java/snapshots/end-bed-exit-s1",
+  "out/java/snapshots/bed-respawn-s1",
+  "out/java/snapshots/bed-safe-tops-s1",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_chunkload.c",
+  "csrc/tests/test_portals.c",
+  "out/java/snapshots/nether-trip-s1",
+  "out/java/snapshots/end-exit-s1",
+  "out/java/snapshots/surv_death-s1",
+  "out/java/snapshots/play-reload2-s1",
+  "out/java/snapshots/idx-clientview-s1",
+  "out/java/snapshots/endportal-ents-s1",
+  "out/java/snapshots/portalmake-s1",
+  "out/java/snapshots/portalcache-s1",
+  "out/java/snapshots/respawn-loop-s1",
+  "out/java/snapshots/pfc-portaldeath-s18",
+  "out/java/snapshots/pfc-deadportal-f347"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_152613_a",
+   "sig": "static Files banned-players.json, banned-ips.json, ops.json, whitelist.json",
+   "native": null,
+   "status": "n/a",
+   "note": "the four list files are never written in the oracle"
+  },
+  {
+   "kind": "field",
+   "name": "mcServer",
+   "sig": "MinecraftServer",
+   "native": "csrc/engine/serverreplay.h:struct serverreplay",
+   "status": "exact",
+   "note": "the replay engine holds what the server would"
+  },
+  {
+   "kind": "field",
+   "name": "playerEntityList",
+   "sig": "List of EntityPlayerMP",
+   "native": "csrc/engine/serverreplay.h:struct serverreplay",
+   "status": "exact",
+   "note": "one player; serverreplay's order and hooks carry it"
+  },
+  {
+   "kind": "field",
+   "name": "bannedPlayers",
+   "sig": "UserListBans",
+   "native": null,
+   "status": "n/a",
+   "note": "never written, so every query is false"
+  },
+  {
+   "kind": "field",
+   "name": "bannedIPs",
+   "sig": "BanList",
+   "native": null,
+   "status": "n/a",
+   "note": "never written"
+  },
+  {
+   "kind": "field",
+   "name": "ops",
+   "sig": "UserListOps",
+   "native": null,
+   "status": "n/a",
+   "note": "never written"
+  },
+  {
+   "kind": "field",
+   "name": "whiteListedPlayers",
+   "sig": "UserListWhitelist",
+   "native": null,
+   "status": "n/a",
+   "note": "never written, whitelist not enforced"
+  },
+  {
+   "kind": "field",
+   "name": "field_148547_k",
+   "sig": "Map (UUID -> StatisticsFile)",
+   "native": "csrc/engine/survival.h:struct surv_state",
+   "status": "exact",
+   "note": "the one player's StatisticsFile; its json file is the oracle's"
+  },
+  {
+   "kind": "field",
+   "name": "playerNBTManagerObj",
+   "sig": "IPlayerFileData",
+   "native": "csrc/engine/snapshot.h:struct snapshot",
+   "status": "exact",
+   "note": "the player's saved NBT, read from the snapshot"
+  },
+  {
+   "kind": "field",
+   "name": "whiteListEnforced",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "always false"
+  },
+  {
+   "kind": "field",
+   "name": "maxPlayers",
+   "sig": "int (8)",
+   "native": null,
+   "status": "n/a",
+   "note": "constant; the join check never trips"
+  },
+  {
+   "kind": "field",
+   "name": "viewDistance",
+   "sig": "int",
+   "native": "csrc/engine/chunkload.h:struct cl",
+   "status": "exact",
+   "note": "cl_radius; 10 at join, 8 from tick 1 (test_chunkload.c's cl_view_radius(8))"
+  },
+  {
+   "kind": "field",
+   "name": "gameType",
+   "sig": "WorldSettings.GameType",
+   "native": null,
+   "status": "n/a",
+   "note": "survival for every player (WorldInfo's record)"
+  },
+  {
+   "kind": "field",
+   "name": "commandsAllowedForAll",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "commands are off"
+  },
+  {
+   "kind": "field",
+   "name": "playerPingIndex",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "the S38 rotation's index: the tab list, never shown in single player"
+  },
+  {
+   "kind": "ctor",
+   "name": "ServerConfigurationManager",
+   "sig": "(MinecraftServer)V",
+   "native": "csrc/engine/serverreplay.h:struct serverreplay",
+   "status": "exact",
+   "note": "the four list files and maxPlayers 8 are construction constants the replay carries implicitly"
+  },
+  {
+   "kind": "method",
+   "name": "initializeConnectionToPlayer",
+   "sig": "(NetworkManager,EntityPlayerMP)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact",
+   "note": "the join the snapshot follows: its packets and the manager's add are in the snapshot's state"
+  },
+  {
+   "kind": "method",
+   "name": "func_96456_a",
+   "sig": "(ServerScoreboard,EntityPlayerMP)V",
+   "native": null,
+   "status": "n/a",
+   "note": "sends the scoreboard's teams and objectives at login; none exist"
+  },
+  {
+   "kind": "method",
+   "name": "setPlayerManager",
+   "sig": "(WorldServer[])V",
+   "native": null,
+   "status": "n/a",
+   "note": "wires the player NBT store; the replay reads the snapshot instead"
+  },
+  {
+   "kind": "method",
+   "name": "func_72375_a",
+   "sig": "(EntityPlayerMP,WorldServer)V",
+   "native": "csrc/engine/serverreplay.c:sr_transfer_player",
+   "status": "exact",
+   "note": "the old manager drops the player, the new one takes it: cl_logout then cl_login and cl_replay_load at serverreplay.c:4249-4251"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityViewDistance",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "radius * 16 - 16 arithmetic"
+  },
+  {
+   "kind": "method",
+   "name": "readPlayerDataFromFile",
+   "sig": "(EntityPlayerMP)NBTTagCompound",
+   "native": "csrc/engine/survival.c:surv_server_load",
+   "status": "exact",
+   "note": "the host player's NBT from the snapshot (survival.h:442); the Riding mount branch of initializeConnectionToPlayer is separate"
+  },
+  {
+   "kind": "method",
+   "name": "writePlayerData",
+   "sig": "(EntityPlayerMP)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "playerLoggedIn",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/chunkload.c:cl_login",
+   "status": "exact",
+   "note": "spawnEntityInWorld, the manager add and the S38 list are the join the snapshot lands after; the S38 ping value is not rebuilt"
+  },
+  {
+   "kind": "method",
+   "name": "serverUpdateMountedMovingPlayer",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/chunkload.c:cl_c03",
+   "status": "exact",
+   "note": "the C03 position packet drives the moved square, test_chunkload.c's per-tick order"
+  },
+  {
+   "kind": "method",
+   "name": "playerLoggedOut",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/chunkload.c:cl_logout",
+   "status": "n/a",
+   "note": "runs only from NetHandlerPlayServer.onDisconnect, which ends the session: the integrated server shuts down (initiateShutdown) and no tape row follows; a run ends by halting the oracle, and a chained session starts from Java's own Save and Quit (AGENTS.md, Playing a full game), so no recording or native tick reaches it"
+  },
+  {
+   "kind": "method",
+   "name": "func_148542_a",
+   "sig": "(SocketAddress,GameProfile)String",
+   "native": null,
+   "status": "n/a",
+   "note": "the login gate: all four checks are constants in the oracle (empty lists, no whitelist, 1 < 8 players), so it always returns null"
+  },
+  {
+   "kind": "method",
+   "name": "func_148545_a",
+   "sig": "(GameProfile)EntityPlayerMP",
+   "native": "csrc/engine/serverreplay.c:serverreplay_bind_player",
+   "status": "exact",
+   "note": "the login's player (before the snapshot); a respawn's fresh player is surv_server_fresh"
+  },
+  {
+   "kind": "method",
+   "name": "respawnPlayer",
+   "sig": "(EntityPlayerMP,IZ)EntityPlayerMP",
+   "native": "csrc/engine/survival.c:surv_server_fresh",
+   "status": "exact",
+   "note": "the fresh EntityPlayerMP constructor's spawn fuzz draws on every respawn, bed or not; an invalid bed sends S2B 0 (tile.bed.notValid) and leaves no spawn (clonePlayer does not carry it), bed-respawn-s1 and bed-safe-tops-s1; the bed verification (surv_bed_safe_spot), the collision lift, the S07/S05/S1F run and the manager re-add are there; the conquered-End variant is serverreplay_respawn_conquered, with the same bed check (surv_verify_respawn, S2B 0 and no spawn when the bed is gone; end-bed-exit-s1, end-nobed-exit-s1); a death in the Nether or the End leaves that world first and respawns in the overworld (serverreplay_respawn_leave, sr_respawn_depart and sr_respawn_arrive, shared with the conquered variant); setPlayerLocation runs on the net handler whose playerEntity is still the old object, so the old EntityPlayerMP moves to the fresh player's placement: orbs that cached it pull there (sr_respawn_old_moved, respawn-loop-s1); the new EntityPlayerMP's portal state is fresh (clonePlayer(true) keeps only teleportDirection; survival.c surv_server_fresh_state, pfc-portaldeath-s18)"
+  },
+  {
+   "kind": "method",
+   "name": "transferPlayerToDimension",
+   "sig": "(EntityPlayerMP,I)V",
+   "native": "csrc/engine/serverreplay.c:sr_transfer_player",
+   "status": "exact",
+   "note": "serverreplay.c:4164 names it: the S07, the removePlayerEntityDangerously, transferEntityToWorld, func_72375_a, the location set and syncPlayerInventory"
+  },
+  {
+   "kind": "method",
+   "name": "transferEntityToWorld",
+   "sig": "(Entity,I,WorldServer,WorldServer)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_enter",
+   "status": "exact",
+   "note": "the scaled Nether coordinates and the placeInPortal live in portal.c's portal_transfer_entity; the End spawn-point branch is in the enter path; for a non-player traveller it is serverreplay.c's sr_travel_place (the scaled and clamped setLocationAndAngles, or the End's getEntrancePortalLocation (100, 50, 0) facing 90, 0; the destination's placeInPortal, the End's obsidian platform) inside sr_living_portal_travel / sr_ie_portal_travel. The old world's updateEntityWithOptionalForce(false) at the moved position is not modelled (it acts only where that position's 32-block neighbourhood is loaded). The populations the destination's search runs spawn their drops ahead of the player (sr->in_transfer, portalmake-s1); the placing half (clamp, placeInPortal, spawnEntityInWorld) runs only for an entity alive: a player dead in the End portal is moved but in no world's lists until the respawn (portal.c, serverreplay.c sr_transfer_player, limbo; pfc-deadportal-f347)"
+  },
+  {
+   "kind": "method",
+   "name": "sendPlayerInfoToAllPlayers",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the S38 tab list rotation, never shown in single player"
+  },
+  {
+   "kind": "method",
+   "name": "func_148540_a",
+   "sig": "(Packet)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_queue_packets",
+   "status": "exact",
+   "note": "the one player's s2c queue"
+  },
+  {
+   "kind": "method",
+   "name": "func_148537_a",
+   "sig": "(Packet,I)V",
+   "native": "csrc/engine/session.c:session_row",
+   "status": "exact",
+   "note": "the S03 every 20th getTickCounter to the dimension's players"
+  },
+  {
+   "kind": "method",
+   "name": "func_152609_b",
+   "sig": "(Z)String",
+   "native": null,
+   "status": "n/a",
+   "note": "the /list output; commands are off"
+  },
+  {
+   "kind": "method",
+   "name": "getAllUsernames",
+   "sig": "()String[]",
+   "native": null,
+   "status": "n/a",
+   "note": "trivial over one player"
+  },
+  {
+   "kind": "method",
+   "name": "func_152600_g",
+   "sig": "()GameProfile[]",
+   "native": null,
+   "status": "n/a",
+   "note": "used by the status response sample only"
+  },
+  {
+   "kind": "method",
+   "name": "func_152608_h",
+   "sig": "()UserListBans",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getBannedIPs",
+   "sig": "()BanList",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152605_a",
+   "sig": "(GameProfile)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the /op path"
+  },
+  {
+   "kind": "method",
+   "name": "func_152610_b",
+   "sig": "(GameProfile)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the /deop path"
+  },
+  {
+   "kind": "method",
+   "name": "func_152607_e",
+   "sig": "(GameProfile)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "whitelist gate, always true with no enforcement"
+  },
+  {
+   "kind": "method",
+   "name": "func_152596_g",
+   "sig": "(GameProfile)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the can-use-commands check; commands are off"
+  },
+  {
+   "kind": "method",
+   "name": "func_152612_a",
+   "sig": "(String)EntityPlayerMP",
+   "native": null,
+   "status": "n/a",
+   "note": "name lookup for commands"
+  },
+  {
+   "kind": "method",
+   "name": "findPlayers",
+   "sig": "(ChunkCoordinates,IIIIIILMap,String,String,World)List",
+   "native": null,
+   "status": "n/a",
+   "note": "the entity selector, reached only from commands"
+  },
+  {
+   "kind": "method",
+   "name": "func_96457_a",
+   "sig": "(EntityPlayer,Map)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the selector's scoreboard-score filter; no objectives exist"
+  },
+  {
+   "kind": "method",
+   "name": "func_148541_a",
+   "sig": "(DDDDIPacket)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_queue_packets",
+   "status": "exact",
+   "note": "the radius broadcast collapses to the one player's queue"
+  },
+  {
+   "kind": "method",
+   "name": "func_148543_a",
+   "sig": "(Entity,DDDDIPacket)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_queue_packets",
+   "status": "exact",
+   "note": "same, with the sender exclusion"
+  },
+  {
+   "kind": "method",
+   "name": "saveAllPlayerData",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "func_152601_d",
+   "sig": "(GameProfile)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the /whitelist add path"
+  },
+  {
+   "kind": "method",
+   "name": "func_152597_c",
+   "sig": "(GameProfile)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the /whitelist remove path"
+  },
+  {
+   "kind": "method",
+   "name": "func_152599_k",
+   "sig": "()UserListWhitelist",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152598_l",
+   "sig": "()String[]",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152603_m",
+   "sig": "()UserListOps",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152606_n",
+   "sig": "()String[]",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "loadWhiteList",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty body in vanilla"
+  },
+  {
+   "kind": "method",
+   "name": "updateTimeAndWeatherForPlayer",
+   "sig": "(EntityPlayerMP,WorldServer)V",
+   "native": "csrc/engine/serverreplay.c:sr_transfer_player",
+   "status": "exact",
+   "note": "the S03 at a dimension change and a respawn (survival.c surv_server_fresh); the rain S2Bs set the client's weather, which the live client reads from the world"
+  },
+  {
+   "kind": "method",
+   "name": "syncPlayerInventory",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/survival.c:surv_server_sync_inventory",
+   "status": "exact",
+   "note": "survival.h:517 names it: the window items, setPlayerHealthUpdated and the held-item S09"
+  },
+  {
+   "kind": "method",
+   "name": "getCurrentPlayerCount",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "one player"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxPlayers",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "8"
+  },
+  {
+   "kind": "method",
+   "name": "getAvailablePlayerDat",
+   "sig": "()String[]",
+   "native": null,
+   "status": "n/a",
+   "note": "the save dir listing; unused in the oracle"
+  },
+  {
+   "kind": "method",
+   "name": "setWhiteListEnabled",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a",
+   "note": "command path"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerList",
+   "sig": "(String)List",
+   "native": null,
+   "status": "n/a",
+   "note": "IP lookup for commands"
+  },
+  {
+   "kind": "method",
+   "name": "getViewDistance",
+   "sig": "()I",
+   "native": "csrc/engine/chunkload.c:cl_radius",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getServerInstance",
+   "sig": "()MinecraftServer",
+   "native": null,
+   "status": "n/a",
+   "note": "accessor"
+  },
+  {
+   "kind": "method",
+   "name": "getHostPlayerData",
+   "sig": "()NBTTagCompound",
+   "native": null,
+   "status": "n/a",
+   "note": "null here; IntegratedPlayerList overrides it"
+  },
+  {
+   "kind": "method",
+   "name": "func_152604_a",
+   "sig": "(WorldSettings.GameType)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the default game type: survival, set once"
+  },
+  {
+   "kind": "method",
+   "name": "func_72381_a",
+   "sig": "(EntityPlayerMP,EntityPlayerMP,World)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the login's game-type resolution: survival"
+  },
+  {
+   "kind": "method",
+   "name": "setCommandsAllowedForAll",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a",
+   "note": "command path"
+  },
+  {
+   "kind": "method",
+   "name": "removeAllPlayers",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "shutdown kick"
+  },
+  {
+   "kind": "method",
+   "name": "func_148544_a",
+   "sig": "(IChatComponent,Z)V",
+   "native": null,
+   "status": "n/a",
+   "note": "chat broadcast; no chat in the recorded game"
+  },
+  {
+   "kind": "method",
+   "name": "func_148539_a",
+   "sig": "(IChatComponent)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the join/leave chat message"
+  },
+  {
+   "kind": "method",
+   "name": "func_152602_a",
+   "sig": "(EntityPlayer)StatisticsFile",
+   "native": "csrc/engine/survival.c:surv_stats_login",
+   "status": "exact",
+   "note": "the file's load and the join send; its json file is the oracle's"
+  },
+  {
+   "kind": "method",
+   "name": "func_152611_a",
+   "sig": "(I)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_set_view_distance",
+   "status": "exact",
+   "note": "the view-distance push into every world's PlayerManager (the player's through chunkload.c cl_view_radius_at, the others' radius only) and viewDistance itself (sr->view: the active chunk window); the join's at tick 1 is cl_view_radius; opts-rd-s1"
+  }
+ ],
+ "missing": [],
+ "notes": "Login, respawn, death and dimension transfer are proven by the death and dimension recordings: surv_death-s1 and surv_death-late-s1 (death to respawn), nether-trip-s1 and nether-trip2-s42 (transfer in and out), end-exit-s1 (the conquered-End respawn at spawn). test_portals.c and test_dims.c cover the worldgen side of a transfer. The ban/op/whitelist machinery is a constant in this game, hence the many n/a members rather than missing ones. Closed by lane/idxworld: func_148537_a (the per-dimension broadcast: the S03 every 20th tick) and updateTimeAndWeatherForPlayer's S03 at a respawn and a dimension change are ported (session.c; survival.c surv_server_fresh; serverreplay.c sr_transfer_player) and held by idx-clientview-s1's client clock. The tab list's S38 rotation feeds a list the single-player client never shows; the game type is survival (WorldInfo's record). The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

@@ -1,0 +1,88 @@
+{"n": 16, "act": {}}
+{"cmd": "run", "class": "MobFree", "radius": 4}
+{"cmd": "run", "class": "Snapshot"}
+{"cmd": "dev", "op": "time", "value": 6000}
+{"cmd": "dev", "op": "gamerule", "name": "doDaylightCycle", "value": "false"}
+{"cmd": "dev", "op": "fill", "x0": 150, "y0": 120, "z0": 230, "x1": 190, "y1": 120, "z1": 262, "id": 1, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 155, "y0": 121, "z0": 245, "x1": 155, "y1": 123, "z1": 245, "id": 1, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 160, "y0": 121, "z0": 245, "x1": 160, "y1": 123, "z1": 245, "id": 3, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 152, "y0": 121, "z0": 245, "x1": 152, "y1": 122, "z1": 245, "id": 1, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 157, "y0": 121, "z0": 249, "x1": 157, "y1": 122, "z1": 249, "id": 1, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 166, "y0": 121, "z0": 245, "x1": 166, "y1": 134, "z1": 245, "id": 3, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 170, "y0": 121, "z0": 245, "x1": 170, "y1": 134, "z1": 245, "id": 1, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 179, "y0": 121, "z0": 239, "x1": 187, "y1": 123, "z1": 247, "id": 1, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 180, "y0": 121, "z0": 240, "x1": 186, "y1": 123, "z1": 246, "id": 0, "meta": 0}
+{"cmd": "dev", "op": "setblock", "x": 183, "y": 120, "z": 241, "id": 3, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 180, "y0": 121, "z0": 240, "x1": 186, "y1": 122, "z1": 246, "id": 9, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 179, "y0": 121, "z0": 249, "x1": 187, "y1": 122, "z1": 257, "id": 1, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 180, "y0": 121, "z0": 250, "x1": 186, "y1": 122, "z1": 256, "id": 0, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": 180, "y0": 121, "z0": 250, "x1": 186, "y1": 121, "z1": 256, "id": 9, "meta": 0}
+{"cmd": "dev", "op": "slot", "slot": 0, "item": 278, "count": 1}
+{"cmd": "dev", "op": "slot", "slot": 1, "item": 277, "count": 1}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0}
+{"cmd": "dev", "op": "tp", "x": 155.5, "y": 124.0, "z": 245.5, "yaw": 0.0, "pitch": 90.0}
+{"n": 4, "act": {"hotbar": 0}}
+{"n": 90, "act": {"hold": ["jump", "attack"]}}
+{"n": 6, "act": {}}
+{"cmd": "dev", "op": "tp", "x": 160.5, "y": 124.0, "z": 245.5, "yaw": 0.0, "pitch": 90.0}
+{"n": 4, "act": {"hotbar": 1}}
+{"n": 50, "act": {"hold": ["jump", "attack"]}}
+{"n": 6, "act": {}}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0}
+{"cmd": "dev", "op": "tp", "x": 166.5, "y": 131.0, "z": 243.7, "yaw": 0.0, "pitch": 10.0}
+{"n": 1, "act": {"hotbar": 1}}
+{"n": 40, "act": {"hold": ["attack"]}}
+{"n": 6, "act": {}}
+{"cmd": "dev", "op": "tp", "x": 152.5, "y": 123.0, "z": 245.5, "yaw": 0.0, "pitch": 90.0}
+{"n": 4, "act": {"hotbar": 0}}
+{"n": 4, "act": {"hold": ["attack"]}}
+{"n": 26, "act": {"hold": ["jump", "attack"]}}
+{"n": 10, "act": {}}
+{"cmd": "dev", "op": "tp", "x": 157.5, "y": 123.0, "z": 249.5, "yaw": 0.0, "pitch": 90.0}
+{"n": 4, "act": {}}
+{"n": 5, "act": {"hold": ["attack"]}}
+{"n": 26, "act": {"hold": ["jump", "attack"]}}
+{"n": 10, "act": {}}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0}
+{"cmd": "dev", "op": "tp", "x": 170.5, "y": 127.0, "z": 243.7, "yaw": 0.0, "pitch": 10.0}
+{"n": 1, "act": {"hotbar": 0}}
+{"n": 40, "act": {"hold": ["attack"]}}
+{"n": 6, "act": {}}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "air": 300}
+{"cmd": "dev", "op": "tp", "x": 183.5, "y": 121.0, "z": 244.5, "yaw": 0.0, "pitch": 60.0}
+{"n": 8, "act": {"hotbar": 0}}
+{"n": 45, "act": {"hold": ["attack"]}}
+{"n": 3, "act": {}}
+{"cmd": "dev", "op": "tp", "x": 183.5, "y": 121.0, "z": 242.5, "yaw": 180.0, "pitch": 60.0}
+{"n": 6, "act": {"hotbar": 1}}
+{"n": 30, "act": {"hold": ["attack"]}}
+{"n": 3, "act": {}}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "air": 300}
+{"cmd": "dev", "op": "tp", "x": 181.5, "y": 121.0, "z": 243.5, "yaw": 90.0, "pitch": 10.0}
+{"n": 6, "act": {"hotbar": 0}}
+{"n": 60, "act": {"hold": ["jump", "attack"]}}
+{"n": 6, "act": {}}
+{"cmd": "dev", "op": "slot", "slot": 39, "item": 310, "count": 1, "ench": [[6, 1]]}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "air": 300}
+{"cmd": "dev", "op": "tp", "x": 185.5, "y": 121.0, "z": 244.5, "yaw": 0.0, "pitch": 60.0}
+{"n": 8, "act": {"hotbar": 0}}
+{"n": 30, "act": {"hold": ["attack"]}}
+{"n": 3, "act": {}}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "air": 300}
+{"cmd": "dev", "op": "tp", "x": 185.5, "y": 121.0, "z": 242.5, "yaw": -90.0, "pitch": 10.0}
+{"n": 6, "act": {}}
+{"n": 50, "act": {"hold": ["jump", "attack"]}}
+{"n": 6, "act": {}}
+{"cmd": "dev", "op": "tp", "x": 183.5, "y": 121.0, "z": 253.5, "yaw": 0.0, "pitch": 60.0}
+{"n": 8, "act": {"hotbar": 0}}
+{"n": 20, "act": {"hold": ["attack"]}}
+{"n": 3, "act": {}}
+{"cmd": "dev", "op": "clear", "item": 310}
+{"cmd": "dev", "op": "tp", "x": 181.5, "y": 121.0, "z": 253.5, "yaw": 0.0, "pitch": 60.0}
+{"n": 8, "act": {}}
+{"n": 20, "act": {"hold": ["attack"]}}
+{"n": 3, "act": {}}
+{"cmd": "dev", "op": "tp", "x": 185.5, "y": 121.0, "z": 253.5, "yaw": 0.0, "pitch": 60.0}
+{"n": 8, "act": {}}
+{"n": 40, "act": {"hold": ["jump", "attack"]}}
+{"n": 6, "act": {}}

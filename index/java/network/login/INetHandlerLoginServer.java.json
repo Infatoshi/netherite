@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/network/login/INetHandlerLoginServer.java",
+  "classes": ["INetHandlerLoginServer"],
+  "lines": 12,
+  "side": "server",
+  "category": "network",
+  "role": "Server-side interface for the login state: login start (username) and the encryption response.",
+  "scope": "not_needed",
+  "scope_reason": "Login-phase plumbing; offline mode never engages encryption and the native engine has no login phase.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "processLoginStart", "sig": "(C00PacketLoginStart)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processEncryptionResponse", "sig": "(C01PacketEncryptionResponse)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

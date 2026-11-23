@@ -1,0 +1,818 @@
+{
+ "path": "oracle/src/entity/player/EntityPlayerMP.java",
+ "classes": [
+  "EntityPlayerMP"
+ ],
+ "lines": 1179,
+ "side": "server",
+ "category": "player",
+ "role": "The server-side player: the ItemInWorldManager dig/place state, the chunk-send queue, the window (container) openers with their packet fan-out, the S06/S1F health and XP send gates, stats, potions on the server player, and the End respawn.",
+ "scope": "in_scope",
+ "scope_reason": "The server player of the lockstep pair; the native engine keeps its halves (processPlayer, onUpdateEntity, travelToDimension) inside the replay tick.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_tick_start",
+    "surv_server_base_tick",
+    "surv_server_death",
+    "surv_server_damage_by",
+    "surv_add_stat",
+    "surv_server_add_xp",
+    "surv_server_fresh_state",
+    "surv_server_close_screen",
+    "queue_s06",
+    "queue_s1f",
+    "queue_s2f",
+    "detect_and_send_changes",
+    "server_eat_fx",
+    "gui_open_tile",
+    "gui_open_merchant",
+    "gui_furnace_xp",
+    "collide_with_player_pool",
+    "process_c07",
+    "gui_can_interact"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.c",
+   "symbols": [
+    "server_player_tick",
+    "server_player_load"
+   ]
+  },
+  {
+   "file": "csrc/engine/dig.c",
+   "symbols": [
+    "try_harvest_block",
+    "update_block_removing",
+    "unchecked_try_harvest_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_player_send_chunks",
+    "sr_player_end_portal",
+    "serverreplay_respawn_conquered",
+    "sr_player_entity_update",
+    "sr_player_conquer_end"
+   ]
+  },
+  {
+   "file": "csrc/engine/sleep.c",
+   "symbols": [
+    "sleep_in_bed_at",
+    "sleep_server_wake"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity_nbt.c",
+   "symbols": [
+    "ent_nbt_player"
+   ]
+  },
+  {
+   "file": "csrc/engine/potion.c",
+   "symbols": [
+    "living_add_potion_effect",
+    "living_remove_potion_effect"
+   ]
+  },
+  {
+   "file": "csrc/engine/tracker.c",
+   "symbols": [
+    "tracker_entry_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/chunkload.c",
+   "symbols": [
+    "cl_send_chunks"
+   ]
+  },
+  {
+   "file": "csrc/engine/riding.c",
+   "symbols": [
+    "ride_pig_interact",
+    "ride_server_process_input"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/surv_food-s1",
+  "out/java/snapshots/death-keepinv-s1",
+  "out/java/snapshots/nether-trip-s1",
+  "out/java/snapshots/end-exit-s1",
+  "out/java/snapshots/te-furnace-s1",
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_servertick.c",
+  "out/java/snapshots/containers2-s42",
+  "out/java/snapshots/ride-pig-s1",
+  "out/java/snapshots/stats-s1",
+  "out/java/snapshots/stats-s1-pre",
+  "out/java/snapshots/cont-furnace-s1",
+  "out/java/snapshots/ach-route-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "playerNetServerHandler",
+   "sig": "NetHandlerPlayServer",
+   "native": null,
+   "status": "n/a",
+   "note": "the native replay carries messages as structs between the two sides (SPEC 'Messages are structs, not bytes'); no socket handler exists"
+  },
+  {
+   "kind": "field",
+   "name": "mcServer",
+   "sig": "MinecraftServer",
+   "native": null,
+   "status": "n/a",
+   "note": "server singletons fold into the replay harness"
+  },
+  {
+   "kind": "field",
+   "name": "theItemInWorldManager",
+   "sig": "ItemInWorldManager",
+   "native": "csrc/engine/dig.c:try_harvest_block",
+   "status": "exact",
+   "note": "dig.c also carries updateBlockRemoving and uncheckedTryHarvestBlock; activate.c carries activateBlockOrUseItem"
+  },
+  {
+   "kind": "field",
+   "name": "managedPosX",
+   "sig": "double",
+   "native": "csrc/engine/serverreplay.c:sr_player_entity_update",
+   "status": "exact",
+   "note": "the PlayerManager watch position the replay's chunk loading keeps"
+  },
+  {
+   "kind": "field",
+   "name": "managedPosZ",
+   "sig": "double",
+   "native": "csrc/engine/serverreplay.c:sr_player_entity_update",
+   "status": "exact",
+   "note": "see managedPosX"
+  },
+  {
+   "kind": "field",
+   "name": "loadedChunks",
+   "sig": "List",
+   "native": "csrc/engine/serverreplay.c:sr_player_send_chunks",
+   "status": "exact",
+   "note": "the pending-chunk queue and its send order (sr_player_send_chunks); the S26 batch is a struct message (SPEC: messages are structs, not bytes)"
+  },
+  {
+   "kind": "field",
+   "name": "destroyedItemsNetCache",
+   "sig": "List",
+   "native": "csrc/engine/tracker.c:tracker_entry_tick",
+   "status": "exact",
+   "note": "the tracker's per-entity destroy with the same one-tick delay to the client (the client-world gates pin the removal timing); the list itself is a message-format detail"
+  },
+  {
+   "kind": "field",
+   "name": "field_147103_bO",
+   "sig": "StatisticsFile",
+   "native": "csrc/engine/survival.c:surv_add_stat",
+   "status": "exact",
+   "note": "the StatisticsFile outlives a respawn (func_152602_a's per-UUID map)"
+  },
+  {
+   "kind": "field",
+   "name": "field_130068_bO",
+   "sig": "float",
+   "native": "csrc/engine/survival.c:queue_s06",
+   "status": "exact",
+   "note": "the food half of the S06 gate (queue_s06); its health-objective scoreboard half needs a command"
+  },
+  {
+   "kind": "field",
+   "name": "lastHealth",
+   "sig": "float",
+   "native": "csrc/engine/survival.c:queue_s06",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "lastFoodLevel",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:queue_s06",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "wasHungry",
+   "sig": "boolean",
+   "native": "csrc/engine/survival.c:queue_s06",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "lastExperience",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:queue_s1f",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_147101_bU",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "the 20-tick PVP join hurt timer; no PVP"
+  },
+  {
+   "kind": "field",
+   "name": "chatVisibility",
+   "sig": "EnumChatVisibility",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "chatColours",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_143005_bX",
+   "sig": "long",
+   "native": null,
+   "status": "n/a",
+   "note": "keepalive clock, wall-clock in Java; the replay has no sockets"
+  },
+  {
+   "kind": "field",
+   "name": "currentWindowId",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact",
+   "note": "window ids ride the queued S2D messages"
+  },
+  {
+   "kind": "field",
+   "name": "isChangingQuantityOnly",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "a crafting-side packet dedup flag; struct messages never duplicate it"
+  },
+  {
+   "kind": "field",
+   "name": "ping",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "playerConqueredTheEnd",
+   "sig": "boolean",
+   "native": "csrc/engine/serverreplay.c:serverreplay_respawn_conquered",
+   "status": "exact",
+   "note": "sr's conquered_end drives the End exit and the fresh player"
+  },
+  {
+   "kind": "field",
+   "name": "translator",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityPlayerMP",
+   "sig": "(MinecraftServer,WorldServer,GameProfile,ItemInWorldManager)",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact",
+   "note": "stepHeight 0 and yOffset 0 and the spawn-point search (server_player_load, the End respawn)"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_player",
+   "status": "exact",
+   "note": "the playerGameType key is survival in play"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_player",
+   "status": "exact",
+   "note": "see readEntityFromNBT"
+  },
+  {
+   "kind": "method",
+   "name": "addExperienceLevel",
+   "sig": "(I)V",
+   "native": "csrc/engine/survival.c:surv_server_add_xp",
+   "status": "exact",
+   "note": "the lastExperience reset lands in queue_s1f's gate"
+  },
+  {
+   "kind": "method",
+   "name": "addSelfToInternalCraftingInventory",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_tick_start",
+   "status": "exact",
+   "note": "the player's own container as the only crafter"
+  },
+  {
+   "kind": "method",
+   "name": "resetHeight",
+   "sig": "()V",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "exact",
+   "note": "yOffset back to 0.0"
+  },
+  {
+   "kind": "method",
+   "name": "getEyeHeight",
+   "sig": "()F",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact",
+   "note": "1.62F against the base class 0.12F"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:sr_player_send_chunks",
+   "status": "exact",
+   "note": "updateBlockRemoving (dig.c update_block_removing), detectAndSendChanges and the destroy flush in the survival tick, canInteractWith's close (gui_can_interact), the chunk sends"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdateEntity",
+   "sig": "()V",
+   "native": "csrc/engine/player.c:server_player_tick",
+   "status": "exact",
+   "note": "the S06/S1F gates and the map-item scan are the survival tick's job; maps are off"
+  },
+  {
+   "kind": "method",
+   "name": "func_147098_j",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_explore_biome",
+   "status": "exact",
+   "note": "every 20th tick while exploreAllBiomes is locked"
+  },
+  {
+   "kind": "method",
+   "name": "onDeath",
+   "sig": "(DamageSource)V",
+   "native": "csrc/engine/survival.c:surv_server_death",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(DamageSource,F)Z",
+   "native": "csrc/engine/survival.c:surv_server_damage_by",
+   "status": "exact",
+   "note": "the PVP and join-protection branches are dead for the single replayed player"
+  },
+  {
+   "kind": "method",
+   "name": "canAttackPlayer",
+   "sig": "(EntityPlayer)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "travelToDimension",
+   "sig": "(I)V",
+   "native": "csrc/engine/serverreplay.c:sr_player_end_portal",
+   "status": "exact",
+   "note": "nether portals go through portal.c; the End entry and the conquered respawn are serverreplay's. The achievements: theEnd2 on every exit-portal block the box overlaps (sr_player_conquer_end: each call counts and sends its S2B), theEnd from the overworld before the entrance's setPlayerLocation, portal on every other trip (sr_player_end_portal from the Nether, sr_player_entity_update's Nether portal countdown both ways)."
+  },
+  {
+   "kind": "method",
+   "name": "func_147097_b",
+   "sig": "(TileEntity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the per-tile-entity description packet (S35) is a message format: the client's copy of each tile entity comes with the chunk message and the client's own prediction of the block use (SPEC: messages are structs, not bytes)"
+  },
+  {
+   "kind": "method",
+   "name": "onItemPickup",
+   "sig": "(Entity,I)V",
+   "native": "csrc/engine/survival.c:collide_with_player_pool",
+   "status": "exact",
+   "note": "openContainer.detectAndSendChanges: pickup_detect_and_send_changes (an open tile window's slots and the furnace S31s, cont-furnace-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "sleepInBedAt",
+   "sig": "(III)EnumStatus",
+   "native": "csrc/engine/sleep.c:sleep_in_bed_at",
+   "status": "exact",
+   "note": "with the S0A/S0B fan-out in sleep.c"
+  },
+  {
+   "kind": "method",
+   "name": "wakeUpPlayer",
+   "sig": "(ZZZ)V",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "mountEntity",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/riding.c:ride_pig_interact",
+   "status": "exact",
+   "note": "the S1B and setPlayerLocation after the link (ride_server_dismount for null)"
+  },
+  {
+   "kind": "method",
+   "name": "updateFallState",
+   "sig": "(DZ)V",
+   "native": "csrc/engine/player.c:server_player_tick",
+   "status": "exact",
+   "note": "empty on EntityPlayerMP; handleFalling from the C03 runs the fall state (player.c comment 1250)"
+  },
+  {
+   "kind": "method",
+   "name": "handleFalling",
+   "sig": "(DZ)V",
+   "native": "csrc/engine/player.c:server_player_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_146100_a",
+   "sig": "(TileEntity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "sign editing off"
+  },
+  {
+   "kind": "method",
+   "name": "getNextWindowId",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIWorkbench",
+   "sig": "(III)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIEnchantment",
+   "sig": "(IIILjava/lang/String;)V",
+   "native": null,
+   "status": "n/a",
+   "note": "enchanting off"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIAnvil",
+   "sig": "(III)V",
+   "native": null,
+   "status": "n/a",
+   "note": "anvil off"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIChest",
+   "sig": "(IInventory)V",
+   "native": "csrc/engine/survival.c:gui_open_chest",
+   "status": "exact",
+   "note": "closeScreen when a window is open, then the tiles' openInventory and gui_open_tile (gui_open_ender for the ender inventory); chest-toggle-s1"
+  },
+  {
+   "kind": "method",
+   "name": "func_146093_a",
+   "sig": "(TileEntityHopper)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact",
+   "note": "the hopper window (type 9): window id, S2D, ContainerHopper, the crafter's slot sends"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIHopperMinecart",
+   "sig": "(EntityMinecartHopper)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146101_a",
+   "sig": "(TileEntityFurnace)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_146102_a",
+   "sig": "(TileEntityDispenser)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact",
+   "note": "the dispenser window (type 3, a dropper's 10): window id, S2D, ContainerDispenser, the crafter's slot sends"
+  },
+  {
+   "kind": "method",
+   "name": "func_146098_a",
+   "sig": "(TileEntityBrewingStand)V",
+   "native": null,
+   "status": "n/a",
+   "note": "brewing off"
+  },
+  {
+   "kind": "method",
+   "name": "func_146104_a",
+   "sig": "(TileEntityBeacon)V",
+   "native": null,
+   "status": "n/a",
+   "note": "beacon off"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIMerchant",
+   "sig": "(IMerchant,String)V",
+   "native": "csrc/engine/survival.c:gui_open_merchant",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIHorse",
+   "sig": "(EntityHorse,IInventory)V",
+   "native": null,
+   "status": "n/a",
+   "note": "horses off"
+  },
+  {
+   "kind": "method",
+   "name": "sendSlotContents",
+   "sig": "(Container,I,ItemStack)V",
+   "native": "csrc/engine/survival.c:queue_s2f",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "sendContainerToPlayer",
+   "sig": "(Container)V",
+   "native": "csrc/engine/survival.c:detect_and_send_changes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "sendContainerAndContentsToPlayer",
+   "sig": "(Container,List)V",
+   "native": "csrc/engine/survival.c:detect_and_send_changes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "sendProgressBarUpdate",
+   "sig": "(Container,II)V",
+   "native": "csrc/engine/survival.c:gui_furnace_xp",
+   "status": "exact",
+   "note": "the furnace's progress properties; the brewing and enchanting bars go with their switched-off screens"
+  },
+  {
+   "kind": "method",
+   "name": "closeScreen",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_close_screen",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateHeldItem",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:queue_s2f",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "closeContainer",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_close_screen",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setEntityActionState",
+   "sig": "(FFZZ)V",
+   "native": "csrc/engine/riding.c:ride_server_process_input",
+   "status": "exact",
+   "note": "riding input, unreachable"
+  },
+  {
+   "kind": "method",
+   "name": "addStat",
+   "sig": "(StatBase,I)V",
+   "native": "csrc/engine/survival.c:surv_add_stat",
+   "status": "exact",
+   "note": "with the S37 flush in its tail"
+  },
+  {
+   "kind": "method",
+   "name": "mountEntityAndWakeUp",
+   "sig": "()V",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "n/a",
+   "note": "n/a: its one caller is NetHandlerPlayServer.onDisconnect, after a session's last tick (a session's next start is Java's Save and Quit snapshot); no recorded tick follows it"
+  },
+  {
+   "kind": "method",
+   "name": "setPlayerHealthUpdated",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:queue_s06",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addChatComponentMessage",
+   "sig": "(IChatComponent)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onItemUseFinish",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:server_eat_fx",
+   "status": "exact",
+   "note": "the S19 status first, as survival.c's comment records"
+  },
+  {
+   "kind": "method",
+   "name": "setItemInUse",
+   "sig": "(ItemStack,I)V",
+   "native": "csrc/engine/throw.c:set_item_in_use",
+   "status": "exact",
+   "note": "the eat animation packet is cosmetic"
+  },
+  {
+   "kind": "method",
+   "name": "clonePlayer",
+   "sig": "(EntityPlayer,Z)V",
+   "native": "csrc/engine/survival.c:surv_server_fresh_state",
+   "status": "exact",
+   "note": "the End respawn resets the S06/S1F gates (serverreplay.c 6087)"
+  },
+  {
+   "kind": "method",
+   "name": "onNewPotionEffect",
+   "sig": "(PotionEffect)V",
+   "native": "csrc/engine/potion.c:living_add_potion_effect",
+   "status": "exact",
+   "note": "the S1D message is queued from the potion apply (potion.c comment 343)"
+  },
+  {
+   "kind": "method",
+   "name": "onChangedPotionEffect",
+   "sig": "(PotionEffect,Z)V",
+   "native": "csrc/engine/potion.c:living_add_potion_effect",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onFinishedPotionEffect",
+   "sig": "(PotionEffect)V",
+   "native": "csrc/engine/potion.c:living_remove_potion_effect",
+   "status": "exact",
+   "note": "the S1E message (potion.c comment 370)"
+  },
+  {
+   "kind": "method",
+   "name": "setPositionAndUpdate",
+   "sig": "(DDD)V",
+   "native": "csrc/engine/serverreplay.c:sr_player_end_portal",
+   "status": "exact",
+   "note": "the teleports' position writes and the S08 (the End portal, the pearl, the respawn)"
+  },
+  {
+   "kind": "method",
+   "name": "onCriticalHit",
+   "sig": "(Entity)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onEnchantmentCritical",
+   "sig": "(Entity)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "sendPlayerAbilities",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getServerForPlayer",
+   "sig": "()WorldServer",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setGameType",
+   "sig": "(GameType)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addChatMessage",
+   "sig": "(IChatComponent)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canCommandSenderUseCommand",
+   "sig": "(ILjava/lang/String;)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "commands are not part of the replayed surface"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerIP",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147100_a",
+   "sig": "(C15PacketClientSettings)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147096_v",
+   "sig": "()EnumChatVisibility",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147095_a",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerCoordinates",
+   "sig": "()ChunkCoordinates",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_143004_u",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147099_x",
+   "sig": "()StatisticsFile",
+   "native": "csrc/engine/survival.c:surv_add_stat",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_152339_d",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/tracker.c:tracker_entry_tick",
+   "status": "exact",
+   "note": "the tracker's destroy message (see destroyedItemsNetCache)"
+  },
+  {
+   "kind": "method",
+   "name": "func_154331_x",
+   "sig": "()J",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Every packet-send method is judged by whether the message it would send is represented in the replay's struct message queues (s2c_queue in survival.h), not by a socket. Chat, client settings and keepalive are n/a because nothing consumes them. The chunk-send half of onUpdate is partial: sr_player_send_chunks covers the send, but the S26 bulk batching is not a byte-level port. lane/idxentity: the partials were message-format folds (structs, not bytes) or out-of-play branches; each is described in its member note."
+}

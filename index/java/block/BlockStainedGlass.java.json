@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/block/BlockStainedGlass.java",
+  "classes": ["BlockStainedGlass"],
+  "lines": 86,
+  "side": "common",
+  "category": "block",
+  "role": "Stained glass (id 95): a translucent block in 16 dye colors, drops nothing when broken, silk-harvestable, rendered on the alpha pass.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["can_silk_harvest", "create_stacked_block"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["table_icon", "rb_mesh_section", "should_side_be_rendered"]}
+  ],
+  "evidence": ["out/java/rendertick/mv_glass", "out/java/render/mv_glass_gl", "csrc/tests/test_render.c", "csrc/tests/render_budget.txt", "out/java/snapshots/cov-blkbreak-s1", "out/java/snapshots/cov-blkmisc-s1", "out/java/clientframes/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "field", "name": "field_149998_a", "sig": "static final IIcon[]", "native": null, "status": "n/a", "note": "the 16 registered icons; the native renderer reads the atlas by name"},
+    {"kind": "ctor", "name": "BlockStainedGlass", "sig": "(Lnet/minecraft/block/material/Material;)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 95: BlockGlass-shaped static properties in the table"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks.c:table_icon", "status": "exact", "note": "The table (RenderTable) holds getIcon(side, meta) for all 16 metas; mv_glass draws all 16 colours (a view with meta 3 drawn with meta 2's icon measures 2,143 px over 25 against 56)."},
+    {"kind": "method", "name": "damageDropped", "sig": "(I)I", "native": null, "status": "n/a", "note": "Unreachable: quantityDropped is 0; the silk-touch stack goes through createStackedBlock (harvestdrops.c)."},
+    {"kind": "method", "name": "func_149997_b", "sig": "(I)I", "native": null, "status": "n/a", "note": "the ~meta & 15 dye inversion, only used for icon names"},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a", "note": "creative menu listing"},
+    {"kind": "method", "name": "getRenderBlockPass", "sig": "()I", "native": "csrc/engine/render_blocks.c:rb_mesh_section", "status": "exact", "note": "Pass 1 from the table's renderProps; rb_mesh_section meshes it in the translucent pass, sorted by the camera like the oracle's (mv_glass_gx looks through the 16-colour wall); render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 95: the no-drop case"},
+    {"kind": "method", "name": "canSilkHarvest", "sig": "()Z", "native": "csrc/engine/harvestdrops.c:can_silk_harvest", "status": "exact", "note": "the override list at harvestdrops.c:408 includes stained glass"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "false, in the table"}
+  ],
+  "missing": [],
+  "notes": "Inherits BlockBreakable (its record covers the same-metadata face hiding). out/java/rendertick/mv_glass: a red cube, the 16 colours in a two-high wall, a blue line, a same-colour stack beside another colour, stained glass beside glass."
+}

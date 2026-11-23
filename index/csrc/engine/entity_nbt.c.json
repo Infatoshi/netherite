@@ -1,0 +1,142 @@
+{
+ "path": "csrc/engine/entity_nbt.c",
+ "lines": 491,
+ "role": "Entity.writeToNBT for the kinds the whole-server replay digests, in Java's key insertion order: the base Entity block, EntityItem, EntityXPOrb, EntityArrow, EntityTNTPrimed, the fireballs, EntityEnderEye, EntityPotion and the other throwables, and EntityPlayerMP (living fields, attributes with saved modifiers and the held tool modifier, active potions in map bucket order, inventory, ender chest, XP, spawn, food, abilities, game type), plus Rows.capture's digest step.",
+ "layer": "io",
+ "java": [
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "writeToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityXPOrb.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityArrow.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityTNTPrimed.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityFireball.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityThrowable.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityPotion.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/SharedMonsterAttributes.java",
+   "members": [
+    "writeBaseAttributeMapToNBT",
+    "writeAttributeInstanceToNBT",
+    "writeAttributeModifierToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/InventoryPlayer.java",
+   "members": [
+    "writeToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/inventory/InventoryEnderChest.java",
+   "members": [
+    "saveInventoryToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/PlayerCapabilities.java",
+   "members": [
+    "writeCapabilitiesToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/util/FoodStats.java",
+   "members": [
+    "writeNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/potion/PotionEffect.java",
+   "members": [
+    "writeCustomPotionEffectToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemStack.java",
+   "members": [
+    "writeToNBT"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/Rows.java",
+   "members": [
+    "capture"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "ent_nbt_base",
+  "ent_nbt_ie",
+  "ent_nbt_player",
+  "ent_digest_add"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 15-21, function copy_tree: deep copy by rendering to text and reparsing (malloc'd string, new tree)",
+  "line 81-111 and throughout: every writer allocates an nbt tree on the heap",
+  "line 367-378, function ent_nbt_player: walks the potion hash map's buckets and linked chains (container order reproduced on purpose, pointer graph)",
+  "line 247, function ent_nbt_ie: reads en->e.world->dim through the world pointer"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Runs after the tick, when the replay compares its entity digest with the oracle's rows (Rows.capture), so tick_path is false; it is part of the oracle anchor, not of the simulation. Constant player fields (abilities values, game type, UUID, attribute bases) are read from the snapshot's NBT tree, so they are not live state. Callers: sr_digest.c, serverreplay.c, snapshot_entities.c, fallhang.c, endfight.c. The Java member names for SharedMonsterAttributes and FoodStats writers were not re-read. ent_digest_add hashes through nbtbin_long_memo keyed by the entity id."
+}

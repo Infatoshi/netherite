@@ -1,0 +1,175 @@
+{
+ "path": "oracle/src/world/ChunkCache.java",
+ "classes": [
+  "ChunkCache"
+ ],
+ "lines": 267,
+ "side": "client",
+ "category": "client_render",
+ "role": "The snapshot of nearby chunks a WorldRenderer meshes from (and pathfinding reads): block, meta, tile entity and light reads with the neighbour-max light rule for stairs, slabs and farmland.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "chunk_at",
+    "rb_world_block",
+    "rb_world_meta",
+    "rb_world_biome",
+    "saved_light",
+    "sky_type_brightness",
+    "light_brightness",
+    "rb_world_tile_entity"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.h",
+   "symbols": [
+    "rb_world",
+    "rb_world_load"
+   ]
+  },
+  {
+   "file": "csrc/play/play.c",
+   "symbols": [
+    "rw_build",
+    "rw_pots_check"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_meshes.c",
+  "csrc/tests/test_render.c",
+  "out/java/clientframes/idx-pot-s1",
+  "csrc/tests/test_paths.c",
+  "out/java/paths",
+  "out/java/clientframes/cr-sweep-gold-g29-s42"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "chunkX/chunkZ",
+   "sig": "int",
+   "native": "csrc/engine/render_blocks.h:origin_cx",
+   "status": "exact",
+   "note": "the window's origin; its margin covers every cell a mesh reads"
+  },
+  {
+   "kind": "field",
+   "name": "chunkArray",
+   "sig": "Chunk[][]",
+   "native": "csrc/engine/render_blocks.h:rb_world",
+   "status": "exact",
+   "note": "the window's chunk records (play.c rw_take: the live chunk's bands shared)"
+  },
+  {
+   "kind": "field",
+   "name": "isEmpty",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "only WorldRenderer's skip of an all-empty cache: meshing empty sections draws nothing"
+  },
+  {
+   "kind": "field",
+   "name": "worldObj",
+   "sig": "World",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ChunkCache",
+   "sig": "(World,int,int,int,int,int,int,int)",
+   "native": "csrc/play/play.c:rw_build",
+   "status": "exact",
+   "note": "the live window over the client's chunks (scene dumps load it with rb_world_load)"
+  },
+  {
+   "kind": "method",
+   "name": "extendedLevelsInChunkCache",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "isEmpty's getter, the same render skip"
+  },
+  {
+   "kind": "method",
+   "name": "getBlock",
+   "sig": "(int,int,int)Block",
+   "native": "csrc/engine/render_blocks.c:rb_world_block",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getTileEntity",
+   "sig": "(int,int,int)TileEntity",
+   "native": "csrc/engine/render_blocks.c:rb_world_tile_entity",
+   "status": "exact",
+   "note": "the live world's tile entity (the flower pot's plant), a scene's tileentities.bin list"
+  },
+  {
+   "kind": "method",
+   "name": "getLightBrightnessForSkyBlocks",
+   "sig": "(int,int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:light_brightness",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockMetadata",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:rb_world_meta",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeGenForCoords",
+   "sig": "(int,int)BiomeGenBase",
+   "native": "csrc/engine/render_blocks.c:rb_world_biome",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isAirBlock",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/render_blocks3.c:is_air",
+   "status": "exact",
+   "note": "only RenderBlocks.renderBlockPane asks it, for a pane's top and bottom edges; cr-sweep-gold-g27 to g29-s42's frames draw panes (a frame replay: lane/covframes' coverage of the frame recordings)"
+  },
+  {
+   "kind": "method",
+   "name": "getSkyBlockTypeBrightness",
+   "sig": "(EnumSkyBlock,int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:sky_type_brightness",
+   "status": "exact",
+   "note": "0 for sky under hasNoSky (rb_world no_sky), y clamped to 0..255, the neighbour maximum for func_149710_n blocks; the 30,000,000 bound is outside any reachable world"
+  },
+  {
+   "kind": "method",
+   "name": "getSpecialBlockBrightness",
+   "sig": "(EnumSkyBlock,int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:saved_light",
+   "status": "exact",
+   "note": "its callers clamp y first, so saved_light's y < 0 answer is never reached from ChunkCache"
+  },
+  {
+   "kind": "method",
+   "name": "getHeight",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isBlockProvidingPowerTo",
+   "sig": "(int,int,int,int)I",
+   "native": null,
+   "status": "n/a",
+   "note": "redstone = off"
+  }
+ ],
+ "missing": [],
+ "notes": "render_blocks3.c:is_air is a static helper. The chunk-load bound behaviour (absent chunk reads 0) matches Java's null-chunk air for getBlock. Verification only (triage 2026-09-25, out/plan/remaining-2026-09-25.md): verification only: the member is ported but no scene pins it; covered by the verify list, not a port (Nether sky brightness through the dump's zero sky array). It stays partial until a recording pins it. Closed by lane/idxworld: the live renderer's cache is the rb_world window around the camera (every cell a section mesh reads, one past its edges), its tile entities the live world's (a flower pot's plant: out/java/clientframes/idx-pot-s1, where master drew the pots empty), and its sky brightness 0 under a hasNoSky provider before any chunk read, as ChunkCache.getSkyBlockTypeBrightness answers (rw_build's memset had wiped both fields). The pathfinder's ChunkCache reads the live world in pathfind.c: its box covers the search's reach, so no read falls outside it, and the chunks its construction loads are the world's own loads (serverreplay.c reseeds World.rand for them); test_paths holds the paths."
+}

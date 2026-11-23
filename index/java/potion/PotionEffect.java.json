@@ -1,0 +1,254 @@
+{
+ "path": "oracle/src/potion/PotionEffect.java",
+ "classes": [
+  "PotionEffect"
+ ],
+ "lines": 228,
+ "side": "common",
+ "category": "entity",
+ "role": "One active effect instance: id, duration, amplifier, splash and ambient flags, the per tick onUpdate and the NBT round trip.",
+ "scope": "in_scope",
+ "scope_reason": "Active effects tick on every living entity that has one (wither, poison, regen, food effects).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/potion.c",
+   "symbols": [
+    "potion_map_get",
+    "potion_map_put",
+    "potion_map_remove",
+    "living_update_potion_effects",
+    "living_add_potion_effect",
+    "potion_perform_effect",
+    "potion_get_effects_for_damage"
+   ]
+  },
+  {
+   "file": "csrc/engine/potion.h",
+   "symbols": [
+    "potion_effect",
+    "potion_map",
+    "duration_max"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity_nbt.c",
+   "symbols": [
+    "player_abilities"
+   ]
+  },
+  {
+   "file": "csrc/engine/snapshot_entities.c",
+   "symbols": [
+    "restore_living"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/potions/seed2",
+  "out/java/potions/seed42",
+  "csrc/tests/test_potions.c",
+  "out/java/snapshots/fight-witch-s1",
+  "out/java/snapshots/fight-spider-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "PotionEffect",
+   "sig": "(int,int)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:living_add_potion_effect",
+   "note": "callers build struct potion_effect literals"
+  },
+  {
+   "kind": "ctor",
+   "name": "PotionEffect",
+   "sig": "(int,int,int)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:living_add_potion_effect"
+  },
+  {
+   "kind": "ctor",
+   "name": "PotionEffect",
+   "sig": "(int,int,int,boolean)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:living_add_potion_effect"
+  },
+  {
+   "kind": "ctor",
+   "name": "PotionEffect",
+   "sig": "(PotionEffect)V",
+   "status": "n/a",
+   "note": "the copy constructor has no caller the native paths reach"
+  },
+  {
+   "kind": "method",
+   "name": "combine",
+   "sig": "(PotionEffect)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_map_put",
+   "note": "the amplifier/duration/ambient merge runs inside the map put (potion.c:230)"
+  },
+  {
+   "kind": "method",
+   "name": "getPotionID",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "struct potion_effect's id"
+  },
+  {
+   "kind": "method",
+   "name": "getDuration",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "struct potion_effect's duration"
+  },
+  {
+   "kind": "method",
+   "name": "getAmplifier",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "struct potion_effect's amplifier"
+  },
+  {
+   "kind": "method",
+   "name": "setSplashPotion",
+   "sig": "(Z)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_get_effects_for_damage",
+   "note": "the splash bit rides the damage value's 16384 bit"
+  },
+  {
+   "kind": "method",
+   "name": "getIsAmbient",
+   "sig": "()Z",
+   "status": "n/a",
+   "note": "struct potion_effect's ambient flag"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "(EntityLivingBase)Z",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:living_update_potion_effects",
+   "note": "the isReady gate, the performEffect call and the duration decrement per tick"
+  },
+  {
+   "kind": "method",
+   "name": "deincrementDuration",
+   "sig": "()I",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:living_update_potion_effects"
+  },
+  {
+   "kind": "method",
+   "name": "performEffect",
+   "sig": "(EntityLivingBase)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_perform_effect"
+  },
+  {
+   "kind": "method",
+   "name": "getEffectName",
+   "sig": "()String",
+   "status": "n/a",
+   "note": "client GUI text"
+  },
+  {
+   "kind": "method",
+   "name": "hashCode",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "the map is keyed by the id directly"
+  },
+  {
+   "kind": "method",
+   "name": "toString",
+   "sig": "()String",
+   "status": "n/a",
+   "note": "debug formatting"
+  },
+  {
+   "kind": "method",
+   "name": "equals",
+   "sig": "(Object)Z",
+   "status": "n/a",
+   "note": "no caller the native paths reach"
+  },
+  {
+   "kind": "method",
+   "name": "writeCustomPotionEffectToNBT",
+   "sig": "(NBTTagCompound)NBTTagCompound",
+   "status": "exact",
+   "native": "csrc/engine/entity_nbt.c:player_abilities",
+   "note": "the server player's ActiveEffects list is written in the map's bucket order with the Id, Amplifier, Duration, Ambient keys; mobs write theirs in living.c:3573"
+  },
+  {
+   "kind": "method",
+   "name": "readCustomPotionEffectFromNBT",
+   "sig": "(NBTTagCompound)PotionEffect",
+   "status": "exact",
+   "native": "csrc/engine/snapshot_entities.c:restore_living",
+   "note": "the ActiveEffects block is read back into the potion map on restore"
+  },
+  {
+   "kind": "method",
+   "name": "setPotionDurationMax",
+   "sig": "(Z)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "the S1D pump's comment (survival.c:3937) covers the max duration flag's zeroing"
+  },
+  {
+   "kind": "method",
+   "name": "getIsPotionDurationMax",
+   "sig": "()Z",
+   "status": "n/a",
+   "note": "no native row reads the flag"
+  },
+  {
+   "kind": "field",
+   "name": "potionID",
+   "sig": "int",
+   "status": "exact",
+   "native": "csrc/engine/potion.h:potion_effect"
+  },
+  {
+   "kind": "field",
+   "name": "duration",
+   "sig": "int",
+   "status": "exact",
+   "native": "csrc/engine/potion.h:potion_effect"
+  },
+  {
+   "kind": "field",
+   "name": "amplifier",
+   "sig": "int",
+   "status": "exact",
+   "native": "csrc/engine/potion.h:potion_effect"
+  },
+  {
+   "kind": "field",
+   "name": "isSplashPotion",
+   "sig": "boolean",
+   "status": "exact",
+   "native": "csrc/engine/potion.h:potion_effect"
+  },
+  {
+   "kind": "field",
+   "name": "isAmbient",
+   "sig": "boolean",
+   "status": "exact",
+   "native": "csrc/engine/potion.h:potion_effect"
+  },
+  {
+   "kind": "field",
+   "name": "isPotionDurationMax",
+   "sig": "boolean",
+   "status": "exact",
+   "native": "csrc/engine/potion.h:potion_effect"
+  }
+ ],
+ "missing": [],
+ "notes": "The active map is a Java 8 HashMap replica: 16 buckets growing to 32, iteration bucket by bucket (potion.h:50). isPotionDurationMax rides potion.h's duration_max, set by the client's S1D at 32767. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): surv_eat-s1, fight-skeleton-s1."
+}

@@ -1,0 +1,189 @@
+{
+ "path": "oracle/src/world/Explosion.java",
+ "classes": [
+  "Explosion"
+ ],
+ "lines": 264,
+ "side": "common",
+ "category": "world",
+ "role": "One explosion: doExplosionA marches 1352 rays through block resistance into a HashSet of ChunkPosition and damages and pushes nearby entities; doExplosionB draws the sound pitch, destroys and drops the affected blocks in HashSet order and lights fires for a flaming blast.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/explosion.c",
+   "symbols": [
+    "expl_run",
+    "expl_run_extras",
+    "block_density",
+    "attack_from_explosion",
+    "live_drop",
+    "expl_env_item_drop"
+   ]
+  },
+  {
+   "file": "csrc/engine/explosion.h",
+   "symbols": [
+    "expl_result",
+    "expl_extra"
+   ]
+  },
+  {
+   "file": "csrc/engine/jorder.c",
+   "symbols": [
+    "jord_set3_add",
+    "jord_set3_order"
+   ]
+  },
+  {
+   "file": "csrc/engine/tnt.c",
+   "symbols": []
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_explosion_b",
+    "particles_live_explosion_packet"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_explosion_done",
+    "serverreplay_queue_packets"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_explosions.c",
+  "out/java/rendertick/fx_explode",
+  "out/java/snapshots/fight-creeper-s1",
+  "out/java/snapshots/surv2-tnt-s1",
+  "out/java/snapshots/idx-blast-s1",
+  "out/java/snapshots/pf-blastpush-g16",
+  "out/java/snapshots/end-tnt-s42",
+  "out/java/snapshots/end-bed-s42",
+  "out/java/snapshots/pfc-oreblast-s5",
+  "out/java/snapshots/pfc-deadblast-s1",
+  "out/java/snapshots/pfc-endknot-f312"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "isFlaming",
+   "sig": "boolean",
+   "native": "csrc/engine/explosion.c:expl_run_extras",
+   "status": "exact",
+   "note": "the flaming argument"
+  },
+  {
+   "kind": "field",
+   "name": "isSmoking",
+   "sig": "boolean",
+   "native": "csrc/engine/explosion.c:expl_run_extras",
+   "status": "exact",
+   "note": "the smoking argument"
+  },
+  {
+   "kind": "field",
+   "name": "field_77289_h",
+   "sig": "int (16, ray grid)",
+   "native": "csrc/engine/explosion.c:expl_run_extras",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "explosionRNG",
+   "sig": "Random (Det.newRandom)",
+   "native": "csrc/engine/explosion.c:explosion_rng",
+   "status": "exact",
+   "note": "a det role stream for the fire rolls"
+  },
+  {
+   "kind": "field",
+   "name": "worldObj",
+   "sig": "World",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "explosionX/Y/Z",
+   "sig": "double",
+   "native": "csrc/engine/explosion.c:expl_run_extras",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "exploder",
+   "sig": "Entity",
+   "native": "csrc/engine/explosion.c:expl_run_extras",
+   "status": "exact",
+   "note": "left out of the entity pass, the damage source's entity; the block resistance read is func_145772_a's default for every reachable exploder (the wither skull's and the TNT minecart's overrides are off)"
+  },
+  {
+   "kind": "field",
+   "name": "explosionSize",
+   "sig": "float",
+   "native": "csrc/engine/explosion.c:expl_run_extras",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "affectedBlockPositions",
+   "sig": "List<ChunkPosition>",
+   "native": "csrc/engine/explosion.h:expl_result",
+   "status": "exact",
+   "note": "HashSet order emulated by jhashmap.c"
+  },
+  {
+   "kind": "field",
+   "name": "field_77288_k",
+   "sig": "Map<EntityPlayer,Vec3>",
+   "native": "csrc/engine/serverreplay.c:serverreplay_queue_packets",
+   "status": "exact",
+   "note": "the player's knockback, carried by the S27 (sr->s27_x..z, the tick's first S27)"
+  },
+  {
+   "kind": "ctor",
+   "name": "Explosion",
+   "sig": "(World,Entity,double,double,double,float)",
+   "native": "csrc/engine/explosion.c:expl_run_extras",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "doExplosionA",
+   "sig": "()V",
+   "native": "csrc/engine/explosion.c:expl_run_extras",
+   "status": "exact",
+   "note": "rays, HashSet (jord_set3: a bin of 9 keys takes JDK 8's tree bins, csrc/tests/jorder_trees.txt), entity damage with block_density and blast protection; in the End the blast's entity query reaches the falling and hanging entities (a leash knot's push; serverreplay.c sr_end_blast_query, pfc-endknot-f312)"
+  },
+  {
+   "kind": "method",
+   "name": "doExplosionB",
+   "sig": "(Z)V",
+   "native": "csrc/engine/particles_live.c:particles_live_explosion_packet",
+   "status": "exact",
+   "note": "false on the server (explosion.c); true on the client from the S27, whose side data carries the blast's ore and spawner blocks: their dropBlockAsItemWithChance draws on the client world too (pfc-oreblast-s5)"
+  },
+  {
+   "kind": "method",
+   "name": "func_77277_b",
+   "sig": "()Map",
+   "native": "csrc/engine/serverreplay.c:serverreplay_queue_packets",
+   "status": "exact",
+   "note": "the map's player entry, read by newExplosion's S27"
+  },
+  {
+   "kind": "method",
+   "name": "getExplosivePlacedBy",
+   "sig": "()EntityLivingBase",
+   "native": "csrc/engine/explosion.c:expl_run_extras",
+   "status": "exact",
+   "note": "the TNT's placer (expl_placed_by_player) or the living exploder (a creeper): the damage source's entity"
+  }
+ ],
+ "missing": [],
+ "notes": "explosion.h's header comment lists older gaps (knockback map, non-null exploder) that later code partly closed; I trusted the code over the comment. explosion_rng was not directly confirmed as a symbol name beyond its use at the fire roll. Closed by lane/idxworld: doExplosionB(true) runs on the client from every explosion's S27 (particles_live_explosion_packet: the sound's two draws and five per affected block on WorldClient.rand, which the live client does not carry, and the huge or large explosion; idx-blast-s1 holds the client's explosion particles to the oracle client's at every frame). Entity.func_145772_a and func_145774_a answer the block's own resistance and yes for every exploder but the wither skull and the TNT minecart, both off in world.conf. Since lane/endreturn (2026-09-27): the entity pass leaves the health of every item-pool entity but items and orbs alone (a primed TNT, an arrow and a throwable keep Entity.attackEntityFrom: setBeenAttacked, false), explosion.c attack_from_explosion; end-tnt-s42 row 177."
+}

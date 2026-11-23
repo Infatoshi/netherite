@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/resources/data/TextureMetadataSection.java",
+  "classes": ["TextureMetadataSection"],
+  "lines": 34,
+  "side": "client",
+  "category": "client_resources",
+  "role": "The parsed 'texture' section of a texture's .mcmeta: blur and clamp flags plus the mipmap list that TextureUtil applies when uploading the texture.",
+  "scope": "client_cosmetic",
+  "scope_reason": "The native renderer samples with GL_NEAREST from a fixed mip chain it builds itself (csrc/engine/raster_texture.c); per-texture blur/clamp/mipmap metadata is never parsed.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "TextureMetadataSection", "sig": "(boolean,boolean,List)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getTextureBlur", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getTextureClamp", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_148535_c", "sig": "()List", "native": null, "status": "n/a", "note": "the mipmap list, unmodifiable"},
+    {"kind": "field", "name": "textureBlur", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "textureClamp", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_148536_c", "sig": "List", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

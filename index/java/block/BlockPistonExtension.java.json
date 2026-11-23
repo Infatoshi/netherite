@@ -1,0 +1,205 @@
+{
+ "path": "oracle/src/block/BlockPistonExtension.java",
+ "classes": [
+  "BlockPistonExtension"
+ ],
+ "lines": 246,
+ "side": "common",
+ "category": "block",
+ "role": "The piston head (34): its shaft-and-plate collision boxes by facing, the removal of its base when broken, and the pop when its base is gone.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf redstone = off: the oracle's World power queries return 0, so a piston never extends (SPEC Decisions: 'pistons ... stay put'). The piston head only exists while a piston is extended, so it never appears.",
+ "status": "not_applicable",
+ "native": [
+  {
+   "file": "csrc/engine/render_blocks3.c",
+   "symbols": [
+    "rb3_render_piston_extension"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "block_bounds",
+    "raytrace_collision"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_meshes.c",
+  "out/java/raypick/rp-1",
+  "csrc/tests/test_raypick.c",
+  "out/java/snapshots/pickblock-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150088_a",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "override icon"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockPistonExtension",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 34"
+  },
+  {
+   "kind": "method",
+   "name": "func_150086_a",
+   "sig": "(IIcon)V",
+   "native": null,
+   "status": "n/a",
+   "note": "renderer override"
+  },
+  {
+   "kind": "method",
+   "name": "func_150087_e",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "renderer override"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockHarvested",
+   "sig": "(World,IIIIEntityPlayer)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative base removal"
+  },
+  {
+   "kind": "method",
+   "name": "breakBlock",
+   "sig": "(World,IIIBlockI)V",
+   "native": null,
+   "status": "n/a",
+   "note": "base drop and removal"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "from the icon table"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/render_blocks3.c:rb3_render_piston_extension",
+   "status": "exact",
+   "note": "17"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockAt",
+   "sig": "(World,III)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockOnSide",
+   "sig": "(World,IIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Random)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 34: nothing"
+  },
+  {
+   "kind": "method",
+   "name": "addCollisionBoxesToList",
+   "sig": "(World,IIIAxisAlignedBB,List,Entity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "plate and shaft boxes"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsBasedOnState",
+   "sig": "(IBlockAccess,III)V",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": null,
+   "status": "n/a",
+   "note": "pops without a base"
+  },
+  {
+   "kind": "method",
+   "name": "func_150085_b",
+   "sig": "(I)I",
+   "native": null,
+   "status": "n/a",
+   "note": "meta & 7"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  }
+ ],
+ "missing": [],
+ "notes": "The renderer entry exists for completeness (the mesher handles id 34 if a dump ever contains it)."
+}

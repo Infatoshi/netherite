@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/client/resources/data/AnimationMetadataSection.java",
+  "classes": ["AnimationMetadataSection"],
+  "lines": 79,
+  "side": "client",
+  "category": "client_resources",
+  "role": "The parsed 'animation' section of a texture's .mcmeta: the frame list, the frame size and the default frame time that TextureAtlasSprite uses to cycle an animated texture.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Metadata consumed as data: RenderStateProbe.animFrames dumps each animated sprite's frametime and frame list (state/anim.json), which csrc/engine/texanim.c (struct texanim_sprite: frametime, index, time) animates; the JSON section itself never runs natively.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "AnimationMetadataSection", "sig": "(List,int,int,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrameHeight", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrameWidth", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrameCount", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrameTime", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getAnimationFrame", "sig": "(int)AnimationFrame", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrameTimeSingle", "sig": "(int)I", "native": null, "status": "n/a", "note": "per-frame time or the section default"},
+    {"kind": "method", "name": "frameHasTime", "sig": "(int)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrameIndex", "sig": "(int)I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrameIndexSet", "sig": "()Set", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "animationFrames", "sig": "List", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "frameWidth", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "frameHeight", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "frameTime", "sig": "int", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "If a later milestone wants vanilla water/lava/portal animation on the GPU path, this section and its serializer are the Java source of truth for the frame order and timing. idxaudit 2026-09-27: scope reason rewritten."
+}

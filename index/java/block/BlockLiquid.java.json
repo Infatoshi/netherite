@@ -1,0 +1,316 @@
+{
+ "path": "oracle/src/block/BlockLiquid.java",
+ "classes": [
+  "BlockLiquid"
+ ],
+ "lines": 565,
+ "side": "common",
+ "category": "block",
+ "role": "Abstract liquids: the tick rates (water 5, lava 10/30), the flow vector and angle, the biome water colour, the brightness lift, and the fluid mesher's height and side rules.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_springs.c",
+   "symbols": [
+    "depth_at",
+    "liquid_update_tick",
+    "liquid_static_update_tick",
+    "flammable_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/ticks.c",
+   "symbols": [
+    "ticks_liquid_tick_rate",
+    "ticks_liquid_tick_rate_world"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "render_block_fluids",
+    "liquid_angle",
+    "liquid_height_percent",
+    "water_color_multiplier",
+    "liquid_brightness",
+    "liquid_is_block_solid"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.c",
+   "symbols": [
+    "liquid_flow_vector"
+   ]
+  },
+  {
+   "file": "csrc/engine/item_entity.c",
+   "symbols": [
+    "flow_vector"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "can_collide_check"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_clientworld.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_rendertick.c",
+  "out/java/rendertick/fx_rain",
+  "out/java/snapshots/scen-water-lava-s1",
+  "out/java/snapshots/world-water-lava-s1",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149806_a",
+   "sig": "IIcon[]",
+   "native": null,
+   "status": "n/a",
+   "note": "client textures"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockLiquid",
+   "sig": "(Lnet/minecraft/block/material/Material;)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 8, 9, 10, 11: tick_randomly 1"
+  },
+  {
+   "kind": "method",
+   "name": "getBlocksMovement",
+   "sig": "(IBlockAccess,III)Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "the lava material's blocks_movement 0"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockColor",
+   "sig": "()I",
+   "native": "csrc/engine/render_blocks.c:water_color_multiplier",
+   "status": "n/a",
+   "note": "its only callers are RenderBlocks.renderBlockLilyPad (the lily pad's own) and BlockGrass.getRenderColor (grass's own); nothing asks this block"
+  },
+  {
+   "kind": "method",
+   "name": "colorMultiplier",
+   "sig": "(IBlockAccess,III)I",
+   "native": "csrc/engine/render_blocks.c:water_color_multiplier",
+   "status": "exact",
+   "note": "the 3x3 biome water colour average, verbatim"
+  },
+  {
+   "kind": "method",
+   "name": "func_149801_b",
+   "sig": "(I)F",
+   "native": "csrc/engine/render_blocks.c:liquid_height_percent",
+   "status": "exact",
+   "note": "the (meta + 1) / 9 height"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)Lnet/minecraft/util/IIcon;",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture selection"
+  },
+  {
+   "kind": "method",
+   "name": "func_149804_e",
+   "sig": "(World,III)I",
+   "native": "csrc/engine/features_springs.c:depth_at",
+   "status": "exact",
+   "note": "the material-matched meta, -1 otherwise"
+  },
+  {
+   "kind": "method",
+   "name": "func_149798_e",
+   "sig": "(IBlockAccess,III)I",
+   "native": "csrc/engine/features_springs.c:depth_at",
+   "status": "exact",
+   "note": "the same with the flowing clamp"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "normal_block 0"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "opaque_cube 0"
+  },
+  {
+   "kind": "method",
+   "name": "canCollideCheck",
+   "sig": "(IZ)Z",
+   "native": "csrc/engine/raytrace.c:can_collide_check",
+   "status": "exact",
+   "note": "the BlockLiquid/BlockStaticLiquid class check, meta 0 only when stopOnLiquid"
+  },
+  {
+   "kind": "method",
+   "name": "isBlockSolid",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": "csrc/engine/render_blocks.c:liquid_is_block_solid",
+   "status": "exact",
+   "note": "the same-material and ice exclusions and the side 1 lift"
+  },
+  {
+   "kind": "method",
+   "name": "shouldSideBeRendered",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": "csrc/engine/render_blocks.c:render_block_fluids",
+   "status": "partial",
+   "note": "the side rules are folded into the fluid mesher"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(World,III)Lnet/minecraft/util/AxisAlignedBB;",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "null: the liquid material's no collision"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "render_type 4 -> render_block_fluids"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "n/a",
+   "note": "a liquid is never harvested (not a ray target), never exploded (resistance 60 beats every explosion in the game), never flowed into (BlockDynamicLiquid.func_149809_q refuses liquid cells) and never pushed (redstone off)"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Ljava/util/Random;)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "n/a",
+   "note": "a liquid is never harvested (not a ray target), never exploded (resistance 60 beats every explosion in the game), never flowed into (BlockDynamicLiquid.func_149809_q refuses liquid cells) and never pushed (redstone off)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149800_f",
+   "sig": "(IBlockAccess,III)Lnet/minecraft/util/Vec3;",
+   "native": "csrc/engine/render_blocks.c:liquid_angle",
+   "status": "exact",
+   "note": "the four-neighbour flow vector with the falling-corner lift and the -6 sink; the entity-side copy is player.c's liquid_flow_vector and item_entity.c's flow_vector"
+  },
+  {
+   "kind": "method",
+   "name": "velocityToAddToEntity",
+   "sig": "(World,IIILnet/minecraft/entity/Entity;Lnet/minecraft/util/Vec3;)V",
+   "native": "csrc/engine/player.c:liquid_flow_vector",
+   "status": "exact",
+   "note": "the add into the entity velocity"
+  },
+  {
+   "kind": "method",
+   "name": "func_149738_a",
+   "sig": "(World)I",
+   "native": "csrc/engine/ticks.c:ticks_liquid_tick_rate",
+   "status": "exact",
+   "note": "water 5, lava 10 in a no-sky dimension else 30; the world variant is ticks_liquid_tick_rate_world"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockBrightness",
+   "sig": "(IBlockAccess,III)I",
+   "native": "csrc/engine/render_blocks.c:liquid_brightness",
+   "status": "exact",
+   "note": "the max of this cell and the one above"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderBlockPass",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "water 1 (translucent), lava 0"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the particles and every draw, checked per tick against the spawn log in fx_rain"
+  },
+  {
+   "kind": "method",
+   "name": "func_149802_a",
+   "sig": "(IBlockAccess,IIILnet/minecraft/block/material/Material;)D",
+   "native": "csrc/engine/render_blocks.c:liquid_angle",
+   "status": "exact",
+   "note": "the atan2 flow angle with the -1000 still answer"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/features_springs.c:liquid_update_tick",
+   "status": "partial",
+   "note": "func_149805_n's schedule rides the liquid update dispatch (servertick.c's liquid_update_tick / liquid_static_update_tick)"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/features_springs.c:liquid_update_tick",
+   "status": "partial",
+   "note": "same"
+  },
+  {
+   "kind": "method",
+   "name": "func_149805_n",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/features_springs.c:liquid_update_tick",
+   "status": "partial",
+   "note": "the self-check and reschedule folded into the liquid tick path"
+  },
+  {
+   "kind": "method",
+   "name": "func_149803_e",
+   "sig": "(String)IIcon",
+   "native": null,
+   "status": "exact",
+   "note": "the still water icon RenderBlocks.renderBlockCauldron puts on a filled cauldron's surface (cov-blkgallery-s1's frames within budget)"
+  }
+ ],
+ "missing": [],
+ "notes": "Verified by world-water-lava-s1 and the scen-water-lava render scene. The spread logic itself is BlockDynamicLiquid (features_springs.c); this file holds the shared maths and the rendering."
+}

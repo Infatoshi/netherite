@@ -1,0 +1,719 @@
+{
+ "path": "oracle/src/world/biome/BiomeGenBase.java",
+ "classes": [
+  "BiomeGenBase",
+  "BiomeGenBase.Height",
+  "BiomeGenBase.SpawnListEntry",
+  "BiomeGenBase.TempCategory"
+ ],
+ "lines": 689,
+ "side": "common",
+ "category": "worldgen",
+ "role": "The biome base class and registry: every biome object (ids 0-39 and the 128+ mutations), their climate, heights, top/filler blocks, spawn lists, decorator, the generic surface pass, tree/flower/grass choices, temperature with height, grass/foliage/sky colours and the rain/snow/lightning flags.",
+ "scope": "in_scope",
+ "scope_reason": "Biomes drive worldgen, spawning, weather and block colours; all worldgen is vanilla (SPEC Decisions). Horse, wolf and ocelot rows are pruned by world.conf switches.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/biomes.h",
+   "symbols": [
+    "BIOMES",
+    "biome_def",
+    "biome_class",
+    "temp_category",
+    "surface_kind"
+   ]
+  },
+  {
+   "file": "csrc/engine/surface.c",
+   "symbols": [
+    "generic",
+    "column",
+    "surface_pass"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "decorator_decorate",
+    "place_tree",
+    "flower_choice",
+    "grass_choice"
+   ]
+  },
+  {
+   "file": "csrc/engine/features_lakes.c",
+   "symbols": [
+    "biome_temperature",
+    "biome_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/populate.c",
+   "symbols": [
+    "populate_float_temperature"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "biome_color",
+    "colormap_lookup",
+    "rb_biome_temperature",
+    "water_color_multiplier"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "build_lists",
+    "spawning_list_for",
+    "biome_has_creatures"
+   ]
+  },
+  {
+   "file": "csrc/engine/seedworld.c",
+   "symbols": [
+    "SW_SPAWNING_CHANCE"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "can_lightning_strike_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/fire.c",
+   "symbols": [
+    "fire_update_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/layers.c",
+   "symbols": [
+    "exists",
+    "def",
+    "same"
+   ]
+  },
+  {
+   "file": "csrc/play/play.c",
+   "symbols": [
+    "sky_color_by_temp"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_worldgen.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_biome_spawn.c",
+  "csrc/tests/test_meshes.c",
+  "out/java/chunks",
+  "out/java/populate",
+  "out/java/spawning",
+  "out/java/biome_spawn/bs-1",
+  "out/java/snapshots/world-storm-s1",
+  "out/java/snapshots/world-fire-s1",
+  "out/java/snapshots/stats-s1",
+  "out/java/snapshots/stats-s1-pre"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "static Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150596_a..field_150599_m",
+   "sig": "static Height x13 (height presets)",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "root/variation columns generated from the live objects"
+  },
+  {
+   "kind": "field",
+   "name": "biomeList",
+   "sig": "static BiomeGenBase[256]",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "object_id carries 161 aliasing 160"
+  },
+  {
+   "kind": "field",
+   "name": "field_150597_n",
+   "sig": "static Set (explorable biomes)",
+   "native": "csrc/engine/stats_table.h:STAT_TABLE_EXPLORE",
+   "status": "exact",
+   "note": "generated; surv_explore_biome checks the set against it"
+  },
+  {
+   "kind": "field",
+   "name": "ocean..field_150608_ab",
+   "sig": "static BiomeGenBase x40 (registry objects)",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_150605_ac",
+   "sig": "static NoiseGeneratorPerlin (Random 1234, temperature)",
+   "native": "csrc/engine/features_lakes.c:biome_temperature",
+   "status": "exact",
+   "note": "TEMP_NOISE; also populate.c temp_noise and render_blocks perlin_a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150606_ad",
+   "sig": "static NoiseGeneratorPerlin (Random 2345, flowers/swamp)",
+   "native": "csrc/engine/decorator.c:flower_choice",
+   "status": "exact",
+   "note": "populate flower_noise; render_blocks perlin_b"
+  },
+  {
+   "kind": "field",
+   "name": "field_150610_ae",
+   "sig": "static WorldGenDoublePlant",
+   "native": "csrc/engine/decorator.c:place_double_plant",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "biomeName",
+   "sig": "String",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "name"
+  },
+  {
+   "kind": "field",
+   "name": "color",
+   "sig": "int (map colour)",
+   "native": null,
+   "status": "n/a",
+   "note": "map/F3 colour; maps are switched off"
+  },
+  {
+   "kind": "field",
+   "name": "field_150609_ah",
+   "sig": "int (mutation map colour)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "topBlock",
+   "sig": "Block",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "top; surface.top keeps the per-object rewrites"
+  },
+  {
+   "kind": "field",
+   "name": "field_150604_aj",
+   "sig": "int (top meta)",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "top_meta"
+  },
+  {
+   "kind": "field",
+   "name": "fillerBlock",
+   "sig": "Block",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "filler"
+  },
+  {
+   "kind": "field",
+   "name": "field_76754_C",
+   "sig": "int (unused colour)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "minHeight",
+   "sig": "float",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "root"
+  },
+  {
+   "kind": "field",
+   "name": "maxHeight",
+   "sig": "float",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "variation"
+  },
+  {
+   "kind": "field",
+   "name": "temperature",
+   "sig": "float",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rainfall",
+   "sig": "float",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "waterColorMultiplier",
+   "sig": "int",
+   "native": "csrc/engine/render_blocks.c:water_color_multiplier",
+   "status": "exact",
+   "note": "rb_biome.water, loaded from the recording's table"
+  },
+  {
+   "kind": "field",
+   "name": "theBiomeDecorator",
+   "sig": "BiomeDecorator",
+   "native": "csrc/engine/decorator.c:deco_of",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spawnableMonsterList",
+   "sig": "List",
+   "native": "csrc/engine/spawning.c:build_lists",
+   "status": "exact",
+   "note": "base rows, and the swamp's slime row (swamp_monster, see BiomeGenSwamp)"
+  },
+  {
+   "kind": "field",
+   "name": "spawnableCreatureList",
+   "sig": "List",
+   "native": "csrc/engine/spawning.c:biome_has_creatures",
+   "status": "exact",
+   "note": "every cleared list, the mutations 130, 140 and 165-167 included"
+  },
+  {
+   "kind": "field",
+   "name": "spawnableWaterCreatureList",
+   "sig": "List",
+   "native": "csrc/engine/spawning.c:build_lists",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spawnableCaveCreatureList",
+   "sig": "List",
+   "native": "csrc/engine/spawning.c:build_lists",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "enableSnow",
+   "sig": "boolean",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "snow column"
+  },
+  {
+   "kind": "field",
+   "name": "enableRain",
+   "sig": "boolean",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "folded into the lightning column"
+  },
+  {
+   "kind": "field",
+   "name": "biomeID",
+   "sig": "final int",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "BIOMES index / object_id"
+  },
+  {
+   "kind": "field",
+   "name": "worldGeneratorTrees",
+   "sig": "WorldGenTrees",
+   "native": "csrc/engine/decorator.c:place_tree",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "worldGeneratorBigTree",
+   "sig": "WorldGenBigTree (per-object state)",
+   "native": "csrc/engine/decorator.c:bigtree_state",
+   "status": "exact",
+   "note": "heightLimit carried per biome slot"
+  },
+  {
+   "kind": "field",
+   "name": "worldGeneratorSwamp",
+   "sig": "WorldGenSwamp",
+   "native": "csrc/engine/decorator.c:place_tree",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "BiomeGenBase",
+   "sig": "(int)",
+   "native": "csrc/engine/spawning.c:build_lists",
+   "status": "exact",
+   "note": "defaults generated into BIOMES; default spawn rows in build_lists minus the switched-off ones"
+  },
+  {
+   "kind": "method",
+   "name": "createBiomeDecorator",
+   "sig": "()BiomeDecorator",
+   "native": "csrc/engine/decorator.c:deco_of",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setTemperatureRainfall",
+   "sig": "(float,float)BiomeGenBase",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "builder; values generated"
+  },
+  {
+   "kind": "method",
+   "name": "func_150570_a",
+   "sig": "(Height)BiomeGenBase",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "builder"
+  },
+  {
+   "kind": "method",
+   "name": "setDisableRain",
+   "sig": "()BiomeGenBase",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "builder"
+  },
+  {
+   "kind": "method",
+   "name": "func_150567_a",
+   "sig": "(Random)WorldGenAbstractTree",
+   "native": "csrc/engine/decorator.c:place_tree",
+   "status": "exact",
+   "note": "TR_DEFAULT"
+  },
+  {
+   "kind": "method",
+   "name": "getRandomWorldGenForGrass",
+   "sig": "(Random)WorldGenerator",
+   "native": "csrc/engine/decorator.c:grass_choice",
+   "status": "exact",
+   "note": "no draw, meta 1"
+  },
+  {
+   "kind": "method",
+   "name": "func_150572_a",
+   "sig": "(Random,int,int,int)String",
+   "native": "csrc/engine/decorator.c:flower_choice",
+   "status": "exact",
+   "note": "default branch"
+  },
+  {
+   "kind": "method",
+   "name": "setEnableSnow",
+   "sig": "()BiomeGenBase",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "builder"
+  },
+  {
+   "kind": "method",
+   "name": "setBiomeName",
+   "sig": "(String)BiomeGenBase",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "builder"
+  },
+  {
+   "kind": "method",
+   "name": "func_76733_a",
+   "sig": "(int)BiomeGenBase",
+   "native": null,
+   "status": "n/a",
+   "note": "sets the unused field_76754_C"
+  },
+  {
+   "kind": "method",
+   "name": "setColor",
+   "sig": "(int)BiomeGenBase",
+   "native": null,
+   "status": "n/a",
+   "note": "map colour"
+  },
+  {
+   "kind": "method",
+   "name": "func_150563_c",
+   "sig": "(int)BiomeGenBase",
+   "native": null,
+   "status": "n/a",
+   "note": "map colour"
+  },
+  {
+   "kind": "method",
+   "name": "func_150557_a",
+   "sig": "(int,boolean)BiomeGenBase",
+   "native": null,
+   "status": "n/a",
+   "note": "map colour"
+  },
+  {
+   "kind": "method",
+   "name": "getSkyColorByTemp",
+   "sig": "(F)I",
+   "native": "csrc/play/play.c:sky_color_by_temp",
+   "status": "exact",
+   "note": "client sky; renderstate.c consumes the value as skytemp"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawnableList",
+   "sig": "(EnumCreatureType)List",
+   "native": "csrc/engine/spawning.c:spawning_list_for",
+   "status": "exact",
+   "note": "every biome id and creature type checked by test_biome_spawn.c against BiomeSpawnProbe"
+  },
+  {
+   "kind": "method",
+   "name": "getEnableSnow",
+   "sig": "()Z",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "snow column, read by servertick.c and raster_worldfx.c"
+  },
+  {
+   "kind": "method",
+   "name": "canSpawnLightningBolt",
+   "sig": "()Z",
+   "native": "csrc/engine/servertick.c:can_lightning_strike_at",
+   "status": "exact",
+   "note": "BIOMES[].lightning; also fire.c, ai.c"
+  },
+  {
+   "kind": "method",
+   "name": "isHighHumidity",
+   "sig": "()Z",
+   "native": "csrc/engine/fire.c:fire_update_tick",
+   "status": "exact",
+   "note": "rainfall > 0.85F inline"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawningChance",
+   "sig": "()F",
+   "native": "csrc/engine/seedworld.c:SW_SPAWNING_CHANCE",
+   "status": "exact",
+   "note": "also spawning.c inline"
+  },
+  {
+   "kind": "method",
+   "name": "getIntRainfall",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "only feeds WorldChunkManager.getRainfall, which nothing on the native path reads"
+  },
+  {
+   "kind": "method",
+   "name": "getFloatRainfall",
+   "sig": "()F",
+   "native": "csrc/engine/render_blocks.c:biome_color",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getFloatTemperature",
+   "sig": "(int,int,int)F",
+   "native": "csrc/engine/features_lakes.c:biome_temperature",
+   "status": "exact",
+   "note": "copies in populate.c populate_float_temperature and render_blocks.c rb_biome_temperature"
+  },
+  {
+   "kind": "method",
+   "name": "decorate",
+   "sig": "(World,Random,int,int)V",
+   "native": "csrc/engine/decorator.c:decorator_decorate",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeGrassColor",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:biome_color",
+   "status": "exact",
+   "note": "RB_KIND_MAP via colormap_lookup"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeFoliageColor",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:biome_color",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150559_j",
+   "sig": "()Z",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "snow column"
+  },
+  {
+   "kind": "method",
+   "name": "func_150573_a",
+   "sig": "(World,Random,Block[],byte[],int,int,double)V",
+   "native": "csrc/engine/surface.c:column",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150560_b",
+   "sig": "(World,Random,Block[],byte[],int,int,double)V",
+   "native": "csrc/engine/surface.c:generic",
+   "status": "exact",
+   "note": "uses the plain temperature below y 63, which is all getFloatTemperature returns there"
+  },
+  {
+   "kind": "method",
+   "name": "func_150566_k",
+   "sig": "()BiomeGenBase",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "mutation rows 128+"
+  },
+  {
+   "kind": "method",
+   "name": "func_150562_l",
+   "sig": "()Class",
+   "native": "csrc/engine/biomes.h:biome_class",
+   "status": "exact",
+   "note": "cls column"
+  },
+  {
+   "kind": "method",
+   "name": "func_150569_a",
+   "sig": "(BiomeGenBase)Z",
+   "native": "csrc/engine/layers.c:same",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150561_m",
+   "sig": "()TempCategory",
+   "native": "csrc/engine/biomes.h:temp_category",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeGenArray",
+   "sig": "()BiomeGenBase[]",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "stronghold.c walks BIOMES for root > 0"
+  },
+  {
+   "kind": "method",
+   "name": "func_150568_d",
+   "sig": "(int)BiomeGenBase",
+   "native": "csrc/engine/layers.c:def",
+   "status": "exact",
+   "note": "out-of-range ids fall back to ocean"
+  },
+  {
+   "kind": "field",
+   "name": "Height.field_150777_a",
+   "sig": "float",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "root"
+  },
+  {
+   "kind": "field",
+   "name": "Height.field_150776_b",
+   "sig": "float",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "variation"
+  },
+  {
+   "kind": "ctor",
+   "name": "Height",
+   "sig": "(float,float)",
+   "native": null,
+   "status": "n/a",
+   "note": "values generated"
+  },
+  {
+   "kind": "method",
+   "name": "Height.func_150775_a",
+   "sig": "()Height",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "the Extreme Hills Edge row"
+  },
+  {
+   "kind": "field",
+   "name": "SpawnListEntry.entityClass",
+   "sig": "Class",
+   "native": "csrc/engine/spawning.c:build_lists",
+   "status": "exact",
+   "note": "sp_list.kind"
+  },
+  {
+   "kind": "field",
+   "name": "SpawnListEntry.minGroupCount",
+   "sig": "int",
+   "native": "csrc/engine/spawning.c:build_lists",
+   "status": "exact",
+   "note": "min_group"
+  },
+  {
+   "kind": "field",
+   "name": "SpawnListEntry.maxGroupCount",
+   "sig": "int",
+   "native": "csrc/engine/spawning.c:build_lists",
+   "status": "exact",
+   "note": "max_group"
+  },
+  {
+   "kind": "ctor",
+   "name": "SpawnListEntry",
+   "sig": "(Class,int,int,int)",
+   "native": "csrc/engine/spawning.c:build_lists",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "SpawnListEntry.toString",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "TempCategory.OCEAN/COLD/MEDIUM/WARM",
+   "sig": "enum",
+   "native": "csrc/engine/biomes.h:temp_category",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "biomes.h is generated from the live oracle objects (make -C oracle biomes-h). getFloatTemperature exists three times natively (features_lakes.c, populate.c, render_blocks.c). The play/play.c sky colour port is outside the tick. The spawn lists of every registered biome are checked by test_biome_spawn.c against BiomeSpawnProbe (slot 161 carries biomeID 160, so lists are looked up by id). Closed by lane/idxworld (verification): every member is ported or n/a, and the ports are held by the worldgen gates against the oracle's chunk and population dumps (test_worldgen, test_populate over out/java/chunks and out/java/populate: 35 overworld regions and seven seed worlds byte for byte), the spawn lists of every registered biome by test_biome_spawn (out/java/biome_spawn/bs-1), the colours by the mesh gate (test_meshes), and the weather and fire rules by the whole-server recordings in evidence."
+}

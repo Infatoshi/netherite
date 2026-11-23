@@ -1,0 +1,114 @@
+{
+ "path": "oracle/src/network/play/server/S31PacketWindowProperty.java",
+ "classes": [
+  "S31PacketWindowProperty"
+ ],
+ "lines": 69,
+ "side": "common",
+ "category": "network",
+ "role": "One window property (furnace cook/burn progress, enchantment power, beacon levels): the server pushes a named int of an open container to the client.",
+ "scope": "in_scope",
+ "scope_reason": "Furnaces work in this game, so the furnace window's progress values are in scope; the native engine never sends them.",
+ "status": "exact",
+ "native": [],
+ "evidence": [
+  "out/java/guijudge/furnace-s1",
+  "out/java/snapshots/te-furnace-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S31PacketWindowProperty",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "S31PacketWindowProperty",
+   "sig": "(int,int,int)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:gui_furnace_progress"
+  },
+  {
+   "kind": "field",
+   "name": "field_149186_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "the window id (s2c i0)",
+   "native": "csrc/engine/survival.c:gui_furnace_progress"
+  },
+  {
+   "kind": "field",
+   "name": "field_149184_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "the property index 0..2 (i1)",
+   "native": "csrc/engine/survival.c:gui_furnace_progress"
+  },
+  {
+   "kind": "field",
+   "name": "field_149185_c",
+   "sig": "int",
+   "status": "exact",
+   "note": "the value (i2); the integrated server passes the packet object, so no short truncation",
+   "native": "csrc/engine/survival.c:gui_furnace_progress"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the integrated server passes packet objects and the native channel carries structs"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "handleWindowProperty: the open furnace container's furnace_progress"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "dispatch overload"
+  },
+  {
+   "kind": "method",
+   "name": "func_149182_c",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149181_d",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149180_e",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static)",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "EntityPlayerMP.sendProgressBarUpdate's only reachable sender is ContainerFurnace (enchanting, brewing and beacon are off): detectAndSendChanges sends an S31 for each of the furnace's cook time, burn time and fuel total that moved since the last send, and addCraftingToCrafters sends all three when the window opens (gui_furnace_progress, 322d67a0). The client's handleWindowProperty calls the open container's updateProgressBar when the window id matches (survival.c's PK_S31 case), and GuiFurnace draws the arrow and flame from them (play.c). The furnace GUI judge (out/java/guijudge/furnace-s1) draws the screen against Java's GuiContainer."
+}

@@ -1,0 +1,26 @@
+# The play checks of PLAYCHECK=sample (csrc/Makefile): these snapshot
+# recordings, and every one with a clientview.jsonl or cwhash.txt. Kept by
+# hand, above the cover line: each recording a play-only failure was found
+# on (DEVLOG 2026-09-28, lane/playcheck). The client-view ones
+# (idx-clientview-s1, idx-spawner-s1, idx-lead-s1, idx-blast-s1,
+# idx-pickup-s1: lane/idxworld) and the client-light ones (idx-cwlight-s1,
+# idx-cwcheck-s1) join through their files. A name followed by +live (or
+# +live:T,T... for frames after rows T too) also plays its whole tape the
+# live way after the check (tests/play_check.sh).
+auditfixa-rain-s1      # lane/playfix: play's own tick copy, row 37 d.ents
+combat-mobs-s1         # lane/playfix: play's own tick copy, row 2074 d.ents
+cg-combat-pig-s1       # lane/playfix (as combat-pig-s1): play's own tick copy, row 458 d.ents
+death-keepinv-s1       # lane/playfix: keepInventory passed as 0, row 128 w.ents
+mobattack-overlap-s1   # lane/playfix: play's own tick copy, row 3 d.ents
+pf-rain-g14            # lane/playfix's weather and difficulty after the world tick (found on auditfixa-rain-s1, which no longer shows it; planted back it fails here, row 1340 d.ents)
+moon-swamp-s2 +live    # lane/playarena: the live replay kept every dead living (no grave), arena full at row 555
+swamp-night-s2 +live   # lane/playarena: the same, and the grave's sweep faulting on a thread stack's guard page
+tnt-cannon-s1 +live:68 # lane/playarena: a section of 3,739 cauldrons past the mesher's buffer (half of Tessellator.instance's)
+# cover: written by make play-check-sample. Over 837 recordings' records, play runs 112
+# functions test_snapshots does not run on the same recording; the recordings above and the
+# 7 with a clientview.jsonl or cwhash.txt run 91 of them, these the rest.
+idx-chatsleep-s1       # runs 72 of them, 893 ms
+iu-off-s1              # runs 57 of them, 750 ms
+rf-cp-end-s1-10        # runs 89 of them, 3174 ms
+idx-chattype-s1        # runs 70 of them, 4661 ms
+bed-wake-s1            # runs 55 of them, 1089 ms

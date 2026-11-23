@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/block/BlockSourceImpl.java",
+  "classes": ["BlockSourceImpl"],
+  "lines": 67,
+  "side": "common",
+  "category": "block",
+  "role": "The IBlockSource wrapper over a world position, built when a dispenser-like block fires so its dispense behavior can read the position, metadata and tile entity.",
+  "scope": "switched_off",
+  "scope_reason": "Reachable only through a world.conf switch that is off (redstone: dispensers never fire) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "BlockSourceImpl", "sig": "(Lnet/minecraft/world/World;III)V", "native": null, "status": "missing"},
+    {"kind": "field", "name": "worldObj", "sig": "final World", "native": null, "status": "missing"},
+    {"kind": "field", "name": "xPos", "sig": "final int", "native": null, "status": "missing"},
+    {"kind": "field", "name": "yPos", "sig": "final int", "native": null, "status": "missing"},
+    {"kind": "field", "name": "zPos", "sig": "final int", "native": null, "status": "missing"},
+    {"kind": "method", "name": "getWorld", "sig": "()Lnet/minecraft/world/World;", "native": null, "status": "missing"},
+    {"kind": "method", "name": "getX", "sig": "()D", "native": null, "status": "missing"},
+    {"kind": "method", "name": "getY", "sig": "()D", "native": null, "status": "missing"},
+    {"kind": "method", "name": "getZ", "sig": "()D", "native": null, "status": "missing"},
+    {"kind": "method", "name": "getXInt", "sig": "()I", "native": null, "status": "missing"},
+    {"kind": "method", "name": "getYInt", "sig": "()I", "native": null, "status": "missing"},
+    {"kind": "method", "name": "getZInt", "sig": "()I", "native": null, "status": "missing"},
+    {"kind": "method", "name": "getBlockMetadata", "sig": "()I", "native": null, "status": "missing"},
+    {"kind": "method", "name": "getBlockTileEntity", "sig": "()Lnet/minecraft/tileentity/TileEntity;", "native": null, "status": "missing"}
+  ],
+  "missing": [
+    "The whole class: it is only constructed when a dispenser or dropper fires, and no block ever receives redstone power (world.conf redstone = off), so the construction site is unreachable in this game."
+  ],
+  "notes": "If dispensers ever come in scope, this wrapper is the shape the dispense behavior expects; none of its members has a native counterpart."
+}

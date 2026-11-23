@@ -1,0 +1,158 @@
+{
+ "path": "oracle/src/network/play/server/S1BPacketEntityAttach.java",
+ "classes": [
+  "S1BPacketEntityAttach"
+ ],
+ "lines": 70,
+ "side": "server",
+ "category": "network",
+ "role": "Sets an entity's riddenByEntity / ridingEntity (0 vehicle id) or its leash holder on the client.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/tracker.h",
+   "symbols": [
+    "TRACKER_PKT_S1B"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.h",
+   "symbols": [
+    "PK_S1B"
+   ]
+  },
+  {
+   "file": "csrc/engine/riding.c",
+   "symbols": [
+    "ride_client_s1b",
+    "push_s1b"
+   ]
+  },
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "TRACKER_PKT_S1B"
+   ]
+  },
+  {
+   "file": "csrc/engine/leash.c",
+   "symbols": [
+    "leash_set",
+    "leash_clear"
+   ]
+  },
+  {
+   "file": "csrc/play/clientents.c",
+   "symbols": [
+    "cents_server_statuses",
+    "cents_livings_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/ride-pig-s1",
+  "out/java/snapshots/idx-lead-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149408_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "the rider's id (the mob tracker's S1B); the player's own S1B names the player implicitly",
+   "native": "csrc/engine/tracker.h:TRACKER_PKT_S1B"
+  },
+  {
+   "kind": "field",
+   "name": "field_149406_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "the vehicle id, -1 unhooks (s2c i0)",
+   "native": "csrc/engine/survival.h:PK_S1B"
+  },
+  {
+   "kind": "field",
+   "name": "field_149407_c",
+   "sig": "int",
+   "status": "exact",
+   "note": "the leash kind (1): the copy's lead, from leash_sends",
+   "native": "csrc/play/clientents.c:cents_server_statuses"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,Entity,Entity)V",
+   "status": "exact",
+   "native": "csrc/engine/riding.c:push_s1b"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "note": "handleEntityAttach: the mount half (riding.c ride_client_s1b) and the leash half on the copy",
+   "native": "csrc/play/clientents.c:cents_livings_tick"
+  },
+  {
+   "kind": "method",
+   "name": "func_149404_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149403_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149402_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "The riding form (type 0): the player's own S1B (EntityPlayerMP.mountEntity, lane/ride) rides the s2c queue as PK_S1B; the mob riders' is the tracker's (lane/riders). The leash form (type 1): EntityLiving.setLeashedToEntity(e, true) and clearLeashed(true, ..) send it as they happen, the tracker's first contact sends it for a leashed entity, and recreateLeash after a load sends none (so a client that took the entity at its load never learns that lead). Natively leash_set and leash_clear count the sends (living leash_sends); the live client's copy takes a changed lead at the next client tick, at once for the entity the client's own interactFirst leashed or let go that tick (the client predicts it), and draws the lead from it. idx-lead-s1 (lane/ride's lead-s1 script: to the player, to a fence knot, a reload) holds each copy's lead holder to the oracle client's at every frame: without the send count the reload's quiet recreateLeash fails at row 292."
+}

@@ -1,0 +1,122 @@
+{
+ "path": "csrc/engine/combatench.c",
+ "lines": 364,
+ "role": "The enchantment half of melee and projectile hits: the held item's damage bonus by creature attribute, knockback and fire aspect, thorns on the victim's armour, bane of arthropods' slowness, fire protection's shorter fire, ItemStack.damageItem for mob equipment, and EntityMob.attackEntityAsMob as the one body every hostile kind calls.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/enchantment/EnchantmentHelper.java",
+   "members": [
+    "getEnchantmentLevel",
+    "getEnchantmentModifierLiving",
+    "func_152377_a",
+    "getKnockbackModifier",
+    "getFireAspectModifier",
+    "getLootingModifier",
+    "func_151384_a",
+    "func_151385_b",
+    "func_92099_a",
+    "getMaxEnchantmentLevel",
+    "getRespiration"
+   ]
+  },
+  {
+   "path": "oracle/src/enchantment/EnchantmentDamage.java",
+   "members": [
+    "func_152376_a",
+    "func_151368_a"
+   ]
+  },
+  {
+   "path": "oracle/src/enchantment/EnchantmentThorns.java",
+   "members": [
+    "func_151367_b",
+    "func_92094_a",
+    "func_92095_b"
+   ]
+  },
+  {
+   "path": "oracle/src/enchantment/EnchantmentProtection.java",
+   "members": [
+    "getFireTimeForEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/enchantment/EnchantmentDurability.java",
+   "members": [
+    "negateDamage"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemStack.java",
+   "members": [
+    "damageItem",
+    "attemptDamageItem"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "getCreatureAttribute",
+    "getHeldItem",
+    "getLastActiveItems",
+    "renderBrokenItemStack",
+    "decreaseAirSupply"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMob.java",
+   "members": [
+    "attackEntityAsMob"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EnumCreatureAttribute.java",
+   "members": [
+    "UNDEFINED",
+    "UNDEAD",
+    "ARTHROPOD"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityIronGolem.java",
+   "members": [
+    "decreaseAirSupply"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "item_ref",
+   "java": "ItemStack, as a mob's equipment slot or a player's inventory stack",
+   "fields": [
+    "eq",
+    "st"
+   ]
+  }
+ ],
+ "entry_points": [
+  "living_creature_attribute",
+  "ench_modifier_living",
+  "ench_knockback",
+  "ench_fire_aspect",
+  "ench_hurt_iter",
+  "ench_damage_iter",
+  "ench_fire_time",
+  "ench_looting",
+  "living_fire_entity",
+  "mob_attack_entity_as_mob",
+  "living_render_broken_item_stack",
+  "living_decrease_air_supply"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "function thorns: calls living_attack_entity_from_attacker on the attacker from inside the attacker's own hit (a re-entrant damage call)",
+  "function damage_item: reads the process-global blockcb_env.world_rand for a broken item's sound draw",
+  "functions user_rng and user_rng_done: the player twin's Random is the server player's sv.erand, copied into the twin around each draw"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Recordings: dmg-sources-s1 and melee-mods-s1. The player twin's items are the server player's (living.player_sp): the current hotbar stack and the four armour slots; a mob's are its five equipment slots, the held one counted in both lists as in Java. lane/idxentity: renderBrokenItemStack is shared by mobs (living_render_broken_item_stack); decreaseAirSupply carries the respiration roll and the golem's no-op."
+}

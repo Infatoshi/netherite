@@ -1,0 +1,19 @@
+{
+ "path": "csrc/engine/raster_worldfx.h",
+ "lines": 91,
+ "role": "Declares worldfx_in, every frame input the weather and screen-overlay passes read (camera and hand projections, fog, lightmap, world and mesher, rain/snow/underwater/atlas textures, rain strength, eye position, burning and underwater flags), and the four worldfx entry points.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/EntityRenderer.java", "members": ["renderRainSnow", "renderHand", "getFOVModifier", "rendererUpdateCount", "farPlaneDistance"]},
+  {"path": "oracle/src/client/renderer/ItemRenderer.java", "members": ["renderOverlays", "renderInsideOfBlock"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["isEntityInsideOpaqueBlock", "isInsideOfMaterial", "getBrightness"]}
+ ],
+ "structs": [
+  {"name": "worldfx_in", "java": "EntityRenderer's frame state (rendererUpdateCount, farPlaneDistance, the camera and renderHand projections), World.rainingStrength/prevRainingStrength, gameSettings.fancyGraphics and the render view entity's position, rotation, burning and underwater state", "fields": ["w", "h", "proj", "mv", "cam", "fog", "fogs", "foge", "fogd", "fogm", "lm", "depth", "rgb", "triangles", "samples", "hand_proj", "world", "mesher", "rain_tex", "snow_tex", "rain_w", "rain_h", "snow_w", "snow_h", "atlas", "atlas_w", "atlas_h", "underwater_tex", "underwater_w", "underwater_h", "fire_u0", "fire_u1", "fire_v0", "fire_v1", "ruc", "fancy", "pt", "eye_x", "eye_y", "eye_z", "eye_now_x", "eye_now_y", "eye_now_z", "rain", "prain", "mat", "burning", "underwater", "brightness", "yaw", "pitch", "far", "inside_uv", "inside_count"]}
+ ],
+ "entry_points": ["worldfx_is_inside_opaque", "worldfx_inside_block", "worldfx_weather", "worldfx_screen"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/raster.c", "csrc/tests/test_render.c"],
+ "notes": "Header only; implementation in raster_worldfx.c."
+}

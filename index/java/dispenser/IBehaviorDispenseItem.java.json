@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/dispenser/IBehaviorDispenseItem.java",
+  "classes": [
+    "IBehaviorDispenseItem"
+  ],
+  "lines": 20,
+  "side": "server",
+  "category": "util",
+  "role": "The dispense-behavior interface, carrying the static default provider that hands the stack back unchanged.",
+  "scope": "not_needed",
+  "scope_reason": "Never runs: dispensing is driven by redstone power and world.conf redstone = off (no block ever receives power), so BlockDispenser's dispense path is dead in the world both sides run; the dispenser window also has no native container yet (csrc/engine/survival.c:3169). The dispenser block and its tile entity do exist natively (csrc/engine/activate.c ID_DISPENSER, csrc/engine/tileentity.c TE_DISPENSER).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "itemDispenseBehaviorProvider",
+      "sig": "Lnet/minecraft/dispenser/IBehaviorDispenseItem;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "dispense",
+      "sig": "(Lnet/minecraft/dispenser/IBlockSource;Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": []
+}

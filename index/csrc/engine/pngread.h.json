@@ -1,0 +1,13 @@
+{
+ "path": "csrc/engine/pngread.h",
+ "lines": 8,
+ "role": "Declares png_read_rgba, the PNG-to-RGBA loader for the gates and build tools.",
+ "layer": "io",
+ "java": [],
+ "structs": [],
+ "entry_points": ["png_read_rgba"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_render.c", "csrc/tests/png2rgba.c"],
+ "notes": "The caller frees the returned buffer."
+}

@@ -1,0 +1,39 @@
+{
+ "path": "csrc/engine/entity_nbt.h",
+ "lines": 32,
+ "role": "Declares the entity NBT writers (the Entity base block, the item-entity kinds, the server player) and the Rows.capture digest step.",
+ "layer": "io",
+ "java": [
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "writeToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": [
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/Rows.java",
+   "members": [
+    "capture"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "ent_nbt_base",
+  "ent_nbt_ie",
+  "ent_nbt_player",
+  "ent_digest_add"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "The digest chain is h = h * 1000003 + entityId, then h = h * 1000003 + nbtLong(entity) (nbtbin.c, through nbtbin_long_memo keyed by the entity id)."
+}

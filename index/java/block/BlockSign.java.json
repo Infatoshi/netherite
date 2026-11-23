@@ -1,0 +1,223 @@
+{
+ "path": "oracle/src/block/BlockSign.java",
+ "classes": [
+  "BlockSign"
+ ],
+ "lines": 189,
+ "side": "common",
+ "category": "block",
+ "role": "Standing (63) and wall (68) signs: a tile-entity block with no collision, wall bounds by facing, and a pop-off when its floor or wall stops being solid; the text is blank under world.conf sign_editing = off.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "block_on_neighbor_changed"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "item_sign_on_item_use"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "TE_SIGN",
+    "render_sign"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/pathfind.c",
+   "symbols": [
+    "PFM_PLATE"
+   ]
+  },
+  {
+   "file": "csrc/engine/ai.c",
+   "symbols": [
+    "blocks_movement"
+   ]
+  },
+  {
+   "file": "csrc/engine/collide.c",
+   "symbols": [
+    "collide_add_boxes"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "block_bounds",
+    "raytrace_collision"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_tileent.c",
+   "symbols": [
+    "render_sign"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_place.c",
+  "out/java/place/big2",
+  "out/java/snapshots/persist-village-full-s42",
+  "out/java/raypick/rp-1",
+  "csrc/tests/test_raypick.c",
+  "out/java/snapshots/pickblock-s1",
+  "out/java/render/te_signs_left",
+  "csrc/tests/test_render.c",
+  "out/java/snapshots/cov-blkbreak-s1",
+  "out/java/snapshots/cov-blkmisc-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149968_a",
+   "sig": "Class",
+   "native": "csrc/engine/tileentity.c:TE_SIGN",
+   "status": "exact",
+   "note": "TileEntitySign"
+  },
+  {
+   "kind": "field",
+   "name": "field_149967_b",
+   "sig": "boolean",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "standing flag: 63 vs 68"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockSign",
+   "sig": "(Class,Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 63 and 68: wood, bounds 0.25..0.75"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "planks' icon, used only for break particles"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(World,III)AxisAlignedBB",
+   "native": "csrc/engine/collide.c:collide_add_boxes",
+   "status": "exact",
+   "note": "no box"
+  },
+  {
+   "kind": "method",
+   "name": "getSelectedBoundingBoxFromPool",
+   "sig": "(World,III)AxisAlignedBB",
+   "native": null,
+   "status": "n/a",
+   "note": "client outline"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsBasedOnState",
+   "sig": "(IBlockAccess,III)V",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "-1: drawn by TileEntitySignRenderer"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBlocksMovement",
+   "sig": "(IBlockAccess,III)Z",
+   "native": "csrc/engine/pathfind.c:PFM_PLATE",
+   "status": "exact",
+   "note": "passable for pathing"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "createNewTileEntity",
+   "sig": "(World,I)TileEntity",
+   "native": "csrc/engine/tileentity.c:TE_SIGN",
+   "status": "exact",
+   "note": "cases 63/68"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 63/68: the sign item"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+   "status": "exact",
+   "note": "cases 63/68: the floor or facing wall solidity test and the drop"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration"
+  }
+ ],
+ "missing": [],
+ "notes": "Village signs do not exist in 1.7.10 villages; signs come only from the player. ai.c names BlockSign in a pathing-cost test (string match). lane/idxblocks: the sign board and post are drawn by raster_tileent.c's render_sign, checked by the te_signs goldens; sign text editing is world.conf sign_editing = off (signs are placed blank). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

@@ -1,0 +1,8 @@
+{"n":200,"act":{"hold":["forward"]}}
+{"n":200,"act":{"hold":["back"]}}
+{"n":200,"act":{"hold":["forward"]}}
+{"n":200,"act":{"hold":["back"]}}
+{"n":80,"act":{"dlook":[0,55],"hold":["attack"]}}
+{"n":120,"act":{"hold":["forward"]}}
+{"n":200,"act":{"hold":["back"]}}
+{"cmd":"save","name":"cp-mobs-s1"}

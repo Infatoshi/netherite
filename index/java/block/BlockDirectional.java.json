@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/block/BlockDirectional.java",
+  "classes": ["BlockDirectional"],
+  "lines": 18,
+  "side": "common",
+  "category": "block",
+  "role": "A tiny abstract base over Block that exposes the horizontal facing (the low two metadata bits) as one static helper and a protected constructor.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/render_blocks3.c", "symbols": ["rb3_render_stem"]},
+    {"file": "csrc/engine/structure_blocks.c", "symbols": ["func_151555_a"]}
+  ],
+  "evidence": ["csrc/tests/test_registry.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockDirectional", "sig": "(Material)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "The subclasses' registry entries carry everything the constructor sets."},
+    {"kind": "method", "name": "func_149895_l", "sig": "(I)I", "native": "csrc/engine/render_blocks3.c:rb3_render_stem", "status": "partial", "note": "Trivially inlined as meta & 3 everywhere; render_blocks3.c:978 cites the name in the stem renderer, 1357 in the cocoa renderer, and the subclasses' own renderers carry their own masks."}
+  ],
+  "missing": [],
+  "notes": "Nothing else to port: the class is a two-method shell. The subclasses (bed, door, dispenser, furnace, pumpkin, stairs, cocoa, log, torch, tripwire, lever, end portal frame, fence gate, anvil) each carry their records. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers."
+}

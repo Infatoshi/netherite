@@ -1,0 +1,61 @@
+{
+ "classes": [
+  "ContainerHorseInventory"
+ ],
+ "lines": 134,
+ "side": "common",
+ "category": "inventory",
+ "role": "The horse GUI container: the saddle slot, the horse-armor slot, and the storage slots of AnimalChest, closed by writing the horse's NBT.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf horses = off: no horse exists to open it.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_111243_a",
+   "sig": "IInventory",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "theHorse",
+   "sig": "EntityHorse",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerHorseInventory",
+   "sig": "(InventoryPlayer,IInventory,EntityHorse)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onContainerClosed",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/inventory/ContainerHorseInventory.java"
+}

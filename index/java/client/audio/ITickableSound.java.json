@@ -1,0 +1,27 @@
+{
+ "path": "oracle/src/client/audio/ITickableSound.java",
+ "classes": [
+  "ITickableSound"
+ ],
+ "lines": 8,
+ "side": "client",
+ "category": "client_audio",
+ "role": "A sound that is updated every client tick (moving sources such as minecarts) and can report that it is done.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "method",
+   "name": "func_147667_k",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "isDonePlaying"
+  }
+ ],
+ "missing": [],
+ "notes": "Pure interface; extends ISound and IUpdatePlayerListBox."
+}

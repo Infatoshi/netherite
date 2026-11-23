@@ -1,0 +1,132 @@
+{
+  "path": "oracle/src/nbt/NBTBase.java",
+  "classes": [
+    "NBTBase",
+    "NBTBase.NBTPrimitive"
+  ],
+  "lines": 115,
+  "side": "common",
+  "category": "nbt",
+  "role": "The abstract NBT tag base: the 12 type ids, the factory that builds an empty tag of a type, and the write/read/copy/equals contract every tag implements.",
+  "scope": "in_scope",
+  "scope_reason": "NBT carries every snapshot file, every entity and tile-entity digest (d.ents) and every item tag; the native engine cannot load or digest state without it.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/nbtjson.h",
+      "symbols": [
+        "nbt_type",
+        "nbt_kind"
+      ]
+    },
+    {
+      "file": "csrc/engine/nbtbin.c",
+      "symbols": [
+        "write_payload"
+      ]
+    },
+    {
+      "file": "csrc/engine/region.c",
+      "symbols": [
+        "nbt_bin_value",
+        "nbt_bin_compound"
+      ]
+    },
+    {
+      "file": "csrc/engine/nbtjson.c",
+      "symbols": [
+        "nbt_render",
+        "nbt_diff"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_det.c",
+    "out/java/snapshots/fresh-play-s1",
+    "out/java/snapshots/dev-give-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "NBTTypes",
+      "sig": "String[]",
+      "native": "csrc/engine/nbtjson.h:nbt_type",
+      "status": "exact",
+      "note": "The native enum holds the same 12 kinds in id order; the name strings themselves are only crash-report text and are not ported."
+    },
+    {
+      "kind": "method",
+      "name": "write",
+      "sig": "(LDataOutput;)V",
+      "native": "csrc/engine/nbtbin.c:write_payload",
+      "status": "exact",
+      "note": "The abstract writer, implemented per kind; the binary form is checked byte for byte by the d.ents SHA-1 digest on replayed tapes."
+    },
+    {
+      "kind": "method",
+      "name": "func_152446_a",
+      "sig": "(LDataInput;ILNBTSizeTracker;)V",
+      "native": "csrc/engine/region.c:nbt_bin_value",
+      "status": "exact",
+      "note": "The abstract reader, implemented per kind; region.c reads the tag kinds a chunk's Level compound carries."
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()Ljava/lang/String;",
+      "native": "csrc/engine/nbtjson.c:nbt_render",
+      "status": "exact",
+      "note": "The native counterpart is the canonical text form (typed scalars, keys sorted), used for the same debug-and-compare purpose, not Java's printed format."
+    },
+    {
+      "kind": "method",
+      "name": "getId",
+      "sig": "()B",
+      "native": "csrc/engine/nbtjson.h:nbt_kind",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_150284_a",
+      "sig": "(B)LNBTBase;",
+      "native": "csrc/engine/region.c:nbt_bin_value",
+      "status": "exact",
+      "note": "The type-id dispatch: region.c builds the matching native node from the type byte; an unknown type fails the load where Java returns null."
+    },
+    {
+      "kind": "method",
+      "name": "copy",
+      "sig": "()LNBTBase;",
+      "native": "csrc/engine/crafting.c:copy_tag",
+      "status": "exact",
+      "note": "Deep copy through the canonical text round trip (render then parse), which is lossless for every tree the game produces; a string a canonical text cannot carry back is refused rather than dropped."
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Ljava/lang/Object;)Z",
+      "native": "csrc/engine/nbtjson.c:nbt_diff",
+      "status": "exact",
+      "note": "Type id plus value comparison; nbt_diff walks two trees field by field and names the first differing path."
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "Only feeds Java's HashMap; the native writer reproduces the HashMap iteration order structurally from insertion order (nbtbin.c), so no hash is needed."
+    },
+    {
+      "kind": "method",
+      "name": "func_150285_a_",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "the base string value (toString) is reached only by NBTTagCompound.getString on a non-string tag and NBTTagList.getStringTagAt's non-string branch; NBTTagString overrides it, and the game reads every string key it wrote as a string"
+    }
+  ],
+  "missing": [],
+  "notes": "The nested abstract class NBTPrimitive (the scalar-tag supertype with the func_1502xx cross-type getters) is the NBT_BYTE..NBT_DOUBLE range of nbt_type in csrc/engine/nbtjson.h; its per-class records carry those getters. The write path (nbtbin.c) is proven by the whole-tape replay gates with d.ents compared; the read path (region.c) by chunk loads; the canonical round trip by test_snapshots.c step 3."
+}

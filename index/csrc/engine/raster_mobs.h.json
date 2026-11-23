@@ -1,0 +1,26 @@
+{
+ "path": "csrc/engine/raster_mobs.h",
+ "lines": 107,
+ "role": "Declares the mob rasterizer: the mob_model_kind enum of every model raster_mobs.c draws and mob_render_input, the per-entity render state (position, rotations, limb swing, hurt/death, colour, ender dragon animation and beam, ender crystal rotation). Also player_preview, the preview's inputs.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/entity/RendererLivingEntity.java", "members": ["doRender"]},
+  {"path": "oracle/src/client/model/ModelDragon.java", "members": ["render"]},
+  {"path": "oracle/src/client/renderer/entity/RenderDragon.java", "members": ["doRender", "renderEquippedItems"]},
+  {"path": "oracle/src/client/renderer/tileentity/RenderEnderCrystal.java", "members": ["doRender"]},
+  {"path": "oracle/src/client/gui/inventory/GuiInventory.java", "members": ["func_147046_a"]}
+ ],
+ "structs": [
+  {"name": "mob_model_kind", "java": "which Render/ModelBase pair the entity class maps to in RenderManager", "fields": ["MOB_PIG", "MOB_COW", "MOB_SHEEP", "MOB_CHICKEN", "MOB_ZOMBIE", "MOB_SKELETON", "MOB_WITHER_SKELETON", "MOB_CREEPER", "MOB_SPIDER", "MOB_CAVE_SPIDER", "MOB_ENDERMAN", "MOB_WITCH", "MOB_SLIME", "MOB_SILVERFISH", "MOB_PIGMAN", "MOB_GHAST", "MOB_BLAZE", "MOB_MAGMA_CUBE", "MOB_VILLAGER", "MOB_IRON_GOLEM", "MOB_SQUID", "MOB_BAT", "MOB_MOOSHROOM", "MOB_DRAGON", "MOB_ENDER_CRYSTAL"]},
+  {"name": "mob_render_input", "java": "the EntityLivingBase render fields RendererLivingEntity.doRender reads (renderYawOffset, rotationYawHead, rotationPitch, limbSwing, limbSwingAmount, swingProgress, hurtTime, deathTime, isChild) plus per-kind state (sheep colour and sheared, creeper charged and flash, enderman carried block and screaming, slime size, villager profession, ghast shooting, bat hanging, iron golem attack/rose timers, squid tentacle angles, dragon animTime and movement buffer, crystal innerRotation)", "fields": ["kind", "x", "y", "z", "body_yaw", "head_yaw", "pitch", "limb", "limb_amount", "swing", "wing", "eat_head_y", "eat_head_x", "partial_tick", "brightness_scalar", "height", "width", "squish", "tentacle", "squid_pitch", "squid_yaw", "attack_progress", "age", "hurt", "death", "child", "sheared", "color", "saddle", "brightness", "invisible", "burning", "id", "charged", "carried_id", "carried_meta", "screaming", "slime_size", "profession", "ghast_shooting", "hanging", "attack_timer", "rose_timer", "flash", "anim", "off", "death_ticks", "has_beam", "beam_rot", "beam_dx", "beam_dy", "beam_dz", "beam_len", "beam_ticks", "crystal_rot"]}
+ ],
+ "entry_points": ["raster_mobs_draw", "raster_mobs_scene", "raster_mobs_player_preview"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/raster.c",
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_hudscreens.c"
+ ],
+ "notes": "Header only; the implementation is raster_mobs.c. Includes raster_entity_quad.h for entity_raster_target. lane/entrender: mob_render_input carries fire_dy, view_yaw, zombie_villager, converting, equip[5] and now."
+}

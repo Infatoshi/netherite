@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/tileticks.h",
+ "lines": 82,
+ "role": "Declares the tile entity tick pass: the per-tick time and cos-table setter, the world Random for chest sounds, the pass itself, the tt_env callback struct for spawners and chest viewers, the furnace swap flag, and the probe's lid-state renderer.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/World.java", "members": ["updateEntities"]},
+  {"path": "oracle/src/block/BlockFurnace.java", "members": ["field_149934_M"]},
+  {"path": "oracle/src/tileentity/MobSpawnerBaseLogic.java", "members": ["updateSpawner"]},
+  {"path": "oracle/src/tileentity/TileEntityChest.java", "members": ["updateEntity", "numPlayersUsing", "lidAngle", "prevLidAngle"]}
+ ],
+ "structs": [
+  {"name": "tt_env", "java": null, "fields": ["ctx", "spawner", "chest_viewers"]}
+ ],
+ "entry_points": ["tileticks_set_time", "tileticks_set_world_rand", "tileticks_pass", "tileticks_set_env", "tileticks_furnace_swapping", "tileticks_lid_render"],
+ "tick_path": true,
+ "gpu": [
+  "lines 66-70, struct tt_env: function pointers and a void* context installed into global state by tileticks_set_env",
+  "line 52: the cos table is passed as a pointer to recorded values (the oracle records cos because glibc differs from fdlibm)"
+ ],
+ "tests": ["csrc/tests/test_tileticks.c"],
+ "notes": "The header comment lists which updateEntity bodies the pass covers and which are switched off by world.conf (hopper transfers, brewing)."
+}

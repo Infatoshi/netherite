@@ -1,0 +1,197 @@
+{
+  "path": "oracle/src/util/CombatTracker.java",
+  "classes": [
+    "CombatTracker"
+  ],
+  "lines": 250,
+  "side": "server",
+  "category": "combat",
+  "role": "Per-living-entity record of recent hits, kept for the death message and its fall-damage attribution; reset on healing and on tick.",
+  "scope": "in_scope",
+  "scope_reason": "EntityLivingBase.func_94060_bK reads func_94550_c for the player's stat.entityKilledBy; the rest is death-message text",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "combat_entry",
+        "combat_reset",
+        "combat_killer"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.h",
+      "symbols": [
+        "surv_combat"
+      ]
+    },
+    {
+      "file": "csrc/engine/living.c",
+      "symbols": [
+        "living_on_death"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_player_kill"
+      ]
+    },
+    {
+      "file": "csrc/engine/chatmsg.c",
+      "symbols": [
+        "chatmsg_death",
+        "chatmsg_combat_add",
+        "killer_name"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/stats-s1",
+    "out/java/snapshots/stats-s1-pre",
+    "out/java/snapshots/idx-killcredit-s1",
+    "out/java/snapshots/creeper-fall-s1",
+    "out/java/snapshots/cactus-armor-s1",
+    "out/java/snapshots/night-fight-s1",
+    "out/java/clientframes/idx-deathmsg-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "combatEntries",
+      "sig": "List",
+      "native": "csrc/engine/survival.h:surv_combat",
+      "status": "exact",
+      "note": "not a list: combat_entry keeps what func_151521_b, func_94544_f and func_94550_c read of the entries since the last clear (the last entry, the longest fall and the entry it answers, the best living and player by damage, the count), so there is no cap"
+    },
+    {
+      "kind": "field",
+      "name": "fighter",
+      "sig": "EntityLivingBase",
+      "native": null,
+      "status": "n/a",
+      "note": "the one server player"
+    },
+    {
+      "kind": "field",
+      "name": "field_94555_c",
+      "sig": "int (tick of the last entry)",
+      "native": "csrc/engine/survival.h:surv_combat",
+      "status": "exact",
+      "note": "last_tick"
+    },
+    {
+      "kind": "field",
+      "name": "field_152775_d",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "combat enter tick, for the combat events only"
+    },
+    {
+      "kind": "field",
+      "name": "field_152776_e",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "combat exit tick, for the combat events only"
+    },
+    {
+      "kind": "field",
+      "name": "field_94552_d",
+      "sig": "boolean (in damage timer)",
+      "native": "csrc/engine/survival.h:surv_combat",
+      "status": "exact",
+      "note": "in_combat"
+    },
+    {
+      "kind": "field",
+      "name": "field_94553_e",
+      "sig": "boolean (took damage)",
+      "native": "csrc/engine/survival.h:surv_combat",
+      "status": "exact",
+      "note": "active"
+    },
+    {
+      "kind": "field",
+      "name": "field_94551_f",
+      "sig": "String (fall-damage block name)",
+      "native": "csrc/engine/survival.h:surv_combat_entry",
+      "status": "exact",
+      "note": "label, per entry"
+    },
+    {
+      "kind": "ctor",
+      "name": "CombatTracker",
+      "sig": "(EntityLivingBase)V",
+      "native": "csrc/engine/survival.h:surv_combat",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_94545_a",
+      "sig": "()V (reset)",
+      "native": "csrc/engine/survival.c:combat_entry",
+      "status": "exact",
+      "note": "the entry's label: isOnLadder's ladder or vines, else isInWater"
+    },
+    {
+      "kind": "method",
+      "name": "func_94547_a",
+      "sig": "(DamageSource,float,float)V (record damage)",
+      "native": "csrc/engine/survival.c:combat_entry",
+      "status": "exact",
+      "note": "after EntityPlayer.damageEntity's setHealth, so a killing blow resets the older entries first"
+    },
+    {
+      "kind": "method",
+      "name": "func_151521_b",
+      "sig": "()IChatComponent (death message)",
+      "native": "csrc/engine/chatmsg.c:chatmsg_death",
+      "status": "exact",
+      "note": "the death message, from the last entry and func_94544_f's answer"
+    },
+    {
+      "kind": "method",
+      "name": "func_94550_c",
+      "sig": "()EntityLivingBase (best attacker)",
+      "native": "csrc/engine/survival.c:combat_killer",
+      "status": "exact",
+      "note": "the killer func_94060_bK reads for stat.entityKilledBy, kept as each entry lands (k_best, k_player); the death message's killer is the same over names (chatmsg.c chatmsg_combat_add, killer_name)"
+    },
+    {
+      "kind": "method",
+      "name": "func_94544_f",
+      "sig": "()CombatEntry (best entry)",
+      "native": "csrc/engine/survival.c:combat_entry",
+      "status": "exact",
+      "note": "kept as each entry lands (fall_entry, fall_len, has_fall); chatmsg_death applies the over-5 test; the second half never answers"
+    },
+    {
+      "kind": "method",
+      "name": "func_94548_b",
+      "sig": "(CombatEntry)String",
+      "native": null,
+      "status": "n/a",
+      "note": "the death message"
+    },
+    {
+      "kind": "method",
+      "name": "func_94542_g",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "the death message"
+    },
+    {
+      "kind": "method",
+      "name": "func_94549_h",
+      "sig": "()V (tick)",
+      "native": "csrc/engine/survival.c:combat_reset",
+      "status": "exact",
+      "note": "every 20th tick from EntityLivingBase.onUpdate, on each entry and at death"
+    }
+  ],
+  "missing": [],
+  "notes": "Not ported; the recording hook site is csrc/engine/living.c (comment 'CombatTracker records the hit; nothing the tick or the NBT carries'). Note the native tracker in csrc/engine/tracker.h is the entity tracker, not this class. lane/idxblocks: a mob's func_94060_bK at its death is now ported (living.c's living_on_death): damageEntity's setHealth leaves the fighter dead before func_94547_a, whose func_94549_h clears every earlier entry, so the tracker holds only the killing blow and its best attacker is the killing source's living; else attackingPlayer, else the revenge target. The score (stat.mobKills) goes to that one, onKillEntity (stat.killEntity, killEnemy) to the source's entity. idx-killcredit-s1 fails without it (a zombie the player hit dying in lava counted stat.killEntity.Zombie). lane/mobscenes: the player's func_94060_bK falls back to a revenge target that EntityLivingBase.onEntityUpdate drops once it is dead; creeper-fall-s1 (a creeper's blast, then a fatal fall) counted entityKilledBy.Creeper natively before. lane/combattracker: surv_combat no longer holds the entries (the 64-entry array aborted at the 65th, a long fight in armour or leaning on a cactus): combat_entry folds each entry into what the death reads, the last entry, func_94544_f's longest fall and the entry it answers, and func_94550_c's best living and best player by damage over kinds (combat_killer) and over names (chatmsg.c chatmsg_combat_add, killer_name), so there is no cap; cactus-armor-s1 (about 100 entries, death.attack.cactus) and night-fight-s1 (about 400, death.attack.mob, entityKilledBy.Zombie) aborted before."
+}

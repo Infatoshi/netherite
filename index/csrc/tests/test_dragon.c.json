@@ -1,0 +1,70 @@
+{
+ "path": "csrc/tests/test_dragon.c",
+ "lines": 352,
+ "role": "Gate: field-by-field replay of DragonProbe's server-side trace through dragon.c: EntityDragon movement, targeting, part attacks, block griefing, ender crystal healing and explosions, death XP orbs, with Det and world Random states compared per tick and a --negative=draw check.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/entity/boss/EntityDragon.java",
+   "members": [
+    "onLivingUpdate",
+    "attackEntityFromPart",
+    "updateDragonEnderCrystal",
+    "onDeathUpdate",
+    "destroyBlocksInAABB",
+    "collideWithEntities",
+    "attackEntitiesInList"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityEnderCrystal.java",
+   "members": [
+    "onUpdate",
+    "attackEntityFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/world/Explosion.java",
+   "members": [
+    "doExplosionA",
+    "doExplosionB"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityXPOrb.java",
+   "members": [
+    "getXPSplit",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/DragonProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "orb_env",
+   "java": "the world's XP orb list",
+   "fields": [
+    "iew"
+   ]
+  },
+  {
+   "name": "blast_ctx",
+   "java": "the crystal explosion's context over the dragon's bounding box",
+   "fields": [
+    "dragon",
+    "orbs",
+    "box"
+   ]
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "Data: out/java/dragon (blocks, crystal, crystal-kill, d, death, force for seeds 2 and 42). Modes read from the manifest: no_grief, multi_crystal, pillar. EntityDragon.attackEntityFrom is modelled as returning false for explosions (blast_attack). Java member names not each verified in the Java files. Test code, built only into out/native/test_*; not on the product or GPU path, so no GPU hazards are listed."
+}

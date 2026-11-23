@@ -1,0 +1,114 @@
+{
+ "path": "csrc/engine/nbtjson.h",
+ "lines": 108,
+ "role": "Declares the opaque NBT tree type, its node kinds, builders, readers, insertion-ordered field access, the canonical text render and parse, and the tree diff implemented in nbtjson.c.",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/nbt/NBTTagCompound.java",
+   "members": [
+    "setTag",
+    "getTag",
+    "hasKey",
+    "func_150296_c"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagList.java",
+   "members": [
+    "appendTag",
+    "func_150304_a",
+    "tagCount"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTBase.java",
+   "members": [
+    "getId",
+    "NBTTypes"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "nbt_type",
+   "java": "NBTBase.getId's tag kinds, in a different order (nbtbin.c maps them to Java ids)",
+   "fields": [
+    "NBT_BYTE",
+    "NBT_SHORT",
+    "NBT_INT",
+    "NBT_LONG",
+    "NBT_FLOAT",
+    "NBT_DOUBLE",
+    "NBT_STRING",
+    "NBT_BYTE_ARRAY",
+    "NBT_INT_ARRAY",
+    "NBT_LIST",
+    "NBT_COMPOUND"
+   ]
+  },
+  {
+   "name": "nbt (opaque typedef)",
+   "java": "NBTBase",
+   "fields": []
+  },
+  {
+   "name": "nbt_put_site",
+   "java": null,
+   "fields": [
+    "p",
+    "k"
+   ]
+  }
+ ],
+ "entry_points": [
+  "nbt_new_byte",
+  "nbt_new_short",
+  "nbt_new_int",
+  "nbt_new_long",
+  "nbt_new_float",
+  "nbt_new_double",
+  "nbt_new_string",
+  "nbt_new_byte_array",
+  "nbt_new_int_array",
+  "nbt_new_list",
+  "nbt_new_compound",
+  "nbt_list_add",
+  "nbt_put",
+  "nbt_list_set",
+  "nbt_comp_set",
+  "nbt_replace",
+  "nbt_kind",
+  "nbt_get",
+  "nbt_list_size",
+  "nbt_list_get",
+  "nbt_string_value",
+  "nbt_int_value",
+  "nbt_field_count",
+  "nbt_field_key",
+  "nbt_field_value",
+  "nbt_float_bits",
+  "nbt_double_bits",
+  "nbt_byte_array",
+  "nbt_int_array",
+  "nbt_render",
+  "nbt_parse",
+  "nbt_diff",
+  "nbt_free",
+  "nbt_scratch_begin",
+  "nbt_scratch_end",
+  "nbt_put_site",
+  "nbt_scratch_bytes"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "nbt is an opaque pointer tree type; every caller that holds one holds a pointer graph",
+  "nbt_scratch_begin/nbt_scratch_end: trees built in between live in a region the end rewinds"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_loot.c"
+ ],
+ "notes": "nbt_put appends without replacing (nbtedit.c and nbt_replace cover replacement). Under GCC or clang nbt_put is a macro: a key proven a string literal by __builtin_constant_p goes through nbt_put_site's per-call-site cache (checked by pointer), any other through the nbt_put function's interning."
+}

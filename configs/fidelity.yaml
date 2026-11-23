@@ -1,0 +1,26 @@
+# The exact eval's fidelity (nether eval and nether flywheel read this file; --allow-approx skips it):
+# what a frozen eval's run file and ntloop flags are held to, so every score is of the vanilla game, never of a
+# training shortcut. set: keys forced into the derived run file (OUT/run.yaml; a file of sim's sections alone
+# takes them without "sim."); args: ntloop flags appended last (the last flag wins); refuse: ntloop flags an exact
+# eval never takes, comma-separated.
+set:
+  sim.client.cast_precision: 32
+  sim.client.ticks_per_step: 1
+  sim.client.action_repeat: 1
+  sim.client.cast_radius: 0
+  sim.engine.tick_scope: full
+  sim.fidelity.spawning: on
+  sim.fidelity.spawn_types: monster,creature,ambient,water
+  sim.fidelity.mobs: all
+  sim.fidelity.random_ticks: on
+  sim.fidelity.weather: on
+  sim.fidelity.skip_ambient: off
+  sim.fidelity.distant_tick_radius: 0
+  sim.fidelity.rung: exact
+args: --distant-tick-radius 0
+refuse: --train-skip-ambient
+# the eval's size and sampler seed when a gym or a flag does not give them (one episode an env; one seed, one
+# sampler stream, so two models meet the same draws)
+eval:
+  episodes: 256
+  seed: 1000

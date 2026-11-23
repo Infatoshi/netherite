@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/network/INetHandler.java",
+  "classes": [
+    "INetHandler"
+  ],
+  "lines": 23,
+  "side": "common",
+  "category": "network",
+  "role": "The base interface every packet handler implements: the disconnect callback, the connection-state transition hook and the per-tick network tick.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "onDisconnect",
+      "sig": "(LIChatComponent;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "The native session ends by tape length or quit op; no disconnect callback exists."
+    },
+    {
+      "kind": "method",
+      "name": "onConnectionStateTransition",
+      "sig": "(LEnumConnectionState;LEnumConnectionState;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "No protocol states in the native tick; messages are structs (SPEC 'two sides')."
+    },
+    {
+      "kind": "method",
+      "name": "onNetworkTick",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:surv_server_tick_start",
+      "status": "partial",
+      "note": "The network tick's counter and its per-tick decrements live in the native server tick (NetHandlerPlayServer.onNetworkTick's port); the keep-alive and idle-kick parts have no counterpart."
+    }
+  ],
+  "missing": [],
+  "notes": "The interface exists only as the dispatch target of the Netty layer the native engine replaces."
+}

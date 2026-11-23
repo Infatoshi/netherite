@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/renderer/texture/TextureCompass.java",
+  "classes": ["TextureCompass"],
+  "lines": 105,
+  "side": "client",
+  "category": "client_render",
+  "role": "The 'compass' item icon's animated TextureAtlasSprite: each tick it eases a smoothed needle angle toward the bearing from the player to the world spawn and advances the texture frame.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/texanim.c", "symbols": ["compass_tick", "compass_target", "texanim_compass_frame", "texanim_compass_render_step"]}
+  ],
+  "evidence": ["out/java/render/blockicons_hotbar_a", "out/java/rendertick/anim_dials", "csrc/tests/test_rendertick.c"],
+  "members": [
+    {"kind": "field", "name": "currentAngle", "sig": "double", "native": "csrc/engine/texanim.h:texanim_state", "status": "exact", "note": "compass_a"},
+    {"kind": "field", "name": "angleDelta", "sig": "double", "native": "csrc/engine/texanim.h:texanim_state", "status": "exact", "note": "compass_d"},
+    {"kind": "ctor", "name": "TextureCompass", "sig": "(String)", "native": null, "status": "n/a", "note": "the sprite comes from the dump"},
+    {"kind": "method", "name": "updateAnimation", "sig": "()V", "native": "csrc/engine/texanim.c:compass_tick", "status": "exact"},
+    {"kind": "method", "name": "updateCompass", "sig": "(World,D,D,D,Z,Z)V", "native": "csrc/engine/texanim.c:compass_target", "status": "exact", "note": "the smoothing branch is compass_tick, the set-angle branch RenderItemFrame uses is texanim_compass_frame"}
+  ],
+  "missing": [],
+  "notes": "Compasses are reachable through villager trades (csrc/engine/trades.c lists item 345). Off-surface the vanilla needle is randomized via the oracle hook netherite.oracle.Det.mathRandom(), the oracle's determinism pin. World.getSpawnPoint server-side state is a separate file's concern."
+}

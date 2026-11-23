@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/item/ItemEmptyMap.java",
+  "classes": ["ItemEmptyMap"],
+  "lines": 51,
+  "side": "server",
+  "category": "item",
+  "role": "The empty map: right click creates a filled_map ItemStack with a fresh MapData centred on the player.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf maps = off: 'an empty map stays empty'. ItemEmptyMap.onItemRightClick begins with the WorldConf.maps hook and returns the stack, in the oracle as well.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/iu-off-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemEmptyMap", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "n/a", "note": "row 395"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": null, "status": "n/a", "note": "the WorldConf.maps hook short-circuits it; MapData is never created in this game"}
+  ],
+  "missing": [],
+  "notes": "Filled maps from loot are likewise switched off, so ItemMapBase's onUpdate stays dead. lane/itemuse: iu-off-s1 uses it with world.conf's switch off (used on the ground and in the air: nothing happens)."
+}

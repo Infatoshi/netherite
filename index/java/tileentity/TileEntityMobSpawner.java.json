@@ -1,0 +1,133 @@
+{
+  "path": "oracle/src/tileentity/TileEntityMobSpawner.java",
+  "classes": [
+    "TileEntityMobSpawner",
+    "TileEntityMobSpawner$1"
+  ],
+  "lines": 84,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The mob spawner block entity: wraps a MobSpawnerBaseLogic bound to its own position, delegating NBT, the tick and the client event.",
+  "scope": "in_scope",
+  "scope_reason": "Dungeon, fortress and stronghold spawners.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "TE_MOB_SPAWNER",
+        "te_spawner"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_spawner",
+        "te_load"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "spawner_update"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_tile_spawner"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_tileent.c",
+      "symbols": [
+        "raster_tileents_spawner_tick"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/te-spawner-s1",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_populate.c",
+    "out/java/rendertick/te_spawner",
+    "out/java/snapshots/tiles-reload-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145882_a",
+      "sig": "MobSpawnerBaseLogic (anonymous)",
+      "native": "csrc/engine/tileentity.h:te_spawner",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "$1.func_98267_a",
+      "sig": "(I)V",
+      "native": null,
+      "status": "n/a",
+      "note": "addBlockEvent(52, 1): the server's own event pass calls setDelayToMin, which acts only on a client world; the playable client resets its spinner from the server delay (play.c:tileents_tick)."
+    },
+    {
+      "kind": "method",
+      "name": "$1.getSpawnerWorld/getSpawnerX/getSpawnerY/getSpawnerZ",
+      "sig": "",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "$1.setRandomMinecart",
+      "sig": "(WeightedRandomMinecart)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_spawner",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "updateEntity",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:spawner_update",
+      "status": "exact",
+      "note": "The server half (tileticks.c:spawner_update, te-spawner-s1) and the client spin (raster_tileents_spawner_tick). The client half's three WorldClient.rand floats and its smoke and flame (nothing is constructed under the pinned minimal particles) move only the client world's Random, which the whole-server replay and the playable client do not keep (test_clientworld does, over walks without a spawner): a follow-up for the client-world lane."
+    },
+    {
+      "kind": "method",
+      "name": "getDescriptionPacket",
+      "sig": "()Packet",
+      "native": null,
+      "status": "n/a",
+      "note": "The playable client draws each tile entity from the server's copy (one process: play.c, raster_tileent.c), so the description packet's content, sent whenever the server copy changes, is what it already reads; no row carries the client copy."
+    },
+    {
+      "kind": "method",
+      "name": "receiveClientEvent",
+      "sig": "(II)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "The server call is setDelayToMin, a no-op off a client world; the client spinner reset is play.c:tileents_tick."
+    },
+    {
+      "kind": "method",
+      "name": "func_145881_a",
+      "sig": "()MobSpawnerBaseLogic",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": " lane/idxblocks: reviewed. lane/reloadstate: tiles-reload-s1 unloads a spawner mid-delay and reloads it (coverage, passed on master)."
+}

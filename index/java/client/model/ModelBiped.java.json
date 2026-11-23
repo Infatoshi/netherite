@@ -1,0 +1,41 @@
+{
+  "path": "oracle/src/client/model/ModelBiped.java",
+  "classes": ["ModelBiped"],
+  "lines": 248,
+  "side": "client",
+  "category": "client_model",
+  "role": "The humanoid model every player, zombie, skeleton, pigman and villager render derives from: head, headwear, body, arms, legs, plus the ears and cloak extras and the held-item/aim/sneak pose flags.",
+  "scope": "in_scope",
+  "scope_reason": "The biped family is pixel-gated (mobs_zombie_*, mobs2b_villager_*, mobs2a_skeleton_*, and the first-person arm in hand_* scenes).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_zombie", "model_villager", "model_skeleton", "pose_model", "draw_model", "raster_mobs_player_preview", "pose_armor", "model_player"]},
+    {"file": "csrc/engine/raster_hand.c", "symbols": ["first_person_arm", "model_box"]}
+  ],
+  "evidence": ["out/java/render/mobs_zombie_f006", "out/java/render/mobs2b_villager_f006", "out/java/render/mobs2a_skeleton_f006", "out/java/render/hand_sword", "csrc/tests/test_render.c", "out/java/render/gui_inventory_preview", "out/java/render-src/ent_armor", "out/java/clientframes/idx-tpv-s1"],
+  "members": [
+    {"kind": "field", "name": "bipedHead", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_player", "status": "exact", "note": "the head part of each biped model builder (model_player for the player, model_zombie and its variants for the mobs)"},
+    {"kind": "field", "name": "bipedHeadwear", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_zombie", "status": "exact", "note": "the grow 0.5 hat box, drawn in every biped model"},
+    {"kind": "field", "name": "bipedBody", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_player", "status": "exact"},
+    {"kind": "field", "name": "bipedRightArm", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_player", "status": "exact"},
+    {"kind": "field", "name": "bipedLeftArm", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_player", "status": "exact"},
+    {"kind": "field", "name": "bipedRightLeg", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_player", "status": "exact"},
+    {"kind": "field", "name": "bipedLeftLeg", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_player", "status": "exact"},
+    {"kind": "field", "name": "bipedEars", "sig": "ModelRenderer", "native": null, "status": "n/a", "note": "RenderPlayer draws them only for a player named deadmau5 (RenderPlayer.renderEquippedItems); the oracle's session is Player (Main.java's --username)"},
+    {"kind": "field", "name": "bipedCloak", "sig": "ModelRenderer", "native": null, "status": "n/a", "note": "RenderPlayer draws it only when AbstractClientPlayer.func_152122_n (a cape texture the skin manager fetched from the session server for the profile); the oracle's offline Player profile has none"},
+    {"kind": "field", "name": "heldItemLeft", "sig": "int", "native": null, "status": "n/a", "note": "no renderer in oracle/src sets it (grep heldItemLeft =), so the branch never runs"},
+    {"kind": "field", "name": "heldItemRight", "sig": "int", "native": "csrc/engine/raster_mobs.c:pose_armor", "status": "exact", "note": "bends the armour models' right arm; ModelZombie overrides it on the bodies"},
+    {"kind": "field", "name": "isSneak", "sig": "boolean", "native": "csrc/engine/raster_mobs.c:model_player", "status": "exact", "note": "RenderPlayer's sneak pose: the body 0.5, arms +0.4, legs at z 4 and y 9, the head at y 1 (mob_render_input.sneak)"},
+    {"kind": "field", "name": "aimedBow", "sig": "boolean", "native": null, "status": "n/a", "note": "ModelSkeleton sets it on the wither skeleton, then ModelZombie.setRotationAngles overrides both arms"},
+    {"kind": "ctor", "name": "ModelBiped", "sig": "()V", "native": null, "status": "n/a", "note": "no caller in oracle/src: ModelZombie, ModelSkeleton, ModelEnderman and RenderPlayer construct through the (float) and (float,float,int,int) forms (lane/covframes)"},
+    {"kind": "ctor", "name": "ModelBiped", "sig": "(float)V", "native": "csrc/engine/raster_mobs.c:model_zombie", "status": "exact", "note": "the armour models at grow 1.0 and 0.5 (model_player's grow)"},
+    {"kind": "ctor", "name": "ModelBiped", "sig": "(float,float,int,int)V", "native": "csrc/engine/raster_mobs.c:model_villager", "status": "exact", "note": "the offset and texture size variants (the villager's 64x64 in model_villager)"},
+    {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:draw_model", "status": "exact"},
+    {"kind": "method", "name": "setRotationAngles", "sig": "(float,float,float,float,float,float,Entity)V", "native": "csrc/engine/raster_mobs.c:pose_armor", "status": "exact", "note": "the legs' rotationPointZ 0.1 when not sneaking"},
+    {"kind": "method", "name": "renderEars", "sig": "(float)V", "native": null, "status": "n/a", "note": "see bipedEars"},
+    {"kind": "method", "name": "renderCloak", "sig": "(float)V", "native": null, "status": "n/a", "note": "see bipedCloak"},
+    {"kind": "method", "name": "(first-person arm, RenderPlayer.renderFirstPersonArm)", "sig": "-", "native": "csrc/engine/raster_hand.c:first_person_arm", "status": "exact", "note": "the right arm at its pivot with all setRotationAngles arguments 0, raster_hand.c:197 names it"}
+  ],
+  "missing": [],
+  "notes": "Native biped models exist per kind (zombie, villager, skeleton, pigman via hostiles_pigman's model use of the biped shape); the player's third-person body is not drawn (first person only). setRotationAngles and render are also ported for the inventory preview (raster_mobs.c raster_mobs_player_preview, gui_inventory_preview). lane/idxclient: the player's ModelBiped is model_player (heldItemRight 1 and the sword's 3, aimedBow, isSneak, isRiding, the swing), drawn in third person and asleep by RenderPlayer's path (MOB_PLAYER): idx-tpv-s1's third-person frames (walking, sneaking, the front view's swing, the sword block, the bow) within 16 to 358 px over 25, no pxdiff cluster."
+}

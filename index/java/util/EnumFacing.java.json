@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/util/EnumFacing.java",
+  "classes": ["EnumFacing"],
+  "lines": 73,
+  "side": "common",
+  "category": "util",
+  "role": "The six block faces (DOWN/UP/NORTH/SOUTH/EAST/WEST) with their D-U-N-S-E-W order, the U-D-S-N-W-E order, and front offsets in each axis.",
+  "scope": "switched_off",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["FACING_OPPOSITE_SIDE"]},
+    {"file": "csrc/engine/world.c", "symbols": ["FACE_X", "FACE_Y", "FACE_Z"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "DOWN..WEST", "sig": "the 6 enum constants with order_a, order_b, frontOffsetX/Y/Z", "native": null, "status": "n/a", "note": "static constants grouped; natively a face is the plain int 0..5"},
+    {"kind": "field", "name": "order_a", "sig": "int", "native": null, "status": "n/a", "note": "the D-U-N-S-E-W order is implicit in native side indexing"},
+    {"kind": "field", "name": "order_b", "sig": "int", "native": null, "status": "n/a", "note": "the U-D-S-N-W-E order is implicit in native side indexing"},
+    {"kind": "field", "name": "frontOffsetX", "sig": "int", "native": "csrc/engine/world.c:FACE_X", "status": "partial", "note": "world.c FACE_X/FACE_Y/FACE_Z mirror Facing's per-side offsets, which EnumFacing's front offsets equal"},
+    {"kind": "field", "name": "frontOffsetY", "sig": "int", "native": "csrc/engine/world.c:FACE_Y", "status": "partial"},
+    {"kind": "field", "name": "frontOffsetZ", "sig": "int", "native": "csrc/engine/world.c:FACE_Z", "status": "partial"},
+    {"kind": "field", "name": "faceList", "sig": "EnumFacing[] (static)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFrontOffsetX", "sig": "()int", "native": "csrc/engine/world.c:FACE_X", "status": "partial"},
+    {"kind": "method", "name": "getFrontOffsetY", "sig": "()int", "native": "csrc/engine/world.c:FACE_Y", "status": "partial"},
+    {"kind": "method", "name": "getFrontOffsetZ", "sig": "()int", "native": "csrc/engine/world.c:FACE_Z", "status": "partial"},
+    {"kind": "method", "name": "getFront", "sig": "(int)EnumFacing", "native": null, "status": "n/a", "note": "identity on ints natively"}
+  ],
+  "missing": [],
+  "notes": "Natively faces are ints 0..5 used directly by renderer and placement code; there is no named EnumFacing port, only per-file tables. Facing.oppositeSide's native twin is place.c FACING_OPPOSITE_SIDE. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. idxaudit 2026-09-27: was in_scope/exact: its class is reached only through switched-off features.",
+  "scope_reason": "Reached only through switched-off features: its users are the dispenser behaviours and BlockDispenser.func_149937_b (redstone = off), ItemMinecart's dispense behaviour (minecarts = off) and ItemArmor's dispenser behaviour (redstone = off); JaCoCo over 277 recordings never loaded the class. world.c FACE_X/Y/Z, which the record cited, mirror net.minecraft.util.Facing, not this enum."
+}

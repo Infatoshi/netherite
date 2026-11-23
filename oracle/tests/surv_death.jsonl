@@ -1,0 +1,11 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"death"}
+{"n":2,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":1,"act":{"dlook":[180,0]}}
+{"n":1,"act":{"press":["drop"]}}
+{"n":1,"act":{"press":["drop"],"ctrl":1}}
+{"n":8,"act":{"hold":["forward"]}}
+{"n":70,"act":{}}
+{"n":1,"act":{"gui":[["respawn"]]}}
+{"n":40,"act":{"hold":["forward"]}}

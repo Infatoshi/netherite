@@ -1,0 +1,35 @@
+{
+ "path": "csrc/engine/features_trees.c",
+ "lines": 1297,
+ "role": "The large and conifer tree generators of population and sapling growth: WorldGenBigTree (leaf nodes, limbs, trunk, carried heightLimit), WorldGenTaiga1, WorldGenTaiga2, WorldGenHugeTrees with WorldGenMegaPineTree (including the podzol patch) and WorldGenMegaJungle, WorldGenSavannaTree and WorldGenCanopyTree, plus their FeatureProbeTrees rows.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenBigTree.java", "members": ["generate", "otherCoordPairs", "heightLimit", "height", "heightAttenuation", "branchSlope", "trunkSize", "heightLimitLimit", "leafDistanceLimit", "leafNodes", "layerSize", "leafSize", "checkBlockLine", "validTreeLocation", "func_150529_a", "func_150530_a", "generateLeafNodeList", "generateLeaves", "generateTrunk", "generateLeafNodeBases", "setScale"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenAbstractTree.java", "members": ["func_150523_a"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenerator.java", "members": ["func_150516_a", "func_150515_a"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenTaiga1.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenTaiga2.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenHugeTrees.java", "members": ["func_150536_b", "func_150532_c", "func_150533_a", "func_150535_a", "func_150534_b"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenMegaPineTree.java", "members": ["generate", "field_150542_e", "func_150541_c", "func_150540_a", "func_150539_c", "func_150524_b"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenMegaJungle.java", "members": ["generate", "func_150543_c"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenSavannaTree.java", "members": ["generate", "func_150525_a"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenCanopyTree.java", "members": ["generate", "func_150526_a"]}
+ ],
+ "structs": [
+  {"name": "bigtree", "java": "a WorldGenBigTree instance during one generate (worldObj, basePos, heightLimit, height, leafDistanceLimit, rand, leafNodes)", "fields": ["w", "base", "height_limit", "height", "leaf_distance", "rand", "nodes", "n_nodes"]},
+  {"name": "big_node", "java": "one int[4] entry of WorldGenBigTree.leafNodes", "fields": ["x", "y", "z", "base_y"]},
+  {"name": "TREES", "java": "the rows of oracle/harness/netherite/oracle/FeatureProbeTrees.java (bigtree, taiga1, taiga2, megapine x2, megajungle, savanna, canopy)", "fields": ["name", "config", "y0", "y1", "margin", "block", "count", "generate"]},
+  {"name": "OTHER, DIR_X, DIR_Z", "java": "WorldGenBigTree.otherCoordPairs and Direction.offsetX/offsetZ", "fields": []}
+ ],
+ "entry_points": ["features_trees_for", "feature_bigtree", "feature_taiga1", "feature_taiga2", "feature_megapine", "feature_megapine_grow", "feature_megajungle", "feature_savanna", "feature_canopy", "features_bigtree_reset", "features_bigtree_scaled", "feature_bigtree_state_set", "feature_bigtree_state_get"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 352, function big_leaf_node_list: malloc of the node scratch array sized by heightLimit; line 410 malloc of b->nodes; lines 413 and 484 free (per-tree heap allocation, also on the sapling-growth path inside the tick)",
+  "lines 380-381, function big_leaf_node_list: libm sin/cos in place of StrictMath (fdlibm); header comment says they differ by up to one ulp on 3.3% of arguments, unobserved in 1200 recorded cases",
+  "line 364, function big_leaf_node_list: while loop bounded by dy >= 0",
+  "line 890, function feature_megajungle: branch loop stepping down by a random 2..5 until the trunk middle"
+ ],
+ "tests": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "All writes go through features_tree_write (flag 2, or 3 when features_tree_notify is on for sapling growth). randomtick.c calls features_bigtree_reset for sapling growth; decorator.c uses feature_bigtree_state_set/get. Java member names for the WorldGenBigTree fields are MCP names from memory and not each verified against oracle/src. The megapine tall variant is selected by the row count field (field_150542_e)."
+}

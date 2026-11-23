@@ -1,0 +1,32 @@
+{
+  "path": "csrc/engine/font.c",
+  "lines": 300,
+  "role": "FontRenderer's text metrics: the ascii.png glyph table, readFontTexture's widths, getCharWidth, getStringWidth, trimStringToWidth and listFormattedStringToWidth (sizeStringToWidth, getFormatFromString and String.split's rule) over UTF-8 strings.",
+  "layer": "render",
+  "java": [
+    {"path": "oracle/src/client/gui/FontRenderer.java", "members": ["readFontTexture", "getCharWidth", "getStringWidth", "trimStringToWidth", "sizeStringToWidth", "wrapFormattedStringToWidth", "listFormattedStringToWidth", "getFormatFromString", "isFormatColor", "isFormatSpecial"]}
+  ],
+  "structs": [
+    {"name": "font_metrics", "java": "FontRenderer.charWidth", "fields": ["cw"]},
+    {"name": "GLYPHS", "java": "FontRenderer's glyph table string", "fields": []}
+  ],
+  "entry_points": [
+    "font_metrics_load",
+    "font_char_index",
+    "font_char_width",
+    "font_string_width",
+    "font_trim_to_width",
+    "font_list_to_width",
+    "font_list_free",
+    "font_utf8_decode",
+    "font_utf8_encode"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "line 150 onward: every call mallocs its decoded code points (client text only, not in the tick)"
+  ],
+  "tests": [
+    "csrc/tests/test_hudscreens.c",
+    "csrc/tests/test_render.c"
+  ]
+}

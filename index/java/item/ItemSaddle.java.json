@@ -1,0 +1,64 @@
+{
+ "path": "oracle/src/item/ItemSaddle.java",
+ "classes": [
+  "ItemSaddle"
+ ],
+ "lines": 51,
+ "side": "common",
+ "category": "item",
+ "role": "The saddle (id 329): saddles a grown pig on right click on it (also on a hit, through hitEntity).",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/items.h",
+   "symbols": [
+    "ITEMS"
+   ]
+  },
+  {
+   "file": "csrc/engine/riding.c",
+   "symbols": [
+    "ride_saddle_interact"
+   ]
+  },
+  {
+   "file": "csrc/engine/combat.c",
+   "symbols": [
+    "combat_server_attack"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/ride-pig-s1",
+  "out/java/snapshots/idx-killcredit-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "ItemSaddle",
+   "sig": "()V",
+   "native": "csrc/engine/items.h:ITEMS",
+   "status": "exact",
+   "note": "row 329: stack 1"
+  },
+  {
+   "kind": "method",
+   "name": "itemInteractionForEntity",
+   "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/entity/EntityLivingBase;)Z",
+   "native": "csrc/engine/riding.c:ride_saddle_interact",
+   "status": "exact",
+   "note": "server (survival.c process_c02_interact) and the client's copy (surv_client_entity_interact)"
+  },
+  {
+   "kind": "method",
+   "name": "hitEntity",
+   "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/entity/EntityLivingBase;)Z",
+   "native": "csrc/engine/combat.c:combat_server_attack",
+   "status": "exact",
+   "note": "On a landed attack: itemInteractionForEntity(stack, null, target) saddles an unsaddled adult pig and spends the saddle, the answer is true whatever it hit so stat.useItem.329 counts, and a spent stack is destroyCurrentEquippedItem (combat.c, lane/idxblocks). idx-killcredit-s1 hits two pigs with saddles."
+  }
+ ],
+ "missing": [],
+ "notes": "The right-click saddle (itemInteractionForEntity) is ported in lane/ride and replays in ride-pig-s1."
+}

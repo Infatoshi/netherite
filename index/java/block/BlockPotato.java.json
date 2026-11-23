@@ -1,0 +1,108 @@
+{
+ "path": "oracle/src/block/BlockPotato.java",
+ "classes": [
+  "BlockPotato"
+ ],
+ "lines": 70,
+ "side": "common",
+ "category": "block",
+ "role": "Potatoes (id 142): BlockCrops that drops potatoes both as crop and seed, plus a 1-in-50 poisonous potato when ripe.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break",
+    "crops"
+   ]
+  },
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "RT_POTATOES",
+    "BM_POTATOES",
+    "crop_drop"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "on_block_placed"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "table_icon"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/cov-harvest-s1",
+  "out/java/ticks/ticks-s2",
+  "csrc/tests/test_ticks.c",
+  "csrc/tests/test_drops.c",
+  "out/java/snapshots/world-crops-s1",
+  "out/java/snapshots/farmfall-s1",
+  "out/java/snapshots/farmdry-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149869_a",
+   "sig": "IIcon[]",
+   "native": null,
+   "status": "n/a",
+   "note": "client stage icons"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it"
+  },
+  {
+   "kind": "method",
+   "name": "func_149866_i",
+   "sig": "()Item",
+   "native": "csrc/engine/drops.c:crops",
+   "status": "exact",
+   "note": "potato as the seed item"
+  },
+  {
+   "kind": "method",
+   "name": "func_149865_P",
+   "sig": "()Item",
+   "native": "csrc/engine/drops.c:crops",
+   "status": "exact",
+   "note": "potato as the crop item"
+  },
+  {
+   "kind": "method",
+   "name": "dropBlockAsItemWithChance",
+   "sig": "(World,IIIIFI)V",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 142: crops(), then nextInt(50) == 0 at meta >= 7 for the poisonous potato"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration; the native atlas is loaded from the same assets"
+  }
+ ],
+ "missing": [],
+ "notes": "Growth is BlockCrops.updateTick through randomtick.c; randomtick.c RT_POTATOES covers the village-farm harvest drop path. Villages plant potatoes, so world-crops-s1 may or may not include them (not checked)."
+}

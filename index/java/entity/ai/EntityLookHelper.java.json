@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/entity/ai/EntityLookHelper.java",
+  "classes": ["EntityLookHelper"],
+  "lines": 125,
+  "side": "server",
+  "category": "ai",
+  "role": "Head aiming: stores a look target and turn speeds, and onUpdate (called from the living tick) rotates rotationPitch and rotationYawHead toward it at capped rates, clamping the head to 75 degrees off the body while pathing.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["look_helper_update", "look_set_position_with_entity", "look_set_position"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_update_rotation"]},
+    {"file": "csrc/engine/living.h", "symbols": ["living"]}
+  ],
+  "evidence": ["out/java/villagers/vil-2", "out/java/snapshots/persist-village-full-s42", "out/java/snapshots/mobspawn-final-s1", "csrc/tests/test_villagers.c"],
+  "members": [
+    {"kind": "field", "name": "entity", "sig": "EntityLiving", "native": "csrc/engine/living.h:living", "status": "exact", "note": "folded: the helper is the look member of struct living"},
+    {"kind": "field", "name": "deltaLookYaw", "sig": "float", "native": "csrc/engine/living.h:living", "status": "exact", "note": "look.delta_look_yaw"},
+    {"kind": "field", "name": "deltaLookPitch", "sig": "float", "native": "csrc/engine/living.h:living", "status": "exact", "note": "look.delta_look_pitch"},
+    {"kind": "field", "name": "isLooking", "sig": "boolean", "native": "csrc/engine/living.h:living", "status": "exact", "note": "look.is_looking"},
+    {"kind": "field", "name": "posX", "sig": "double", "native": "csrc/engine/living.h:living", "status": "exact", "note": "look.x"},
+    {"kind": "field", "name": "posY", "sig": "double", "native": "csrc/engine/living.h:living", "status": "exact", "note": "look.y"},
+    {"kind": "field", "name": "posZ", "sig": "double", "native": "csrc/engine/living.h:living", "status": "exact", "note": "look.z"},
+    {"kind": "ctor", "name": "EntityLookHelper", "sig": "(EntityLiving)V", "native": "csrc/engine/living.h:living", "status": "exact", "note": "the struct member is zero-initialized"},
+    {"kind": "method", "name": "setLookPositionWithEntity", "sig": "(Entity,float,float)V", "native": "csrc/engine/ai.c:look_set_position_with_entity", "status": "exact", "note": "native always aims at the other's eye height; Java's box-midpoint branch for non-EntityLivingBase targets is unreachable because every caller passes a living entity"},
+    {"kind": "method", "name": "setLookPosition", "sig": "(DDDFF)V", "native": "csrc/engine/ai.c:look_set_position", "status": "exact"},
+    {"kind": "method", "name": "onUpdateLook", "sig": "()V", "native": "csrc/engine/ai.c:look_helper_update", "status": "exact", "note": "rotationPitch = 0, the atan2 yaw/pitch targets (StrictMath.atan2 -> fd_atan2), the idle head drift toward renderYawOffset at 10, and the 75-degree clamp while pathing"},
+    {"kind": "method", "name": "updateRotation", "sig": "(FFF)F", "native": "csrc/engine/living.c:living_update_rotation", "status": "exact", "note": "the shared wrap-and-clamp helper, shared with EntityMoveHelper.limitAngle"}
+  ],
+  "missing": [],
+  "notes": "lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

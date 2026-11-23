@@ -1,0 +1,126 @@
+{
+ "path": "oracle/src/entity/passive/EntityCow.java",
+ "classes": [
+  "EntityCow"
+ ],
+ "lines": 154,
+ "side": "server",
+ "category": "entity",
+ "role": "The cow: milk with a bucket, leather and raw beef drops, wheat breeding, the base of the mooshroom.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/animals.c",
+   "symbols": [
+    "animal_construct",
+    "animal_attributes",
+    "animal_drop_few_items",
+    "animal_create_child"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "entity_interact",
+    "give_or_drop"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_animals.c",
+  "out/java/snapshots/rc-animals-s1",
+  "out/java/snapshots/flow-combat-s1",
+  "out/java/render/mobs_cow_f006",
+  "out/java/snapshots/iu-milk-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EntityCow",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_construct",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isAIEnabled",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "applyEntityAttributes",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:animal_attributes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getLivingSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getHurtSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDeathSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_145780_a",
+   "sig": "(4p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getSoundVolume",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146068_u",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a",
+   "note": "dropFewItems hardcodes leather and beef"
+  },
+  {
+   "kind": "method",
+   "name": "dropFewItems",
+   "sig": "(2p)",
+   "native": "csrc/engine/animals.c:animal_drop_few_items",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "interact",
+   "sig": "(1p)",
+   "native": "csrc/engine/survival.c:entity_interact",
+   "status": "exact",
+   "note": "the bucket-to-milk branch with the server's stack bookkeeping; a milk bucket that does not fit is dropped (give_or_drop; iu-milk-s1 with a full inventory)"
+  },
+  {
+   "kind": "method",
+   "name": "createChild",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_create_child",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

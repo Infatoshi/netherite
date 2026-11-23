@@ -1,0 +1,5 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"tp","x":504.5,"y":90.0,"z":-339.5,"yaw":-90.0,"pitch":10.0}
+{"n":100,"act":{}}
+{"cmd":"save","name":"struct-cp-s42"}

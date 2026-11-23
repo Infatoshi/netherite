@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/smath.h",
+ "lines": 17,
+ "role": "Declares the fdlibm ports fd_sin, fd_cos, fd_pow and fd_atan2 (java.lang.Math / StrictMath semantics).",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "fd_sin",
+  "fd_cos",
+  "fd_pow",
+  "fd_atan2"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [],
+ "notes": "Square root stays IEEE (det_sqrt), per the header."
+}

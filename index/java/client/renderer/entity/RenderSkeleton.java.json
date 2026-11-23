@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderSkeleton.java",
+  "classes": ["RenderSkeleton"],
+  "lines": 71,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for skeletons: the normal or wither texture by skeleton type, the 1.2x wither-skeleton scale, and the held-item translate override.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_skeleton", "model_vertex", "raster_mobs_draw", "texture_names", "draw_equipped"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs2a_skeleton_f006",
+    "out/java/render/mobs2a_skeleton_f011",
+    "csrc/tests/test_render.c",
+    "out/java/render-src/ent_held"
+  ],
+  "members": [
+    {"kind": "field", "name": "skeletonTextures, witherSkeletonTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constants, grouped; the TEX_SKELETON and TEX_WITHER_SKELETON entries"},
+    {"kind": "ctor", "name": "RenderSkeleton", "sig": "()V (ModelSkeleton, shadow 0.5)", "native": "csrc/engine/raster_mobs.c:model_skeleton", "status": "exact"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntitySkeleton,float)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the MOB_WITHER_SKELETON branch scales by 1.2"},
+    {"kind": "method", "name": "func_82422_c", "sig": "()V", "native": "csrc/engine/raster_mobs.c:draw_equipped", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntitySkeleton)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the type-1 wither texture switch"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityLiving)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: the bow in a skeleton's hand (RenderBiped's bow branch) and func_82422_c's offset for a sword; the skeleton's armour is plain ModelBiped (arms hanging, heldItemRight bent) while its body keeps ModelZombie's raised arms."
+}

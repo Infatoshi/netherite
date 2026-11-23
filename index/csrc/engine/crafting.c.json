@@ -1,0 +1,109 @@
+{
+ "path": "csrc/engine/crafting.c",
+ "lines": 956,
+ "role": "CraftingManager.findMatchingRecipe: the two-item tool repair path, then the generated RECIPES list in order with shaped (mirrored, wildcard 32767) and shapeless matching, plus the special recipe classes whose matching is code (armor dyes, book cloning, map cloning, map extending, fireworks). A Java exception becomes a status with the exception class name.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/item/crafting/CraftingManager.java",
+   "members": [
+    "findMatchingRecipe"
+   ]
+  },
+  {
+   "path": "oracle/src/item/crafting/ShapedRecipes.java",
+   "members": [
+    "matches",
+    "checkMatch",
+    "getCraftingResult",
+    "func_92100_c"
+   ]
+  },
+  {
+   "path": "oracle/src/item/crafting/ShapelessRecipes.java",
+   "members": [
+    "matches",
+    "getCraftingResult"
+   ]
+  },
+  {
+   "path": "oracle/src/item/crafting/RecipesArmorDyes.java",
+   "members": [
+    "matches",
+    "getCraftingResult"
+   ]
+  },
+  {
+   "path": "oracle/src/item/crafting/RecipeBookCloning.java",
+   "members": [
+    "matches",
+    "getCraftingResult"
+   ]
+  },
+  {
+   "path": "oracle/src/item/crafting/RecipesMapCloning.java",
+   "members": [
+    "matches",
+    "getCraftingResult"
+   ]
+  },
+  {
+   "path": "oracle/src/item/crafting/RecipesMapExtending.java",
+   "members": [
+    "matches",
+    "getCraftingResult"
+   ]
+  },
+  {
+   "path": "oracle/src/item/crafting/RecipeFireworks.java",
+   "members": [
+    "matches",
+    "getCraftingResult"
+   ]
+  },
+  {
+   "path": "oracle/src/inventory/InventoryCrafting.java",
+   "members": [
+    "getStackInSlot",
+    "getStackInRowAndColumn"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemStack.java",
+   "members": [
+    "copy",
+    "getTagCompound"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemArmor.java",
+   "members": [
+    "hasColor",
+    "getColor",
+    "func_82813_b"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "craft_grid_clear",
+  "craft_slot_empty",
+  "craft_stack_copy",
+  "craft_stack_free",
+  "craft_result_free",
+  "craft_find_matching",
+  "craft_armor_material"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "lines 46-61, function copy_tag: deep copy of an nbt tag through nbt_render and nbt_parse (heap allocation, abort on a tag the text cannot carry)",
+  "function give / tag_set and the dye, book, map and fireworks result builders: build nbt trees on the heap (pointer graphs) for results with tags",
+  "lines 889-951, function craft_find_matching: linear walk over all RECIPE_COUNT entries per grid change (bounded, but order-dependent by design: first match wins in list order)",
+  "line 951, function craft_find_matching: abort() on an unknown recipe kind"
+ ],
+ "tests": [
+  "csrc/tests/test_crafting.c",
+  "csrc/tests/test_containers.c"
+ ],
+ "notes": "Recipe data comes from recipes.h (generated from the oracle). Map extending needs the world's MapData; the native world has no map storage, so the hook answers no data (maps are switched off in world.conf). ItemArmor and ShapedRecipes helper member names are cited from memory and not verified."
+}

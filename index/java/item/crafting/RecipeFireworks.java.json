@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/item/crafting/RecipeFireworks.java",
+  "classes": ["RecipeFireworks"],
+  "lines": 256,
+  "side": "common",
+  "category": "crafting",
+  "role": "Builds the firework rocket and firework charge items from paper, gunpowder, dyes and charges, writing the explosion NBT as it matches.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: world.conf fireworks = off only stops a rocket from launching (ItemFirework.java:22); crafting rockets and firework stars from paper, gunpowder, dyes and the shape items in a survival crafting grid is live, and CraftingManager tries this recipe on every grid change.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/crafting.c", "symbols": ["fireworks_matches", "firework_dye_color", "craft_find_matching"]}, {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES"]}, {"file": "csrc/engine/nbtbin.c", "symbols": ["bucket_rank", "write_compound"]}],
+  "evidence": ["out/java/snapshots/misc-fireworks-s1", "csrc/tests/test_crafting.c", "out/java/crafting/s2", "out/java/crafting/s42"],
+  "members": [
+    {"kind": "field", "name": "field_92102_a", "sig": "ItemStack", "native": null, "status": "n/a", "note": "the result matches leaves for getCraftingResult; native builds the result inside fireworks_matches"},
+    {"kind": "method", "name": "matches", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;Lnet/minecraft/world/World;)Z", "native": "csrc/engine/crafting.c:fireworks_matches", "status": "exact", "note": "the three shapes (rocket, charge, fade) with the dye-damage throw; the charge's Explosion compound serializes in Java's insertion order (Flicker, Trail, then Colors, Type; FadeColors last), which nbtbin.c's bucket_rank restores for the bucket-mates Trail/Colors and Flicker/FadeColors"},
+    {"kind": "method", "name": "getCraftingResult", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/crafting.c:fireworks_matches", "status": "exact", "note": "the result is built inside matches, as in Java; copy() is the interned tag index"},
+    {"kind": "method", "name": "getRecipeSize", "sig": "()I", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "10: the recipe's place in CraftingManager's sorted list, which the generated table keeps"},
+    {"kind": "method", "name": "getRecipeOutput", "sig": "()Lnet/minecraft/item/ItemStack;", "native": null, "status": "n/a", "note": "null until a match; its one reader, StatList.initCraftableStats at class init, sees null, so no craft stat comes from this recipe (the native stat table has none either; misc-fireworks-s1's Stats dump matches)"}
+  ],
+  "missing": [],
+  "notes": "lane/idxmisc 2026-09-27: misc-fireworks-s1 (seed 1, dev) crafts in a workbench a red star, a red and blue star with glowstone, a diamond and a feather, a white creeper-face star, fades the red star lime, a two-star rocket with flight 2, a plain rocket and a flight-3 rocket with the faded star, then leaves a two-tail grid that matches nothing. On master it failed at row 52 d.ents: the star with a trail serialized Colors before Trail (both in HashMap bucket 3; the interned tag text is key-sorted, Java inserts Trail during the scan and Colors after it). Fixed in nbtbin.c write_compound (bucket_rank); test_snapshots and play_check pass with 0 mismatches, test_crafting s2 and s42 0 mismatches. The matching code is exact against the oracle probe (test_crafting.c compares thrown class names); the item itself is switched off, so the recipe never matters in play. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

@@ -1,0 +1,17 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":153,"y0":89,"z0":240,"x1":170,"y1":89,"z1":262,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":153,"y0":90,"z0":240,"x1":170,"y1":96,"z1":262,"id":0,"meta":0}
+{"cmd":"dev","op":"fill","x0":160,"y0":90,"z0":246,"x1":160,"y1":91,"z1":262,"id":20,"meta":0}
+{"cmd":"dev","op":"fill","x0":162,"y0":90,"z0":246,"x1":162,"y1":91,"z1":262,"id":20,"meta":0}
+{"cmd":"dev","op":"tp","x":161.5,"y":90.0,"z":246.5,"yaw":0.0,"pitch":0.0}
+{"cmd":"dev","op":"state","health":20.0,"food":20,"saturation":5.0}
+{"n":4,"act":{}}
+{"cmd":"dev","op":"summon","name":"Creeper","x":161.5,"y":90.0,"z":258.5}
+{"n":32,"act":{}}
+{"cmd":"dev","op":"tp","x":161.5,"y":90.0,"z":254.5,"yaw":0.0,"pitch":0.0}
+{"n":1,"act":{}}
+{"cmd":"dev","op":"tp","x":161.5,"y":90.0,"z":246.5,"yaw":0.0,"pitch":0.0}
+{"n":20,"act":{}}
+{"cmd":"run","class":"Snapshot","sub":"end"}

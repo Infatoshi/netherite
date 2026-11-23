@@ -1,0 +1,21 @@
+{
+ "path": "oracle/src/entity/IEntityLivingData.java",
+ "classes": ["IEntityLivingData"],
+ "lines": 5,
+ "side": "server",
+ "category": "entity",
+ "role": "Marker interface for the spawn-pack state that onSpawnWithEgg passes along (the zombie's and spider's GroupData objects).",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/spawning.h", "symbols": ["sp_data"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/mobspawn-final-s1",
+  "csrc/tests/test_spawning.c"
+ ],
+ "members": [],
+ "missing": [],
+ "notes": "Marker interface with no members. The native stand-in is struct sp_data in spawning.h (\"The pack's IEntityLivingData\"), carrying EntityZombie.GroupData's made/child/villager flags and EntitySpider.GroupData's spider_made/spider_potion; onSpawnWithEgg's return-value threading (the spider jockey) is handled by living.c's living_on_spawn_with_egg_ret instead. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): interface, marker or abstract base; its behavior lives in the subclasses' ports."
+}

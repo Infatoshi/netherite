@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/item/ItemEnchantedBook.java",
+  "classes": ["ItemEnchantedBook"],
+  "lines": 136,
+  "side": "common",
+  "category": "item",
+  "role": "The enchanted book: stores enchantments in the StoredEnchantments NBTTagList, builds the chest-loot book entry (a random enchantment at level 30 on a plain book) and the trade stock.",
+  "scope": "in_scope",
+  "scope_reason": "The enchanting table is off (world.conf enchanting), but enchanted books still enter the world through chest loot and the librarian's trades.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/enchant.c", "symbols": ["book_tag", "add_random_enchantment_book", "add_random_enchantment_tag", "build_enchantment_list", "can_enchant_item"]},
+    {"file": "csrc/engine/trades.c", "symbols": ["VILLAGER_STOCK"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_trades.c",
+    "csrc/tests/test_loot.c",
+    "out/java/snapshots/trade-full-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemEnchantedBook", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 403, max stack 1"},
+    {"kind": "method", "name": "hasEffect", "sig": "(ItemStack)Z", "native": null, "status": "n/a", "note": "client glint"},
+    {"kind": "method", "name": "isItemTool", "sig": "(ItemStack)Z", "native": null, "status": "n/a", "note": "false; gates nothing modelled"},
+    {"kind": "method", "name": "getRarity", "sig": "(ItemStack)EnumRarity", "native": null, "status": "n/a", "note": "client rarity colour"},
+    {"kind": "method", "name": "func_92110_g", "sig": "(ItemStack)NBTTagList", "native": "csrc/engine/enchant.c:book_tag", "status": "exact", "note": "the StoredEnchantments tag list read and write"},
+    {"kind": "method", "name": "addInformation", "sig": "(ItemStack,EntityPlayer,List,Z)V", "native": null, "status": "n/a", "note": "client tooltip"},
+    {"kind": "method", "name": "addEnchantment", "sig": "(ItemStack,EnchantmentData)V", "native": "csrc/engine/enchant.c:book_tag", "status": "exact", "note": "enchant.c writes one compound per enchantment (id, lvl) into a fresh NBTTagList, matching the upgrade-in-place rule"},
+    {"kind": "method", "name": "getEnchantedItemStack", "sig": "(EnchantmentData)ItemStack", "native": "csrc/engine/enchant.c:add_random_enchantment_book", "status": "exact", "note": "the loot and trade paths build the book stack through the same tag writer"},
+    {"kind": "method", "name": "func_92113_a", "sig": "(Enchantment,List)V", "native": null, "status": "n/a", "note": "the creative-tab listing"},
+    {"kind": "method", "name": "func_92114_b", "sig": "(Random)WeightedRandomChestContent", "native": "csrc/engine/enchant.c:add_random_enchantment_book", "status": "exact", "note": "the chest-loot book entry: one random enchantment at level 30 on Items.book"},
+    {"kind": "method", "name": "func_92112_a", "sig": "(Random,III)WeightedRandomChestContent", "native": "csrc/engine/enchant.c:add_random_enchantment_book", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "trades.c writes the same StoredEnchantments shape for the librarian's enchanted-book stock; test_trades.c and test_loot.c gate both. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

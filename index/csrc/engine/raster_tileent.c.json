@@ -1,0 +1,231 @@
+{
+ "path": "csrc/engine/raster_tileent.c",
+ "lines": 1149,
+ "role": "TileEntityRendererDispatcher and the tile-entity renderers the game reaches, over a recorded frame's RenderGlobal.tileEntities (TileEntityRenderProbe's tes block): chests single, double and trapped with the lid ease, ender chests, signs with their four lines, skulls of every type on floors and walls, the spawner's spinning mob (through raster_mobs_draw) RenderEndPortal's sixteen projective layers and RenderEnchantmentTable's book (ModelBook); plus the client halves of the state they read, the chest lid step and the spawner spin, one tick each.",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/tileentity/TileEntityRendererDispatcher.java",
+   "members": [
+    "func_147544_a",
+    "func_147549_a",
+    "getSpecialRenderer",
+    "func_147542_a"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/tileentity/TileEntityChestRenderer.java",
+   "members": [
+    "renderTileEntityAt"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/tileentity/TileEntityEnderChestRenderer.java",
+   "members": [
+    "renderTileEntityAt"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/tileentity/TileEntitySignRenderer.java",
+   "members": [
+    "renderTileEntityAt"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/tileentity/TileEntitySkullRenderer.java",
+   "members": [
+    "renderTileEntityAt",
+    "func_152674_a"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/tileentity/TileEntityMobSpawnerRenderer.java",
+   "members": [
+    "renderTileEntityAt",
+    "func_147517_a"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/tileentity/RenderEndPortal.java",
+   "members": [
+    "renderTileEntityAt"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/entity/RenderEnchantmentTable.java",
+   "members": [
+    "renderTileEntityAt"
+   ]
+  },
+  {
+   "path": "oracle/src/client/model/ModelBook.java",
+   "members": [
+    "render",
+    "setRotationAngles"
+   ]
+  },
+  {
+   "path": "oracle/src/client/model/ModelChest.java",
+   "members": [
+    "renderAll",
+    "chestLid",
+    "chestKnob",
+    "chestBelow"
+   ]
+  },
+  {
+   "path": "oracle/src/client/model/ModelLargeChest.java",
+   "members": [
+    "ModelLargeChest"
+   ]
+  },
+  {
+   "path": "oracle/src/client/model/ModelSign.java",
+   "members": [
+    "renderSign",
+    "signBoard",
+    "signStick"
+   ]
+  },
+  {
+   "path": "oracle/src/client/model/ModelSkeletonHead.java",
+   "members": [
+    "render",
+    "setRotationAngles"
+   ]
+  },
+  {
+   "path": "oracle/src/client/model/ModelRenderer.java",
+   "members": [
+    "render"
+   ]
+  },
+  {
+   "path": "oracle/src/client/model/ModelBox.java",
+   "members": [
+    "ModelBox"
+   ]
+  },
+  {
+   "path": "oracle/src/client/model/TexturedQuad.java",
+   "members": [
+    "TexturedQuad",
+    "draw"
+   ]
+  },
+  {
+   "path": "oracle/src/client/gui/FontRenderer.java",
+   "members": [
+    "drawString",
+    "renderString",
+    "renderStringAtPos",
+    "renderDefaultChar"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/RenderHelper.java",
+   "members": [
+    "enableStandardItemLighting"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntityChest.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntityEnderChest.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/MobSpawnerBaseLogic.java",
+   "members": [
+    "updateSpawner",
+    "field_98287_c",
+    "field_98284_d"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntity.java",
+   "members": [
+    "getDistanceFrom",
+    "getMaxRenderDistanceSquared"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "te_render_item",
+   "java": "one RenderGlobal.tileEntities entry: the TileEntity's position, block, metadata and brightness, and each renderer's fields (TileEntityChest lidAngle, prevLidAngle and adjacent chests; TileEntitySign's lines and lineBeingEdited; TileEntitySkull's type and rotation; MobSpawnerBaseLogic's rotation pair and its display entity)",
+   "fields": [
+    "kind",
+    "x",
+    "y",
+    "z",
+    "block",
+    "meta",
+    "brf",
+    "lid",
+    "prev_lid",
+    "adj",
+    "text",
+    "edit",
+    "skull_type",
+    "skull_rot",
+    "rot",
+    "prev_rot",
+    "mob",
+    "mob_body_yaw",
+    "mob_head_yaw",
+    "mob_pitch",
+    "mob_age"
+   ]
+  },
+  {
+   "name": "te_render_frame",
+   "java": "the dispatcher's viewer (staticPlayerX/Y/Z, field_147560_j/k/l), ActiveRenderInfo.objectX/Y/Z, the partial tick and Minecraft.getSystemTime",
+   "fields": [
+    "view",
+    "object",
+    "pt",
+    "ms",
+    "fancy"
+   ]
+  },
+  {
+   "name": "te_ctx",
+   "java": "the GL state the loop threads through the renderers: the modelview, the item lights in eye space, glColor, the lightmap coordinates, GL_CULL_FACE, GL_RESCALE_NORMAL and the depth mask",
+   "fields": [
+    "mv",
+    "light",
+    "brf",
+    "color",
+    "cull",
+    "rescale",
+    "depth_mask"
+   ]
+  }
+ ],
+ "entry_points": [
+  "raster_tileents_draw",
+  "raster_tileents_scene",
+  "raster_tileents_mob_kind",
+  "raster_tileents_lid_tick",
+  "raster_tileents_spawner_tick"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 59-62, file scope: static mutable texture cache and font metrics (textures, textures_from, font, font_loaded) filled lazily from disk",
+  "line 89, function tex: malloc per texture on first use, and fopen of the scene's state/te_*.rgba with cwd-relative csrc/assets fallbacks (line 101)",
+  "line 945, function lastline: getline over the whole frames.jsonl with a strdup per line",
+  "line 974, function raster_tileents_scene: calloc of the item list per frame"
+ ],
+ "tests": [
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_rendertick.c"
+ ],
+ "notes": "Hooked in raster.c draw_mesh after raster_mobs_scene (vanilla draws the block entities after the entities). Positions go through Mesa's matrix arithmetic (rs_gl_*), the depth through linear window z (the entity rasterizer's default perspective-interpolated depth hid the chest knob behind the lid). Scenes: out/java/rendertick/te_chests, te_signs, te_skulls, te_spawner, te_dungeon, te_portal_sh, te_portal_end; 43 frame views, no pxdiff cluster. lane/covframes: te_render_frame.normalize is GL_NORMALIZE, which RenderSlime.shouldRenderPass turns on for good; eye_normal then makes the normal unit length, so a sign board (scaled 2/3 without GL_RESCALE_NORMAL) lit after a slime is 0.81 as bright (cov-zoo-s1 108 2,328 to 410 px)."
+}

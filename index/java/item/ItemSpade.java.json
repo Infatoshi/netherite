@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/item/ItemSpade.java",
+  "classes": ["ItemSpade"],
+  "lines": 22,
+  "side": "common",
+  "category": "item",
+  "role": "The shovels (ids 256, 269, 273, 277, 284): efficiency on the diggable block set, and can harvest the two snow blocks.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/harvest.c", "symbols": ["spade_set", "item_str_vs_block", "item_can_harvest"]},
+    {"file": "csrc/engine/dig.c", "symbols": ["item_on_block_destroyed"]}
+  ],
+  "evidence": ["csrc/tests/test_harvest.c", "csrc/tests/test_dig.c"],
+  "members": [
+    {"kind": "field", "name": "field_150916_c", "sig": "Set", "native": "csrc/engine/harvest.c:spade_set", "status": "exact", "note": "grass, dirt, sand, gravel, snow_layer, snow, clay, farmland, soul_sand, mycelium"},
+    {"kind": "ctor", "name": "ItemSpade", "sig": "(Lnet/minecraft/item/Item$ToolMaterial;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact"},
+    {"kind": "method", "name": "func_150897_b", "sig": "(Lnet/minecraft/block/Block;)Z", "native": "csrc/engine/harvest.c:item_can_harvest", "status": "exact", "note": "snow_layer and snow only"},
+    {"kind": "method", "name": "func_150893_a", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/block/Block;)F", "native": "csrc/engine/harvest.c:item_str_vs_block", "status": "exact", "note": "the efficiency on the spade set"}
+  ],
+  "missing": [],
+  "notes": "The inherited ItemTool behavior is ported where the base class lives (dig.c, combat.c, enchant.c)."
+}

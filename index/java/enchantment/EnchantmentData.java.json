@@ -1,0 +1,69 @@
+{
+  "path": "oracle/src/enchantment/EnchantmentData.java",
+  "classes": [
+    "EnchantmentData"
+  ],
+  "lines": 25,
+  "side": "common",
+  "category": "item",
+  "role": "A weighted (enchantment, level) pair, the WeightedRandom.Item the enchantment list builders pick and carry.",
+  "scope": "in_scope",
+  "scope_reason": "Built by the loot-book and villager-trade enchantment rolls even with the enchanting table off (world.conf enchanting = off).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/enchant.h",
+      "symbols": [
+        "enchant_data"
+      ]
+    },
+    {
+      "file": "csrc/engine/enchant.c",
+      "symbols": [
+        "map_enchantment_data",
+        "build_enchantment_list"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_loot.c",
+    "csrc/tests/test_trades.c",
+    "out/java/loot/seed2",
+    "out/java/trades/seed2"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "enchantmentobj",
+      "sig": "Lnet/minecraft/enchantment/Enchantment;",
+      "native": "csrc/engine/enchant.h:enchant_data",
+      "status": "exact",
+      "note": "carried as the effect_id"
+    },
+    {
+      "kind": "field",
+      "name": "enchantmentLevel",
+      "sig": "I",
+      "native": "csrc/engine/enchant.h:enchant_data",
+      "status": "exact",
+      "note": "carried as level"
+    },
+    {
+      "kind": "ctor",
+      "name": "EnchantmentData",
+      "sig": "(Lnet/minecraft/enchantment/Enchantment;I)V",
+      "native": "csrc/engine/enchant.c:map_enchantment_data",
+      "status": "exact",
+      "note": "built inline in the Java-8-HashMap-ordered walk; the WeightedRandom.Item weight is the enchantment's own weight, read back by pick_weighted"
+    },
+    {
+      "kind": "ctor",
+      "name": "EnchantmentData",
+      "sig": "(II)V",
+      "native": "csrc/engine/enchant.c:map_enchantment_data",
+      "status": "n/a",
+      "note": "n/a: the id constructor is built only by EnchantmentHelper.setEnchantments (line 114, an enchanted book), whose one caller is ContainerRepair (anvil = off)"
+    }
+  ],
+  "missing": []
+}

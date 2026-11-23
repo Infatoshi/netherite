@@ -1,0 +1,38 @@
+{
+  "path": "oracle/src/block/BlockHugeMushroom.java",
+  "classes": ["BlockHugeMushroom"],
+  "lines": 74,
+  "side": "common",
+  "category": "block",
+  "role": "The huge mushroom blocks (99 brown, 100 red): placed by WorldGenBigMushroom with the 10-value meta layout; broken they drop 0 to 3 small mushrooms.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/features_lakes.c", "symbols": ["feature_bigmushroom", "LK_BROWN_MUSHROOM_BLOCK", "LK_RED_MUSHROOM_BLOCK"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/pickblock.c", "symbols": ["pick_block_item"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_feature.c",
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/rc-blocks-s1",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/cov-blkbreak-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149793_a", "sig": "String[]", "native": null, "status": "n/a", "note": "client texture names"},
+    {"kind": "field", "name": "field_149792_b", "sig": "int", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "the two constructor variants are rows 99 and 100"},
+    {"kind": "field", "name": "field_149794_M", "sig": "IIcon[]", "native": null, "status": "n/a", "note": "client cap textures"},
+    {"kind": "field", "name": "field_149795_N", "sig": "IIcon", "native": null, "status": "n/a", "note": "client stem texture"},
+    {"kind": "field", "name": "field_149796_O", "sig": "IIcon", "native": null, "status": "n/a", "note": "client inside texture"},
+    {"kind": "ctor", "name": "BlockHugeMushroom", "sig": "(Lnet/minecraft/block/material/Material;I)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "rows 99 and 100"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks.c:biome_color", "status": "partial", "note": "the ten-case side/meta texture table is folded into the mesher's icon selection; not verified as its own symbol"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 99/100: nextInt(10) - 7 clamped at 0"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "the small mushroom item by the block's variant"},
+    {"kind": "method", "name": "getItem", "sig": "(World,III)Lnet/minecraft/item/Item;", "native": "csrc/engine/pickblock.c:block_get_item", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client texture registration"}
+  ],
+  "missing": [],
+  "notes": "The blocks are placed by feature_bigmushroom (features_lakes.c), verified by the feature and populate probes. The drop math is the harvestdrops probe's."
+}

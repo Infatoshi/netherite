@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/network/login/server/S02PacketLoginSuccess.java",
+  "classes": ["S02PacketLoginSuccess"],
+  "lines": 62,
+  "side": "server",
+  "category": "network",
+  "role": "The login phase's success: the resolved uuid and name, which flips the client into the play state.",
+  "scope": "not_needed",
+  "scope_reason": "Login-phase plumbing. In offline mode the uuid is a fixed function of the name and the state flip has no game effect; the native engine starts from the oracle snapshot instead of a login sequence.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149602_a", "sig": "GameProfile", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "S02PacketLoginSuccess", "sig": "(GameProfile)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerLoginClient)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasPriority", "sig": "()Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

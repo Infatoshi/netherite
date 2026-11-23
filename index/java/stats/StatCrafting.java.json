@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/stats/StatCrafting.java",
+  "classes": ["StatCrafting"],
+  "lines": 21,
+  "side": "common",
+  "category": "stats",
+  "role": "A per-item statistic (mineBlock, useItem, craftItem, breakItem) carrying the Item it counts.",
+  "scope": "in_scope",
+  "scope_reason": "Per-item stats are counted by the server on mining, use, crafting and tool breaks.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["STAT_MINE_BLOCK", "STAT_USE_ITEM", "STAT_CRAFT_ITEM", "STAT_BREAK_ITEM", "SURV_STAT_MINE", "SURV_STAT_CRAFT"]}
+  ],
+  "evidence": ["out/java/snapshots/achieve-s1", "out/java/snapshots/stats-s1", "out/java/snapshots/stats-s1-pre"],
+  "members": [
+    {"kind": "field", "name": "field_150960_a", "sig": "Item", "native": "csrc/engine/survival.h:STAT_MINE_BLOCK", "status": "exact", "note": "the id offset in the enum range"},
+    {"kind": "ctor", "name": "StatCrafting", "sig": "(String,IChatComponent,Item)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150959_a", "sig": "()Item", "native": "csrc/engine/survival.h:STAT_MINE_BLOCK", "status": "n/a", "note": "n/a: only GuiStats (the statistics screen, client_cosmetic) calls it"}
+  ],
+  "missing": []
+}

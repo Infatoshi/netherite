@@ -1,0 +1,20 @@
+# tape-gate.yaml: the run-to-tape gate's world (lane/tape, csrc/runtime/vecenv.mk rl-tape-gate): train-fast.yaml's
+# world, start and camera at vanilla fidelity (no fidelity section: spawning, random ticks and weather on, as the
+# Java oracle has them), so an episode the vector env plays is one the oracle replays row for row.
+#   make -C csrc/runtime rl-tape-gate
+world:
+  seed: 42
+  render_distance: 4
+client:
+  ticks_per_step: 1
+  camera: raycast
+  observation: 32x32
+engine:
+  device_mesh: 0
+  device_generation: off
+  device_light: off
+  render: none
+  tick: host
+pipeline:
+  kind: gold
+  start: spawn

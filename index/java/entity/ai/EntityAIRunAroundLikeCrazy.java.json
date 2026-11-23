@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIRunAroundLikeCrazy.java",
+  "classes": ["EntityAIRunAroundLikeCrazy"],
+  "lines": 95,
+  "side": "server",
+  "category": "ai",
+  "role": "Untamed horse bucking: while a rider is mounted the horse bolts to a random spot and, on 1-in-50 draws, either tames itself by temper or throws the rider and rears.",
+  "scope": "switched_off",
+  "scope_reason": "Only EntityHorse registers this task (grep over oracle/src), and world.conf forces horses = off, so it is never constructed, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "horseHost", "sig": "EntityHorse", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_111178_b", "sig": "double", "native": null, "status": "n/a", "note": "the bolt speed"},
+    {"kind": "field", "name": "field_111179_c", "sig": "double", "native": null, "status": "n/a", "note": "target X"},
+    {"kind": "field", "name": "field_111176_d", "sig": "double", "native": null, "status": "n/a", "note": "target Y"},
+    {"kind": "field", "name": "field_111177_e", "sig": "double", "native": null, "status": "n/a", "note": "target Z"},
+    {"kind": "ctor", "name": "EntityAIRunAroundLikeCrazy", "sig": "(EntityHorse,double)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": null, "status": "n/a", "note": "the temper roll, setTamedBy, mountEntity(null) and the rear"}
+  ],
+  "missing": [],
+  "notes": ""
+}

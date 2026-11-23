@@ -1,0 +1,109 @@
+# csrc/play/rawjudge.sh budgets: NAME TICK R G B N, what the client's frame
+# at partial tick 1 measured against the Java client's frame of the same tick
+# (each channel's mean absolute error, the pixels over 25) when the
+# recording was accepted: a ratchet, as tests/frame_budget.txt's lines are.
+#
+# standin-s1 is a 4,487-tick session played on the play-mode Java client by
+# java RawDrive (a stand-in person, LWJGL-level events), judged from its raw
+# events (out/java/rawjudge/standin-s1/drive.jsonl is the stand-in's script).
+# Named residuals (pxdiff survey): every frame with a held item just
+# selected: its name over the hotbar, which the oracle's clean-HUD pin hides
+# (its goldens predate --tooltips) and the live HUD draws (499, 999 434 px,
+# 2999 821 px); 1499 leaf cutouts. The sheep at 499 is drawn where the
+# client's copy stands since lane/framesweep (was a stretched box at the
+# server's position a fraction of a block from the camera, 48,372 px).
+# lane/framerest: the animated sprites at the oracle's phase and the
+# items' tracker schedule lowered 499 (3,269 to 2,082), 999, 1499 (2,321
+# to 965) and 1999.
+standin-s1 499 0.557480 0.561466 0.648634 2082
+standin-s1 999 0.808582 0.797334 0.798092 434
+standin-s1 1499 0.270075 0.254823 0.299100 965
+standin-s1 1999 0.014947 0.017074 0.008872 66
+standin-s1 2499 0.014783 0.011402 0.010007 35
+standin-s1 2999 0.234617 0.288129 0.291642 821
+standin-s1 3499 0.013842 0.012541 0.013603 57
+standin-s1 3999 0.015618 0.014571 0.014696 70
+# rawjudge-f3f-s1 (lane/harness2) is a 161-tick RawDrive session
+# (oracle/tests/rawjudge-f3f-s1.drive.jsonl) pressing F3+F, Shift+F3+F and
+# F3+F: in 1.7.10 setOptionValue has no RENDER_DISTANCE branch, so the keys
+# only toggle the debug screen (opts dbg; the render distance stays 4). Its
+# golden is at 89, the one stretch with the debug screen off (the native
+# client does not draw it); pxdiff survey: 0 clusters, 60 scattered pixels.
+rawjudge-f3f-s1 89 0.039108 0.032945 0.023497 60
+# lane/rawfuzz: generated sessions (csrc/tests/rawfuzz/gen.c, a seeded
+# stand-in person as RawDrive steps) played on the Java client, kept where a
+# fix made one pass: rawfuzz-ctrlq-s1 (control pressed in Q's frame over a
+# slot), rawfuzz-f5-g5 (F5 held), rawfuzz-closekeys-g2 (keys after a close
+# key in one tick; its underwater golden at 1249, 301,307 px of fog, is not
+# kept), rawfuzz-closedead-s7 (a close that kills: GuiGameOver, and the later
+# keys), rawfuzz-death-g4 (the input block the tick GuiGameOver opens, R on
+# the death screen), rawfuzz-repeat-s1 (X's autorepeat of a key held through
+# a close), rawfuzz-screenmouse-g4 (the wheel as a motion in a drag, side
+# buttons), rawfuzz-pointer-s42 (the pointer's settle and the inventory
+# preview's pointer over the frames Java drew, the toast's clock),
+# rawfuzz-f1-s1 (F1 hides the block selection), rawfuzz-latewheel-s42 (a
+# wheel notch in a frame that runs no tick, taken by a late tick),
+# rawfuzz-hover-s1 (a reopened screen's hover: none until drawn, then the
+# pointer Java drew with).
+# Named residuals (pxdiff survey): the toast's block icon is not drawn
+# (pointer-s42 249, ctrlq-s1 249: the log); the third-person player model's
+# arm and body pose (closedead-s7 749 to 1499); dusk light on the world
+# behind a screen (f1-s1 2249, a uniform 9-15 levels darker); first-person
+# arm silhouettes and leaf cutouts (one-pixel edges) elsewhere.
+rawfuzz-ctrlq-s1 249 0.256143 0.231550 0.233460 410
+rawfuzz-ctrlq-s1 499 0.061976 0.063273 0.049561 132
+rawfuzz-ctrlq-s1 749 0.070211 0.069196 0.069404 339
+rawfuzz-ctrlq-s1 999 0.015420 0.019199 0.007392 50
+rawfuzz-f5-g5 249 0.006352 0.001820 0.002232 4
+rawfuzz-f5-g5 499 0.004981 0.006653 0.003301 20
+rawfuzz-f5-g5 749 0.004950 0.005952 0.013095 14
+rawfuzz-f5-g5 999 0.001391 0.001305 0.001298 0
+rawfuzz-f5-g5 1249 0.001388 0.001388 0.001388 0
+rawfuzz-closekeys-g2 249 0.018438 0.019865 0.018223 72
+rawfuzz-closekeys-g2 499 0.216691 0.215552 0.225012 16
+rawfuzz-closekeys-g2 749 0.087885 0.102883 0.086756 121
+rawfuzz-closekeys-g2 999 0.100566 0.131955 0.109709 90
+rawfuzz-closedead-s7 249 0.013027 0.008380 0.007201 36
+rawfuzz-closedead-s7 499 0.220021 0.052981 0.038242 0
+rawfuzz-closedead-s7 749 0.286310 0.249529 0.243140 857
+rawfuzz-closedead-s7 999 0.036934 0.031206 0.037510 99
+rawfuzz-closedead-s7 1249 0.171604 0.242203 0.195982 1632
+rawfuzz-closedead-s7 1499 0.235758 0.133053 0.160151 1519
+rawfuzz-death-g4 249 0.184690 0.177437 0.226586 1
+rawfuzz-death-g4 499 0.324529 0.308336 0.085358 0
+rawfuzz-death-g4 749 0.305306 0.356979 0.453545 0
+rawfuzz-death-g4 999 0.247978 0.109163 0.249966 61
+rawfuzz-death-g4 1249 0.060504 0.061446 0.069084 215
+rawfuzz-death-g4 1499 0.198151 0.187593 0.196514 36
+rawfuzz-death-g4 1749 0.125595 0.229850 0.176859 11
+rawfuzz-death-g4 1999 0.055133 0.058963 0.064091 158
+rawfuzz-repeat-s1 249 0.038815 0.035356 0.042147 79
+rawfuzz-screenmouse-g4 24 0.192213 0.200617 0.182428 3
+rawfuzz-screenmouse-g4 49 0.189713 0.180689 0.163000 1
+rawfuzz-screenmouse-g4 74 0.022624 0.024763 0.023114 135
+rawfuzz-pointer-s42 249 0.104074 0.086585 0.055552 434
+rawfuzz-pointer-s42 499 0.182853 0.185946 0.228159 2
+rawfuzz-pointer-s42 749 0.060297 0.049385 0.052627 210
+rawfuzz-pointer-s42 999 0.094092 0.104603 0.085795 304
+rawfuzz-pointer-s42 1249 0.211207 0.259048 0.216025 21
+rawfuzz-f1-s1 249 0.029835 0.019528 0.030501 20
+rawfuzz-f1-s1 499 0.205550 0.235473 0.196121 0
+rawfuzz-f1-s1 749 0.008794 0.015501 0.020675 9
+rawfuzz-f1-s1 999 0.194965 0.178049 0.184126 745
+rawfuzz-f1-s1 1249 0.011356 0.012759 0.007921 76
+rawfuzz-f1-s1 1499 0.004652 0.006138 0.003547 27
+rawfuzz-f1-s1 1749 0.007184 0.011222 0.005067 71
+rawfuzz-f1-s1 1999 0.140601 0.179642 0.150395 29
+rawfuzz-f1-s1 2249 9.201159 10.214295 9.091701 3118
+rawfuzz-f1-s1 2499 0.852805 1.091406 1.353020 0
+rawfuzz-latewheel-s42 249 0.011017 0.011985 0.018957 15
+rawfuzz-latewheel-s42 499 0.025468 0.032523 0.030891 50
+rawfuzz-latewheel-s42 749 0.002069 0.002386 0.000639 0
+rawfuzz-latewheel-s42 999 0.166596 0.172087 0.094209 0
+rawfuzz-latewheel-s42 1249 0.505147 0.169714 0.160929 0
+rawfuzz-latewheel-s42 1499 0.040484 0.054864 0.031748 218
+rawfuzz-latewheel-s42 1749 0.089976 0.000986 0.072004 0
+rawfuzz-latewheel-s42 1999 0.220726 0.081445 0.124783 0
+rawfuzz-hover-s1 24 0.177049 0.125224 0.173573 1
+rawfuzz-hover-s1 49 0.026290 0.011927 0.013195 13
+rawfuzz-hover-s1 74 0.033572 0.027574 0.019406 15

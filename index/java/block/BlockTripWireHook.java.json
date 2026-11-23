@@ -1,0 +1,226 @@
+{
+  "path": "oracle/src/block/BlockTripWireHook.java",
+  "classes": [
+    "BlockTripWireHook"
+  ],
+  "lines": 403,
+  "side": "common",
+  "category": "block",
+  "role": "The tripwire hook (id 131): mounted on a wall, walks its wire line, and when the line is complete and armed powers itself (bit 8) toward its facing, with the click/bowhit sounds.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "hook_update",
+        "hook_sound",
+        "hook_notify",
+        "hook_can_place_at",
+        "hook_stay",
+        "hook_neighbor",
+        "block_on_neighbor_changed",
+        "bwl_on_broken",
+        "blockcb_tripwire_hook_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "tripwire_hook_update",
+        "on_post_block_placed",
+        "on_block_placed",
+        "can_replace"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/snapshots/idx-blocks-s1",
+    "out/java/snapshots/struct-jungle-s1",
+    "out/java/snapshots/cov-blkbreak-s1",
+    "out/java/snapshots/cov-blkpower-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockTripWireHook",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "id 131: Material.circuits row, tick_randomly, render_type 29"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_pool_box",
+      "status": "exact",
+      "note": "case 131: null"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_149738_a",
+      "sig": "(Lnet/minecraft/world/World;)I",
+      "native": "csrc/engine/blockcb.c:hook_update",
+      "status": "exact",
+      "note": "tick rate 10, used by the scheduled re-check"
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockOnSide",
+      "sig": "(Lnet/minecraft/world/World;IIII)Z",
+      "native": "csrc/engine/place.c:can_replace",
+      "status": "exact",
+      "note": "Already in place.c (the item placement asks it through canPlaceEntityOnSide); details-blocks-s1 refuses a hook on a floor top and hangs one on a wall face."
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockAt",
+      "sig": "(Lnet/minecraft/world/World;III)Z",
+      "native": "csrc/engine/blockcb.c:hook_can_place_at",
+      "status": "exact",
+      "note": "a normal cube on one horizontal side"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlaced",
+      "sig": "(Lnet/minecraft/world/World;IIIFFFFI)I",
+      "native": "csrc/engine/place.c:on_block_placed",
+      "status": "exact",
+      "note": "the facing meta 0..3 from the clicked side"
+    },
+    {
+      "kind": "method",
+      "name": "onPostBlockPlaced",
+      "sig": "(Lnet/minecraft/world/World;IIII)V",
+      "native": "csrc/engine/place.c:on_post_block_placed",
+      "status": "exact",
+      "note": "starts the hook state machine after placement"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)V",
+      "native": "csrc/engine/blockcb.c:hook_neighbor",
+      "status": "exact",
+      "note": "drops itself when its supporting cube goes"
+    },
+    {
+      "kind": "method",
+      "name": "func_150136_a",
+      "sig": "(Lnet/minecraft/world/World;IIIZIZII)V",
+      "native": "csrc/engine/blockcb.c:hook_update",
+      "status": "exact",
+      "note": "the state machine: walk the line, compute connected/armed, write the far hook and the wire metas, schedule the re-check"
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(Lnet/minecraft/world/World;IIILjava/util/Random;)V",
+      "native": "csrc/engine/blockcb.c:blockcb_tripwire_hook_tick",
+      "status": "exact",
+      "note": "func_150136_a(false, meta, true, -1, 0), dispatched by servertick.c for id 131."
+    },
+    {
+      "kind": "method",
+      "name": "func_150135_a",
+      "sig": "(Lnet/minecraft/world/World;IIIZZZZ)V",
+      "native": "csrc/engine/blockcb.c:hook_sound",
+      "status": "exact",
+      "note": "the four click/bowhit branches; the server's playSoundEffect is empty but the bowhit pitch draw still burns the world Random"
+    },
+    {
+      "kind": "method",
+      "name": "func_150134_a",
+      "sig": "(Lnet/minecraft/world/World;IIII)V",
+      "native": "csrc/engine/blockcb.c:hook_notify",
+      "status": "exact",
+      "note": "the neighbor notifications toward the wire"
+    },
+    {
+      "kind": "method",
+      "name": "func_150137_e",
+      "sig": "(Lnet/minecraft/world/World;III)Z",
+      "native": "csrc/engine/blockcb.c:hook_stay",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;I)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_broken",
+      "status": "exact",
+      "note": "An attached or powered hook's func_150136_a(removing) and a powered hook's func_150134_a notifications, inside the write (blockcb.c:bwl_on_broken, added by lane/idxblocks)."
+    },
+    {
+      "kind": "method",
+      "name": "isProvidingWeakPower",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;IIII)I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "n/a",
+      "note": "Only a powered block reads it: world.conf redstone = off."
+    },
+    {
+      "kind": "method",
+      "name": "isProvidingStrongPower",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;IIII)I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "n/a",
+      "note": "world.conf redstone = off."
+    },
+    {
+      "kind": "method",
+      "name": "canProvidePower",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "the provides_power column, which the trapdoor and fence-gate redstone branches read"
+    }
+  ],
+  "missing": [],
+  "notes": "The state machine is blockcb.c:hook_update; details-blocks-s1 places one hook by hand against a dev-placed pair and trips the line. lane/idxblocks: the state machine func_150136_a is blockcb.c:hook_update; idx-blocks-s1 cuts a wire between two attached hooks."
+}

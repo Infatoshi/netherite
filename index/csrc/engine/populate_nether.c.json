@@ -1,0 +1,33 @@
+{
+ "path": "csrc/engine/populate_nether.c",
+ "lines": 492,
+ "role": "The Nether and End populate drivers: ChunkProviderHell.populate's fortress stage (its own HashMap-ordered fortress structure map) and eight feature stages from hellRNG, the fortress spawn-list test getPossibleCreatures uses, and BiomeEndDecorator.func_150513_a's ores, obsidian spike and dragon-yaw report.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/ChunkProviderHell.java", "members": ["populate", "getPossibleCreatures", "hellRNG", "genNetherBridge"]},
+  {"path": "oracle/src/world/gen/structure/MapGenNetherBridge.java", "members": ["canSpawnStructureAtCoords", "getStructureStart"]},
+  {"path": "oracle/src/world/gen/structure/MapGenStructure.java", "members": ["generateStructuresInChunk", "hasStructureAt", "func_142038_b", "structureMap"]},
+  {"path": "oracle/src/world/gen/MapGenBase.java", "members": ["func_151539_a"]},
+  {"path": "oracle/src/world/gen/ChunkProviderEnd.java", "members": ["populate"]},
+  {"path": "oracle/src/world/biome/BiomeEndDecorator.java", "members": ["func_150513_a"]},
+  {"path": "oracle/src/world/biome/BiomeDecorator.java", "members": ["generateOres", "genStandardOre1", "genStandardOre2"]},
+  {"path": "oracle/src/world/World.java", "members": ["getTopSolidOrLiquidBlock"]}
+ ],
+ "structs": [
+  {"name": "struct end_dragon_spawn", "java": "BiomeEndDecorator's EntityDragon spawn at chunk 0,0 (whether it spawned and its rotationYaw draw)", "fields": ["spawned", "yaw"]},
+  {"name": "hmap", "java": "MapGenNetherBridge.structureMap", "fields": ["starts", "n", "cap", "keys"]}
+ ],
+ "entry_points": ["populate_hell_init", "populate_hell_free", "populate_hell_offer_chunk", "populate_hell_add_start", "populate_hell_count", "populate_hell_structures", "populate_hell_fortress_at", "populate_hell_lava", "populate_hell_fire", "populate_hell_glow1", "populate_hell_glow2", "populate_hell_brown", "populate_hell_red", "populate_hell_quartz", "populate_hell_hidden", "populate_end_ores", "populate_end_spike", "populate_end_dragon", "populate_hell_negative_anystart", "populate_negative_spike", "end_dragon_last"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 115, function populate_hell_offer_chunk: realloc growth of the fortress start array on chunk generation",
+  "lines 180 and 219, functions populate_hell_fortress_at and populate_hell_structures: realloc of the populate order scratch",
+  "lines 183 and 222: container-order dependence carried as java.util.HashMap iteration order via jhm64_order",
+  "line 52 and 477, functions hell_feature and populate_end_spike: feature rows looked up by name string (features_nether_for)",
+  "lines 203, 462, 493: globals populate_hell_negative_anystart, populate_negative_spike, end_dragon_last",
+  "line 406, function end_top_solid_or_liquid: world_load_chunk may generate a chunk from inside populate"
+ ],
+ "tests": ["csrc/tests/test_populate.c", "csrc/tests/test_seedworld.c", "csrc/tests/test_fortress_spawn.c"],
+ "notes": "The fortress stage now runs natively through sc_generate (line 248); the header comment saying the test replays the oracle's recorded fortress writes predates that and is stale. Callers: serverreplay.c, seedworld.c and spawning.c (populate_hell_fortress_at for the blaze/skeleton/pigman fortress list). The End dragon itself is not constructed here; only its yaw draw is reported in end_dragon_last (the dragon entity lives in dragon.c). Java member names for MapGenNetherBridge were not re-opened."
+}

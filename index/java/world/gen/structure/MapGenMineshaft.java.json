@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/world/gen/structure/MapGenMineshaft.java",
+  "classes": ["MapGenMineshaft"],
+  "lines": 44,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The mineshaft generator: a chunk starts a mineshaft with chance 0.004 and only if nextInt(80) is below its Chebyshev distance from the origin chunk.",
+  "scope": "in_scope",
+  "scope_reason": "Mineshafts are vanilla worldgen and on (SPEC Decisions).",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/mineshaft.c", "symbols": ["structure_mineshaft", "mineshaft_can_spawn", "mineshaft_make_start", "MINESHAFT_CHANCE"]}],
+  "evidence": ["csrc/tests/test_structures.c", "csrc/tests/test_sblocks.c", "csrc/tests/test_populate.c", "out/java/structures/s2", "out/java/structures/s42", "out/java/sblocks/s2-a", "out/java/sblocks/s42a", "out/java/populate/pop42_01"],
+  "members": [
+    {"kind": "field", "name": "field_82673_e", "sig": "double (chance 0.004)", "native": "csrc/engine/mineshaft.c:MINESHAFT_CHANCE", "status": "exact"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "MapGenMineshaft", "sig": "()V", "native": "csrc/engine/mineshaft.c:structure_mineshaft", "status": "exact"},
+    {"kind": "method", "name": "func_143025_a", "sig": "()String", "native": "csrc/engine/mineshaft.c:structure_mineshaft", "status": "exact", "note": "The name \"Mineshaft\"."},
+    {"kind": "ctor", "name": "MapGenMineshaft", "sig": "(Map)V", "native": null, "status": "n/a", "note": "Option-map constructor used only by superflat presets; default worlds use the no-arg one."},
+    {"kind": "method", "name": "canSpawnStructureAtCoords", "sig": "(int,int)Z", "native": "csrc/engine/mineshaft.c:mineshaft_can_spawn", "status": "exact"},
+    {"kind": "method", "name": "getStructureStart", "sig": "(int,int)StructureStart", "native": "csrc/engine/mineshaft.c:mineshaft_make_start", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "sblocks recordings without a structure key in their manifest (s2-a, s42a, ...) are mineshaft block recordings. Gate not re-run for this record."
+}

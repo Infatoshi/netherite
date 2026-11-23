@@ -1,0 +1,33 @@
+# A flywheel gym: the whole End fight from the first End step (crystals standing) on the bank's train starts, a
+# longer step, and the exact eval over every held-out End start stage at 256 episodes, KEEP on depth (paired z)
+# or the dragon rate (exact McNemar). Set the bow and crystal knobs per experiment with --set, e.g.
+#   nether flywheel configs/gyms/end-crystal-bow.yaml --incumbent W.ntw --gpu G --set reward.crystals=20
+name: end-crystal-bow
+variant: s1.ls.hb.hs.dk.r1.m4.b.f.sb
+train_config: configs/gyms/dragon-smoke.train.yaml
+eval_config: configs/gyms/dragon-eval.yaml
+budget_steps: 200000000
+primary_metric: dragon
+max_p: 0.01
+min_z: 3
+quick_gate: on
+build_cmd: make -s -C csrc/runtime train-loop-v NT_V=s1.ls.hb.hs.dk.r1.m4.b.f.sb
+log: out/flywheel/end-crystal-bow
+
+train:
+  flags: --dev --fresh-opt --train-skip-ambient --graph 0
+  critic: 128
+  distant_tick_radius: 64
+  stages: end+crystals_gone1+crystals_gone3+crystals_gone6+crystals_gone9+dragon_75+dragon_50+dragon_25
+
+eval:
+  episodes: 256
+  minutes: 15
+  seed: 1000
+  groups: 8
+  library: cache/end-bank-dev-2026-11-23/eval
+  stages: end+crystals_gone1+crystals_gone3+crystals_gone6+crystals_gone9+dragon_75+dragon_50+dragon_25
+  start: cache/end-bank-dev-2026-11-23/eval/s437203103-end/start
+  clock: wrap
+  start_cycle: on
+  flags: --dev

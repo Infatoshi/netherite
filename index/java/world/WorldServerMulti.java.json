@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/world/WorldServerMulti.java",
+  "classes": ["WorldServerMulti"],
+  "lines": 24,
+  "side": "server",
+  "category": "world",
+  "role": "The server world for the Nether and the End: shares the overworld's map storage and scoreboard, reads the overworld's WorldInfo through a DerivedWorldInfo (one clock, one weather), and saves no level.dat of its own.",
+  "scope": "in_scope",
+  "scope_reason": "The Nether and the End are in scope (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/servertick.c", "symbols": ["servertick_tick_head"]},
+    {"file": "csrc/engine/sleep.c", "symbols": ["sleep_wake_all"]}
+  ],
+  "evidence": ["csrc/tests/test_dims.c", "csrc/tests/test_servertick.c", "out/java/dims", "out/java/snapshots/nether-trip-s1", "out/java/snapshots/end-arrival-s1"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "WorldServerMulti", "sig": "(MinecraftServer,ISaveHandler,String,int,WorldSettings,WorldServer,Profiler)", "native": "csrc/engine/servertick.c:servertick_tick_head", "status": "exact", "note": "the DerivedWorldInfo clock: the no-sky worlds read the overworld's already-advanced time (servertick_tick_head, sleep.c)"},
+    {"kind": "method", "name": "saveLevel", "sig": "()V", "native": null, "status": "n/a", "note": "empty override; native does not save level.dat per dimension"}
+  ],
+  "missing": [],
+  "notes": "Map storage sharing is moot (maps = off) and the scoreboard is not part of the native game."
+}

@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/entity/item/EntityTNTPrimed.java",
+  "classes": ["EntityTNTPrimed"],
+  "lines": 127,
+  "side": "common",
+  "category": "entity",
+  "role": "Primed TNT: an entity with an 80-tick fuse that falls, smokes, and explodes at fuse 0 with a radius-4 (isFlaming, isSmoking) blast.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/item_entity.c", "symbols": ["ie_spawn_tnt", "tnt_update", "tnt_fields", "ie_adopt_tnt", "fuse", "tnt_by_player"]},
+    {"file": "csrc/engine/tnt.c", "symbols": ["tnt_replay_explode"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["st_tnt_prime"]},
+    {"file": "csrc/engine/entity_nbt.c", "symbols": ["ent_nbt_ie"]},
+    {"file": "csrc/engine/pick.c", "symbols": ["pick_kind_collidable"]},
+    {"file": "csrc/engine/pickobj.c", "symbols": ["pickobj_client_tick"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["serverreplay_end_tnt_explode", "serverreplay_end_run_blast"]}
+  ],
+  "evidence": ["out/java/snapshots/surv2-tnt-s1", "csrc/tests/test_explosions.c", "out/java/raypick/rp-1", "csrc/tests/test_raypick.c", "out/java/snapshots/end-tnt-s42", "out/java/snapshots/tnt-chain-s1", "out/java/snapshots/tnt-fire-s1", "out/java/snapshots/nether-tnt-s1", "out/java/snapshots/nether-unload-tnt-s1", "out/java/snapshots/pfc-tntload-g8"],
+  "members": [
+    {"kind": "field", "name": "fuse", "sig": "int", "native": "csrc/engine/item_entity.c:fuse", "status": "exact"},
+    {"kind": "field", "name": "tntPlacedBy", "sig": "EntityLivingBase", "native": "csrc/engine/item_entity.c:tnt_by_player", "status": "partial", "note": "kept as a 1/0 player flag (tnt_by_player), not an entity reference; no probe source can name another living"},
+    {"kind": "ctor", "name": "EntityTNTPrimed", "sig": "(World)V", "native": "csrc/engine/item_entity.c:ie_adopt_tnt", "status": "partial", "note": "the bare World constructor is the replay's NBT-adopt path (size 0.98/0.98, yOffset height/2, preventEntitySpawning); the fuse and placer arrive from the tape"},
+    {"kind": "ctor", "name": "EntityTNTPrimed", "sig": "(World,DDD,EntityLivingBase)V", "native": "csrc/engine/item_entity.c:ie_spawn_tnt", "status": "exact", "note": "the fuse angle's Math.random draw, the 0.2D motionY and the 80-tick fuse"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": null, "status": "n/a", "note": "empty body"},
+    {"kind": "method", "name": "canTriggerWalking", "sig": "()Z", "native": "csrc/engine/item_entity.c:tnt_fields", "status": "exact", "note": "tnt_fields clears entity.can_trigger_walking"},
+    {"kind": "method", "name": "canBeCollidedWith", "sig": "()Z", "native": "csrc/engine/item_entity.c:ie_can_be_collided_with", "status": "exact", "note": "the !isDead rule, item_entity.c:1307"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": "csrc/engine/item_entity.c:tnt_update", "status": "exact", "note": "replaces the base tick outright: gravity 0.04, drag 0.98, the ground bounce, the fuse decrement and the explosion call; the smoke particle is the client's"},
+    {"kind": "method", "name": "explode", "sig": "()V", "native": "csrc/engine/tnt.c:tnt_replay_explode", "status": "exact", "note": "World.createExplosion(this, x, y, z, 4.0F, true) through ie_world.on_tnt_explode; servertick.c:st_tnt_prime is the fire-spread priming path that builds the same entity; in the Nether over the Nether's world and World.rand, the blast reaching livings, falling blocks and hanging entities in the entity walk's order (nether-tnt-s1, nether-unload-tnt-s1)"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/entity_nbt.c:ent_nbt_ie", "status": "exact", "note": "the Fuse byte, entity_nbt.c:280"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/item_entity.c:ie_adopt_tnt", "status": "exact"},
+    {"kind": "method", "name": "getShadowSize", "sig": "()F", "native": null, "status": "n/a", "note": "client shadow size, not part of the server state the tick records"},
+    {"kind": "method", "name": "getTntPlacedBy", "sig": "()Lnet/minecraft/entity/EntityLivingBase;", "native": "csrc/engine/item_entity.c:tnt_by_player", "status": "partial", "note": "the boolean flag stands in for the reference; a TNT read back from a save has none (tntPlacedBy is not saved: the snapshot's e:-1, snapshot_entities.c, pfc-tntload-g8)"}
+  ],
+  "missing": [],
+  "notes": "surv2-tnt-s1 records a placed TNT's full fuse and blast; test_explosions.c checks the explosion pass against the oracle's dumps. The fuse's smoke particle is a client effect; the server-side cost is the absent draw, which tnt_update documents. Since lane/endreturn (2026-09-27): a TNT primed in the End explodes over the End's lists, crystals and dragon parts included, with the player who lit it as the source's entity (serverreplay.c serverreplay_end_tnt_explode; the End's item pool had no on_tnt_explode hook and tnt_replay_explode ran on the overworld), and a TNT reached by another blast keeps Entity.attackEntityFrom (no health; explosion.c attack_from_explosion), end-tnt-s42."
+}

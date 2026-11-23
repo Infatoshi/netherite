@@ -1,0 +1,38 @@
+{
+ "classes": ["EntityPickupFX"],
+ "lines": 71,
+ "side": "client",
+ "category": "particles",
+ "role": "The item-sucked-toward-player effect: layer 3 that re-renders the picked-up entity along its path.",
+ "scope": "in_scope",
+ "scope_reason": "Every item pickup draws the collected item flying to the player for three ticks (EffectRenderer layer 3).",
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/raster_particles.c", "symbols": ["raster_particles_scene"]},
+  {"file": "csrc/engine/raster_entities.c", "symbols": ["raster_world_item_at"]},
+  {"file": "csrc/play/play.c", "symbols": ["drops_after_tick", "pickups"]},
+  {"file": "csrc/engine/pickobj.c", "symbols": ["handle"]}
+ ],
+ "evidence": [
+  "out/java/render-src/ent_pickup",
+  "csrc/tests/test_render.c",
+  "out/java/clientframes/cr-pickup-s1",
+  "out/java/clientframes/idx-pickcap-s1",
+  "out/java/snapshots/idx-pickup-s1"
+ ],
+ "members": [
+  {"kind": "field", "name": "__OBFID", "sig": "String", "native": null, "status": "n/a"},
+  {"kind": "field", "name": "yOffs", "sig": "", "native": "csrc/play/play.c:pickups", "status": "exact", "note": "play.c's pickup_fx: the copy drawn, the collector (the client player), age, maxAge 3, yOffs -0.5"},
+  {"kind": "field", "name": "maxAge", "sig": "", "native": "csrc/play/play.c:pickups", "status": "exact", "note": "play.c's pickup_fx: the copy drawn, the collector (the client player), age, maxAge 3, yOffs -0.5"},
+  {"kind": "field", "name": "age", "sig": "", "native": "csrc/play/play.c:pickups", "status": "exact", "note": "play.c's pickup_fx: the copy drawn, the collector (the client player), age, maxAge 3, yOffs -0.5"},
+  {"kind": "field", "name": "entityPickingUp", "sig": "", "native": "csrc/play/play.c:pickups", "status": "exact", "note": "play.c's pickup_fx: the copy drawn, the collector (the client player), age, maxAge 3, yOffs -0.5"},
+  {"kind": "field", "name": "entityToPickUp", "sig": "", "native": "csrc/play/play.c:pickups", "status": "exact", "note": "play.c's pickup_fx: the copy drawn, the collector (the client player), age, maxAge 3, yOffs -0.5"},
+  {"kind": "ctor", "name": "EntityPickupFX", "sig": "(World,Entity,Entity,F)", "native": "csrc/engine/pickobj.c:handle", "status": "exact", "note": "handleCollectItem: the Entity constructor's draws and EntityFX's five Math.random on the client streams (PKO_COLLECT), the effect from the client copy where it lay (play.c drops_after_tick), for every S0D of the tick (the 16 cap lifted here)"},
+  {"kind": "method", "name": "renderParticle", "sig": "(Tessellator,FFFFFF)V", "native": "csrc/engine/raster_particles.c:raster_particles_scene", "status": "exact", "note": "the ((age + pt) / maxAge)^2 path to the collector's position plus yOffs, the item drawn unlit (lighting is off in renderLitParticles) under the particle's lightmap"},
+  {"kind": "method", "name": "onUpdate", "sig": "()V", "native": "csrc/play/play.c:drops_after_tick", "status": "exact", "note": "++age, dead at maxAge 3"},
+  {"kind": "method", "name": "getFXLayer", "sig": "()I", "native": "csrc/engine/raster_particles.c:raster_particles_scene", "status": "exact"}
+ ],
+ "missing": [],
+ "notes": "lane/entrender: ent_pickup (a diamond and a cobblestone stack collected), 12 views within 80 px. lane/idxlast 2026-09-27: stale since lane/clientgate and lane/idxworld (the S0D's effect in play, its draws in pickobj.c, idx-pickup-s1's play check compares the pickups); idx-pickcap-s1 takes 27 in one tick, all drawn.",
+ "path": "oracle/src/client/particle/EntityPickupFX.java"
+}

@@ -1,0 +1,28 @@
+{
+ "path": "oracle/src/client/model/ModelWitch.java",
+ "classes": ["ModelWitch"],
+ "lines": 64,
+ "side": "client",
+ "category": "client_model",
+ "role": "The witch's model: the villager layout plus the hat stack and the wiggling nose.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_witch", "draw_model"]}
+ ],
+ "evidence": [
+  "out/java/render/mobs2a_witch_f006",
+  "out/java/render/mobs2a_witch_f011",
+  "csrc/tests/test_render.c",
+  "out/java/render-src/ent_held2"
+ ],
+ "members": [
+  {"kind": "field", "name": "field_82900_g", "sig": "boolean", "native": "csrc/engine/raster_mobs.c:model_witch", "status": "exact"},
+  {"kind": "field", "name": "field_82901_h", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_witch", "status": "exact"},
+  {"kind": "field", "name": "witchHat", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_witch", "status": "exact"},
+  {"kind": "ctor", "name": "ModelWitch", "sig": "(float)V", "native": "csrc/engine/raster_mobs.c:model_witch", "status": "exact"},
+  {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:draw_model", "status": "exact"},
+  {"kind": "method", "name": "setRotationAngles", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:model_witch", "status": "exact"}
+ ],
+ "missing": []
+}

@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/util/IJsonSerializable.java",
+  "classes": ["IJsonSerializable"],
+  "lines": 13,
+  "side": "common",
+  "category": "util",
+  "role": "Marker interface for objects that serialize themselves to a JsonElement; implemented by JsonSerializableSet and the statistics tuple.",
+  "scope": "client_cosmetic",
+  "scope_reason": "An interface with no behaviour; its implementers (JsonSerializableSet, the stats' TupleIntJsonSerializable values) are indexed in their own records.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "func_152753_a", "sig": "(JsonElement)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSerializableElement", "sig": "()JsonElement", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No JSON layer natively. idxaudit 2026-09-27: scope reason rewritten."
+}

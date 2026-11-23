@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/item/ItemBed.java",
+  "classes": ["ItemBed"],
+  "lines": 86,
+  "side": "server",
+  "category": "item",
+  "role": "Places a two-block bed from the player's yaw, both halves sharing the facing metadata (head = facing + 8), on solid tops with two air cells.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["item_bed_on_item_use", "place_try"]},
+    {"file": "csrc/engine/sleep.c", "symbols": ["BED_OFFSET"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_bed_safe_spot"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/surv2-bed-s1",
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemBed", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 355, max stack 1"},
+    {"kind": "method", "name": "onItemUse", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/place.c:item_bed_on_item_use", "status": "exact", "note": "the yaw-to-facing, the two canPlayerEdit cells, the solid-top check and both setBlock calls; survival.c's surv_bed_safe_spot and sleep.c carry the sleeping half"}
+  ],
+  "missing": [],
+  "notes": "surv2-bed-s1 gates the placement at dusk, the sleep and the respawn at the bed."
+}

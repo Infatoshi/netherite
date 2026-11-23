@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/util/Timer.java",
+  "classes": ["Timer"],
+  "lines": 119,
+  "side": "client",
+  "category": "util",
+  "role": "The vanilla client's frame pacer: converts wall-clock deltas into elapsedTicks and renderPartialTicks, syncing the high-resolution clock to the system clock.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Frame rate is not part of the game (SPEC: frames are drawn after a tick at partial tick 1.0 only when asked for; Minecraft.getSystemTime is tick * 50 in agent mode), so no timer drives the tick loop.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "ticksPerSecond", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "lastHRTime", "sig": "double", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "elapsedTicks", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "renderPartialTicks", "sig": "float", "native": null, "status": "n/a", "note": "agent-mode frames render at partial tick 1.0 by request, never from a timer"},
+    {"kind": "field", "name": "timerSpeed", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "elapsedPartialTicks", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "lastSyncSysClock", "sig": "long", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "lastSyncHRClock", "sig": "long", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_74285_i", "sig": "long", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "timeSyncAdjustment", "sig": "double", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "Timer", "sig": "(F)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "updateTimer", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The native player client (csrc/play/play.c) paces its loop with SDL timers and interpolates the same way, but no Timer port exists and none is gated; the human client's uncapped frames are cosmetic per SPEC."
+}

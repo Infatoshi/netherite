@@ -1,0 +1,91 @@
+{
+ "path": "oracle/src/block/BlockRail.java",
+ "classes": [
+  "BlockRail"
+ ],
+ "lines": 38,
+ "side": "common",
+ "category": "block",
+ "role": "The plain rail (66): curves allowed (shapes 6 to 9), the turned icon, and the re-curve when a power-capable neighbour changes beside a three-way junction.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "rail_on_neighbor",
+    "rail_neighbour_count"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "rail_neighbor",
+    "rail_side_count"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks2.c",
+   "symbols": [
+    "rb2_render_rail"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/place/big2",
+  "out/java/place/big42",
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_structures.c",
+  "out/java/structures/s2"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150056_b",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "turned icon, client"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRail",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 66, powered-form flag false"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it (meta >= 6 turned)"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration"
+  },
+  {
+   "kind": "method",
+   "name": "func_150048_a",
+   "sig": "(World,IIIIIBlock)V",
+   "native": "csrc/engine/blockcb.c:rail_neighbor",
+   "status": "exact",
+   "note": "a canProvidePower source with three side rails re-runs the shape (place.c rail_on_neighbor too)"
+  }
+ ],
+ "missing": [],
+ "notes": "Shape logic is BlockRailBase.Rail's. With redstone off a power-capable source (a lever, a torch, a detector rail) still triggers the re-curve, since the test is canProvidePower, not power."
+}

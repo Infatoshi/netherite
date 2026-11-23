@@ -1,0 +1,188 @@
+{
+ "path": "csrc/engine/servertick.h",
+ "lines": 214,
+ "role": "The server world tick's interface: struct servertick (World/WorldServer tick state, weather, clocks, the active chunk set in recorded order, the recorded block writes and constructed entities) and the hooks the tape replay installs (spawner, unload step, sleep check, arrows, spawn adoption).",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "tick",
+    "updateWeather",
+    "func_147456_g",
+    "tickUpdates",
+    "areAllPlayersAsleep",
+    "wakeAllPlayers",
+    "allPlayersSleeping"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "tick",
+    "updateWeather",
+    "calculateSkylightSubtracted",
+    "getCelestialAngle",
+    "rand",
+    "updateLCG",
+    "skylightSubtracted",
+    "rainingStrength",
+    "prevRainingStrength",
+    "thunderingStrength",
+    "prevThunderingStrength",
+    "ambientTickCountdown",
+    "activeChunkSet"
+   ]
+  },
+  {
+   "path": "oracle/src/world/NextTickListEntry.java",
+   "members": [
+    "nextTickEntryID"
+   ]
+  },
+  {
+   "path": "oracle/src/village/VillageSiege.java",
+   "members": [
+    "field_75536_c",
+    "field_75535_b",
+    "field_75533_d",
+    "field_75534_e"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "st_write",
+   "java": "the oracle's 16-byte block write row (not a vanilla class)",
+   "fields": [
+    "x",
+    "y",
+    "z",
+    "id",
+    "meta",
+    "pad"
+   ]
+  },
+  {
+   "name": "st_spawn",
+   "java": "one constructed Entity (EntityItem, EntityLightningBolt, EntityFallingBlock fields) as spawns.jsonl.gz records it",
+   "fields": [
+    "t",
+    "dim",
+    "id",
+    "cls",
+    "weather",
+    "x",
+    "y",
+    "z",
+    "mx",
+    "my",
+    "mz",
+    "yaw",
+    "uuid_msb",
+    "uuid_lsb",
+    "rand_state",
+    "item",
+    "damage",
+    "count",
+    "age",
+    "delay",
+    "hover",
+    "bolt_vertex",
+    "bolt_living_time",
+    "tile",
+    "tile_id",
+    "data",
+    "time",
+    "air",
+    "drop_item",
+    "hurt_entities",
+    "fall_hurt_max",
+    "fall_hurt_amount",
+    "on_ground"
+   ]
+  },
+  {
+   "name": "servertick",
+   "java": "World and WorldServer tick fields: rand, updateLCG, skylightSubtracted, rain/thunder strengths, worldInfo times and weather timers, allPlayersSleeping, ambientTickCountdown, activeChunkSet, VillageSiege state",
+   "fields": [
+    "w",
+    "det",
+    "rand",
+    "update_lcg",
+    "skylight_subtracted",
+    "raining_strength",
+    "prev_raining_strength",
+    "thundering_strength",
+    "prev_thundering_strength",
+    "total_time",
+    "world_time",
+    "daylight_cycle",
+    "rain_time",
+    "thunder_time",
+    "raining",
+    "thundering",
+    "next_tick_entry",
+    "all_players_sleeping",
+    "no_sky",
+    "no_player",
+    "mob_spawning",
+    "ambient_tick_countdown",
+    "difficulty",
+    "fire_rule_off",
+    "player_x",
+    "player_y",
+    "player_z",
+    "active",
+    "nactive",
+    "tick",
+    "writes",
+    "nwrites",
+    "capwrites",
+    "spawns",
+    "nspawns",
+    "capspawns",
+    "on_spawn",
+    "on_spawner",
+    "arrows_in",
+    "on_unload_step",
+    "siege_phase",
+    "siege_mustering",
+    "siege_count",
+    "siege_timer",
+    "on_sleep_check",
+    "on_wake_all"
+   ]
+  }
+ ],
+ "entry_points": [
+  "servertick_load",
+  "servertick_load_det",
+  "servertick_update_weather",
+  "servertick_tick_head",
+  "servertick_skylight",
+  "servertick_celestial_radians",
+  "servertick_tick",
+  "servertick_tick_empty",
+  "servertick_set_ambient",
+  "servertick_set_player",
+  "servertick_set_active",
+  "servertick_writes",
+  "servertick_spawns",
+  "servertick_clear",
+  "servertick_phase"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "struct servertick: active is a fixed ST_MAX_ACTIVE array holding the recorded JDK 8 HashSet order (container order carried as data) (lane/gpuarena, L3)",
+  "lines 119-122, struct servertick: writes and spawns are growable heap arrays (cap fields) filled inside the tick",
+  "line 54, struct st_spawn: cls is a string pointer, class identity by name",
+  "lines 127-163, struct servertick: function-pointer hooks (on_spawn, on_spawner, arrows_in, on_unload_step, on_sleep_check, on_wake_all) with void* contexts, a pointer graph the GPU cannot mirror"
+ ],
+ "tests": [
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_spawning.c"
+ ],
+ "notes": "Header only; the implementation is csrc/engine/servertick.c (not this record). Per the header comment the probe path skips unloadQueuedChunks, updatePlayerInstances, village collection and siege ticks, removeStalePortalLocations and func_147488_Z; the tape replay supplies some of them through the hooks. Java member names for World fields are taken from the header's comments, not re-checked against World.java."
+}

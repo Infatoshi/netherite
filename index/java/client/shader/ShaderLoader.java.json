@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/client/shader/ShaderLoader.java",
+  "classes": ["ShaderLoader", "ShaderLoader.ShaderType"],
+  "lines": 123,
+  "side": "client",
+  "category": "client_render",
+  "role": "One compiled GL shader object (vertex or fragment): loads shaders/program/<name>.vsh/.fsh from the resource manager, compiles it, refcounts attach/detach across ShaderManagers, and caches by name per ShaderType.",
+  "scope": "client_cosmetic",
+  "scope_reason": "GL shader program plumbing; the native renderer compiles no shader programs.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "ShaderLoader", "sig": "(ShaderType,int,String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_148056_a", "sig": "(ShaderManager)V", "native": null, "status": "n/a", "note": "attach, refcount up"},
+    {"kind": "method", "name": "func_148054_b", "sig": "(ShaderManager)V", "native": null, "status": "n/a", "note": "detach, delete at zero"},
+    {"kind": "method", "name": "func_148055_a", "sig": "()String", "native": null, "status": "n/a", "note": "the shader name"},
+    {"kind": "method", "name": "func_148057_a", "sig": "(IResourceManager,ShaderType,String)ShaderLoader", "native": null, "status": "n/a", "note": "load, compile, cache; throws JsonException with the compile log"},
+    {"kind": "field", "name": "field_148061_a", "sig": "ShaderType", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_148059_b", "sig": "String", "native": null, "status": "n/a", "note": "the shader name"},
+    {"kind": "field", "name": "field_148060_c", "sig": "int", "native": null, "status": "n/a", "note": "the GL shader object id"},
+    {"kind": "field", "name": "field_148058_d", "sig": "int", "native": null, "status": "n/a", "note": "attach refcount"},
+    {"kind": "field", "name": "ShaderType enum", "sig": "enum", "native": null, "status": "n/a", "note": "VERTEX (.vsh) and FRAGMENT (.fsh), each with its own name-to-loader cache"}
+  ],
+  "missing": [],
+  "notes": null
+}

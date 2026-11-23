@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIOwnerHurtByTarget.java",
+  "classes": ["EntityAIOwnerHurtByTarget"],
+  "lines": 61,
+  "side": "server",
+  "category": "ai",
+  "role": "Target task for tamed wolves: targets whoever attacked the owner, keyed on the owner's revenge timer.",
+  "scope": "switched_off",
+  "scope_reason": "Only EntityWolf registers this task (grep over oracle/src), and world.conf forces wolves = off, so it is never constructed, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "theDefendingTameable", "sig": "EntityTameable", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "theOwnerAttacker", "sig": "EntityLivingBase", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_142051_e", "sig": "int", "native": null, "status": "n/a", "note": "the owner's last-seen revenge timer"},
+    {"kind": "ctor", "name": "EntityAIOwnerHurtByTarget", "sig": "(EntityTameable)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "func_142018_a (EntityTameable's shouldAttackEntity) is the other half of the guard."
+}

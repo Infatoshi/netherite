@@ -1,0 +1,157 @@
+{
+ "path": "csrc/engine/chunkload.c",
+ "lines": 1005,
+ "role": "Port of ChunkProviderServer (loadChunk, populate four-neighbor rule, unloadChunksIfNotNearSpawn, unloadQueuedChunks), Chunk.populateChunk and PlayerManager (addPlayer, removePlayer, updateMountedMovingPlayer, filterChunkLoadQueue, view radius), including a faithful JDK 8 ConcurrentHashMap bin/TreeBin model so the unload set iterates in Java's order.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderServer.java",
+   "members": [
+    "loadChunk",
+    "populate",
+    "unloadChunksIfNotNearSpawn",
+    "unloadQueuedChunks",
+    "chunksToUnload",
+    "loadChunkOnProvideRequest",
+    "loadedChunks"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "populateChunk",
+    "func_150802_k",
+    "isTerrainPopulated"
+   ]
+  },
+  {
+   "path": "oracle/src/server/management/PlayerManager.java",
+   "members": [
+    "addPlayer",
+    "removePlayer",
+    "updateMountedMovingPlayer",
+    "filterChunkLoadQueue",
+    "func_152622_a",
+    "xzDirectionsConst",
+    "playerViewRadius",
+    "playerInstances",
+    "PlayerInstance.addPlayer",
+    "PlayerInstance.removePlayer"
+   ]
+  },
+  {
+   "path": "oracle/src/server/management/ServerConfigurationManager.java",
+   "members": [
+    "func_152611_a"
+   ]
+  },
+  {
+   "path": "oracle/src/server/MinecraftServer.java",
+   "members": [
+    "initialWorldChunkLoad"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "saveAllChunks"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "watcher",
+   "java": "PlayerManager.PlayerInstance",
+   "fields": [
+    "cx",
+    "cz",
+    "refs",
+    "inst",
+    "prev"
+   ]
+  },
+  {
+   "name": "cl",
+   "java": "ChunkProviderServer plus PlayerManager plus EntityPlayerMP.loadedChunks for one player",
+   "fields": [
+    "w",
+    "spawn_x",
+    "spawn_z",
+    "unload",
+    "radius",
+    "px",
+    "pz",
+    "logged",
+    "watch",
+    "nwatch",
+    "capwatch",
+    "queue",
+    "nqueue",
+    "capqueue",
+    "client",
+    "cctx",
+    "spiral",
+    "nspiral",
+    "popped",
+    "npop",
+    "cappop",
+    "emit",
+    "ectx",
+    "feed",
+    "no_load",
+    "no_respawn",
+    "counts",
+    "load_cb",
+    "unload_cb",
+    "io_ctx",
+    "clock"
+   ]
+  }
+ ],
+ "entry_points": [
+  "cl_init",
+  "cl_free",
+  "cl_on_event",
+  "cl_set_feed",
+  "cl_set_chunk_io",
+  "cl_set_no_load",
+  "cl_clear_unload",
+  "cl_restore_unload",
+  "cl_spawn_area",
+  "cl_login",
+  "cl_c03",
+  "cl_send_chunks",
+  "cl_on_client_unload",
+  "cl_view_radius",
+  "cl_view_radius_at",
+  "cl_unload_step",
+  "cl_unload_order",
+  "cl_save_marks",
+  "cl_set_respawn",
+  "cl_set_radius",
+  "cl_radius",
+  "cl_logout",
+  "cl_send_order",
+  "cl_replay_load",
+  "cl_pop_load",
+  "cl_counts",
+  "cl_set_clock",
+  "cl_sweep",
+  "cl_set_mark",
+  "cl_set_send_queue",
+  "cl_digest",
+  "cl_bytes"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "function cl_unload_step: the unload set is a chunkset (chunkset.c): the drain computes its order once (a sort by bin and list stamp) and walks it while no key is added (lane/gpuorder, L4)",
+  "line 1075, functions populate_chunk/load_chunk/populate: mutual recursion (load_chunk -> populate_chunk -> populate -> load_chunk for feed loads, bounded because feed loads pass a pop id and skip the populate rule)",
+  "struct cl fields emit, feed.pop_loads, load_cb, unload_cb, client: callbacks through function pointers",
+  "the popped list, the send queue, the watchers and the drain's scratch are fixed arrays made with the cl (fixed_array, CU_MAX_BINS, CU_MAX_NODES, CL_MAX_QUEUE, CL_MAX_WATCH, CL_MAX_POP); past one the program stops; is_popped reads a fixed open-addressing index over the popped list (popidx, CL_POP_INDEX, lane/longrun)"
+ ],
+ "tests": [
+  "csrc/tests/test_chunkload.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Checked against netherite.oracle.ChunkLoadProbe recordings in out/java/chunkload/ (per the header). Population-driven loads still come back as recorded loads through cl_replay_load / cl_pop_load (serverreplay.c) rather than from the populate features themselves in every path. The ConcurrentHashMap model moved to chunkset.c, where the order is carried as data (list stamps). cl_set_send_queue replaces the player's send queue with a snapshot's EntityPlayerMP.loadedChunks. Lane gpuphase (GPU audit L6): cl_digest hashes the provider and player manager for the phase digests (phase.h)."
+}

@@ -1,0 +1,128 @@
+{
+ "classes": [
+  "SlotMerchantResult"
+ ],
+ "lines": 123,
+ "side": "common",
+ "category": "inventory",
+ "role": "The trade's sell slot: on pickup it charges the buy slots through the recipe's useRecipe, plays the villager's yes/no sound when the recipe locks or unlocks, and counts uses.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "merchant_out_on_pickup",
+    "slot_decr",
+    "slot_valid"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "merchant_used",
+    "merchant_sound",
+    "merchant_use"
+   ]
+  },
+  {
+   "file": "csrc/engine/trades.c",
+   "symbols": [
+    "trades_can_be_used"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/trade-full-s1",
+  "csrc/tests/test_trades.c",
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/item-tags-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "theMerchantInventory",
+   "sig": "InventoryMerchant",
+   "native": "csrc/engine/container.h:merchant",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "thePlayer",
+   "sig": "EntityPlayer",
+   "native": null,
+   "status": "n/a",
+   "note": "single player"
+  },
+  {
+   "kind": "field",
+   "name": "field_75231_g",
+   "sig": "int",
+   "native": "csrc/engine/container.h:merchant_used",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "theMerchant",
+   "sig": "IMerchant",
+   "native": "csrc/engine/container.h:merchant_use",
+   "status": "exact",
+   "note": "the callbacks carry the villager half"
+  },
+  {
+   "kind": "ctor",
+   "name": "SlotMerchantResult",
+   "sig": "(EntityPlayer,IMerchant,InventoryMerchant,III)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValid",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/container.c:slot_valid",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:slot_decr",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onCrafting",
+   "sig": "(Lnet/minecraft/item/ItemStack;I)V",
+   "native": "csrc/engine/container.c:merchant_out_crafted",
+   "status": "exact",
+   "note": "both forms: the counter, then ItemStack.onCrafting (the craftItem stat through the container merchant_crafted callback) and the reset"
+  },
+  {
+   "kind": "method",
+   "name": "onCrafting",
+   "sig": "(Lnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:merchant_out_crafted",
+   "status": "exact",
+   "note": "both forms: the counter, then ItemStack.onCrafting (the craftItem stat through the container merchant_crafted callback) and the reset"
+  },
+  {
+   "kind": "method",
+   "name": "onPickupFromSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:merchant_out_on_pickup",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_75230_a",
+   "sig": "(Lnet/minecraft/village/MerchantRecipe;Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/trades.c:trades_can_be_used",
+   "status": "exact",
+   "note": "the has-enough-material check the pickup needs"
+  }
+ ],
+ "missing": [],
+ "notes": "trade-s1 locks the recipe at 7 of 7 uses and replays the reopen; test_trades.c gates the trade-list side. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour.",
+ "path": "oracle/src/inventory/SlotMerchantResult.java"
+}

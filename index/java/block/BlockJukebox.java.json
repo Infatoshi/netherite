@@ -1,0 +1,48 @@
+{
+  "path": "oracle/src/block/BlockJukebox.java",
+  "classes": ["BlockJukebox", "BlockJukebox.TileEntityJukebox"],
+  "lines": 177,
+  "side": "common",
+  "category": "block",
+  "role": "The jukebox: a tile-entity block holding one record; right click with a disc inserts it, a second use ejects it as an item entity, and breaking ejects too.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/activate.c", "symbols": ["on_block_activated", "ID_JUKEBOX", "act_spawn_item"]},
+    {"file": "csrc/engine/tileentity.c", "symbols": ["te_kind_of_block", "TE_JUKEBOX"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["drop_item_stack_do", "ID_JUKEBOX"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["client_block_activated"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "out/java/activate/full2",
+    "out/java/snapshots/act2-s1",
+    "out/java/snapshots/iu-jukebox-s1",
+    "out/java/snapshots/dev-spill-s1",
+    "out/java/snapshots/rc-blocks-s1",
+    "csrc/tests/test_activate.c",
+    "out/java/snapshots/tiles-reload-s1",
+    "out/java/snapshots/cov-blkbreak-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149927_a", "sig": "IIcon", "native": null, "status": "n/a", "note": "client top texture"},
+    {"kind": "ctor", "name": "BlockJukebox", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 84"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a", "note": "client texture selection"},
+    {"kind": "method", "name": "onBlockActivated", "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z", "native": "csrc/engine/activate.c:on_block_activated", "status": "exact", "note": "case ID_JUKEBOX: the meta 0 guard, then the eject"},
+    {"kind": "method", "name": "func_149926_b", "sig": "(World,IIILnet/minecraft/item/ItemStack;)V", "native": "csrc/engine/activate.c:on_block_activated", "status": "exact", "note": "the insert: the tile write and meta 1, reached from ItemRecord.onItemUse (itemuse.c)"},
+    {"kind": "method", "name": "func_149925_e", "sig": "(World,III)V", "native": "csrc/engine/activate.c:on_block_activated", "status": "exact", "note": "the eject: the tile clear, meta 0, playAuxSFX(1005)/playRecord with no state, the three world-Random floats, the item entity with delay 10"},
+    {"kind": "method", "name": "breakBlock", "sig": "(World,IIIBlockI)V", "native": "csrc/engine/blockcb.c:drop_item_stack_do", "status": "exact", "note": "the jukebox case runs func_149925_e's disc drop before the (empty) super"},
+    {"kind": "method", "name": "dropBlockAsItemWithChance", "sig": "(World,IIIIFI)V", "native": "csrc/engine/blockcb.c:drop_item_stack_do", "status": "exact", "note": "the chance forced 0 on the server side is the generic drop path"},
+    {"kind": "method", "name": "createNewTileEntity", "sig": "(World,I)Lnet/minecraft/tileentity/TileEntity;", "native": "csrc/engine/tileentity.c:te_kind_of_block", "status": "exact", "note": "case 84 returns TE_JUKEBOX"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client texture registration"},
+    {"kind": "method", "name": "hasComparatorInputOverride", "sig": "()Z", "native": null, "status": "n/a", "note": "redstone off"},
+    {"kind": "method", "name": "getComparatorInputOverride", "sig": "(World,IIII)I", "native": null, "status": "n/a", "note": "redstone off"},
+    {"kind": "method", "name": "TileEntityJukebox.readFromNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/tileentity.c:te_kind_of_block", "status": "exact", "note": "the RecordItem compound and the legacy Record integer load, in tileentity.c's jukebox NBT loader"},
+    {"kind": "method", "name": "TileEntityJukebox.writeToNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/tileentity.c:te_kind_of_block", "status": "exact", "note": "the same two tags written back"},
+    {"kind": "method", "name": "TileEntityJukebox.func_145856_a", "sig": "()Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/tileentity.c:TE_JUKEBOX", "status": "n/a", "note": "the u.jukebox fields are the stack"},
+    {"kind": "method", "name": "TileEntityJukebox.func_145857_a", "sig": "(Lnet/minecraft/item/ItemStack;)V", "native": "csrc/engine/tileentity.c:TE_JUKEBOX", "status": "n/a", "note": "onInventoryChanged writes no state"}
+  ],
+  "missing": [],
+  "notes": "Verified by the activate probe (block 84 among the 22000 cases) and act2-s1 (disc in, plays, comes out with a second use). Music discs exist as items per DEVLOG; the note blocks' S27 event is a separate block. lane/reloadstate: tiles-reload-s1 unloads a playing jukebox and ejects the record after the reload (coverage)."
+}

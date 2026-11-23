@@ -1,0 +1,11 @@
+{
+ "path": "oracle/harness/netherite/oracle/RunSelfTest.java",
+ "lines": 18,
+ "role": "Smoke test for the generic run command: returns the world seed and echoes its input.",
+ "kind": "util",
+ "used_by": [
+  "make -C oracle run CLASS=RunSelfTest"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No reference in oracle/tests, the Makefile or native tests was found."
+}

@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/client/gui/GuiWinGame.java",
+  "classes": ["GuiWinGame"],
+  "lines": 227,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The End credits screen, opened by the S2B game-state change after the exit portal: a scrolling end.txt/credits.txt roll that pauses the game until Escape sends the respawn C16.",
+  "scope": "in_scope",
+  "scope_reason": "The End is vanilla and in scope (SPEC Decisions: villages on, all worldgen vanilla); the credits' escape-to-respawn changes server state (the C16 and the respawn), so the native engine mirrors the screen as a state flag even though it draws no pixels.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_client_pump", "surv_client_input", "surv_credits_end"]},
+    {"file": "csrc/engine/player.h", "symbols": ["screen_credits"]},
+    {"file": "csrc/play/play.c", "symbols": ["main", "credits_ticks"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["draw_credits", "credits_lines", "raster_hud_credits_lines"]}
+  ],
+  "evidence": ["out/java/snapshots/end-exit-s1", "csrc/tests/test_snapshots.c", "out/java/render/gui_credits_f001", "out/java/render/gui_credits_f600", "out/java/render/gui_credits_f2100", "csrc/tests/test_hudscreens.c", "out/java/snapshots/idx-credits-s1"],
+  "members": [
+    {"kind": "field", "name": "(statics: logger, field_146576_f, field_146577_g)", "sig": "static Logger, static ResourceLocation x2", "native": null, "status": "n/a", "note": "textures and a logger, client-only"},
+    {"kind": "field", "name": "field_146581_h", "sig": "int", "native": "csrc/play/play.c:credits_ticks", "status": "exact", "note": "the scroll frame counter; nothing scrolls natively"},
+    {"kind": "field", "name": "field_146582_i", "sig": "List", "native": "csrc/engine/raster_hud.c:credits_lines", "status": "exact", "note": "the wrapped credit lines"},
+    {"kind": "field", "name": "field_146579_r", "sig": "int", "native": "csrc/engine/raster_hud.c:draw_credits", "status": "exact", "note": "total scroll height"},
+    {"kind": "field", "name": "field_146578_s", "sig": "float", "native": "csrc/engine/raster_hud.c:draw_credits", "status": "exact", "note": "scroll speed 0.5F"},
+    {"kind": "method", "name": "updateScreen", "sig": "()V", "native": "csrc/engine/survival.c:surv_client_input", "status": "exact", "note": "the clock and the roll's end (surv_credits_end), in the tick: idx-credits-s1"},
+    {"kind": "method", "name": "keyTyped", "sig": "(char,int)V", "native": "csrc/play/play.c:main", "status": "exact", "note": "escape while screen_credits sets the respawn input; the comment at play.c:2513 names GuiWinGame.keyTyped"},
+    {"kind": "method", "name": "func_146574_g", "sig": "()V", "native": "csrc/engine/survival.c:surv_client_input", "status": "exact", "note": "the [\"respawn\"] op sends the C16 PERFORM_RESPAWN, clears screen_credits and restores focus (survival.c:4279-4285)"},
+    {"kind": "method", "name": "doesGuiPauseGame", "sig": "()Z", "native": "csrc/engine/player.c:game_paused", "status": "exact", "note": "player.c:1245 sets game_paused from screen_credits; serverreplay.h:284 documents the pause"},
+    {"kind": "method", "name": "initGui", "sig": "()V", "native": "csrc/engine/raster_hud.c:credits_lines", "status": "exact", "note": "loads texts/end.txt and texts/credits.txt, the XXXXXXXX obfuscation with Random(8124371L)"},
+    {"kind": "method", "name": "func_146575_b", "sig": "(int,int,float)V", "native": "csrc/engine/raster_hud.c:draw_credits", "status": "exact", "note": "the dark gradient behind the text"},
+    {"kind": "method", "name": "drawScreen", "sig": "(int,int,float)V", "native": "csrc/engine/raster_hud.c:draw_credits", "status": "exact", "note": "the scrolling lines and the logo; the native screen draws nothing"}
+  ],
+  "missing": [],
+  "notes": "Member statuses from the survival.c/play.c reads only; I did not run any replay to re-confirm end-exit-s1 still passes. lane/idxclient: the roll's own end in the tick (surv_client_input): updateScreen's clock past (569 * 12 + 240 + 240 + 24) / 0.5 (end.txt and credits.txt wrap to 569 lines for Player on the oracle's 240-pixel scaled screen) sends the PERFORM_RESPAWN and closes the screen; the playable client ends it on the same clock. idx-credits-s1 waits out the roll: the screen closes at row 15913 (master keeps it open there), 17,397 rows, play_check 0."
+}

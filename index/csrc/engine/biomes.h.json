@@ -1,0 +1,22 @@
+{
+ "path": "csrc/engine/biomes.h",
+ "lines": 108,
+ "role": "Generated biome registry: a static const table of the 1.7.10 BiomeGenBase objects (name, class, temperature category, heights, temperature, rainfall, top/filler blocks, surface builder kind, lightning/snow flags). Written by netherite.oracle.BiomeTable via make -C oracle biomes-h; never edited by hand.",
+ "layer": "util",
+ "java": [
+  {"path": "oracle/src/world/biome/BiomeGenBase.java", "members": ["biomeList", "biomeName", "biomeID", "rootHeight", "heightVariation", "temperature", "rainfall", "topBlock", "fillerBlock", "field_150604_aj", "getBiomeClass", "getTempCategory", "getEnableSnow", "canSpawnLightningBolt", "func_150573_a"]},
+  {"path": "oracle/harness/netherite/oracle/BiomeTable.java", "members": []}
+ ],
+ "structs": [
+  {"name": "biome_def", "java": "BiomeGenBase instance fields as read from the live biome objects", "fields": ["name", "exists", "cls", "temp_cat", "snow", "mesa", "lightning", "base", "object_id", "root", "variation", "temperature", "rainfall", "top", "top_meta", "filler", "surface", "p1", "p2"]},
+  {"name": "BIOMES", "java": "BiomeGenBase.biomeList (256 slots)", "fields": []},
+  {"name": "biome_class", "java": "BiomeGenBase.getBiomeClass() subclasses", "fields": []},
+  {"name": "temp_category", "java": "BiomeGenBase.TempCategory", "fields": []},
+  {"name": "surface_kind", "java": "which subclass override of func_150573_a (surface genTerrainBlocks) runs", "fields": []}
+ ],
+ "entry_points": ["BIOMES", "biome_def", "biome_class", "surface_kind", "temp_category"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_worldgen.c"],
+ "notes": "Read-only constant data; each translation unit gets its own static copy, which is harmless on the CPU and maps to constant memory on the GPU. Read by layers.c, surface.c, terrain.c, populate.c, features_lakes.c, stronghold.c (worldgen) and by servertick.c, fire.c and ai.c (weather, snow and lightning checks inside the tick). The Java member names listed are the fields BiomeTable reads; the exact reflection list in BiomeTable.java was not re-verified. Spawn lists and decorators are not in this table."
+}

@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/server/management/LowerStringMap.java",
+  "classes": ["LowerStringMap"],
+  "lines": 85,
+  "side": "server",
+  "category": "server",
+  "role": "A Map wrapper that lowercases every key on the way in and out, over an insertion-ordered LinkedHashMap; the living attribute maps key their instances by name and by description in one (BaseAttributeMap.attributesByName, ServersideAttributeMap.descriptionToAttributeInstanceMap).",
+  "scope": "in_scope",
+  "scope_reason": "In scope: every living entity's attribute map keys its instances by lower-cased name in one of these (BaseAttributeMap.attributesByName, ServersideAttributeMap), read when attributes are loaded from NBT.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/living.c", "symbols": ["attrs_index_by_name", "lower_equal", "ATTR_NAME", "attrs_instance_init", "write_own_nbt"]}, {"file": "csrc/engine/snapshot_entities.c", "symbols": ["restore_attributes"]}, {"file": "csrc/engine/serverreplay.c", "symbols": ["cp_restore_living"]}, {"file": "csrc/engine/player.c", "symbols": ["nbt_speed_mod_amp"]}],
+  "evidence": ["out/java/snapshots/combat-mobs-s1", "out/java/snapshots/fresh-play-s1", "out/java/snapshots/village-cp-s42", "out/java/snapshots/golem-fight-s42"],
+  "members": [
+    {"kind": "field", "name": "internalMap", "sig": "LinkedHashMap", "native": "csrc/engine/living.c:ATTR_NAME", "status": "exact", "note": "insertion order is registration order (EntityLivingBase maxHealth, knockbackResistance, movementSpeed; EntityLiving followRange; EntityMob attackDamage; EntityZombie spawnReinforcements), the ATTR_ enum order the attribute table keeps with each instance's registered flag"},
+    {"kind": "method", "name": "size", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "isEmpty", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "containsKey", "sig": "(Object)Z", "native": null, "status": "n/a", "note": "registerAttribute's already-registered throw: each kind registers each attribute once"},
+    {"kind": "method", "name": "containsValue", "sig": "(Object)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "get", "sig": "(Object)Object", "native": "csrc/engine/living.c:attrs_index_by_name", "status": "exact", "note": "getAttributeInstanceByName over a saved Attributes entry (SharedMonsterAttributes.func_151475_a at a living's or the player's NBT load): the name lower-cased against the names, then against the descriptions (lower_equal)"},
+    {"kind": "method", "name": "put", "sig": "(String,Object)Object", "native": "csrc/engine/living.c:attrs_instance_init", "status": "exact", "note": "registerAttribute's two puts (name, description): the fixed table, each instance marked registered by its kind"},
+    {"kind": "method", "name": "remove", "sig": "(Object)Object", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "putAll", "sig": "(Map)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "clear", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "keySet", "sig": "()Set", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "values", "sig": "()Collection", "native": "csrc/engine/living.c:write_own_nbt", "status": "exact", "note": "BaseAttributeMap.getAllAttributes, whose order writeBaseAttributeMapToNBT writes the Attributes list in: the registered instances in enum order (d.ents)"},
+    {"kind": "method", "name": "entrySet", "sig": "()Set", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "put", "sig": "(Object,Object)Object", "native": null, "status": "n/a", "note": "the raw Map bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/idxmisc 2026-09-27: the three NBT readers (snapshot_entities.c restore_attributes, serverreplay.c cp_restore_living, player.c nbt_speed_mod_amp) matched exact strings; they now go through attrs_index_by_name, which lower-cases both sides and falls back to the descriptions as ServersideAttributeMap does. Every name vanilla writes is its canonical one, so the recordings are unchanged (combat-mobs-s1, fresh-play-s1, village-cp-s42, golem-fight-s42, gold-g1-s42 OK). Not modelled: an NBT entry naming an attribute the kind never registered (Java's lookup gives null and skips it); vanilla only writes registered ones. The other members serve no caller. idxaudit 2026-09-27: was not_needed/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

@@ -1,0 +1,170 @@
+{
+  "path": "oracle/src/block/BlockFarmland.java",
+  "classes": [
+    "BlockFarmland"
+  ],
+  "lines": 63,
+  "side": "common",
+  "category": "block",
+  "role": "Farmland: hydrates from nearby water on a random tick, dries back to dirt, is trampled by entity falls, and drops dirt.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/randomtick.c",
+      "symbols": [
+        "rt_farmland"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks.c",
+      "symbols": [
+        "rb_mesh_section"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/living.c",
+      "symbols": [
+        "living_fall_state"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_server_fall"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "bwl_on_neighbor"
+      ]
+    },
+    {
+      "file": "csrc/engine/fire.c",
+      "symbols": [
+        "fire_can_lightning_strike_at"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/cov-farmland-s1",
+    "out/java/snapshots/rain-mix-s1",
+    "out/java/snapshots/world-crops-s1",
+    "out/java/snapshots/scen-snow-farmland-s1",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/farmfall-s1",
+    "out/java/snapshots/farmdry-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockFarmland",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 60: the 15/16-tall box, tick_randomly 1"
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(World,IIIRandom)V",
+      "native": "csrc/engine/randomtick.c:rt_farmland",
+      "status": "exact",
+      "note": "the hydration scan, then canLightningStrikeAt(x, y + 1, z) (rain on the block above, fire.c) keeps it wet; else the dry-out and the dirt write when no crop is above"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "the farmland lane in the mesher's dispatch"
+    },
+    {
+      "kind": "method",
+      "name": "shouldSideBeRendered",
+      "sig": "(IBlockAccess,IIII)Z",
+      "native": "csrc/engine/render_blocks.c:rb_mesh_section",
+      "status": "partial",
+      "note": "the top-face override rides the farmland mesh lane"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(World,III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "case 60: the full-cube override"
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "case 60: dirt"
+    },
+    {
+      "kind": "method",
+      "name": "quantityDropped",
+      "sig": "(Ljava/util/Random;)I",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "1"
+    },
+    {
+      "kind": "method",
+      "name": "func_149863_m",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "n/a",
+      "note": "isFertile, folded into the crop growth checks"
+    },
+    {
+      "kind": "method",
+      "name": "dropBlockAsItemWithChance (inherited)",
+      "sig": "(World,IIIIFI)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Block's own; the trample is onFallenUpon, below"
+    },
+    {
+      "kind": "method",
+      "name": "onFallenUpon",
+      "sig": "(World,IIIEntity,F)V",
+      "native": "csrc/engine/living.c:living_fall_state",
+      "status": "exact",
+      "note": "World.rand.nextFloat() < fallDistance - 0.5 for any landing, then dirt (mobGriefing never changes); the player's copy is survival.c:surv_server_fall"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIILnet/minecraft/block/Block;)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_neighbor",
+      "status": "exact",
+      "note": "case ID_FARMLAND: a solid block above turns it to dirt"
+    }
+  ],
+  "missing": [],
+  "notes": "Verified by world-crops-s1 (wheat on hydrated farmland), scen-snow-farmland-s1 (the render), farmfall-s1 (cows, villagers and a zombie landing on and trampling a farm) and farmdry-s1 (drying, reverting, a plank above, rain rewetting)."
+}

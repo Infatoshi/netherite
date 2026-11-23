@@ -1,0 +1,43 @@
+{
+ "path": "csrc/engine/slimes.h",
+ "lines": 57,
+ "role": "Declares the slime and magma cube halves living.c calls, the slime probe's player, the spawn helpers and the per-tick record layout (SLIME_REC_BYTES, SLIME_PLAYER_BYTES).",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntitySlime.java",
+   "members": [
+    "setSlimeSize",
+    "updateEntityActionState",
+    "setDead",
+    "onCollideWithPlayer"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMagmaCube.java",
+   "members": [
+    "jump",
+    "getJumpDelay"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "slime_construct",
+  "slime_set_size",
+  "slime_set_dead",
+  "an_spawn_slime",
+  "an_spawn_player",
+  "an_add_living",
+  "slime_write_state",
+  "slime_write_player",
+  "an_closest_player",
+  "an_closest_vulnerable_player"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_slimes.c"
+ ],
+ "notes": "an_add_living is declared here and defined in csrc/engine/living.c."
+}

@@ -1,0 +1,37 @@
+{
+  "path": "csrc/tests/test_probe.c",
+  "lines": 257,
+  "role": "Gate: replays the oracle's setblock probe (random World.setBlock calls with flag 2 over a square of raw chunks) through csrc/engine/world.c, checking per op the return value, the 17-block light guard and an FNV-1a 64 hash of the 3x3 chunks, then every field of every loaded chunk plus updateSkylightColumns and isGapLightingUpdated.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "setBlock",
+        "doChunksNearChunkExist",
+        "func_147451_t",
+        "updateLightByType"
+      ]
+    },
+    {
+      "path": "oracle/src/world/chunk/Chunk.java",
+      "members": [
+        "func_150807_a",
+        "generateSkylightMap",
+        "relightBlock",
+        "updateSkylightColumns",
+        "isGapLightingUpdated"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "line 27, function seconds: clock() CPU time for the report only (harness)"
+  ],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/probes. Native calls: world_init, world_load_chunk, world_do_chunks_near_chunk_exist, world_set_block, world_chunk, world_free (csrc/engine/world.h), probe.h helpers (hash_around, cmp_chunk, probe_hash_due, probe_localize, manifest_*). The Makefile maps test_probe to out/java/probes (DATA_probe); a manifest whose kind is not setblock fails with 2 (feature probes belong to test_feature). Oracle side: oracle/harness/netherite/oracle/Probe.java. World/Chunk member names are the probe's described behavior, not verified line by line."
+}

@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderWither.java",
+  "classes": ["RenderWither"],
+  "lines": 191,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the wither boss: the invulnerable/normal textures by armor stage, the invulnerability charge pass, BossStatus updates, and the upper-body scaling by armor time.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has wither = off: the wither is never built from skulls and soul sand, so EntityWither never exists in the game both sides run.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "invulnerableWitherTextures, witherTextures", "sig": "ResourceLocation (static)", "native": null, "status": "n/a", "note": "static constants, grouped"},
+    {"kind": "field", "name": "field_82419_a", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "RenderWither", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityWither,double,double,double,float,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityWither)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityWither,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityWither,int,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "inheritRenderPass", "sig": "(EntityWither,int,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "inheritRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

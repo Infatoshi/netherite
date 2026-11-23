@@ -1,0 +1,184 @@
+{
+ "path": "oracle/src/network/play/server/S2DPacketOpenWindow.java",
+ "classes": [
+  "S2DPacketOpenWindow"
+ ],
+ "lines": 109,
+ "side": "server",
+ "category": "network",
+ "role": "Opens a container window on the client: window id, inventory type, title, slot count and the state the client builds its container from.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_open_tile",
+    "gui_open_merchant",
+    "gui_open_ender",
+    "surv_server_use_packet",
+    "surv_client_pump"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.h",
+   "symbols": [
+    "title"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/te-chest-s1",
+  "out/java/snapshots/trade-full-s1",
+  "csrc/tests/test_containers.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148909_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "window id, rides s2c_pkt.i0"
+  },
+  {
+   "kind": "field",
+   "name": "field_148907_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "inventory type, rides the container kind"
+  },
+  {
+   "kind": "field",
+   "name": "field_148908_c",
+   "sig": "String",
+   "status": "missing",
+   "note": "the title; the native container keeps no title (nothing reads it)"
+  },
+  {
+   "kind": "field",
+   "name": "field_148905_d",
+   "sig": "int",
+   "status": "exact",
+   "note": "slot count, rides the container's size"
+  },
+  {
+   "kind": "field",
+   "name": "field_148906_e",
+   "sig": "boolean",
+   "status": "missing",
+   "note": "the useNh (state-based window) flag; no state rides it"
+  },
+  {
+   "kind": "field",
+   "name": "field_148904_f",
+   "sig": "int",
+   "status": "missing",
+   "note": "the horse entity id for the animal window"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int,String,int,boolean)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "note": "also gui_open_merchant and gui_open_ender"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int,String,int,boolean,int)V",
+   "status": "n/a",
+   "note": "the animal-window form: its only caller is EntityPlayerMP.displayGUIHorse, and horses are switched off (world.conf horses = off)",
+   "native": null
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "PK_S2D case: container_init for the window kind, then screen_inventory"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "func_148901_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148899_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148902_e",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148898_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148900_g",
+   "sig": "()Z",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148897_h",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  },
+  {
+   "kind": "ctor",
+   "name": "S2DPacketOpenWindow",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"
+  }
+ ],
+ "missing": [],
+ "notes": "The title rides s2c_pkt.title (a named villager's name for GuiMerchant). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

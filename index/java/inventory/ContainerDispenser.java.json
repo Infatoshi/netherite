@@ -1,0 +1,83 @@
+{
+ "classes": [
+  "ContainerDispenser"
+ ],
+ "lines": 89,
+ "side": "server",
+ "category": "inventory",
+ "role": "The dispenser GUI container over TileEntityDispenser's 9 slots.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_init",
+    "transfer_chest",
+    "container_close"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "CONTAINER_DISPENSER",
+    "container_kind_tile_inv"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_open_tile",
+    "gui_can_interact",
+    "gui_te_slot"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "TE_DISPENSER"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/containers2-s42"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "tileEntityDispenser",
+   "sig": "TileEntityDispenser",
+   "native": "csrc/engine/survival.c:gui_te_slot",
+   "status": "exact",
+   "note": "the window's slots 0..8 read and write the tile's own 9 (a dropper's too) through gui_te_slot"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerDispenser",
+   "sig": "(IInventory,TileEntityDispenser)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact",
+   "note": "CONTAINER_DISPENSER: the 9 tile slots in the chest inventory, then the player's main and hotbar; survival.c's gui_open_tile opens it for a dispenser or a dropper"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "TileEntityDispenser.isUseableByPlayer: the tile at its position is still this one and the player is within 8 (distance squared to the block centre <= 64)"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:transfer_chest",
+   "status": "exact",
+   "note": "the chest body split at 9, plus the count check (nothing moved answers null) and the plain slot's onPickupFromSlot (no state)"
+  }
+ ],
+ "missing": [],
+ "notes": "Gated by containers2-s42 (a seed-42 jungle temple dispenser's 12 arrows shift-clicked out; a dropper's window takes 2 cobblestone by right clicks). The dispense itself is unreachable with world.conf redstone off.",
+ "path": "oracle/src/inventory/ContainerDispenser.java"
+}

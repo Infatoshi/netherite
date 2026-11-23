@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/world/gen/MapGenCavesHell.java",
+  "classes": ["MapGenCavesHell"],
+  "lines": 227,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The Nether cave carver: rooms and tunnels like MapGenCaves but carving netherrack, dirt and grass, stopping on lava rather than water, with no lava placement or top-block restore.",
+  "scope": "in_scope",
+  "scope_reason": "Part of ChunkProviderHell.provideChunk; the Nether is in scope (SPEC Decisions).",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/nether.c", "symbols": ["nether_caves", "hell_source", "hell_tunnel", "hell_carve", "hell_cave"]}],
+  "evidence": ["csrc/tests/test_dims.c", "out/java/dims/nether-2-wide", "out/java/dims/nether-42-wide", "out/java/seedworld/seed2-nether"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151544_a", "sig": "(long,int,int,Block[],double,double,double)V", "native": "csrc/engine/nether.c:hell_source", "status": "exact", "note": "The room, inlined into hell_source as a hell_tunnel call with step -1."},
+    {"kind": "method", "name": "func_151543_a", "sig": "(long,int,int,Block[],double,double,double,float,float,float,int,int,double)V", "native": "csrc/engine/nether.c:hell_tunnel", "status": "exact", "note": "The carve step is hell_carve."},
+    {"kind": "method", "name": "func_151538_a", "sig": "(World,int,int,int,int,Block[])V", "native": "csrc/engine/nether.c:hell_source", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "hell_source inlines the room at nether.c line 382. Gate not re-run for this record."
+}

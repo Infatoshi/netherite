@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/cpsave.h",
+ "lines": 28,
+ "role": "Declares cpsave_resolve, a checkpoint start's save directory or a refusal, with the history of the packed-save divergence it closes (lane/divlib).",
+ "layer": "io",
+ "java": [
+  {"path": "oracle/src/world/chunk/storage/AnvilChunkLoader.java", "members": ["loadChunk"]}
+ ],
+ "structs": [],
+ "entry_points": ["cpsave_resolve"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c", "csrc/runtime/playgate.sh"],
+ "notes": "Header only; implementation in cpsave.c."
+}

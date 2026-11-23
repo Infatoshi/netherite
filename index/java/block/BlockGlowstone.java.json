@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/block/BlockGlowstone.java",
+  "classes": ["BlockGlowstone"],
+  "lines": 46,
+  "side": "common",
+  "category": "block",
+  "role": "Glowstone: the Nether's light block, dropping 2 to 4 glowstone dust with a fortune bonus capped at 4.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/cov-glowstone-s1",
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/nether-trip-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockGlowstone", "sig": "(Lnet/minecraft/block/material/Material;)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 89, light 15"},
+    {"kind": "method", "name": "quantityDroppedWithBonus", "sig": "(ILjava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 89: 2 + nextInt(3), plus nextInt(fortune + 1), clamped 1..4"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "the 2 + nextInt(3) part of the same case"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "glowstone_dust"},
+    {"kind": "method", "name": "getMapColor", "sig": "(I)Lnet/minecraft/block/material/MapColor;", "native": null, "status": "n/a", "note": "maps are off (world.conf maps = off)"}
+  ],
+  "missing": [],
+  "notes": "The Nether recordings carry glowstone terrain; the drop math is exercised by the harvestdrops probe."
+}

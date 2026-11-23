@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/client/renderer/texture/TextureManager.java",
+  "classes": ["TextureManager"],
+  "lines": 170,
+  "side": "client",
+  "category": "client_render",
+  "role": "The client's GL texture registry: maps ResourceLocation to ITextureObject, lazily loads SimpleTextures on bindTexture, keeps the tickable list (the atlas TextureMap, clock, compass) and reloads everything on a resource reload.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": ["out/java/render/gui_inventory"],
+  "members": [
+    {"kind": "field", "name": "mapTextureObjects", "sig": "Map", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "mapResourceLocations", "sig": "Map", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "listTickables", "sig": "List", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "mapTextureCounters", "sig": "Map", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "theResourceManager", "sig": "IResourceManager", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "TextureManager", "sig": "(IResourceManager)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "bindTexture", "sig": "(ResourceLocation)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getResourceLocation", "sig": "(I)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadTextureMap", "sig": "(ResourceLocation,TextureMap)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadTickableTexture", "sig": "(ResourceLocation,ITickableTextureObject)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadTexture", "sig": "(ResourceLocation,ITextureObject)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getTexture", "sig": "(ResourceLocation)ITextureObject", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getDynamicTextureLocation", "sig": "(String,DynamicTexture)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "tick", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_147645_c", "sig": "(ResourceLocation)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onResourceManagerReload", "sig": "(IResourceManager)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The native renderer has no texture registry: each pass loads its own pre-converted dumps (raster_texture.c for the atlas, raster_hud.c for the GUI sheets, raster_mobs.c for skins) and binds them by pointer, not by GL id. The recordings exercise this class implicitly on the Java side of every frame. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "The GL texture registry (ResourceLocation to texture object, bindTexture, the tickable list). Native keeps no texture registry: each pass loads its own dumps, and the per-tick TextureMap animation it calls is ported in csrc/engine/texanim.c."
+}

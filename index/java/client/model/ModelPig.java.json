@@ -1,0 +1,45 @@
+{
+ "path": "oracle/src/client/model/ModelPig.java",
+ "classes": [
+  "ModelPig"
+ ],
+ "lines": 18,
+ "side": "client",
+ "category": "client_model",
+ "role": "The pig's model: the quadruped layout with the snout box; the saddle is ModelPig(0.5) drawn as a second pass.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_pig",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs_pig_f006",
+  "out/java/render/mobs_pig_f011",
+  "out/java/render/mobs_pig_f016",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "ModelPig",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_pig",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelPig",
+   "sig": "(float)V",
+   "native": "csrc/engine/raster_mobs.c:model_pig",
+   "status": "exact",
+   "note": "the saddle pass re-poses ModelPig(0.5) with grow 0.5 and the saddle texture (draw_model)"
+  }
+ ],
+ "missing": []
+}

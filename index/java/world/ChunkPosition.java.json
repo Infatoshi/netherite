@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/world/ChunkPosition.java",
+  "classes": ["ChunkPosition"],
+  "lines": 42,
+  "side": "common",
+  "category": "math",
+  "role": "An immutable integer block position whose hashCode (x*8976890 + y*981131 + z) decides the iteration order of Explosion's affected-block HashSet and other position sets.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/jorder.h", "symbols": ["jord_cpos_hash", "jord_set3"]},
+    {"file": "csrc/engine/jorder.c", "symbols": ["jord_set3_add", "jord_set3_contains", "jord_set3_order"]}
+  ],
+  "evidence": ["csrc/tests/test_explosions.c", "out/java/snapshots/surv2-tnt-s1", "out/java/snapshots/fight-creeper-s1"],
+  "members": [
+    {"kind": "field", "name": "field_151329_a", "sig": "int (x)", "native": "csrc/engine/jorder.h:jord_set3", "status": "exact"},
+    {"kind": "field", "name": "field_151327_b", "sig": "int (y)", "native": "csrc/engine/jorder.h:jord_set3", "status": "exact"},
+    {"kind": "field", "name": "field_151328_c", "sig": "int (z)", "native": "csrc/engine/jorder.h:jord_set3", "status": "exact"},
+    {"kind": "ctor", "name": "ChunkPosition", "sig": "(int,int,int)", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ChunkPosition", "sig": "(Vec3)", "native": null, "status": "n/a", "note": "callers floor the doubles themselves"},
+    {"kind": "method", "name": "equals", "sig": "(Object)Z", "native": "csrc/engine/jorder.c:jord_set3_contains", "status": "exact"},
+    {"kind": "method", "name": "hashCode", "sig": "()I", "native": "csrc/engine/jorder.h:jord_cpos_hash", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "Evidence is the explosion tests and TNT/creeper recordings, whose block-removal order depends on this hash; not re-run here."
+}

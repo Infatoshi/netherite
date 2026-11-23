@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/block/BlockHay.java",
+  "classes": ["BlockHay"],
+  "lines": 28,
+  "side": "common",
+  "category": "block",
+  "role": "The hay bale: a rotated-pillar block whose axis metadata selects the top or side texture.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["render_block_log"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/rc-blocks-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockHay", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 170: the grass material"},
+    {"kind": "method", "name": "func_150163_b", "sig": "(I)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a", "note": "client texture selection"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client texture registration"}
+  ],
+  "missing": [],
+  "notes": "The BlockRotatedPillar behaviour (axis meta, the meta & 3 drop) is shared with BlockLog and drops.c case 17/170 names it. The block is a loot-table item only in this game; its mesh uses the rotated-pillar path shared with logs."
+}

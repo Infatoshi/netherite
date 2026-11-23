@@ -1,0 +1,27 @@
+{
+ "path": "csrc/engine/portal.h",
+ "lines": 98,
+ "role": "Declares 1.7.10 dimension travel: the Direction tables, the Teleporter and its destination-coordinate cache, the per-entity portal timer state, the transfer between worlds and the End-exit respawn, plus two negative-check switches.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/Teleporter.java", "members": ["placeInPortal", "placeInExistingPortal", "makePortal", "removeStalePortalLocations", "destinationCoordinateCache", "destinationCoordinateKeys", "PortalPosition"]},
+  {"path": "oracle/src/util/Direction.java", "members": ["offsetX", "offsetZ", "rotateLeft", "rotateRight", "rotateOpposite", "getMovementDirection"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["setInPortal", "timeUntilPortal", "inPortal", "portalCounter", "teleportDirection", "dimension"]},
+  {"path": "oracle/src/server/management/ServerConfigurationManager.java", "members": ["transferEntityToWorld", "respawnPlayer"]}
+ ],
+ "structs": [
+  {"name": "struct portal_cache_entry", "java": "Teleporter.PortalPosition", "fields": ["key", "x", "y", "z", "last_update_time", "occupied"]},
+  {"name": "struct portal_cache", "java": "Teleporter.destinationCoordinateCache plus destinationCoordinateKeys", "fields": ["entries", "cap", "count", "keys", "key_count", "key_cap"]},
+  {"name": "struct teleporter", "java": "Teleporter", "fields": ["world", "rand", "cache", "world_time"]},
+  {"name": "struct portal_entity_state", "java": "Entity's portal fields", "fields": ["time_until_portal", "portal_counter", "in_portal", "teleport_direction", "max_in_portal_time", "portal_cooldown", "dimension"]}
+ ],
+ "entry_points": ["direction_get_movement", "portal_cache_init", "portal_cache_free", "portal_cache_get", "portal_cache_put", "portal_cache_remove", "portal_cache_remove_stale", "teleporter_init", "teleporter_free", "teleporter_place_in_existing_portal", "teleporter_make_portal", "teleporter_place_in_portal", "teleporter_remove_stale_locations", "portal_entity_init", "portal_entity_set_in_portal", "portal_entity_tick", "portal_transfer_entity", "portal_respawn_end_exit", "portal_search_radius_override", "portal_site_draw_order_override"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "struct portal_cache: heap-grown entries and keys arrays (not fixed capacity)",
+  "struct teleporter: holds a struct world pointer"
+ ],
+ "tests": ["csrc/tests/test_portals.c"],
+ "notes": "Included by player.h (struct server_player embeds portal_entity_state) and serverreplay.c."
+}

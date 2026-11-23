@@ -1,0 +1,17 @@
+{
+ "path": "csrc/engine/end.h",
+ "lines": 35,
+ "role": "Declares the End chunk generator state (its Random and five octave generators) and the End's init, biome, terrain and surface passes.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/ChunkProviderEnd.java", "members": ["ChunkProviderEnd", "func_147420_a", "func_147421_b", "endRNG"]}
+ ],
+ "structs": [
+  {"name": "end", "java": "ChunkProviderEnd minus its bookkeeping: endRNG, the five NoiseGeneratorOctaves, the seed", "fields": ["rand", "gen1", "gen2", "gen3", "gen4", "gen5", "seed"]}
+ ],
+ "entry_points": ["end_init", "end_biomes", "end_terrain", "end_surface"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_dims.c"],
+ "notes": "The block array layout (128 high, index x << 11 | z << 7 | y) and the DIM_* ids come from nether.h."
+}

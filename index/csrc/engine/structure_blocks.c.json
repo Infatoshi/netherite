@@ -1,0 +1,33 @@
+{
+ "path": "csrc/engine/structure_blocks.c",
+ "lines": 702,
+ "role": "The shared structure block layer: StructureComponent's coordinate offsets, orientation metadata and block helpers (fills, random fills, dome carve, column fill down, clear upwards, liquid scan, chest and dispenser contents), the entity constructions the pieces make (chest cart, witch, villager, dropped items), and StructureStart.generateStructure's per-step loop.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/StructureComponent.java", "members": ["getXWithOffset", "getYWithOffset", "getZWithOffset", "func_151555_a", "func_151550_a", "func_151548_a", "func_151549_a", "func_151556_a", "fillWithAir", "func_151551_a", "fillWithRandomizedBlocks", "func_151552_a", "func_151547_a", "func_151554_b", "clearCurrentPositionBlocksUpwards", "isLiquidInStructureBoundingBox", "generateStructureChestContents", "generateStructureDispenserContents"]},
+  {"path": "oracle/src/world/gen/structure/StructureStart.java", "members": ["generateStructure"]},
+  {"path": "oracle/src/world/gen/structure/StructureMineshaftPieces.java", "members": ["Corridor.generateStructureChestContents (the EntityMinecartChest construction and fill)"]},
+  {"path": "oracle/src/world/gen/structure/ComponentScatteredFeaturePieces.java", "members": ["SwampHut.addComponentParts (the EntityWitch construction and placement)"]},
+  {"path": "oracle/src/world/gen/structure/StructureVillagePieces.java", "members": ["Village.spawnVillagers (the EntityVillager construction and placement)"]}
+ ],
+ "structs": [
+  {"name": "struct sc_ent", "java": "an entity a piece constructed: EntityMinecartChest, EntityItem, EntityVillager or EntityWitch (the Entity constructor's id, rand and UUID draws, position, and the kind-specific fields)", "fields": ["kind", "entity_id", "rand_state", "uuid_msb", "uuid_lsb", "x", "y", "z", "yaw", "hover", "motion_x", "motion_z", "item", "damage", "count", "profession", "slots", "nslots"]},
+  {"name": "struct sc_ctx", "java": "the arguments StructureStart.generateStructure and addComponentParts get: the World, the step's StructureBoundingBox, the population Random, plus Det's OTHER role and World.rand", "fields": ["w", "box", "rand", "det", "world_rand", "piece_fn", "ents", "nents", "cap"]},
+  {"name": "SCB_* enum", "java": "the Blocks ids the helpers name (air, stone, chest, spawner, doors, rail, fence, dispenser...)", "fields": []},
+  {"name": "SC_CART/SC_ITEM/SC_VILLAGER/SC_WITCH enum", "java": null, "fields": []}
+ ],
+ "entry_points": ["sc_generate", "sc_x_with_offset", "sc_y_with_offset", "sc_z_with_offset", "sc_orient_meta", "sc_place", "sc_block_at", "sc_fill", "sc_fill_meta", "sc_fill_air", "sc_fill_random", "sc_fill_randomized", "sc_random_place", "sc_fill_dome", "sc_fill_down", "sc_clear_upwards", "sc_is_liquid_in", "sc_chest_contents", "sc_dispenser_contents", "sc_witch_new", "sc_in_step_box", "sc_cart_new", "sc_villager_new", "sc_free_ents", "sc_ent_free"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 50, function sc_add_ent: realloc growth of the context's entity list (heap allocation during chunk population)",
+  "line 29, function sc_ent_free: free of heap-owned loot stack tags (loot_stack.tag pointers)",
+  "line 59, function sc_add_ent: calls the global function pointer populate_on_ent (global mutable callback state)",
+  "lines 648-663, function sc_generate: iterates s->pieces, an array of piece pointers, and compacts it in place when a piece returns false (pointer graph; the dropped piece is not freed here)",
+  "line 508, function sc_fill_down: while loop down a column, bounded by y > 1",
+  "line 522, function sc_clear_upwards: while loop up a column, bounded by y < 255",
+  "line 20 and line 192, functions class_of and is_directional: strcmp on block class-name strings per call (string compares in the hot fill path)"
+ ],
+ "tests": ["csrc/tests/test_sblocks.c", "csrc/tests/test_populate.c"],
+ "notes": "A piece write that replaces a chest spills it (env_spill_item records the BlockChest.breakBlock items as SC_ITEM with spilled set, in construction order). The Java member names are the MCP/SRG names the comments cite; they were not each re-read in oracle/src. Piece-specific block halves (mineshaft_blocks.c, village_blocks.c, stronghold_blocks.c, temple_blocks.c, fortress_blocks.c) call these helpers through struct sc_ctx.piece_fn. Called from populate.c and populate_nether.c during chunk population, which runs inside the server tick when chunks load."
+}

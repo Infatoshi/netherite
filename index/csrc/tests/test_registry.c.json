@@ -1,0 +1,58 @@
+{
+  "path": "csrc/tests/test_registry.c",
+  "lines": 99,
+  "role": "Gate: spot-checks the generated block, material and item registries (csrc/engine/blocks.h, items.h) against values read from the 1.7.10 source by hand: stone hardness and resistance, obsidian hardness, ice slipperiness, water's material, torch opacity, iron pickaxe, bread, diamond chestplate.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/block/Block.java",
+      "members": [
+        "setHardness",
+        "setResistance",
+        "slipperiness",
+        "isOpaqueCube",
+        "blockRegistry"
+      ]
+    },
+    {
+      "path": "oracle/src/block/material/Material.java",
+      "members": [
+        "water",
+        "isLiquid"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemTool.java",
+      "members": [
+        "efficiencyOnProperMaterial"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemFood.java",
+      "members": [
+        "func_150905_g"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemArmor.java",
+      "members": [
+        "damageReduceAmount"
+      ]
+    },
+    {
+      "path": "oracle/src/item/Item.java",
+      "members": [
+        "getMaxDamage",
+        "itemRegistry"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [],
+  "notes": "Test harness, not on the tick path. Runs once with no data directory (no out/java/registry); built by its own rule at csrc/Makefile line 37. Reads BLOCKS, MATERIALS and ITEMS directly (ITEM_TOOL, ITEM_FOOD, ITEM_ARMOR kinds). ItemFood/ItemTool member names (func_150905_g, efficiencyOnProperMaterial) are as remembered, not verified."
+}

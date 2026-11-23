@@ -1,0 +1,104 @@
+{
+ "path": "csrc/engine/clientworld.h",
+ "lines": 132,
+ "role": "Declares the client world mirror: fixed-capacity client entity table and loaded-chunk list, the WorldClient rand and updateLCG, packet handling, client entity interpolation and the per-tick client RNG draws.",
+ "layer": "client",
+ "java": [
+  {
+   "path": "oracle/src/client/multiplayer/WorldClient.java",
+   "members": [
+    "tick",
+    "doVoidFogParticles",
+    "getEntityByID",
+    "addEntityToWorld"
+   ]
+  },
+  {
+   "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+   "members": [
+    "handleSpawnMob",
+    "handleSpawnObject",
+    "handleEntityMovement",
+    "handleEntityTeleport",
+    "handleEntityVelocity",
+    "handleEntityHeadLook",
+    "handleDestroyEntities",
+    "handleBlockChange",
+    "handleMultiBlockChange",
+    "handleMapChunkBulk",
+    "handleChunkData",
+    "handleEffect"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "client_entity",
+   "java": "client-side Entity/EntityLivingBase fields the tracker packets and interpolation touch",
+   "fields": [
+    "id",
+    "is_living",
+    "is_dead",
+    "x",
+    "y",
+    "z",
+    "width",
+    "height",
+    "motion_x",
+    "motion_y",
+    "motion_z",
+    "fall_distance",
+    "y_size",
+    "on_ground",
+    "yaw",
+    "pitch",
+    "head_yaw",
+    "server_pos_x",
+    "server_pos_y",
+    "server_pos_z",
+    "new_pos_rotation_increments",
+    "new_pos_x",
+    "new_pos_y",
+    "new_pos_z",
+    "new_rotation_yaw",
+    "new_rotation_pitch"
+   ]
+  },
+  {
+   "name": "clientworld",
+   "java": "WorldClient (rand, updateLCG, entity list, chunk provider's loaded set)",
+   "fields": [
+    "world",
+    "det",
+    "rand",
+    "update_lcg",
+    "has_void_particles",
+    "simulate_living_physics",
+    "num_loaded_chunks",
+    "loaded_cx",
+    "loaded_cz",
+    "ents",
+    "nents",
+    "player_in_water",
+    "negative_check_skip_torch_draw"
+   ]
+  }
+ ],
+ "entry_points": [
+  "clientworld_init",
+  "clientworld_handle_packet",
+  "clientworld_get_entity",
+  "clientworld_add_entity",
+  "clientworld_tick_entities",
+  "clientworld_tick",
+  "clientworld_cw",
+  "clientworld_random_display_tick",
+  "clientworld_tick_input"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_clientworld.c"
+ ],
+ "notes": "CW_MAX_ENTITIES is the tracker's entry count (TRACKER_MAX_ENTRIES), past which the program stops; flat arrays, GPU friendly. The loaded-chunk list is the test path's (test_clientworld.c), passed to clientworld_tick as has_chunk. The NetHandlerPlayClient member names are the MCP handler names as best recalled; not verified one by one against the Java file. lane/coldaudit: struct client_entity lost the unread class name (cls[32]) and keeps the fields the entity scans read (id, the flags, the chunk membership, the position, the size) in its first line; clientworld_add_entity takes no class."
+}

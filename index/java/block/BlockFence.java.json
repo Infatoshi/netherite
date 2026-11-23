@@ -1,0 +1,161 @@
+{
+  "path": "oracle/src/block/BlockFence.java",
+  "classes": [
+    "BlockFence"
+  ],
+  "lines": 156,
+  "side": "common",
+  "category": "block",
+  "role": "The fence: a 1.5-tall collision wall whose rails extend toward connecting neighbours; the lead uses it as a hitch.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "connects",
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks2.c",
+      "symbols": [
+        "rb2_render_fence"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/scen-fences-s1",
+    "csrc/tests/test_move.c",
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_149827_a",
+      "sig": "String",
+      "native": null,
+      "status": "n/a",
+      "note": "the texture name, client"
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockFence",
+      "sig": "(Ljava/lang/String;Lnet/minecraft/block/material/Material;)V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 85, render_type 11"
+    },
+    {
+      "kind": "method",
+      "name": "addCollisionBoxesToList",
+      "sig": "(World,IIILnet/minecraft/util/AxisAlignedBB;Ljava/util/List;Lnet/minecraft/entity/Entity;)V",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "case 85: the four-rail body with the 1.5 centre post, driven by connects()"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "opaque_cube 0"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "normal_block 0"
+    },
+    {
+      "kind": "method",
+      "name": "getBlocksMovement",
+      "sig": "(IBlockAccess,III)Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "false: the fence material row"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "render_type 11 -> rb2_render_fence"
+    },
+    {
+      "kind": "method",
+      "name": "func_149826_e",
+      "sig": "(IBlockAccess,III)Z",
+      "native": "csrc/engine/collide.c:connects",
+      "status": "exact",
+      "note": "the same-object / fence-gate / opaque rule, verbatim"
+    },
+    {
+      "kind": "method",
+      "name": "func_149825_a",
+      "sig": "(Lnet/minecraft/block/Block;)Z",
+      "native": "csrc/engine/collide.c:connects",
+      "status": "partial",
+      "note": "the static can-connect helper, folded into connects"
+    },
+    {
+      "kind": "method",
+      "name": "quantityDropped",
+      "sig": "(Ljava/util/Random;)I",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "case 85: 1"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture registration"
+    },
+    {
+      "kind": "method",
+      "name": "shouldSideBeRendered",
+      "sig": "(IBlockAccess,IIII)Z",
+      "native": "csrc/engine/render_blocks2.c:rb2_render_fence",
+      "status": "exact",
+      "note": "true: every face of a fence part is drawn (cov-blkgallery-s1's frames within budget)"
+    }
+  ],
+  "missing": [],
+  "notes": "Verified by scen-fences-s1 (the render scene) and the collide probe. The lead's hitch check rides the connects rule."
+}

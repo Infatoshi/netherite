@@ -1,0 +1,653 @@
+{
+  "path": "csrc/engine/survival.c",
+  "lines": 9211,
+  "role": "The player's survival layer on both sides of the replay: FoodStats and exhaustion, the EntityPlayerMP damage, death, XP and respawn chain, EntityLivingBase's base tick (air, fire, lava, potions), inventory add/drop/pickup of items, orbs and arrows, eating, the statistics file and achievements with the client toast, the S2C packet queue and client pump, window clicks and container open/close (workbench, furnace, chest, ender chest, villager trading), animal interaction, and the client and server halves of block dig and use. The merchant's S2D carries the villager's custom name as its title; the client's S1D sets duration_max.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/util/FoodStats.java",
+      "members": [
+        "addStats",
+        "func_151686_a",
+        "onUpdate",
+        "addExhaustion",
+        "foodLevel",
+        "foodSaturationLevel",
+        "foodExhaustionLevel",
+        "foodTimer",
+        "prevFoodLevel"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayer.java",
+      "members": [
+        "damageEntity",
+        "attackEntityFrom",
+        "onDeath",
+        "fall",
+        "jump",
+        "addExhaustion",
+        "addExperience",
+        "xpBarCap",
+        "getExperiencePoints",
+        "isBlocking",
+        "dropOneItem",
+        "func_146097_a",
+        "onUpdate",
+        "onLivingUpdate",
+        "collideWithPlayer",
+        "addMovementStat",
+        "interactWith",
+        "clonePlayer",
+        "verifyRespawnCoordinates",
+        "updateItemUse",
+        "setItemInUse",
+        "destroyCurrentEquippedItem",
+        "onKillEntity",
+        "xpCooldown",
+        "onItemUseFinish"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayerMP.java",
+      "members": [
+        "EntityPlayerMP(MinecraftServer,WorldServer,GameProfile,ItemInWorldManager)",
+        "attackEntityFrom",
+        "onDeath",
+        "onUpdate",
+        "onItemUseFinish",
+        "onItemPickup",
+        "addStat",
+        "getNextWindowId",
+        "displayGUIMerchant",
+        "displayGUIChest",
+        "closeScreen",
+        "closeContainer",
+        "field_147101_bU",
+        "func_146102_a",
+        "func_146093_a",
+        "func_146101_a",
+        "func_147098_j"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "onEntityUpdate",
+        "onDeathUpdate",
+        "updatePotionEffects",
+        "getTotalArmorValue",
+        "isOnLadder",
+        "knockBack",
+        "renderBrokenItemStack",
+        "setHealth",
+        "attackTime",
+        "hurtTime",
+        "hurtResistantTime",
+        "lastDamage",
+        "deathTime",
+        "recentlyHit",
+        "updateFallState"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "onEntityUpdate",
+        "isEntityInsideOpaqueBlock",
+        "isInsideOfMaterial",
+        "setOnFireFromLava",
+        "handleWaterMovement",
+        "velocityChanged",
+        "setBeenAttacked"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/InventoryPlayer.java",
+      "members": [
+        "storePartialItemStack",
+        "addItemStackToInventory",
+        "decrStackSize",
+        "dropAllItems",
+        "damageArmor",
+        "readFromNBT",
+        "hasItem",
+        "consumeInventoryItem",
+        "getItemStack",
+        "func_146030_a",
+        "func_146024_c",
+        "func_146029_c"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/InventoryEnderChest.java",
+      "members": [
+        "loadInventoryFromNBT",
+        "isUseableByPlayer"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/Container.java",
+      "members": [
+        "detectAndSendChanges",
+        "onContainerClosed"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/ContainerPlayer.java",
+      "members": [
+        "slot layout",
+        "onContainerClosed"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/SlotCrafting.java",
+      "members": [
+        "onCrafting"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/SlotFurnace.java",
+      "members": [
+        "onCrafting",
+        "field_75228_b"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityItem.java",
+      "members": [
+        "onCollideWithPlayer"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityXPOrb.java",
+      "members": [
+        "onCollideWithPlayer",
+        "getXPSplit"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntityArrow.java",
+      "members": [
+        "onCollideWithPlayer"
+      ]
+    },
+    {
+      "path": "oracle/src/server/management/ServerConfigurationManager.java",
+      "members": [
+        "respawnPlayer",
+        "syncPlayerInventory",
+        "playerLoggedIn"
+      ]
+    },
+    {
+      "path": "oracle/src/server/management/ItemInWorldManager.java",
+      "members": [
+        "tryUseItem",
+        "activateBlockOrUseItem",
+        "updateBlockRemoving"
+      ]
+    },
+    {
+      "path": "oracle/src/network/NetHandlerPlayServer.java",
+      "members": [
+        "processPlayerDigging",
+        "processPlayerBlockPlacement",
+        "processUseEntity",
+        "processClickWindow",
+        "processCloseWindow",
+        "processClientStatus",
+        "processVanilla250Packet (MC|TrSel)"
+      ]
+    },
+    {
+      "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+      "members": [
+        "handleUpdateHealth",
+        "handleSetExperience",
+        "handleEntityEffect",
+        "handleRemoveEntityEffect",
+        "handleSetSlot",
+        "handleWindowItems",
+        "handleEntityVelocity",
+        "handlePlayerPosLook",
+        "handleRespawn",
+        "handleChangeGameState",
+        "handleCustomPayload (MC|TrList)",
+        "handleCloseWindow",
+        "handleStatistics",
+        "handleEntityStatus",
+        "handleWindowProperty"
+      ]
+    },
+    {
+      "path": "oracle/src/client/multiplayer/PlayerControllerMP.java",
+      "members": [
+        "clickBlock",
+        "onPlayerDamageBlock",
+        "resetBlockRemoving",
+        "onPlayerDestroyBlock",
+        "sameToolAndBlock",
+        "updateController",
+        "windowClick",
+        "interactWithEntitySendPacket",
+        "syncCurrentPlayItem"
+      ]
+    },
+    {
+      "path": "oracle/src/client/Minecraft.java",
+      "members": [
+        "runTick",
+        "func_147115_a",
+        "func_147116_af",
+        "func_147121_ag",
+        "setDimensionAndSpawnPlayer",
+        "func_147112_ai"
+      ]
+    },
+    {
+      "path": "oracle/src/client/entity/EntityPlayerSP.java",
+      "members": [
+        "setPlayerSPHealth"
+      ]
+    },
+    {
+      "path": "oracle/src/client/entity/EntityClientPlayerMP.java",
+      "members": [
+        "respawnPlayer",
+        "closeScreen",
+        "heal"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/StatFileWriter.java",
+      "members": [
+        "hasAchievementUnlocked",
+        "canUnlockAchievement",
+        "func_150871_b",
+        "writeStat",
+        "func_150873_a",
+        "func_150870_b",
+        "func_150872_a"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/StatisticsFile.java",
+      "members": [
+        "func_150873_a",
+        "func_150876_a",
+        "func_150884_b",
+        "field_150888_e",
+        "field_150886_g",
+        "field_150885_f",
+        "func_150877_d",
+        "func_150878_c",
+        "func_150881_a"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/AchievementList.java",
+      "members": [
+        "every achievement's parent and theItemStack"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/StatList.java",
+      "members": [
+        "minutesPlayed",
+        "distanceWalked",
+        "distanceSwum",
+        "distanceDove",
+        "distanceClimbed",
+        "distanceFlown",
+        "jump",
+        "drop",
+        "damageDealt",
+        "damageTaken",
+        "deaths",
+        "mobKills",
+        "playerKills",
+        "mineBlockStatArray",
+        "objectUseStats",
+        "objectCraftStats",
+        "objectBreakStats",
+        "func_151177_a",
+        "replaceAllSimilarBlocks"
+      ]
+    },
+    {
+      "path": "oracle/src/client/gui/achievement/GuiAchievement.java",
+      "members": [
+        "func_146256_a",
+        "func_146255_b",
+        "func_146254_a"
+      ]
+    },
+    {
+      "path": "oracle/src/util/DamageSource.java",
+      "members": [
+        "hungerDamage",
+        "setDamageBypassesArmor",
+        "magic",
+        "fall",
+        "outOfWorld"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockBed.java",
+      "members": [
+        "func_149977_a",
+        "onBlockActivated"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/passive/EntityAnimal.java",
+      "members": [
+        "isBreedingItem",
+        "interact",
+        "func_146082_f",
+        "func_146083_cb"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/passive/EntitySheep.java",
+      "members": [
+        "interact"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/passive/EntityCow.java",
+      "members": [
+        "interact"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/passive/EntityMooshroom.java",
+      "members": [
+        "interact"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/ContainerFurnace.java",
+      "members": [
+        "addCraftingToCrafters",
+        "detectAndSendChanges",
+        "updateProgressBar",
+        "canInteractWith"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/ContainerChest.java",
+      "members": [
+        "canInteractWith"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/ContainerDispenser.java",
+      "members": [
+        "canInteractWith"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/ContainerHopper.java",
+      "members": [
+        "canInteractWith"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/ContainerWorkbench.java",
+      "members": [
+        "canInteractWith"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/ContainerMerchant.java",
+      "members": [
+        "canInteractWith",
+        "onContainerClosed"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/InventoryLargeChest.java",
+      "members": [
+        "isUseableByPlayer"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityCreeper.java",
+      "members": [
+        "interact"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemHangingEntity.java",
+      "members": [
+        "onItemUse"
+      ]
+    },
+    {
+      "path": "oracle/src/util/CombatTracker.java",
+      "members": [
+        "func_94547_a",
+        "func_94549_h",
+        "func_94550_c"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntitySkeleton.java",
+      "members": [
+        "onDeath"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemSoup.java",
+      "members": [
+        "onEaten"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemBucketMilk.java",
+      "members": [
+        "onEaten",
+        "onItemRightClick",
+        "getMaxItemUseDuration"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemPotion.java",
+      "members": [
+        "onEaten",
+        "onItemRightClick",
+        "getMaxItemUseDuration"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemNameTag.java",
+      "members": [
+        "itemInteractionForEntity"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/passive/EntityVillager.java",
+      "members": [
+        "interact"
+      ]
+    },
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "checkNoEntityCollision"
+      ]
+    },
+    {
+      "path": "oracle/src/item/Item.java",
+      "members": [
+        "onEaten"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemBow.java",
+      "members": [
+        "onEaten"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "surv (struct surv_world, global)",
+      "java": "the WorldServer state the survival code reads: Det streams, difficulty, keepInventory, the entity lists, World.rand",
+      "fields": [
+        "det",
+        "difficulty",
+        "keep_inventory",
+        "iew",
+        "extra_iew",
+        "anw",
+        "world_rand",
+        "entity_tick_off",
+        "no_sprint_exhaustion",
+        "drown_fast"
+      ]
+    },
+    {
+      "name": "surv_fx (struct particles_live, global)",
+      "java": "EffectRenderer.fxLayers, the client's live particles",
+      "fields": []
+    },
+    {
+      "name": "surv_mo (struct surv_mouseover, global)",
+      "java": "Minecraft.objectMouseOver",
+      "fields": [
+        "cur",
+        "prev_copy",
+        "prev",
+        "entity_id"
+      ]
+    },
+    {
+      "name": "surv_dig (static struct surv_dig_state)",
+      "java": "PlayerControllerMP's dig fields: isHittingBlock, currentBlockX/Y/Z, currentItemHittingBlock, blockHitDelay, curBlockDamageMP, stepSoundTickCounter",
+      "fields": [
+        "is_hitting",
+        "cur_x",
+        "cur_y",
+        "cur_z",
+        "held_item",
+        "held_damage",
+        "hit_delay",
+        "cur_damage",
+        "step_counter"
+      ]
+    },
+    {
+      "name": "surv_digenv (static dig_env)",
+      "java": "ItemInWorldManager's dig state for the one server player",
+      "fields": []
+    },
+    {
+      "name": "ach_parent, ach_item, egg_kind (const tables)",
+      "java": "AchievementList's parent chain and display items; EntityList's egg mappings",
+      "fields": []
+    }
+  ],
+  "entry_points": [
+    "surv_world_setup",
+    "surv_client_portal_close",
+    "surv_client_load",
+    "surv_client_pending",
+    "surv_server_load",
+    "surv_server_fresh",
+    "surv_server_fresh_state",
+    "surv_client_fresh",
+    "surv_client_tick_start",
+    "surv_client_click",
+    "surv_client_click_closed",
+    "surv_server_click",
+    "surv_client_base_tick",
+    "surv_server_tick_start",
+    "surv_server_close_screen",
+    "surv_server_world_update",
+    "surv_server_damage",
+    "surv_server_damage_by",
+    "surv_server_death",
+    "surv_server_jump",
+    "surv_server_add_xp",
+    "surv_server_move_stat",
+    "surv_client_pump",
+    "surv_client_input",
+    "surv_client_armor_value",
+    "surv_client_in_water",
+    "surv_client_eat_tick",
+    "surv_server_base_tick",
+    "surv_server_living_tail",
+    "surv_server_food_tick",
+    "surv_server_food_and_gate",
+    "surv_server_eat_tick",
+    "surv_server_fall",
+    "throw_item",
+    "s2c_add",
+    "s2c_side_new",
+    "s2c_side",
+    "s2c_reset",
+    "s2c_sent_queue",
+    "s2c_out",
+    "s2c_out_peek",
+    "s2c_clear",
+    "s2c_in",
+    "s2c_drain",
+    "s2c_receive",
+    "s2c_send",
+    "surv_server_sync_inventory",
+    "surv_client_mouseover",
+    "surv_client_dig_stage",
+    "surv_client_dig_tick",
+    "surv_client_attack_pressed",
+    "surv_client_use_pressed",
+    "surv_server_use_packet",
+    "surv_server_dig_update",
+    "surv_add_exhaustion",
+    "surv_bed_safe_spot",
+    "surv_add_stat",
+    "surv_stats_flush",
+    "surv_stats_login",
+    "surv_client_apply_s37",
+    "surv_client_toast_json",
+    "surv_is_imob",
+    "surv_egg_of_kind",
+    "surv_dig_set_world",
+    "surv_stats_load_file",
+    "surv_stats_load_snapshot",
+    "surv_stats_compare",
+    "surv_stat_name",
+    "surv_stat_by_name",
+    "surv_bred",
+    "surv_skeleton_shot",
+    "surv_set_attacker",
+    "surv_server_combat_tick",
+    "surv_server_peaceful_heal",
+    "surv_server_hook_own_container",
+    "surv_client_pick_block",
+    "surv_client_pending_s20",
+    "surv_dig_load",
+    "surv_client_join_hint"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 2175-2179, surv_digenv, surv_digenv_ready, surv_dig_active, surv_dig_ticked, surv_dig_fork: static globals holding the one server player's dig machine",
+    "line 2197, surv_fx and line 4617, surv_mo: global client particle list and mouseover",
+    "line 2282, function surv_dig_adopt: calloc of a silverfish struct living inside the tick (per-entity heap allocation, adopted into the living world by pointer)",
+    "line 2342, function process_c07: getenv(\"NV2_SF_DEBUG\") read inside the tick (debug print only, but an environment read on the tick path)",
+    "line 664-667, function scalar_text: nbt_render allocates and frees a string (snapshot load, not per tick)",
+    "lines 2628, 2748, 2811, 3152, 3490, 4091, 4140, 4337, function gui_open_tile, gui_open_merchant, gui_open_ender and others: container_free of heap-backed containers on window open and close; lines 4327, 4473, 4518 craft_stack_free",
+    "lines 2716, 3475-3476: free of tile entity raw NBT pointers on close",
+    "line 1272, function surv_server_damage_by: while loop redrawing Math.random until the knockback direction is non-zero (unbounded in principle, as in Java)",
+    "line 2135, function surv_server_fresh: respawn push-up while loop until the box is free of collisions (bounded only by world height in practice)",
+    "function surv_client_base_tick: the client potion pass walks potion_map_order (the map's order as data; lane/gpuorder, L4)",
+    "lines 470-474, function stats_fill_dirty: the S37 map is emitted in enum order, while Java's HashMap order is unordered (documented as not observable)"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "notes": "Called from player.c, serverreplay.c, combat.c, sleep.c, tnt.c and throw.c at the vanilla call sites. lane/agentscreens: surv_client_portal_close (EntityPlayerSP.onLivingUpdate in a portal closes any screen without a C0D) and client_container_closed (the client-side onContainerClosed: cursor and 2x2 grid spills, also on the close op and the S2E); the E press takes the inventory container (GuiContainer.initGui); surv_client_click refuses a click the vanilla client never makes into client_player.refused, which session_row fails on. Exercised by the snapshot recordings through test_snapshots.c (most out/java/snapshots scenarios touch damage, food, inventory or dig); which snapshots cover which branch was not mapped here. Documented gaps in the comments: doesBlockHaveSolidTopSurface's stair, slab, hopper and snow forms (line 81); no enchantments or Unbreaking in damageArmor and damageEntity (lines 1103, 1146); canEntityBeSeen's hidden-entity reach limit (line 3036); dispenser and dropper windows (line 3169); client-side toggles of doors, gates and trapdoors on use (line 4913); diamondsToYou's owner branch never fires. The Java member names come from the file's comments; not every one was checked against oracle/src. The comment header line 6 says 'see the report', which is not in the repo. The tile windows (chest, furnace, dispenser and dropper, hopper) share gui_te_slot; gui_can_interact is EntityPlayerMP.onUpdate's canInteractWith per container kind; gui_furnace_progress sends ContainerFurnace's S31s (containers2-s42). Statistics (lane statspick): surv_stats holds every StatList stat by id (per-id tables resolved through stats_table.h), the entry set, the dirty set and the exploreAllBiomes biome set; surv_add_stat flushes an S37 of the whole dirty set when an achievement moves 0 -> n; the store survives a respawn; the snapshot's stats.json loads it and test_snapshots compares stats.jsonl lines. surv_client_pick_block is Minecraft.func_147112_ai for a survival player over pickblock.c. surv_client_pending maps a snapshot's whole pending packet queue (S06 S2F S12 S08 S19 S1D S1E S1B S2B S0B S0A S2E S30 S07); surv_client_pending_s20; surv_dig_load restores PlayerControllerMP's dig and last synced hotbar slot and ItemInWorldManager's dig; the client and server potion effects and the container mirror load from a snapshot. lane/anytick: surv_server_load reads the runtime velocityChanged, isDead and the onDeath state; surv_gui_load restores an open ContainerMerchant on both sides (gui_merchant_container, gui_merchant_fill); surv_dig_load restores an idle ItemInWorldManager's counters (a STOP on the last dug block). lane/rawjudge: displayGuiScreen's setIngameNotInFocus on an S2D container and on the inventory key unpresses every binding (KeyBinding.unPressAllKeys); the input block runs only when the screen allows it (a container an S2D opened at the tick's start does not), client_player.input_ran; gui_input_run takes a recorded session's screen clock when gui_input.has_clock is set. lane/idxentity: the server player's air takes the water-breathing gate and the respiration roll; the client's placement check sees the client world's copies (combat_client_prevents). lane/covclient: the client player's updatePotionEffects spawns its mobSpell (mobSpellAmbient) particle with the watcher's colour, which PK_S1C_POT now delivers (cov-fx-s1 137: 77,590 px to 12 with particles on); right_click_mouse's in-air use sets equip_reset when useItemRightClick changed the held stack (sendUseItem true: resetEquippedProgress2; cov-zoo-s1 83 to 93)."
+}

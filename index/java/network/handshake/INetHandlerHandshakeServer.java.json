@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/network/handshake/INetHandlerHandshakeServer.java",
+  "classes": ["INetHandlerHandshakeServer"],
+  "lines": 14,
+  "side": "server",
+  "category": "network",
+  "role": "Server-side interface for the handshake state: the single processHandshake dispatch NetHandlerLoginServer implements to switch the connection into login or status state.",
+  "scope": "not_needed",
+  "scope_reason": "Handshake-state plumbing. The oracle joins through the in-process channel and the native engine has no network: there is no login or status phase to dispatch into, so this interface has no native counterpart.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "processHandshake", "sig": "(C00Handshake)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

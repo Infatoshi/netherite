@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/world/gen/NoiseGeneratorPerlin.java",
+  "classes": ["NoiseGeneratorPerlin"],
+  "lines": 67,
+  "side": "server",
+  "category": "worldgen",
+  "role": "Octaves of NoiseGeneratorSimplex: a point sampler (func_151601_a) and an array filler (func_151599_a / func_151600_a). Used for the surface depth noise, Mesa band shift and spires, and the biome temperature and flower noises.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld surface pass and biome noises.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/noise.c", "symbols": ["perlin_init", "perlin_point", "perlin_2d"]}, {"file": "csrc/engine/noise.h", "symbols": ["perlin"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "out/java/chunks/seed1", "out/java/chunks/mesa-123456789"],
+  "members": [
+    {"kind": "field", "name": "field_151603_a", "sig": "NoiseGeneratorSimplex[]", "native": "csrc/engine/noise.h:perlin", "status": "exact", "note": "struct perlin.g, fixed capacity 8"},
+    {"kind": "field", "name": "field_151602_b", "sig": "int", "native": "csrc/engine/noise.h:perlin", "status": "exact", "note": "struct perlin.n"},
+    {"kind": "ctor", "name": "NoiseGeneratorPerlin", "sig": "(Random,int)", "native": "csrc/engine/noise.c:perlin_init", "status": "exact"},
+    {"kind": "method", "name": "func_151601_a", "sig": "(double,double)D", "native": "csrc/engine/noise.c:perlin_point", "status": "exact"},
+    {"kind": "method", "name": "func_151599_a", "sig": "(double[],double,double,int,int,double,double,double)[D", "native": "csrc/engine/noise.c:perlin_2d", "status": "exact"},
+    {"kind": "method", "name": "func_151600_a", "sig": "(double[],double,double,int,int,double,double,double,double)[D", "native": "csrc/engine/noise.c:perlin_2d", "status": "partial", "note": "perlin_2d hard-codes the amplitude falloff 0.5 (the only value vanilla passes, via func_151599_a); other falloffs are not supported."}
+  ],
+  "missing": [],
+  "notes": "The C struct caps octaves at 8. Not re-verified by running the gate here."
+}

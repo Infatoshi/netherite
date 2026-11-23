@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/trace.h",
+ "lines": 19,
+ "role": "Declares the matched tracepoint API (trace_open, trace_close, trace) that mirrors the oracle's Trace.t line format.",
+ "layer": "util",
+ "java": [
+  {"path": "oracle/harness/netherite/oracle/Trace.java", "members": ["t"]}
+ ],
+ "structs": [],
+ "entry_points": ["trace_open", "trace_close", "trace"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_animals.c", "csrc/tests/test_snapshots.c", "csrc/tests/trace_diff.c"],
+ "notes": "Format: 'd' doubles as d: plus 16 hex digits, 'f' floats as f: plus 8, 'i' and 'l' decimal."
+}

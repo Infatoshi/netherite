@@ -1,0 +1,11 @@
+{
+ "path": "oracle/harness/netherite/oracle/DimDump.java",
+ "lines": 270,
+ "role": "Stage-by-stage dump of raw Nether (terrain, surface, caves) and End (biomes, terrain, surface) chunk generation, checked against provideChunk on a second provider; runs on an OTHER-role thread while the server is parked. The reference for the native Nether and End providers.",
+ "kind": "recorder",
+ "used_by": [
+  "make -C oracle run CLASS=DimDump",
+  "csrc/tests/test_dims.c"
+ ],
+ "vanilla_hooks": []
+}

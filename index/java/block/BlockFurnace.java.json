@@ -1,0 +1,282 @@
+{
+ "path": "oracle/src/block/BlockFurnace.java",
+ "classes": [
+  "BlockFurnace"
+ ],
+ "lines": 289,
+ "side": "common",
+ "category": "block",
+ "role": "The furnace and lit furnace (61, 62): a tile-entity container that smelts, with facing metadata, a lit/unlit block swap and an inventory spill on break.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/dig.c",
+   "symbols": [
+    "container_drops"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "furnace_on_block_added"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileticks.c",
+   "symbols": [
+    "furnace_can_smelt",
+    "furnace_smelt",
+    "tt_furnace_swapping",
+    "tileticks_furnace_swapping"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "te_kind_of_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "client_block_activated",
+    "gui_furnace_xp"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "furnace_out_crafted"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "func_150071_a"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/smelting.c",
+   "symbols": [
+    "smelt_result",
+    "smelt_experience"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "serverreplay_load"
+   ]
+  },
+  {
+   "file": "csrc/engine/spill.c",
+   "symbols": [
+    "container_spill",
+    "block_rand",
+    "block_rand_index"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_rendertick.c",
+  "csrc/tests/test_tileticks.c",
+  "out/java/activate/full2",
+  "out/java/rendertick/fx_rain",
+  "out/java/snapshots/chest-break-s1",
+  "out/java/snapshots/chest-chain-s1",
+  "out/java/snapshots/furnace-break-s1",
+  "out/java/snapshots/pickblock-s1",
+  "out/java/snapshots/rc-blocks-s1",
+  "out/java/snapshots/spill-boom-s1",
+  "out/java/snapshots/te-furnace-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149933_a",
+   "sig": "Random",
+   "native": "csrc/engine/spill.c:block_rand",
+   "status": "exact",
+   "note": "One Random per Block singleton (furnace, lit_furnace: block_rand[BR_FURNACE], [BR_LIT_FURNACE]); Snapshot writes both states and a cached Gaussian into det.nbt's furnace list (BlockRands.java), serverreplay_load sets them, a --from run restores them from the checkpoint's pre/det.nbt (chest-chain-s1), and the born states are the default."
+  },
+  {
+   "kind": "field",
+   "name": "field_149932_b",
+   "sig": "boolean",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "the lit flag: rows 61 and 62 of the generated table"
+  },
+  {
+   "kind": "field",
+   "name": "field_149934_M",
+   "sig": "boolean",
+   "native": "csrc/engine/tileticks.c:tt_furnace_swapping",
+   "status": "exact",
+   "note": "the swap-in-progress flag, tileticks.c's static"
+  },
+  {
+   "kind": "field",
+   "name": "field_149935_N",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client top texture"
+  },
+  {
+   "kind": "field",
+   "name": "field_149936_O",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client front texture"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockFurnace",
+   "sig": "(Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 61 and 62; the constructor Random is a determinize pin that only breakBlock reads"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 62 drops the furnace item; case 61 drops itself"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:furnace_on_block_added",
+   "status": "exact",
+   "note": "case ID_FURNACE/ID_LIT_FURNACE: func_149930_e's facing from the four neighbours"
+  },
+  {
+   "kind": "method",
+   "name": "func_149930_e",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:furnace_on_block_added",
+   "status": "exact",
+   "note": "the func_149730_j opaque test and meta 2/3/4/5"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)Lnet/minecraft/util/IIcon;",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture selection"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture registration"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIILjava/util/Random;)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the particles and every draw, checked per tick against the spawn log in fx_rain"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockActivated",
+   "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z",
+   "native": "csrc/engine/survival.c:client_block_activated",
+   "status": "exact",
+   "note": "case 61/62 opens the furnace window (gui_open in survival.c), whose slots read the live tile entity"
+  },
+  {
+   "kind": "method",
+   "name": "func_149931_a",
+   "sig": "(ZLnet/minecraft/world/World;III)V",
+   "native": "csrc/engine/tileticks.c:tt_furnace_swapping",
+   "status": "exact",
+   "note": "the lit/unlit swap with the metadata and tile entity preserved, exercised by te-furnace-s1"
+  },
+  {
+   "kind": "method",
+   "name": "createNewTileEntity",
+   "sig": "(World,I)Lnet/minecraft/tileentity/TileEntity;",
+   "native": "csrc/engine/tileentity.c:te_kind_of_block",
+   "status": "exact",
+   "note": "case 61/62 returns TE_FURNACE"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockPlacedBy",
+   "sig": "(World,IIILnet/minecraft/entity/EntityLivingBase;ItemStack)V",
+   "native": "csrc/engine/place.c:func_150071_a",
+   "status": "exact",
+   "note": "the yaw quad maps 0/1/2/3 to meta 2/5/3/4; the display-name write is unported (no named-item renames in scope)"
+  },
+  {
+   "kind": "method",
+   "name": "breakBlock",
+   "sig": "(World,IIIBlockI)V",
+   "native": "csrc/engine/spill.c:container_spill",
+   "status": "exact",
+   "note": "The shared container spill from the breaking block's own Random; skipped while func_149931_a swaps lit and unlit (tileticks_furnace_swapping). The dig spills before its write (dig.c:container_drops), an explosion through blockcb.c:block_on_broken (spill-boom-s1); func_147453_f reaches only comparators, off under redstone = off (furnace-break-s1)."
+  },
+  {
+   "kind": "method",
+   "name": "hasComparatorInputOverride",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "redstone is off (world.conf redstone = off)"
+  },
+  {
+   "kind": "method",
+   "name": "getComparatorInputOverride",
+   "sig": "(World,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "same"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Lnet/minecraft/item/Item;",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  }
+ ],
+ "missing": [],
+ "notes": "Smelting itself is TileEntityFurnace (tileticks.c + smelting.c), verified by te-furnace-s1 (ore, fuel, output, XP, 2,573 rows exact). The window and its slots are survival.c/container.c; the comparator hooks are unreachable under redstone = off. lane/idxblocks: every member was already exact or n/a; the status follows."
+}

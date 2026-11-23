@@ -1,0 +1,110 @@
+{
+ "path": "oracle/src/client/entity/AbstractClientPlayer.java",
+ "classes": [
+  "AbstractClientPlayer",
+  "AbstractClientPlayer.SwitchType"
+ ],
+ "lines": 114,
+ "side": "client",
+ "category": "player",
+ "role": "Client-side player base that requests and holds the player's skin and cape textures from the SkinManager.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Skins and capes are presentation; the oracle runs offline and every player renders with the default steve.png, which the native renderer uses directly.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "locationStevePng",
+   "sig": "static ResourceLocation",
+   "native": null,
+   "status": "n/a",
+   "note": "the default skin; the native renderer loads textures/entity/steve.png itself"
+  },
+  {
+   "kind": "field",
+   "name": "locationSkin",
+   "sig": "ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "locationCape",
+   "sig": "ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "AbstractClientPlayer",
+   "sig": "(World,GameProfile)",
+   "native": null,
+   "status": "n/a",
+   "note": "requests the skin from SkinManager"
+  },
+  {
+   "kind": "method",
+   "name": "func_152122_n",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "hasCape"
+  },
+  {
+   "kind": "method",
+   "name": "func_152123_o",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "hasSkin"
+  },
+  {
+   "kind": "method",
+   "name": "getLocationSkin",
+   "sig": "()ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getLocationCape",
+   "sig": "()ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDownloadImageSkin",
+   "sig": "(ResourceLocation,String)ThreadDownloadImageData",
+   "native": null,
+   "status": "n/a",
+   "note": "network skin download"
+  },
+  {
+   "kind": "method",
+   "name": "getLocationSkin",
+   "sig": "(String)ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152121_a",
+   "sig": "(Type,ResourceLocation)V",
+   "native": null,
+   "status": "n/a",
+   "note": "skin callback"
+  },
+  {
+   "kind": "field",
+   "name": "SwitchType.field_152630_a",
+   "sig": "static int[]",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Not verified whether the native player-model renderer (raster_hand.c / raster_mobs.c) hard-codes steve.png; the assets record covers texture loading."
+}

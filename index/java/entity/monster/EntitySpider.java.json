@@ -1,0 +1,46 @@
+{
+  "path": "oracle/src/entity/monster/EntitySpider.java",
+  "classes": ["EntitySpider", "EntitySpider.GroupData"],
+  "lines": 260,
+  "side": "common",
+  "category": "entity",
+  "role": "The spider: neutral in daylight, hostile at night, climbs walls, lunges at its target (the 0.4 motionY pounce), and mounts a skeleton jockey on 1% of spawns.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/hostiles_spider.c", "symbols": ["spider_construct", "spider_update_entity_action_state", "spider_on_living_update", "spider_find_player_to_attack", "spider_attack_entity", "spider_drop_few_items", "spider_is_potion_applicable", "spider_set_beside_climbable_block", "spider_set_in_web", "spider_on_update_tail", "spider_jockey_check", "spider_spawn_jockey_skeleton", "spider_group_potion", "egg_add_pending_partner"]},
+    {"file": "csrc/engine/hostiles.c", "symbols": ["hostile_spawn", "hostile_loot_update"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_on_spawn_with_egg", "living_total_armor"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-spider-s1", "out/java/snapshots/mobattack-overlap-s1", "csrc/tests/test_hostiles.c", "out/java/snapshots/dmg-sources-s1", "out/java/snapshots/melee-mods-s1",
+    "out/java/snapshots/spider-dawn-s1",
+    "out/java/snapshots/hard-spiders-s1", "out/java/snapshots/hard-packs-s1",
+    "out/java/snapshots/jockey-natural-s1",
+    "out/java/snapshots/chase-edge-s1"],
+  "members": [
+    {"kind": "ctor", "name": "EntitySpider", "sig": "(World)V", "native": "csrc/engine/hostiles_spider.c:spider_construct", "status": "exact", "note": "size 1.4x0.9, experienceValue 5"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": "csrc/engine/hostiles_spider.c:spider_construct", "status": "exact", "note": "empty beyond super"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": "csrc/engine/hostiles_spider.c:spider_on_update_tail", "status": "exact", "note": "super then the side-collision climbable-block flag (spider_set_beside_climbable_block)"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": "csrc/engine/hostiles_spider.c:spider_construct", "status": "exact", "note": "maxHealth 16, movement 0.8, attack 2, followRange 16"},
+    {"kind": "method", "name": "findPlayerToAttack", "sig": "()Lnet/minecraft/entity/Entity;", "native": "csrc/engine/hostiles_spider.c:spider_find_player_to_attack", "status": "exact", "note": "the brightness<0.5 neutrality: null in daylight, else the 16-block closest vulnerable player"},
+    {"kind": "method", "name": "getLivingSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getHurtSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getDeathSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "func_145780_a", "sig": "(IIILnet/minecraft/block/Block;)V", "native": null, "status": "n/a", "note": "step sound, audio"},
+    {"kind": "method", "name": "attackEntity", "sig": "(Lnet/minecraft/entity/Entity;F)V", "native": "csrc/engine/hostiles_spider.c:spider_attack_entity", "status": "exact", "note": "the daylight nextInt(100) target clear, the 2.0-6.0 range nextInt(10) ground lunge (motionY 0.4), else EntityMob's touch-of-death"},
+    {"kind": "method", "name": "func_146068_u", "sig": "()Lnet/minecraft/item/Item;", "native": "csrc/engine/hostiles_spider.c:spider_drop_few_items", "status": "exact", "note": "string, item 287"},
+    {"kind": "method", "name": "dropFewItems", "sig": "(ZI)V", "native": "csrc/engine/hostiles_spider.c:spider_drop_few_items", "status": "exact", "note": "0-2+looting string, then the spider eye (375) on a player kill"},
+    {"kind": "method", "name": "isOnLadder", "sig": "()Z", "native": "csrc/engine/living.c:is_on_ladder", "status": "exact", "note": "the spider climbs wherever the ladder rule sees a climbable block"},
+    {"kind": "method", "name": "setInWeb", "sig": "()V", "native": "csrc/engine/hostiles_spider.c:spider_set_in_web", "status": "exact", "note": "empty body, no web slowdown"},
+    {"kind": "method", "name": "getCreatureAttribute", "sig": "()Lnet/minecraft/entity/EnumCreatureAttribute;", "native": "csrc/engine/combatench.c:living_creature_attribute", "status": "exact", "note": "ARTHROPOD: bane of arthropods reads it (combatench.c)"},
+    {"kind": "method", "name": "isPotionApplicable", "sig": "(Lnet/minecraft/potion/PotionEffect;)Z", "native": "csrc/engine/hostiles_spider.c:spider_is_potion_applicable", "status": "exact", "note": "poison refused"},
+    {"kind": "method", "name": "isBesideClimbableBlock", "sig": "()Z", "native": "csrc/engine/hostiles_spider.c:spider_set_beside_climbable_block", "status": "exact"},
+    {"kind": "method", "name": "setBesideClimbableBlock", "sig": "(Z)V", "native": "csrc/engine/hostiles_spider.c:spider_set_beside_climbable_block", "status": "exact"},
+    {"kind": "method", "name": "onSpawnWithEgg", "sig": "(Lnet/minecraft/entity/IEntityLivingData;)Lnet/minecraft/entity/IEntityLivingData;", "native": "csrc/engine/hostiles_spider.c:spider_jockey_check", "status": "exact", "note": "the nextInt(100)==0 jockey: spawn a skeleton at the spider's position (its armour and enchantment rolls read the spider's func_147462_b) and mount it (spider_spawn_jockey_skeleton, egg_add_pending_partner); on HARD the world.rand GroupData roll (func_111104_a, spider_group_potion) and addPotionEffect(id, MAX_VALUE); the natural spawner's roll is spawning.c egg_spider, carried by r->spider_potion into sr_adopt_mob; hard-spiders-s1, hard-packs-s1"},
+    {"kind": "field", "name": "GroupData", "sig": "IEntityLivingData impl (field_111105_a, func_111104_a)", "native": "csrc/engine/hostiles_spider.c:spider_jockey_check", "status": "exact", "note": "the HARD pack effect, nextInt(5): 0-1 speed (1), 2 strength (5), 3 regeneration (10), 4 invisibility (14) (spider_group_potion), put on every spider of the pack; hard-spiders-s1, hard-packs-s1"}
+  ],
+  "missing": [
+
+  ],
+  "notes": "The jockey skeleton is spawned with the spider and rides it (hostiles_spider.c's header documents the shared spider/cave-spider port). test_hostiles.c covers HK_SPIDER and HK_CAVE_SPIDER. lane/idxentity."
+}

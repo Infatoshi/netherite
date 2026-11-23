@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIHurtByTarget.java",
+  "classes": ["EntityAIHurtByTarget"],
+  "lines": 57,
+  "side": "server",
+  "category": "ai",
+  "role": "Target task: when the entity's revenge timer changes it targets whoever hurt it, and with callsForHelp every same-kind creature nearby also targets the attacker.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_start", "ai_reset", "ai_is_suitable_target"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-zombie-s1", "out/java/snapshots/fight-creeper-s1", "out/java/snapshots/fight-witch-s1", "csrc/tests/test_hostiles.c",
+    "out/java/snapshots/skel-crossfire-s1"],
+  "members": [
+    {"kind": "field", "name": "entityCallsForHelp", "sig": "boolean", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.calls_for_help; the zombie passes true, the skeleton/creeper/witch false"},
+    {"kind": "field", "name": "field_142052_b", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.revenge_timer_last"},
+    {"kind": "ctor", "name": "EntityAIHurtByTarget", "sig": "(EntityCreature,boolean)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered per kind by add_target_task_full"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_HURT_BY_TARGET case: revengeTimer != last and the AITarget passes ai_is_suitable_target"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "setAttackTarget(getAITarget), saves the revenge timer, and the callsForHelp loop over same-kind creatures with a null attack target; the dropped isOnSameTeam check is always true without teams, so it is exact"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "inherited from EntityAITarget: attack_target = NULL"}
+  ],
+  "missing": [],
+  "notes": "continueExecuting and updateTask are EntityAIBase defaults and are folded into EntityAITarget's native continue path (AIC_HURT_BY_TARGET shares the AIC_NEAREST_ATTACKABLE_TARGET case)."
+}

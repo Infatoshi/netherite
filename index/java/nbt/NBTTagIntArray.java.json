@@ -1,0 +1,119 @@
+{
+  "path": "oracle/src/nbt/NBTTagIntArray.java",
+  "classes": [
+    "NBTTagIntArray"
+  ],
+  "lines": 93,
+  "side": "common",
+  "category": "nbt",
+  "role": "The int-array tag, type id 11: block-palette data, structure block lists, the UUID ints of entities saved as four ints.",
+  "scope": "in_scope",
+  "scope_reason": "Part of the NBT layer behind snapshots and digests.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/nbtjson.h",
+      "symbols": [
+        "nbt_new_int_array",
+        "nbt_int_array"
+      ]
+    },
+    {
+      "file": "csrc/engine/nbtbin.c",
+      "symbols": [
+        "write_payload"
+      ]
+    },
+    {
+      "file": "csrc/engine/region.c",
+      "symbols": [
+        "nbt_bin_value"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/fresh-play-s1",
+    "out/java/snapshots/dev-give-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "intArray",
+      "sig": "int[]",
+      "native": "csrc/engine/nbtjson.h:nbt_new_int_array",
+      "status": "exact",
+      "note": "Canonical text ia:1,2; empty is ia:."
+    },
+    {
+      "kind": "ctor",
+      "name": "NBTTagIntArray",
+      "sig": "([I)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_int_array",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "write",
+      "sig": "(LDataOutput;)V",
+      "native": "csrc/engine/nbtbin.c:write_payload",
+      "status": "exact",
+      "note": "Length int then one int per element."
+    },
+    {
+      "kind": "method",
+      "name": "func_152446_a",
+      "sig": "(LDataInput;ILNBTSizeTracker;)V",
+      "native": "csrc/engine/region.c:nbt_bin_value",
+      "status": "exact",
+      "note": "Reads the length, accounts 32 bytes per element to the size tracker, then one readInt per element."
+    },
+    {
+      "kind": "method",
+      "name": "getId",
+      "sig": "()B",
+      "native": "csrc/engine/nbtjson.h:nbt_kind",
+      "status": "exact",
+      "note": "11; NBT_INT_ARRAY."
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "Java's text form: built only by ItemStack.func_151000_E (the item hover in a chat line), CommandGive (chat commands are not agent input) and logging. func_151000_E runs at StatList's init on tagless stacks (id, Count, Damage: a short and a byte) and in a death message only for an item with hasDisplayName (EntityDamageSource, EntityDamageSourceIndirect, CombatTracker), and only the anvil names an item (world.conf anvil = off)"
+    },
+    {
+      "kind": "method",
+      "name": "copy",
+      "sig": "()LNBTBase;",
+      "native": "csrc/engine/crafting.c:copy_tag",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Ljava/lang/Object;)Z",
+      "native": "csrc/engine/nbtjson.c:nbt_diff",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "Only feeds Java's HashMap."
+    },
+    {
+      "kind": "method",
+      "name": "func_150302_c",
+      "sig": "()[I",
+      "native": "csrc/engine/nbtjson.h:nbt_int_array",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "Java's write loops writeInt per element; native writes the same layout in write_payload's NBT_INT_ARRAY case."
+}

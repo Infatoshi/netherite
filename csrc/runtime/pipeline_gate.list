@@ -1,0 +1,37 @@
+# The pipeline's gate recordings (pipeline.mk pipe-gate): each env's rows
+# against test_snapshots' and each frame the device drew against the C
+# renderer's, over these tapes. One name per line under out/java/snapshots.
+# the overworld: walks, villages, fights, deaths, containers, blocks
+fresh-s42
+gen-walk-s42
+persist-village-s42
+cov-tradelist-s1
+cov-villagerep-s42
+idx-villageref-s1
+fight-skeleton-s1
+fight-zombie-s1
+fight-enderman-s1
+arrow-block-s1
+surv_death-s1
+death-drops-s1
+bed-respawn-s1
+surv_drown-s42
+chat-deaths-s1
+cont-furnace-s1
+cat-recipes-s1
+break-place-s1
+chest-chain-s1
+bonemeal-s1
+# the Nether: portal trips (the overworld first), a fight, a checkpoint
+nether-trip-s1
+nether-trip2-s42
+nether-fight-s1
+cp-nether-s1
+# the End: the arrival, the dragon, the exit (the credits, then the overworld)
+end-arrival-s1
+end-dragon-s1
+end-exit-s1
+end-crystals-s1
+cp-end-s1
+# the seed-1 golden chain (lane/dragonrun): the fresh world to the dragon's
+# death and the respawn, 190,888 rows in 23 segments

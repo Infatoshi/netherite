@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/raster_sky2.c",
+ "lines": 101,
+ "role": "Builds the sun and moon quads of the sky pass: the sun (radius 30 at height 100) and the moon phase cell of moon_phases.png (radius 20 at height -100), rotated by the celestial angle, handed to a caller-supplied quad callback.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/RenderGlobal.java", "members": ["renderSky", "renderStars"]}
+ ],
+ "structs": [],
+ "entry_points": ["raster_sky2_draw", "raster_sky2_stars"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/raster.c", "csrc/tests/test_render.c"],
+ "notes": "Called from raster.c, which supplies the quad rasterizer. Only the sun and moon part of RenderGlobal.renderSky is here; the sky dome, sunrise fan and stars are elsewhere (raster.c), not verified by me. raster_sky2_stars is RenderGlobal.renderStars: the 1500-draw Random(10842L) list built once, under the same rotation as the sun and moon."
+}

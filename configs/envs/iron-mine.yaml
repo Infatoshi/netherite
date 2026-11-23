@@ -1,0 +1,35 @@
+# From a held iron ingot to the iron pickaxe and on: the statebank's Java-proved iron_ingot starts (harvested by
+# chain and replayed by the oracle), split by seed into train and held-out eval; the frozen macros off, raw keys.
+description: from an iron ingot onward (statebank iron_ingot starts), milestone rewards, depth
+name: iron-mine
+sim:
+  world:
+    difficulty: easy
+  pipeline:
+    kind: snapshot
+    start: out/java/snapshots/fresh-play-s1
+episode:
+  seconds: 300
+macros: none
+starts:
+  library: out/bank/iron-mine/train
+  stages: iron_ingot
+  curriculum: off
+policy:
+  reward:
+    log_cap: 8
+    ms_weights: iron_pickaxe/10,bucket/5,flint_and_steel/5,diamond_pickaxe/10,obsidian/5
+    relative: on
+harvest:
+  mode: milestone
+  milestone: iron_ingot
+  source: cache/statebank-2026-11-19/lib
+  split_train: 0.8
+eval:
+  primary_metric: iron_pickaxe
+  max_p: 0.01
+  episodes: 256
+  seed: 1000
+  minutes: 5
+  library: out/bank/iron-mine/eval
+  stages: iron_ingot

@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/command/CommandDefaultGameMode.java",
+  "classes": ["CommandDefaultGameMode"],
+  "lines": 52,
+  "side": "server",
+  "category": "commands",
+  "role": "The /defaultgamemode command: sets the server's default game type and, when force-gamemode is on, re-applies it to every online player.",
+  "scope": "not_needed",
+  "scope_reason": "Commands are off in our survival worlds (DEVLOG 2026-09-25); the world's game type is fixed by the harness and the tape header, not chat commands.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "getCommandName", "sig": "()String", "native": null, "status": "n/a", "note": "\"defaultgamemode\""},
+    {"kind": "method", "name": "getCommandUsage", "sig": "(ICommandSender)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processCommand", "sig": "(ICommandSender,String[])V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setGameType", "sig": "(WorldSettings.GameType)V", "native": null, "status": "n/a", "note": "MinecraftServer.setGameType plus the force-gamemode player sweep"}
+  ],
+  "missing": [],
+  "notes": "Extends CommandGameMode (getGameModeFromCommand comes from there); that parent is indexed under its own record."
+}

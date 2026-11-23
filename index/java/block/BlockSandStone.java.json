@@ -1,0 +1,121 @@
+{
+ "path": "oracle/src/block/BlockSandStone.java",
+ "classes": [
+  "BlockSandStone"
+ ],
+ "lines": 80,
+ "side": "common",
+ "category": "block",
+ "role": "Sandstone (id 24) in its normal, chiseled and smooth variants: per-side icons and a drop that keeps the meta.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "table_icon"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/chunks",
+  "csrc/tests/test_drops.c",
+  "csrc/tests/test_structures.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150157_a",
+   "sig": "static String[]",
+   "native": null,
+   "status": "n/a",
+   "note": "variant names"
+  },
+  {
+   "kind": "field",
+   "name": "field_150156_b",
+   "sig": "static String[]",
+   "native": null,
+   "status": "n/a",
+   "note": "texture suffixes"
+  },
+  {
+   "kind": "field",
+   "name": "field_150158_M",
+   "sig": "IIcon[]",
+   "native": null,
+   "status": "n/a",
+   "note": "client"
+  },
+  {
+   "kind": "field",
+   "name": "field_150159_N",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client"
+  },
+  {
+   "kind": "field",
+   "name": "field_150160_O",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockSandStone",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 24: rock"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it"
+  },
+  {
+   "kind": "method",
+   "name": "damageDropped",
+   "sig": "(I)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 24: meta"
+  },
+  {
+   "kind": "method",
+   "name": "getSubBlocks",
+   "sig": "(Item,CreativeTabs,List)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative tab listing, client only"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration; the native atlas is loaded from the same assets"
+  }
+ ],
+ "missing": [],
+ "notes": "Sandstone appears under desert sand in surface generation and in desert temples and villages."
+}

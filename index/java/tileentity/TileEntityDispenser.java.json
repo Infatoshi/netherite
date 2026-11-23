@@ -1,0 +1,215 @@
+{
+  "path": "oracle/src/tileentity/TileEntityDispenser.java",
+  "classes": [
+    "TileEntityDispenser"
+  ],
+  "lines": 227,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The dispenser (and dropper) block entity: nine slots, a Random for picking the slot to dispense, add-item, custom name and NBT.",
+  "scope": "in_scope",
+  "scope_reason": "Jungle temples generate dispensers filled with arrows and players can place and open them; dispensing needs power, which world.conf redstone = off removes.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "te_dispenser",
+        "TE_DISPENSER",
+        "DISPENSER_SLOTS"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_dispenser",
+        "te_load",
+        "te_new"
+      ]
+    },
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "set_block_step"
+      ]
+    },
+    {
+      "file": "csrc/engine/loot.c",
+      "symbols": [
+        "loot_generate_dispenser"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "gui_can_interact"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_populate.c",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_place.c",
+    "out/java/snapshots/containers2-s42",
+    "out/java/snapshots/cov-containers-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_146022_i",
+      "sig": "ItemStack[9]",
+      "native": "csrc/engine/tileentity.h:te_dispenser",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_146021_j",
+      "sig": "Random (Det.newRandom)",
+      "native": "csrc/engine/env.h:te_dispenser_random",
+      "status": "exact",
+      "note": "only the constructor's seeder draw is reproduced; the stream itself is never drawn with redstone off"
+    },
+    {
+      "kind": "field",
+      "name": "field_146020_a",
+      "sig": "String customName",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "getSizeInventory",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:DISPENSER_SLOTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getStackInSlot",
+      "sig": "(I)ItemStack",
+      "native": "csrc/engine/survival.c:gui_te_slot",
+      "status": "exact",
+      "note": "the window reads the tile slot through gui_te_slot"
+    },
+    {
+      "kind": "method",
+      "name": "decrStackSize",
+      "sig": "(II)ItemStack",
+      "native": "csrc/engine/survival.c:gui_tile_changed",
+      "status": "exact",
+      "note": "cov-containers-s1 takes arrows out of a dispenser's slot"
+    },
+    {
+      "kind": "method",
+      "name": "getStackInSlotOnClosing",
+      "sig": "(I)ItemStack",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_146017_i",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "random slot to dispense; needs power"
+    },
+    {
+      "kind": "method",
+      "name": "setInventorySlotContents",
+      "sig": "(ILItemStack)V",
+      "native": "csrc/engine/survival.c:gui_tile_changed",
+      "status": "exact",
+      "note": "the same write-back; markDirty drops the cached NBT (te->raw)"
+    },
+    {
+      "kind": "method",
+      "name": "func_146019_a",
+      "sig": "(ItemStack)I",
+      "native": null,
+      "status": "n/a",
+      "note": "add item; used by dispense-into paths"
+    },
+    {
+      "kind": "method",
+      "name": "getInventoryName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "Client window title text."
+    },
+    {
+      "kind": "method",
+      "name": "func_146018_a",
+      "sig": "(String)V",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "isInventoryNameLocalized",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "Items (a CustomName only an anvil writes)."
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_dispenser",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getInventoryStackLimit",
+      "sig": "()I",
+      "native": "csrc/engine/container.c:container_init",
+      "status": "exact",
+      "note": "64, the chest inventory limit the window uses"
+    },
+    {
+      "kind": "method",
+      "name": "isUseableByPlayer",
+      "sig": "(EntityPlayer)Z",
+      "native": "csrc/engine/survival.c:gui_can_interact",
+      "status": "exact",
+      "note": "the same tile and within 8"
+    },
+    {
+      "kind": "method",
+      "name": "isItemValidForSlot",
+      "sig": "(ILItemStack)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "openInventory",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "n/a: empty; ContainerDispenser never calls it (only chests, hoppers and horse chests open their inventories)"
+    },
+    {
+      "kind": "method",
+      "name": "closeInventory",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "n/a: empty; ContainerDispenser never calls it"
+    }
+  ],
+  "missing": [],
+  "notes": "Worldgen fill (WeightedRandomChestContent.func_150706_a in the jungle temple) is loot.c loot_generate_dispenser into te_dispenser slots. world.c set_block_step is where the constructor's Det draw is spent on demand creation. lane/idxblocks: dispensing itself needs power (world.conf redstone = off); the inventory is exact."
+}

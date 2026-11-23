@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/nbt/NBTUtil.java",
+  "classes": [
+    "NBTUtil"
+  ],
+  "lines": 119,
+  "side": "common",
+  "category": "nbt",
+  "role": "GameProfile serialization: reads a player's name, id and properties from the Owner compound of a player skull and writes them back.",
+  "scope": "not_needed",
+  "scope_reason": "Player-skull owner profiles come only from commands or creative (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "func_152459_a",
+      "sig": "(LNBTTagCompound;)LGameProfile;",
+      "native": null,
+      "status": "missing",
+      "note": "Reads Name and Id and, for a null id, looks the name up online; no native counterpart and the native skull layer stores only the skull type."
+    },
+    {
+      "kind": "method",
+      "name": "func_152460_a",
+      "sig": "(LNBTTagCompound;LGameProfile;)V",
+      "native": null,
+      "status": "missing",
+      "note": "Writes the profile back including the Properties compound; no native counterpart."
+    }
+  ],
+  "missing": [
+    "The GameProfile Owner compound for player skulls (TileEntitySkull and BlockSkull placement write it, ItemSkull and the renderers read it): no native counterpart, and no recording exercises a player skull."
+  ],
+  "notes": "The only in-game callers are the skull tile entity, BlockSkull's placement and the skull item and renderer paths (verified by grep). A skeleton or wither-skeleton skull never carries an Owner, so the recorded gates do not reach this code; the charged-creeper route is the one way it becomes reachable."
+}

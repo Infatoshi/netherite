@@ -1,0 +1,174 @@
+{
+ "path": "oracle/src/pathfinding/PathPoint.java",
+ "classes": [
+  "PathPoint"
+ ],
+ "lines": 103,
+ "side": "server",
+ "category": "pathfinding",
+ "role": "One A* node: coordinates, the makeHash identity, the heap index, the three float distances, the predecessor and the isFirst flag.",
+ "scope": "in_scope",
+ "scope_reason": "Mob pathfinding is vanilla behavior the mob AI depends on.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/pathfind.c",
+   "symbols": [
+    "make_hash",
+    "open_point",
+    "dist",
+    "dist2",
+    "same_point",
+    "search"
+   ]
+  },
+  {
+   "file": "csrc/engine/pathfind.h",
+   "symbols": [
+    "pf_point"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/paths/pf2-20k",
+  "out/java/paths/pf42-20k",
+  "csrc/tests/test_paths.c"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "PathPoint",
+   "sig": "(int,int,int)V",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:open_point",
+   "note": "points are created inside open_point"
+  },
+  {
+   "kind": "method",
+   "name": "makeHash",
+   "sig": "(int,int,int)I",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:make_hash",
+   "note": "the table is keyed by the hash alone, so hash collisions share a point, as in vanilla"
+  },
+  {
+   "kind": "method",
+   "name": "distanceTo",
+   "sig": "(PathPoint)F",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:dist",
+   "note": "MathHelper.sqrt_float's (float)Math.sqrt((double)) order"
+  },
+  {
+   "kind": "method",
+   "name": "distanceToSquared",
+   "sig": "(PathPoint)F",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:dist2"
+  },
+  {
+   "kind": "method",
+   "name": "equals",
+   "sig": "(Object)Z",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:same_point",
+   "note": "hash plus all three coordinates, as the addToPath dequeue branch needs"
+  },
+  {
+   "kind": "method",
+   "name": "hashCode",
+   "sig": "()I",
+   "status": "n/a",
+   "native": "csrc/engine/pathfind.h:pf_point",
+   "note": "PathFinder keys its points by the int PathPoint.makeHash in an IntHashMap, and no oracle/src code puts a PathPoint in a java.util hash container, so the Object.hashCode override is never called"
+  },
+  {
+   "kind": "method",
+   "name": "isAssigned",
+   "sig": "()Z",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:search",
+   "note": "the index >= 0 check inside the search loop"
+  },
+  {
+   "kind": "method",
+   "name": "toString",
+   "sig": "()String",
+   "status": "n/a",
+   "note": "debug formatting"
+  },
+  {
+   "kind": "field",
+   "name": "xCoord",
+   "sig": "int",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point"
+  },
+  {
+   "kind": "field",
+   "name": "yCoord",
+   "sig": "int",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point"
+  },
+  {
+   "kind": "field",
+   "name": "zCoord",
+   "sig": "int",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point"
+  },
+  {
+   "kind": "field",
+   "name": "hash",
+   "sig": "int",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point"
+  },
+  {
+   "kind": "field",
+   "name": "index",
+   "sig": "int",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point",
+   "note": "the heap index, -1 when not in the heap"
+  },
+  {
+   "kind": "field",
+   "name": "totalPathDistance",
+   "sig": "float",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point"
+  },
+  {
+   "kind": "field",
+   "name": "distanceToNext",
+   "sig": "float",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point"
+  },
+  {
+   "kind": "field",
+   "name": "distanceToTarget",
+   "sig": "float",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point"
+  },
+  {
+   "kind": "field",
+   "name": "previous",
+   "sig": "PathPoint",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point",
+   "note": "the predecessor is an int index into the pool"
+  },
+  {
+   "kind": "field",
+   "name": "isFirst",
+   "sig": "boolean",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf_point"
+  }
+ ],
+ "missing": []
+}

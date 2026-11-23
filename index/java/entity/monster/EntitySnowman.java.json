@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/entity/monster/EntitySnowman.java",
+  "classes": ["EntitySnowman"],
+  "lines": 80,
+  "side": "common",
+  "category": "entity",
+  "role": "The snow golem: built from a pumpkin on two snow blocks, throws snowballs at hostiles, melts in warm biomes, and leaves snow trails.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf built_golems = off: player-built golems (snow golem and iron golem from a player build) are forced off in the oracle with a 'not supported yet' notice. Snow golems never spawn naturally in vanilla, so the switch removes the only entry point.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "EntitySnowman", "sig": "(World)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": null, "status": "n/a", "note": "maxHealth 4.0, movement 0.2"},
+    {"kind": "method", "name": "isAIEnabled", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "updateAITick", "sig": "()V", "native": null, "status": "n/a", "note": "the hostile-target search and snowball throw"},
+    {"kind": "method", "name": "attackEntityWithRangedAttack", "sig": "(Lnet/minecraft/entity/EntityLivingBase;F)V", "native": null, "status": "n/a", "note": "the snowball spawn; EntitySnowball's throw path exists in projectile.c for the player's own throws"},
+    {"kind": "method", "name": "getCanSpawnHere", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onLivingUpdate", "sig": "()V", "native": null, "status": "n/a", "note": "the warm-biome melt damage and the snow trail"},
+    {"kind": "method", "name": "getLivingSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getHurtSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getDeathSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "func_145780_a", "sig": "(III)V", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "func_146068_u", "sig": "()Lnet/minecraft/item/Item;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "dropFewItems", "sig": "(ZI)V", "native": null, "status": "n/a", "note": "snowballs"},
+    {"kind": "method", "name": "dropRareDrop", "sig": "(I)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "attackEntityAsMob", "sig": "(Lnet/minecraft/entity/Entity;)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "interact", "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z", "native": null, "status": "n/a", "note": "the shears path"}
+  ],
+  "missing": [],
+  "notes": "No native snowman code exists; every member is dead under built_golems = off. The snowball it throws would be projectile.c's EntitySnowball branch, which exists for the player's own throws."
+}

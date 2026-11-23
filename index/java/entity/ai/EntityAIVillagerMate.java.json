@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIVillagerMate.java",
+  "classes": ["EntityAIVillagerMate"],
+  "lines": 140,
+  "side": "server",
+  "category": "ai",
+  "role": "Villager breeding: two adult villagers of a village in mating season (doors * 0.35 not yet filled) walk together for up to 300 ticks and a child spawns when both are mating and touching.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_update", "ai_setup_kind"]},
+    {"file": "csrc/engine/villagers.c", "symbols": ["villager_create_child"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-village-full-s42", "out/java/villagers/vil-2", "csrc/tests/test_villagers.c", "out/java/snapshots/village-life-s42"],
+  "members": [
+    {"kind": "field", "name": "villagerObj", "sig": "EntityVillager", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the villager itself (struct living); is_mating lives on it"},
+    {"kind": "field", "name": "mate", "sig": "EntityVillager", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target_mate"},
+    {"kind": "field", "name": "worldObj", "sig": "World", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: reached through the owning an_world"},
+    {"kind": "field", "name": "matingTimeout", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.mating_timeout"},
+    {"kind": "field", "name": "villageObj", "sig": "Village", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.village_ptr"},
+    {"kind": "ctor", "name": "EntityAIVillagerMate", "sig": "(EntityVillager)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_VILLAGER_MATE, priority 6, mutex 3"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_VILLAGER_MATE case: growingAge == 0, rand(500), findNearestVillage(0), the doors*0.35 census, then the nearest adult villager in the 8x3x8 box"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "matingTimeout = 300 and setMating(true) -> is_mating = 1"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "clears the village and mate, setMating(false)"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "matingTimeout >= 0 and the doors census and growingAge == 0"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "--matingTimeout, look 10/30, walks at 0.25 beyond 1.5 blocks, giveBirth at timeout 0 with a mating partner, the 1-in-35 heart draw kept for RNG order"},
+    {"kind": "method", "name": "checkSufficientDoorsPresentForNewVillager", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "inlined: isMatingSeason and num_villagers < (int)(num_doors * 0.35) in both the should and continue paths"},
+    {"kind": "method", "name": "giveBirth", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "createChild (villagers.c:villager_create_child), setGrowingAge(6000) on both parents, the child's -24000 and setLocationAndAngles at the parent, spawnEntityInWorld; the setEntityState(12) heart call is empty in the oracle; village-life-s42 (three births)"}
+  ],
+  "missing": [],
+  "notes": "lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

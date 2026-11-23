@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/gui/GuiYesNoCallback.java",
+  "classes": ["GuiYesNoCallback"],
+  "lines": 6,
+  "side": "client",
+  "category": "client_gui",
+  "role": "Interface for screens that answer a GuiYesNo confirmation: one confirmClicked(boolean, int).",
+  "scope": "not_needed",
+  "scope_reason": "Only implemented by screens behind the title-screen confirm flows that this build never runs.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "confirmClicked", "sig": "(boolean,int)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": ""
+}

@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderGiantZombie.java",
+  "classes": ["RenderGiantZombie"],
+  "lines": 57,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the Giant (EntityGiantZombie): the zombie model and texture scaled 6x by preRenderCallback.",
+  "scope": "not_needed",
+  "scope_reason": "Giants never spawn in survival (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "zombieTextures", "sig": "ResourceLocation (static)", "native": null, "status": "missing", "note": "static constant, grouped; no native giant path"},
+    {"kind": "field", "name": "scale", "sig": "float", "native": null, "status": "missing"},
+    {"kind": "ctor", "name": "RenderGiantZombie", "sig": "(ModelBase,float,float)V", "native": null, "status": "missing"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityGiantZombie,float)V", "native": null, "status": "missing", "note": "glScalef(scale, scale, scale)"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityGiantZombie)ResourceLocation", "native": null, "status": "missing"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": ["No native renderer for EntityGiantZombie: giants never spawn naturally, world.conf has no giant switch, and the native mob kind switch (play.c draw_hitboxes) has no giant case, so a giant would fall through to the hitbox path."]
+}

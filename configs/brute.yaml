@@ -1,0 +1,70 @@
+# brute.yaml: brute-forcing Minecraft from scratch on one RTX 3090 (GOAL.md, 2026-10-27), one run as one file, as a
+# PufferLib env's config is: sim is the environment (train-fast.yaml's world, start and fidelity, its 32x32 ray cast,
+# every part of the sim on the CPU, device_mesh 0, so the GPU is the learner's), policy the trainer's (mcsr-speedrun's
+# scripts/fastppo.py, branch brute: mcsr/fastrun.py maps these keys to its flags, and flags given on its command line
+# win). The fidelity switches have no Java counterpart, so a run found here replays on the Java client only at vanilla
+# fidelity (DEVLOG 2026-10-27 lane/tape).
+
+policy:
+  net:
+    kind: small                # 0.46M parameters on the 32x32 cast
+  ppo:
+    lr: 3e-4
+    ent: 0.003                 # 0.01 kept the policy wide and it never committed past the wooden pickaxe (lane/rounds)
+    clip: 0.2
+    gamma: 0.998
+    lam: 0.95
+    epochs: 3
+    mb: 8192
+    horizon: 64
+  starts:
+    seeds: 42                  # N, A-B or A,B,...: another seed's start captured once by the oracle (lane/seeds)
+    archive: ms                # a start saved at each milestone gained (lane/msstarts, lane/srng, lane/evict)
+    archive_items: wooden_pickaxe+stone_pickaxe+furnace+iron_ingot+iron_pickaxe+bucket+flint_and_steel+obsidian+diamond_pickaxe
+    archive_pool: 16
+    archive_share: 0.4
+  run:
+    hours: 2
+    log_every: 60
+
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 32x32       # 16x16 is the throughput lever (SPEC.md: 1.56x 32x32's env-steps/s)
+  pipeline:
+    kind: snapshot                 # saved world snapshot (rebranded from legacy gold)
+    start: spawn               # seed 42's spawn (configs/checkpoints.tsv); other seeds: policy.starts.seeds
+    worlds: 512                # the trainer's envs (fastppo --n)
+    groups: 4                  # --groups
+    episode_seconds: 180       # --seconds
+  fidelity:
+    spawning: off
+    spawn_types: monster,creature,ambient,water
+    mobs: all
+    random_ticks: off
+    weather: off
+  engine:
+    device_mesh: 0
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  performance:
+    workers: 30                # 30 of the dev host's 32 hardware threads; 2 for the trainer's (fastppo --threads)
+    streams: 2                 # explicit: 2 CUDA streams
+    group: 128                  # explicit: 128 envs/group (512 / 4)
+    batch: 512                 # explicit: 512 total batched envs
+    depth: 4                   # explicit: 4 in-flight pipeline groups
+    layout: doms               # env i on L3 i mod 2, a worker of that L3 (any of its CPUs) steps it: the dev host's two CCDs; the trainer 512x4 +24% (lane/cpuhot)
+    pin: 0
+    place: none
+    tune: off
+
+actions:
+  macros:
+    macros: base,iron,table-anywhere   # the mine lock, crafting with the iron plans, surfacing, looting
+    picks: off                 # on: the craft macro's recipes are a masked head the policy picks (lane/picks)

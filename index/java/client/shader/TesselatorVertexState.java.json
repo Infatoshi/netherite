@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/client/shader/TesselatorVertexState.java",
+  "classes": ["TesselatorVertexState"],
+  "lines": 59,
+  "side": "client",
+  "category": "client_render",
+  "role": "An immutable snapshot of the Tessellator's in-progress vertex buffer (raw int array, count, and the texture/brightness/normals/colour mode flags), saved and restored so a nested draw does not lose the outer draw's vertices.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Tessellator save/restore plumbing. The native meshers keep geometry in flat fixed arrays and build draw lists directly (csrc/engine/raster.c, csrc/engine/block_item_model.c); there is no nested vertex-buffer save/restore to mirror.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "TesselatorVertexState", "sig": "(int[],int,int,boolean,boolean,boolean,boolean)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getRawBuffer", "sig": "()[I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getRawBufferIndex", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getVertexCount", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getHasTexture", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getHasBrightness", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getHasNormals", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getHasColor", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "rawBuffer", "sig": "int[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "rawBufferIndex", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "vertexCount", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "hasTexture", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "hasBrightness", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "hasNormals", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "hasColor", "sig": "boolean", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

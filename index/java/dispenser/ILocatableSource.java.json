@@ -1,0 +1,17 @@
+{
+  "path": "oracle/src/dispenser/ILocatableSource.java",
+  "classes": [
+    "ILocatableSource"
+  ],
+  "lines": 5,
+  "side": "server",
+  "category": "util",
+  "role": "Marker interface: ILocation plus nothing of its own.",
+  "scope": "not_needed",
+  "scope_reason": "Never runs: dispensing is driven by redstone power and world.conf redstone = off (no block ever receives power), so BlockDispenser's dispense path is dead in the world both sides run; the dispenser window also has no native container yet (csrc/engine/survival.c:3169). The dispenser block and its tile entity do exist natively (csrc/engine/activate.c ID_DISPENSER, csrc/engine/tileentity.c TE_DISPENSER).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [],
+  "missing": []
+}

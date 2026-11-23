@@ -1,0 +1,40 @@
+{
+ "path": "csrc/engine/drops.c",
+ "lines": 743,
+ "role": "Block drops of 1.7.10 bit for bit: Block.dropBlockAsItemWithChance's count and chance-roll loop, dropBlockAsItem_do's three world-Random offsets plus the EntityItem constructor's Math.random draws, dropXpOnBlockBreak with EntityXPOrb's draws and getXPSplit, and a per-block-id switch of the getItemDropped / quantityDropped(WithBonus) / damageDropped overrides, over a seeded or caller-owned world Random.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/block/Block.java", "members": ["dropBlockAsItemWithChance", "dropBlockAsItem_do", "dropXpOnBlockBreak", "quantityDropped", "quantityDroppedWithBonus", "getItemDropped", "damageDropped"]},
+  {"path": "oracle/src/entity/item/EntityItem.java", "members": ["EntityItem"]},
+  {"path": "oracle/src/entity/item/EntityXPOrb.java", "members": ["EntityXPOrb", "getXPSplit"]},
+  {"path": "oracle/src/block/BlockOre.java", "members": ["getItemDropped", "quantityDropped", "quantityDroppedWithBonus", "dropBlockAsItemWithChance", "damageDropped"]},
+  {"path": "oracle/src/block/BlockLeaves.java", "members": ["dropBlockAsItemWithChance", "func_150124_c", "func_150123_b"]},
+  {"path": "oracle/src/block/BlockOldLeaf.java", "members": ["func_150124_c", "func_150123_b"]},
+  {"path": "oracle/src/block/BlockNewLeaf.java", "members": ["func_150124_c", "damageDropped"]},
+  {"path": "oracle/src/block/BlockCrops.java", "members": ["dropBlockAsItemWithChance", "getItemDropped"]},
+  {"path": "oracle/src/block/BlockGravel.java", "members": ["getItemDropped"]},
+  {"path": "oracle/src/block/BlockTallGrass.java", "members": ["getItemDropped", "quantityDroppedWithBonus"]},
+  {"path": "oracle/src/block/BlockRedstoneOre.java", "members": ["getItemDropped", "quantityDropped", "quantityDroppedWithBonus", "dropBlockAsItemWithChance"]},
+  {"path": "oracle/src/block/BlockGlowstone.java", "members": ["quantityDropped", "quantityDroppedWithBonus"]},
+  {"path": "oracle/src/block/BlockMelon.java", "members": ["quantityDropped", "quantityDroppedWithBonus"]},
+  {"path": "oracle/src/block/BlockStem.java", "members": ["dropBlockAsItemWithChance"]},
+  {"path": "oracle/src/block/BlockNetherWart.java", "members": ["dropBlockAsItemWithChance"]},
+  {"path": "oracle/src/block/BlockCocoa.java", "members": ["dropBlockAsItemWithChance"]},
+  {"path": "oracle/src/block/BlockHugeMushroom.java", "members": ["quantityDropped"]},
+  {"path": "oracle/src/block/BlockMobSpawner.java", "members": ["dropBlockAsItemWithChance"]},
+  {"path": "oracle/src/block/BlockDoublePlant.java", "members": ["getItemDropped", "damageDropped"]},
+  {"path": "oracle/src/block/BlockSkull.java", "members": ["breakBlock"]}
+ ],
+ "structs": [
+  {"name": "drop_ctx", "java": "the locals of one dropBlockAsItemWithChance call: world Random, Math.random stream, position, meta, fortune, chance, and the output buffer", "fields": ["math", "out", "n", "cap", "x", "y", "z", "meta", "fortune", "chance", "w"]},
+  {"name": "DROP_NAMES", "java": "the Items/Blocks the overrides name (cobblestone ... obsidian)", "fields": []}
+ ],
+ "entry_points": ["drops_break", "drops_break_live", "drops_break_stream", "drops_skull_break_stream", "drops_item_break_stream", "drops_xp_split", "drops_block_item"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 186-207, function emit_xp: while loop over the XP amount, bounded by amount since each split is at least 1"
+ ],
+ "tests": ["csrc/tests/test_drops.c", "csrc/tests/test_harvestdrops.c", "csrc/tests/test_containers.c", "csrc/tests/test_place.c", "csrc/tests/test_dig.c"],
+ "notes": "Blocks 0, 34, 36 and 97 return -1 (no drop path here: air, piston extension/moving, silverfish). Player-dependent paths (silk touch, shears, canHarvestBlock) live in dig.c and harvestdrops.c, not here. Fortune is covered for 0..4. Callers: dig.c, blockcb.c, item_entity.c, explosion.c, place.c, survival.c, dev.c. Recordings: out/java/drops (DropsProbe, test_drops.c) and out/java/harvestdrops. Java member names for the per-block overrides were taken from drops.c's comments and MCP conventions; func_150124_c/func_150123_b placement between BlockLeaves and its subclasses was not re-verified."
+}

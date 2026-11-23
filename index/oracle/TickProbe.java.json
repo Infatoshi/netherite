@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/TickProbe.java",
+ "lines": 1168,
+ "role": "Random block tick probe: over a raw region, each case rebuilds a small scene (its SCENES table: grass, mycelium, leaves, crops, sapling, cactus, reed, vine, stems, cocoa, nether wart, mushrooms, ice, snow, farmland, redstone ore and more) at a slot anchor, seeds the world Random and calls the anchor block's updateTick, recording every write, the 3x3 hash and the world Random state after the tick.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=TickProbe (the generic {\"cmd\":\"run\",\"class\":\"TickProbe\"} reflection dispatch in Oracle.java)",
+  "csrc/tests/test_ticks.c",
+  "csrc/engine/randomtick.c and randomtick.h (cite it as the reference)",
+  "oracle/harness/netherite/oracle/FallHangProbe.java (reuses its helpers)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Replaces the shared Math.random stream for the sweep the way DropsProbe does. Output manifest.json, scenes.bin, cases.bin, writes.bin, final.bin.gz. Scene list summarized, not enumerated. No oracle/src hook."
+}

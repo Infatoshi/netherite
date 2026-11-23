@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/world/ColorizerGrass.java",
+  "classes": ["ColorizerGrass"],
+  "lines": 24,
+  "side": "client",
+  "category": "client_render",
+  "role": "The grass colormap lookup (grasscolor.png indexed by temperature and humidity) that tints grass, tall grass, reeds and vines.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["colormap_lookup", "grass_color_multiplier", "biome_color"]}
+  ],
+  "evidence": ["csrc/tests/test_render.c", "csrc/tests/test_meshes.c"],
+  "members": [
+    {"kind": "field", "name": "grassBuffer", "sig": "static int[65536]", "native": "csrc/engine/render_blocks.c:grass_map", "status": "exact"},
+    {"kind": "method", "name": "setGrassBiomeColorizer", "sig": "(int[])V", "native": null, "status": "n/a", "note": "the table is loaded with the mesher inputs"},
+    {"kind": "method", "name": "getGrassColor", "sig": "(double,double)I", "native": "csrc/engine/render_blocks.c:colormap_lookup", "status": "exact"},
+    {"kind": "ctor", "name": "ColorizerGrass", "sig": "()", "native": null, "status": "n/a", "note": "a class of static members only: nothing in oracle/src constructs it (no `new ColorizerGrass`), so its implicit constructor never runs"}
+  ],
+  "missing": [],
+  "notes": "Status exact assumes the mesh/pixel tests cover tinted grass; not re-run here."
+}

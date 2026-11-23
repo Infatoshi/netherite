@@ -1,0 +1,282 @@
+{
+  "path": "oracle/src/tileentity/TileEntity.java",
+  "classes": [
+    "TileEntity",
+    "TileEntity$1",
+    "TileEntity$2",
+    "TileEntity$3"
+  ],
+  "lines": 305,
+  "side": "common",
+  "category": "tileentity",
+  "role": "Base class of every block entity: position, world, the invalid flag, the cached block and metadata, the NBT id registry (class to name) and createAndLoadEntity, plus the empty hooks subclasses override.",
+  "scope": "in_scope",
+  "scope_reason": "Chests, spawners, furnaces and the rest are created by worldgen and placement and saved in every chunk.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "tile_entity",
+        "te_store",
+        "TE_CHEST",
+        "TE_END_PORTAL"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "te_kind_of_block",
+        "te_new",
+        "te_free",
+        "te_load",
+        "te_render",
+        "te_find",
+        "te_put",
+        "te_remove",
+        "render_plain"
+      ]
+    },
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "world_tile_entity",
+        "world_set_tile_entity",
+        "world_remove_tile_entity",
+        "world_mark_tile_entity_gone"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "tileticks_pass",
+        "te_update"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_tileent.c",
+      "symbols": [
+        "raster_tileents_draw"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_snapshots.c",
+    "out/java/tileticks/full2-v2",
+    "out/java/snapshots/te-ticks-s1",
+    "out/java/snapshots/te-chest-s1",
+    "out/java/clientframes/idx-pickcap-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "logger, nameToClassMap, classToNameMap",
+      "sig": "static",
+      "native": "csrc/engine/tileentity.c:te_render",
+      "status": "exact",
+      "note": "the id strings are written per kind in te_render; te_kind_of_block maps block ids to kinds"
+    },
+    {
+      "kind": "field",
+      "name": "worldObj",
+      "sig": "World",
+      "native": null,
+      "status": "n/a",
+      "note": "passed as an argument natively"
+    },
+    {
+      "kind": "field",
+      "name": "field_145851_c, field_145848_d, field_145849_e",
+      "sig": "int x,y,z",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "tileEntityInvalid",
+      "sig": "boolean",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact",
+      "note": "invalid"
+    },
+    {
+      "kind": "field",
+      "name": "blockMetadata",
+      "sig": "int",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact",
+      "note": "block_metadata, -1 until read"
+    },
+    {
+      "kind": "field",
+      "name": "blockType",
+      "sig": "Block",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact",
+      "note": "The block id is read from the cell where vanilla caches getBlockType; the cache only saves a lookup."
+    },
+    {
+      "kind": "method",
+      "name": "func_145826_a",
+      "sig": "(Class,String)V",
+      "native": "csrc/engine/tileentity.c:te_render",
+      "status": "exact",
+      "note": "registry, as per-kind id strings"
+    },
+    {
+      "kind": "method",
+      "name": "getWorldObj",
+      "sig": "()World",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setWorldObj",
+      "sig": "(World)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "hasWorldObj",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_render",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "updateEntity",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:te_update",
+      "status": "exact",
+      "note": "dispatch by kind"
+    },
+    {
+      "kind": "method",
+      "name": "createAndLoadEntity",
+      "sig": "(NBTTagCompound)TileEntity",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "The kind from the id (te_load); an unknown id is kept verbatim, a loaded chunk never holds one in survival."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockMetadata",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact",
+      "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-idx-pickcap-s1 and others (the chest and sign renderers); its server callers are the dispenser, piston and hopper paths (redstone = off)"
+    },
+    {
+      "kind": "method",
+      "name": "onInventoryChanged",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:furnace_update",
+      "status": "exact",
+      "note": "markDirty's metadata re-read and chunk dirty flag at the call sites; its comparator notification is world.conf redstone = off."
+    },
+    {
+      "kind": "method",
+      "name": "getDistanceFrom",
+      "sig": "(DDD)D",
+      "native": "csrc/engine/raster_tileent.c:raster_tileents_draw",
+      "status": "exact",
+      "note": "the dispatcher's range test from the tile's centre"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxRenderDistanceSquared",
+      "sig": "()D",
+      "native": "csrc/engine/raster_tileent.c:raster_tileents_draw",
+      "status": "exact",
+      "note": "4096 for every kind drawn (the beacon's 65536 belongs to a switched-off feature)"
+    },
+    {
+      "kind": "method",
+      "name": "getBlockType",
+      "sig": "()Block",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getDescriptionPacket",
+      "sig": "()Packet",
+      "native": null,
+      "status": "n/a",
+      "note": "The playable client draws each tile entity from the server's copy (one process: play.c, raster_tileent.c), so the description packet's content, sent whenever the server copy changes, is what it already reads; no row carries the client copy."
+    },
+    {
+      "kind": "method",
+      "name": "isInvalid",
+      "sig": "()Z",
+      "native": "csrc/engine/tileticks.c:tileticks_pass",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "invalidate",
+      "sig": "()V",
+      "native": "csrc/engine/world.c:world_mark_tile_entity_gone",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "validate",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:furnace_update",
+      "status": "exact",
+      "note": "saved->invalid = 0 in the furnace swap; other sites in world.c"
+    },
+    {
+      "kind": "method",
+      "name": "receiveClientEvent",
+      "sig": "(II)Z",
+      "native": null,
+      "status": "exact",
+      "note": "The base answers false; the overrides' server halves change nothing (see the chest, ender chest and spawner records) and their client halves are the playable client's lid and spinner, stepped from the server tile entity (play.c:tileents_tick, raster_tileent.c:raster_tileents_lid_tick; test_rendertick's lid steps)."
+    },
+    {
+      "kind": "method",
+      "name": "updateContainingBlockInfo",
+      "sig": "()V",
+      "native": null,
+      "status": "exact",
+      "note": "The chest's adjacent_checked reset on a neighbour change (blockcb.c) and the block-type re-read on a write (world.c); te-chest-s1."
+    },
+    {
+      "kind": "method",
+      "name": "func_145828_a",
+      "sig": "(CrashReportCategory)V",
+      "native": null,
+      "status": "n/a",
+      "note": "crash report"
+    },
+    {
+      "kind": "method",
+      "name": "TileEntity$1.call / TileEntity$2.call / TileEntity$3.call",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "n/a: a CrashReportCategory detail (TileEntity.func_145828_a, lines 237-263); it runs only while a crash report is written, which no game path in scope does"
+    }
+  ],
+  "missing": [],
+  "notes": "Nested classes are the three anonymous crash-report Callables. A tile entity is one malloc'd struct in a per-chunk pointer array (te_put reallocs); that is a GPU-contract concern recorded on the native side. lane/idxblocks: the S35/S33 and client-event members are the one-process client; the rest is exact."
+}

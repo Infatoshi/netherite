@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/block/BlockLeavesBase.java",
+  "classes": ["BlockLeavesBase"],
+  "lines": 18,
+  "side": "common",
+  "category": "block",
+  "role": "The abstract base both leaf blocks extend: the fancy-graphics flag, opaque-cube inversion, and the same-block face cull.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["rb_mesh_section"]}
+  ],
+  "evidence": [
+    "out/java/chunks",
+    "csrc/tests/test_populate.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150121_P", "sig": "boolean", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "the fancy-graphics flag: opaque_cube is its inverse in rows 18 and 161"},
+    {"kind": "ctor", "name": "BlockLeavesBase", "sig": "(Lnet/minecraft/block/material/Material;Z)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "rows 18 and 161 carry the flag"},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "n/a", "note": "its only subclass, BlockLeaves, overrides isOpaqueCube"},
+    {"kind": "method", "name": "shouldSideBeRendered", "sig": "(IBlockAccess,IIII)Z", "native": "csrc/engine/render_blocks.c:rb_mesh_section", "status": "partial", "note": "the same-block face cull (the fancy-graphics check) is folded into the mesher's face logic; the pixel gate covers it"}
+  ],
+  "missing": [],
+  "notes": "Abstract on the native side too: the behaviour is folded into the two concrete leaf rows and the mesher. The remainder of BlockLeavesBase is the plain Block default."
+}

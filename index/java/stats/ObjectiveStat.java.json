@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/stats/ObjectiveStat.java",
+  "classes": ["ObjectiveStat"],
+  "lines": 15,
+  "side": "common",
+  "category": "stats",
+  "role": "A scoreboard objective criterion named after a stat id, created for every StatBase so /scoreboard objectives can track stats.",
+  "scope": "not_needed",
+  "scope_reason": "Scoreboards are driven only by commands, which this game does not use; no objective is ever created on the tapes.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_151459_g", "sig": "StatBase", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ObjectiveStat", "sig": "(StatBase)V", "native": null, "status": "n/a"}
+  ],
+  "missing": []
+}

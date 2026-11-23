@@ -1,0 +1,241 @@
+{
+  "path": "oracle/src/block/BlockCauldron.java",
+  "classes": [
+    "BlockCauldron"
+  ],
+  "lines": 244,
+  "side": "common",
+  "category": "block",
+  "role": "The cauldron: holds water (three levels), fills from a water bucket and fills glass bottles from itself, catches rain, and shrinks by metadata.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "act_run",
+        "cauldron_level"
+      ]
+    },
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "world_fill_with_rain"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "place_try"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks3.c",
+      "symbols": [
+        "rb3_render_cauldron"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/entity.c",
+      "symbols": [
+        "entity_move_ex"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_server_use_packet"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_activate.c",
+    "out/java/activate/seed2",
+    "out/java/drops/s2",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/meshes/scene3-42",
+    "csrc/tests/test_meshes.c",
+    "out/java/snapshots/rain-mix-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockCauldron",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "Entry 118: hardness 2, render type 24."
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)IIcon",
+      "native": "csrc/engine/render_blocks3.c:rb3_render_cauldron",
+      "status": "exact",
+      "note": "The inside, outside and water icons; the mesh scenes compare every cauldron vertex; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Atlas naming only."
+    },
+    {
+      "kind": "method",
+      "name": "func_150026_e",
+      "sig": "(World,III)int",
+      "native": null,
+      "status": "n/a",
+      "note": "Only the comparator reads it: world.conf redstone = off."
+    },
+    {
+      "kind": "method",
+      "name": "addCollisionBoxesToList",
+      "sig": "(World,IIIAxisAlignedBB,List,Entity)V",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "The base (0.3125 high) then the four 0.125 walls, each its own box, in that order; the pool box stays the full cube setBlockBoundsForItemRender leaves. details-blocks-s1 drops the player in and walks and jumps it against the walls."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsForItemRender",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "The item form is the full cube bounds the registry carries."
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "24; the dispatch at render_blocks.c:3107."
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "false."
+    },
+    {
+      "kind": "method",
+      "name": "onEntityCollidedWithBlock",
+      "sig": "(World,IIIIEntity)V",
+      "native": "csrc/engine/entity.c:entity_move_ex",
+      "status": "exact",
+      "note": "COLLIDE_EFFECT_CAULDRON on a server world: a burning entity whose box bottom is at or below y + (6 + 3 * level) / 16 is put out and the level drops by one (flag 2). details-blocks-s1: Fire 42 to -20 while falling in, level 3 to 2."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIIIIIIFFF)Z",
+      "native": "csrc/engine/activate.c:act_run",
+      "status": "exact",
+      "note": "The bucket and bottle branches in activate.c; the leather branch in survival.c's surv_server_use_packet (ItemArmor.removeColor on the live stack's display tag, then the level write; the branch does not test hasColor, so an undyed piece empties the cauldron too). details-blocks-s1 washes a red chestplate and empties the cauldron with it."
+    },
+    {
+      "kind": "method",
+      "name": "func_150024_a",
+      "sig": "(World,IIII)V",
+      "native": "csrc/engine/activate.c:cauldron_level",
+      "status": "exact",
+      "note": "The clamped level write, activate.c:443."
+    },
+    {
+      "kind": "method",
+      "name": "fillWithRain",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/world.c:world_fill_with_rain",
+      "status": "exact",
+      "note": "The nextInt(20) fill, world.c:1796."
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(IRandomI)Item",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "The cauldron item, drops.c:571."
+    },
+    {
+      "kind": "method",
+      "name": "getItem",
+      "sig": "(World,III)Item",
+      "native": "csrc/engine/pickblock.c:block_get_item",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "hasComparatorInputOverride",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "world.conf redstone = off."
+    },
+    {
+      "kind": "method",
+      "name": "getComparatorInputOverride",
+      "sig": "(World,IIII)I",
+      "native": null,
+      "status": "n/a",
+      "note": "world.conf redstone = off."
+    },
+    {
+      "kind": "method",
+      "name": "func_150027_b",
+      "sig": "(World,III)I",
+      "native": "csrc/engine/entity.c:entity_move_ex",
+      "status": "exact",
+      "note": "The level is the metadata."
+    },
+    {
+      "kind": "method",
+      "name": "func_150025_c",
+      "sig": "(I)F",
+      "native": "csrc/engine/render_blocks3.c:rb3_render_cauldron",
+      "status": "exact",
+      "note": "The water-surface height, cited at render_blocks3.c:1218; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+    }
+  ],
+  "missing": [],
+  "notes": "The activation machine's leather wash runs in survival.c over the live stack (activate.c's machine carries no tag). place.c:210 maps item 380 to the block. survival.c answers the client-side activation as true. lane/idxblocks: the comparator members are the redstone switch; the rest is exact."
+}

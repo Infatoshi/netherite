@@ -1,0 +1,46 @@
+{
+ "path": "csrc/engine/session.h",
+ "lines": 109,
+ "role": "Declares the snapshot session (session.c) that play.c and test_snapshots.c share: struct session, its hooks and the open, parse, tick and close calls.",
+ "layer": "client",
+ "java": [],
+ "structs": [
+  {
+   "name": "session",
+   "java": null,
+   "fields": [
+    "cp",
+    "sp",
+    "sr",
+    "client_world",
+    "server_rows",
+    "hooks"
+   ]
+  },
+  {
+   "name": "session_hooks",
+   "java": null,
+   "fields": [
+    "on_chunk",
+    "world_changed",
+    "before_client_tick",
+    "after_world_tick",
+    "after_player_tick"
+   ]
+  }
+ ],
+ "entry_points": [
+  "session_refuse_dev",
+  "session_open",
+  "session_parse_act",
+  "session_tick",
+  "session_close",
+  "session_open_at"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Header for session.c. lane/keyframes: session_open_at opens a snapshot that is not the recording's own start (a keyframe): the snapshot's directory for its files and save overlay, the recording's for the checkpoint fallback."
+}

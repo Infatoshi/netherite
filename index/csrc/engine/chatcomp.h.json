@@ -1,0 +1,79 @@
+{
+  "path": "csrc/engine/chatcomp.h",
+  "lines": 156,
+  "role": "Declares the chat component tree (chat_comp, cc_comp, cc_style), EnumChatFormatting's constants (CF_*), the click and hover actions, and chatcomp.c's builders, serializer, parts walk and S02.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/util/EnumChatFormatting.java",
+      "members": [
+        "BLACK..RESET"
+      ]
+    },
+    {
+      "path": "oracle/src/util/ChatStyle.java",
+      "members": [
+        "parentStyle",
+        "color",
+        "bold",
+        "italic",
+        "underlined",
+        "strikethrough",
+        "obfuscated",
+        "chatClickEvent",
+        "chatHoverEvent"
+      ]
+    },
+    {
+      "path": "oracle/src/util/ChatComponentStyle.java",
+      "members": [
+        "siblings",
+        "style"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "chat_comp",
+      "java": "an IChatComponent tree",
+      "fields": [
+        "comp",
+        "style",
+        "pool"
+      ]
+    },
+    {
+      "name": "cc_comp",
+      "java": "ChatComponentText / ChatComponentTranslation",
+      "fields": [
+        "kind",
+        "style",
+        "str",
+        "sib",
+        "arg",
+        "arg_raw"
+      ]
+    },
+    {
+      "name": "cc_style",
+      "java": "ChatStyle",
+      "fields": [
+        "color",
+        "bold",
+        "italic",
+        "underlined",
+        "strikethrough",
+        "obfuscated",
+        "click",
+        "hover",
+        "parent"
+      ]
+    }
+  ],
+  "entry_points": [],
+  "tick_path": true,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ]
+}

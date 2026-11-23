@@ -1,0 +1,15 @@
+{"cmd":"run","class":"Snapshot"}
+{"n":2,"act":{}}
+{"cmd":"dev","op":"fill","x0":39,"y0":87,"z0":-74,"x1":43,"y1":87,"z1":-72,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":39,"y0":88,"z0":-74,"x1":43,"y1":90,"z1":-72,"id":0,"meta":0}
+{"cmd":"dev","op":"setblock","x":39,"y":87,"z":-71,"id":1,"meta":0}
+{"cmd":"dev","op":"setblock","x":39,"y":88,"z":-71,"id":0,"meta":0}
+{"cmd":"dev","op":"slot","slot":0,"item":1,"count":64}
+{"cmd":"dev","op":"state","health":20.0,"food":20,"saturation":5.0}
+{"cmd":"dev","op":"tp","x":41.5,"y":88.0,"z":-72.5,"yaw":49.6,"pitch":31.7}
+{"n":5,"act":{"hotbar":0,"look":[49.6,31.7]}}
+{"n":1,"act":{"look":[49.6,31.7],"press":["use"]}}
+{"n":10,"act":{"look":[49.6,31.7]}}
+{"n":1,"act":{"look":[90.0,39.0]}}
+{"n":1,"act":{"look":[90.0,39.0],"press":["use"]}}
+{"n":20,"act":{"look":[90.0,39.0]}}

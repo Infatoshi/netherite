@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/ClientBrandRetriever.java",
+  "classes": ["ClientBrandRetriever"],
+  "lines": 13,
+  "side": "client",
+  "category": "misc",
+  "role": "Returns the client brand string the game reports in its log line and to servers as 'brand'.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "getClientModName", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The brand string is cosmetic log/protocol metadata; the native engine reports no brand. No gameplay behavior depends on it. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Returns 'vanilla' for the crash report, the integrated server's mod name and the MC|Brand payload the client sends at join (NetHandlerPlayClient.java:284, before the first recorded tick); no game state reads it."
+}

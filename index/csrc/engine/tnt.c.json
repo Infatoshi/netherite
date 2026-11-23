@@ -1,0 +1,70 @@
+{
+ "path": "csrc/engine/tnt.c",
+ "lines": 195,
+ "role": "TNT in the whole-server replay: BlockTNT's flint-and-steel activation (primed entity spawn, block to air, lighter wear) and the primed TNT's explode as a 4.0 newExplosion over the replay's item pool, living entities and the server player, with the S27 knockback accumulated for the player.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/block/BlockTNT.java",
+   "members": [
+    "onBlockActivated",
+    "func_150114_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityTNTPrimed.java",
+   "members": [
+    "explode"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "newExplosion"
+   ]
+  },
+  {
+   "path": "oracle/src/world/Explosion.java",
+   "members": [
+    "doExplosionA",
+    "field_77288_k"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemStack.java",
+   "members": [
+    "damageItem"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "tnt_blast",
+   "java": "Explosion's context for one TNT blast: the exploder's placer and the player's knockback entry in Explosion.field_77288_k",
+   "fields": [
+    "sr",
+    "by_player",
+    "player_hit",
+    "kx",
+    "ky",
+    "kz"
+   ]
+  }
+ ],
+ "entry_points": [
+  "tnt_replay_explode",
+  "tnt_server_activate"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 133-134 and 140-141, function tnt_replay_explode: writes the global explosion flags expl_exclude_ie and expl_placed_by_player around the call",
+  "function blast_query: the query list holds every match (AN_QUERY_LIST, AN_MAX_ENTITIES from the env scratch stack) (lane/querybounds, AI-02)",
+  "lines 80-121, function blast_query: the blast's entity pass is a callback table (expl_extra.attack_from / add_motion function pointers over void* entities)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_lightning.c"
+ ],
+ "notes": "Called from survival.c (tnt_server_activate on block 46 when not sneaking) and serverreplay.c (installs tnt_replay_explode as iew.on_tnt_explode). No blast protection is modelled, so the player's knockback vector is the push itself. The primed entity's fuse and motion are item_entity.c's IE_TNT; fire priming is fire.c. Tests listed are those that link serverreplay; which recordings exercise TNT was not verified. The Explosion.java member names are the vanilla ones expl_run_extras stands in for, not checked in explosion.c."
+}

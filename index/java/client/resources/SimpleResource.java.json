@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/client/resources/SimpleResource.java",
+  "classes": ["SimpleResource"],
+  "lines": 100,
+  "side": "client",
+  "category": "client_resources",
+  "role": "IResource over an opened stream plus its optional .mcmeta side stream; parses the .mcmeta JSON into an IMetadataSection on demand through IMetadataSerializer.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Resource pack stream plumbing and .mcmeta parsing. The native engine consumes pre-dumped .rgba/.bin sheets from the render scene and never parses asset metadata JSON.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "SimpleResource", "sig": "(ResourceLocation,InputStream,InputStream,IMetadataSerializer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getInputStream", "sig": "()InputStream", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasMetadata", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMetadata", "sig": "(String)IMetadataSection", "native": null, "status": "n/a", "note": "parses the .mcmeta JSON once, then caches"},
+    {"kind": "method", "name": "equals", "sig": "(Object)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hashCode", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "mapMetadataSections", "sig": "Map", "native": null, "status": "n/a", "note": "parsed-section cache"},
+    {"kind": "field", "name": "srResourceLocation", "sig": "ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "resourceInputStream", "sig": "InputStream", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "mcmetaInputStream", "sig": "InputStream", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "srMetadataSerializer", "sig": "IMetadataSerializer", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "mcmetaJsonChecked", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "mcmetaJson", "sig": "JsonObject", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

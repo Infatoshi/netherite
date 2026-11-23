@@ -1,0 +1,159 @@
+{
+ "classes": [
+  "ActiveRenderInfo"
+ ],
+ "lines": 116,
+ "side": "client",
+ "category": "client_render",
+ "role": "Static render-info helper: reads the GL modelview/projection/viewport to get the unprojected view-object coordinates, and computes the yaw/pitch rotation basis every billboard pass uses, plus the block at the entity viewpoint for fog.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "raster_particles_scene",
+    "raster_particles_draw_live"
+   ]
+  },
+  {
+   "file": "csrc/play/play.c",
+   "symbols": [
+    "build_rs"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/particles_dig",
+  "out/java/render/hud_underwater",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "objectX",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "the gluUnProject path is not ported; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "objectY",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "objectZ",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "viewport",
+   "sig": "IntBuffer",
+   "native": null,
+   "status": "n/a",
+   "note": "GL state reads are not ported; the raster passes compute matrices natively"
+  },
+  {
+   "kind": "field",
+   "name": "modelview",
+   "sig": "FloatBuffer",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "projection",
+   "sig": "FloatBuffer",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "objectCoords",
+   "sig": "FloatBuffer",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "rotationX",
+   "sig": "float",
+   "native": "csrc/engine/raster_particles.c:raster_particles_scene",
+   "status": "exact",
+   "note": "cos(yaw) sign-flipped for third person"
+  },
+  {
+   "kind": "field",
+   "name": "rotationXZ",
+   "sig": "float",
+   "native": "csrc/engine/raster_particles.c:raster_particles_scene",
+   "status": "exact",
+   "note": "cos(pitch)"
+  },
+  {
+   "kind": "field",
+   "name": "rotationZ",
+   "sig": "float",
+   "native": "csrc/engine/raster_particles.c:raster_particles_scene",
+   "status": "exact",
+   "note": "sin(yaw) sign-flipped"
+  },
+  {
+   "kind": "field",
+   "name": "rotationYZ",
+   "sig": "float",
+   "native": "csrc/engine/raster_particles.c:raster_particles_scene",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rotationXY",
+   "sig": "float",
+   "native": "csrc/engine/raster_particles.c:raster_particles_scene",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateRenderInfo",
+   "sig": "(EntityPlayer,Z)V",
+   "native": "csrc/engine/raster_particles.c:raster_particles_scene",
+   "status": "partial",
+   "note": "the first-person rotation basis is recomputed per pass in raster_particles.c (recorded and live) and the GL matrix reads are folded into the native camera math; objectX/Y/Z from gluUnProject are not ported"
+  },
+  {
+   "kind": "method",
+   "name": "projectViewFromEntity",
+   "sig": "(EntityLivingBase,D)Vec3",
+   "native": null,
+   "status": "partial",
+   "note": "folded into play.c:build_rs's interpolated eye position used for the viewpoint block"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockAtEntityViewpoint",
+   "sig": "(World,EntityLivingBase,F)Block",
+   "native": "csrc/play/play.c:build_rs",
+   "status": "exact",
+   "note": "interpolated eye, floor, liquid height offset 0.11111111 and the one-block-up probe"
+  },
+  {
+   "kind": "ctor",
+   "name": "ActiveRenderInfo",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "never constructed: every member is static (lane/covclient)"
+  }
+ ],
+ "missing": [],
+ "notes": "The rotation basis appears twice in raster_particles.c (recorded scene path and live path) with the same formulas. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): GL plumbing: GL is the numerical oracle, not emitted (SPEC); atlases and meshes are consumed as data. Formerly listed as missing: The gluUnProject object coordinates (objectX/Y/Z) are not ported; nothing native reads them.",
+ "path": "oracle/src/client/renderer/ActiveRenderInfo.java"
+}

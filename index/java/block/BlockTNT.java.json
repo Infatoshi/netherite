@@ -1,0 +1,184 @@
+{
+  "path": "oracle/src/block/BlockTNT.java",
+  "classes": [
+    "BlockTNT"
+  ],
+  "lines": 142,
+  "side": "common",
+  "category": "block",
+  "role": "The TNT block (id 46): primed by flint and steel, by a burning arrow, or by redstone power; explodes as EntityTNTPrimed; drops itself when mined but not when destroyed by an explosion.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS",
+        "MATERIALS"
+      ]
+    },
+    {
+      "file": "csrc/engine/tnt.c",
+      "symbols": [
+        "tnt_server_activate",
+        "tnt_replay_explode"
+      ]
+    },
+    {
+      "file": "csrc/engine/explosion.c",
+      "symbols": [
+        "expl_run",
+        "expl_run_extras"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_dispatch"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_arrow_tnt"
+      ]
+    },
+    {
+      "file": "csrc/engine/projectile.c",
+      "symbols": [
+        "arrow_block_collisions"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_client_use_pressed",
+        "surv_damage_stack",
+        "client_damage_stack"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_explosions.c",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/meshes/scene3-42",
+    "csrc/tests/test_meshes.c",
+    "out/java/snapshots/tnt-chain-s1",
+    "out/java/snapshots/tnt-fire-s1",
+    "out/java/snapshots/struct-tnt-s42",
+    "out/java/snapshots/tools-break-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_150116_a",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_150115_b",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockTNT",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "id 46: Material.tnt row (canBurn, translucent), opacity 0"
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "exact",
+      "note": "The top, bottom and side icons; the mesh scenes compare every TNT vertex u and v."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockAdded",
+      "sig": "(Lnet/minecraft/world/World;III)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the redstone-primed branch; no block ever receives power (world.conf redstone = off), so the body is dead"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "same dead redstone branch; TNT stays put, as world.conf documents"
+    },
+    {
+      "kind": "method",
+      "name": "quantityDropped",
+      "sig": "(Ljava/util/Random;)I",
+      "native": "csrc/engine/drops.c:drops_dispatch",
+      "status": "exact",
+      "note": "1; falls to the dispatch's default self-drop rather than a named case 46"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockDestroyedByExplosion",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/world/Explosion;)V",
+      "native": "csrc/engine/explosion.c:expl_run_extras",
+      "status": "exact",
+      "note": "primes an EntityTNTPrimed with fuse nextInt(fuse/4) + fuse/8 and the blast's placer"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockDestroyedByPlayer",
+      "sig": "(Lnet/minecraft/world/World;IIII)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Reached when a player breaks TNT, but it primes only when meta & 1 is set, which only a powered onBlockAdded or neighbour change writes: world.conf redstone = off. Survival TNT breaks with meta 0 and drops itself."
+    },
+    {
+      "kind": "method",
+      "name": "func_150114_a",
+      "sig": "(Lnet/minecraft/world/World;IIIIILnet/minecraft/entity/EntityLivingBase;)V",
+      "native": "csrc/engine/tnt.c:tnt_server_activate",
+      "status": "exact",
+      "note": "The flint-and-steel prime (tnt.c:tnt_server_activate) and the burning arrow's (projectile.c); the redstone callers are the switch."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z",
+      "native": "csrc/engine/tnt.c:tnt_server_activate",
+      "status": "exact",
+      "note": "flint and steel primes and clears the block; the client half (the block cleared and the flint worn before the C08, which carries the worn stack) is survival.c:surv_client_use_pressed. The flint's damageItem(1, player) is surv_damage_stack (a worn-out flint's break draws and stat, the slot emptied as processPlayerBlockPlacement does); the client's half wears its copy through survival.c client_damage_stack."
+    },
+    {
+      "kind": "method",
+      "name": "onEntityCollidedWithBlock",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/Entity;)V",
+      "native": "csrc/engine/serverreplay.c:sr_arrow_tnt",
+      "status": "exact",
+      "note": "EntityArrow.onUpdate's func_145775_I (projectile.c:arrow_block_collisions) hands a burning arrow's TNT cell to the living world's on_arrow_tnt: func_150114_a's primed TNT (the shooter as the placer when it is the player), then setBlockToAir. details-blocks-s1 shoots a Flame bow at a TNT block."
+    },
+    {
+      "kind": "method",
+      "name": "canDropFromExplosion",
+      "sig": "(Lnet/minecraft/world/Explosion;)Z",
+      "native": "csrc/engine/explosion.c:expl_run",
+      "status": "exact",
+      "note": "the false branch at explosion.c:452: no TNT item in the blast's drops"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "The redstone priming branch (onBlockAdded, onNeighborBlockChange, and onBlockDestroyedByPlayer which only they call) is dead under world.conf redstone = off and marked n/a rather than missing. test_explosions.c exercises the explosion paths including TNT priming. lane/idxblocks: reviewed."
+}

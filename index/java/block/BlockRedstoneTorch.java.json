@@ -1,0 +1,244 @@
+{
+ "path": "oracle/src/block/BlockRedstoneTorch.java",
+ "classes": [
+  "BlockRedstoneTorch",
+  "BlockRedstoneTorch.Toggle"
+ ],
+ "lines": 252,
+ "side": "common",
+ "category": "block",
+ "role": "The redstone torch, lit (76) and unlit (75): an inverter that turns off when its support is powered, with the 8-toggles-in-60-ticks burnout list, and neighbour notifications when it changes.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: the redstone torch is craftable and placeable; its onBlockAdded and breakBlock notify the six neighbours' neighbours (block updates that liquids and falling blocks react to), it ticks randomly, and the lit torch emits particles. Only the power it emits reaches nothing.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "torch_on_added",
+    "block_torch_update_tick",
+    "torch_neighbor"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "update_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "can_place_block_at",
+    "on_block_placed"
+   ]
+  },
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_random_display_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/liq-wash-s1",
+  "csrc/tests/test_place.c",
+  "out/java/place/big2",
+  "csrc/tests/test_tileticks.c",
+  "out/java/snapshots/pickblock-s1",
+  "out/java/snapshots/rs-lever-s1",
+  "csrc/tests/test_snapshots.c",
+  "out/java/rendertick/fx_redstone",
+  "csrc/tests/test_rendertick.c",
+  "out/java/snapshots/cov-blkmisc-s1",
+  "out/java/snapshots/cov-blkpower-s1",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150113_a",
+   "sig": "boolean",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "lit flag: 76 light 7"
+  },
+  {
+   "kind": "field",
+   "name": "field_150112_b",
+   "sig": "static Map<World,List<Toggle>>",
+   "native": null,
+   "status": "n/a",
+   "note": "burnout history; never fed without power"
+  },
+  {
+   "kind": "method",
+   "name": "func_150111_a",
+   "sig": "(World,IIIZ)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "burnout count; unreachable"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRedstoneTorch",
+   "sig": "(Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 75 and 76, tick_randomly"
+  },
+  {
+   "kind": "method",
+   "name": "func_149738_a",
+   "sig": "(World)I",
+   "native": null,
+   "status": "n/a",
+   "note": "tick rate 2"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:torch_on_added",
+   "status": "exact",
+   "note": "BlockTorch's facing when meta 0, then the lit torch's six neighbour rounds"
+  },
+  {
+   "kind": "method",
+   "name": "breakBlock",
+   "sig": "(World,IIIBlockI)V",
+   "native": "csrc/engine/blockcb.c:bwl_on_broken",
+   "status": "exact",
+   "note": "the lit torch (field_150113_a) runs the six neighbour rounds on removal; a static liquid two cells away turns flowing (liq-wash-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingWeakPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "power"
+  },
+  {
+   "kind": "method",
+   "name": "func_150110_m",
+   "sig": "(World,III)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "support powered test; always false"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/servertick.c:update_tick",
+   "status": "exact",
+   "note": "case 76: BlockTorch's part via block_torch_update_tick; the state machine writes nothing"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:torch_neighbor",
+   "status": "exact",
+   "note": "BlockTorch's support drop; the lit torch's schedule needs power (func_150110_m), which is 0 with redstone off, and the unlit torch (75) is never made in survival: rs-lever-s1 pulls the walls from under two torches"
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingStrongPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "power"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 75/76: the lit torch item"
+  },
+  {
+   "kind": "method",
+   "name": "canProvidePower",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "registry flag"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the reddust particle with its three draws; test_rendertick matches every spawn and every particle field per tick against the oracle's log in out/java/rendertick/fx_redstone (12 reddust spawns); clientworld.c keeps the draws for the client world"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149667_c",
+   "sig": "(Block)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "same-block test for BlockTorch"
+  },
+  {
+   "kind": "ctor",
+   "name": "Toggle",
+   "sig": "(IIIJ)V",
+   "native": null,
+   "status": "n/a",
+   "note": "burnout record"
+  },
+  {
+   "kind": "field",
+   "name": "Toggle fields",
+   "sig": "int x, y, z; long time",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRedstoneTorch$Toggle",
+   "sig": "(all)",
+   "native": null,
+   "status": "n/a",
+   "note": "constructed only by BlockRedstoneTorch.func_150111_a, the burnout record of a torch turned off by power; world.conf redstone = off: World.isBlockProvidingPowerTo and getIndirectPowerLevelTo return 0 before asking any block"
+  }
+ ],
+ "missing": [],
+ "notes": "The unlit torch (75) is unreachable in survival with redstone off. The breakBlock neighbour rounds are bwl_on_broken's (lane/liquids). idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact. rs-lever-s1 places lit torches on the floor and four walls, removes supports, digs torches and places and digs one beside a water pit; fx_redstone checks the display tick."
+}

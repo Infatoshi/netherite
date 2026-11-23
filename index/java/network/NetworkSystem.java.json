@@ -1,0 +1,107 @@
+{
+  "path": "oracle/src/network/NetworkSystem.java",
+  "classes": [
+    "NetworkSystem"
+  ],
+  "lines": 222,
+  "side": "server",
+  "category": "network",
+  "role": "The server's connection list: binds the LAN TCP endpoint and the local endpoint, and each server tick drains every connection's received packets, dropping dead ones.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "eventLoops",
+      "sig": "NioEventLoopGroup",
+      "native": null,
+      "status": "n/a",
+      "note": "Static Netty thread pool; the native tick is single-threaded."
+    },
+    {
+      "kind": "field",
+      "name": "mcServer",
+      "sig": "MinecraftServer",
+      "native": null,
+      "status": "n/a",
+      "note": "Back-reference; the native serverreplay struct fills this role."
+    },
+    {
+      "kind": "field",
+      "name": "isAlive",
+      "sig": "boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "Endpoint lifecycle flag."
+    },
+    {
+      "kind": "field",
+      "name": "endpoints",
+      "sig": "List",
+      "native": null,
+      "status": "n/a",
+      "note": "The bound channels; the native engine has one fixed connection."
+    },
+    {
+      "kind": "field",
+      "name": "networkManagers",
+      "sig": "List",
+      "native": null,
+      "status": "n/a",
+      "note": "The live connections; the native engine has the one server player."
+    },
+    {
+      "kind": "ctor",
+      "name": "NetworkSystem",
+      "sig": "(LMinecraftServer;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addLanEndpoint",
+      "sig": "(Ljava/net/InetAddress;I)V",
+      "native": null,
+      "status": "n/a",
+      "note": "TCP listener; unused in-process (the pipeline it builds includes the ping responder and the encoders)."
+    },
+    {
+      "kind": "method",
+      "name": "addLocalEndpoint",
+      "sig": "()Ljava/net/SocketAddress;",
+      "native": null,
+      "status": "n/a",
+      "note": "The LocalServerChannel the integrated server client connects to; the native join replaces the handshake."
+    },
+    {
+      "kind": "method",
+      "name": "terminateEndpoints",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "networkTick",
+      "sig": "()V",
+      "native": "csrc/engine/player.c:server_player_tick",
+      "status": "partial",
+      "note": "Per connection: processReceivedPackets and dead-connection cleanup. The native tick's deliver phase is the single-connection equivalent; the disconnect and crash-report branches have no counterpart."
+    },
+    {
+      "kind": "method",
+      "name": "func_151267_d",
+      "sig": "()LMinecraftServer;",
+      "native": null,
+      "status": "n/a",
+      "note": "Getter for the server back-reference."
+    }
+  ],
+  "missing": [
+    "The endpoint lifecycle (bind, terminate, dead-connection removal with onDisconnect): the native engine has one fixed in-process connection and no disconnect path."
+  ],
+  "notes": "The local endpoint's ChannelInitializer attaches no timeout, encoder or ping handlers, only the packet handler, which is why the in-process connection carries no byte layer at all."
+}

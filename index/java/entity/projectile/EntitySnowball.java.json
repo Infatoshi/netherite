@@ -1,0 +1,30 @@
+{
+ "path": "oracle/src/entity/projectile/EntitySnowball.java",
+ "classes": ["EntitySnowball"],
+ "lines": 55,
+ "side": "common",
+ "category": "entity",
+ "role": "The thrown snowball: 0 damage to anything, 3 damage to a blaze, and snowballpoof particles.",
+ "scope": "in_scope",
+ "scope_reason": "A throwable the replay's projectile scenes exercise; blazes are in scope.",
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/projectile.c", "symbols": ["proj_spawn_throwable", "proj_spawn_throwable_shooter", "proj_throwable_heading", "apply_entity_hit", "projectile_update"]}
+ ],
+ "evidence": [
+  "out/java/projectiles/proj-2",
+  "out/java/projectiles/proj-42",
+  "csrc/tests/test_projectiles.c",
+  "out/java/snapshots/end-throw-s42",
+  "out/java/snapshots/end-return-s42",
+  "out/java/snapshots/throw-blaze-s1"
+ ],
+ "members": [
+  {"kind": "ctor", "name": "EntitySnowball", "sig": "(World)", "native": "csrc/engine/projectile.c:proj_spawn_throwable", "status": "exact"},
+  {"kind": "ctor", "name": "EntitySnowball", "sig": "(World,EntityLivingBase)", "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter", "status": "exact"},
+  {"kind": "ctor", "name": "EntitySnowball", "sig": "(World,DDD)", "native": "csrc/engine/projectile.c:proj_spawn_throwable", "status": "exact"},
+  {"kind": "method", "name": "onImpact", "sig": "(MovingObjectPosition)V", "native": "csrc/engine/projectile.c:apply_entity_hit", "status": "exact", "note": "the blaze 3-damage branch and the poof live in the throwable entity-hit half (projectile.c 660)"}
+ ],
+ "missing": [],
+ "notes": "The EntityThrowable base (heading, gravity, flight) is projectile.c's; the blaze bonus is the only class-specific rule."
+}

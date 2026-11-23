@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderTNTPrimed.java",
+  "classes": ["RenderTNTPrimed"],
+  "lines": 100,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders primed TNT: the TNT block model with the white flash overlay whose alpha follows the fuse, translated by the fuse scale.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_things.c", "symbols": ["draw_tnt", "thing_block_as_item"]}
+  ],
+  "evidence": ["out/java/render-src/ent_tnt", "csrc/tests/test_render.c", "out/java/clientframes/cov-zoo-s1", "out/java/clientframes/cov-tnt-s1"],
+  "members": [
+    {"kind": "field", "name": "blockRenderer", "sig": "RenderBlocks", "native": "csrc/engine/raster_things.c:thing_block_as_item", "status": "exact"},
+    {"kind": "ctor", "name": "RenderTNTPrimed", "sig": "()V (shadowSize 0.5)", "native": null, "status": "n/a", "note": "constructor (shadowSize)"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityTNTPrimed,double,double,double,float,float)V", "native": "csrc/engine/raster_things.c:draw_tnt", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityTNTPrimed)ResourceLocation", "native": "csrc/engine/raster_things.c:draw_tnt", "status": "exact", "note": "the block atlas (TextureMap.locationBlocksTexture) draw_tnt samples"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: the fuse swell and the every-five-ticks flash (renderBlockAsItem resets glColor to opaque white, so the GL_SRC_ALPHA, GL_DST_ALPHA pass adds white through the lightmap). ent_tnt: ignited with flint and steel, 9 views; the flash frames t70, t77 and t78 keep 637 to 3,214 px where llvmpipe's unlit flash pass z-fights the lit block in bands (a depth a unit apart), the rest within 100."
+}

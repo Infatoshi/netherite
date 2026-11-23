@@ -1,0 +1,41 @@
+{
+  "path": "oracle/src/entity/boss/EntityDragonPart.java",
+  "classes": ["EntityDragonPart"],
+  "lines": 58,
+  "side": "server",
+  "category": "entity",
+  "role": "One of the ender dragon's seven independently placed hit boxes (head, body, three tails, two wings): a server-side Entity subclass that forwards damage to the owning dragon's attackEntityFromPart.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/dragon.h", "symbols": ["dragon_part_state", "dragon_state"]},
+    {"file": "csrc/engine/dragon.c", "symbols": ["dragon_init"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["sr_part_box", "eb_part_attack", "sr_end_query_other", "sr_end_other_hit"]},
+    {"file": "csrc/engine/pick.c", "symbols": ["pick_kind_size"]},
+    {"file": "csrc/engine/combat.c", "symbols": ["combat_server_attack_part"]},
+    {"file": "csrc/engine/pickobj.c", "symbols": ["pickobj_client_attack", "pickobj_client_candidates"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/end-crystals-s1",
+    "out/java/snapshots/end-dragon-s1",
+    "csrc/tests/test_dragon.c",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/endbot-s42",
+    "out/java/snapshots/endbot-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "entityDragonObj", "sig": "IEntityMultiPart", "native": "csrc/engine/dragon.h:dragon_state", "status": "exact", "note": "the parts live inside the owner's struct dragon_state (part[7]); the back link is implicit in the embedding"},
+    {"kind": "field", "name": "field_146032_b", "sig": "String", "native": null, "status": "n/a", "note": "the part name strings (head, body, tail, wing) are not stored; native parts are identified by index in dragon_state.part; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "__OBFID and other static constants", "sig": "static final", "native": null, "status": "n/a", "note": "compile-time obfuscation id"},
+    {"kind": "ctor", "name": "EntityDragonPart", "sig": "(IEntityMultiPart,String,float,float)V", "native": "csrc/engine/dragon.c:dragon_init", "status": "exact", "note": "dragon_init takes the seven part constructors' Det draws (entity id, Random, UUID) in array order; the constructor sizes come from dragon_setup"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": null, "status": "n/a", "note": "empty in Java"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "empty in Java; the parts are never saved, only the owning dragon is"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "empty in Java"},
+    {"kind": "method", "name": "canBeCollidedWith", "sig": "()boolean", "native": "csrc/engine/serverreplay.c:sr_end_query_other", "status": "exact", "note": "true; the parts are the collidable others that projectiles and explosions hit"},
+    {"kind": "method", "name": "attackEntityFrom", "sig": "(DamageSource,float)boolean", "native": "csrc/engine/serverreplay.c:eb_part_attack", "status": "exact", "note": "forwards to attackEntityFromPart; the explosion path uses the explosion's source with no exploder, the dev hurt op (csrc/engine/dev.c, the hurt command) the player's source"},
+    {"kind": "method", "name": "isEntityEqual", "sig": "(Entity)boolean", "native": "csrc/engine/serverreplay.c:sr_end_other_hit", "status": "n/a", "note": "n/a: its one caller is EntityFireball.onUpdate's collision loop; no fireball exists in the End (ghasts and blazes are the Nether's, the dragon shoots none in 1.7.10, a fire charge only leaves a dispenser: redstone = off)"}
+  ],
+  "missing": [],
+  "notes": "The parts exist only as dragon_state.part[7] inside the owning dragon (csrc/engine/dragon.h); their boxes are built by csrc/engine/serverreplay.c:sr_part_box and reached from projectile hits (sr_end_query_other, sr_end_other_hit) and explosions (sr_end_blast_query). end-dragon-s1's bow hit on the head exercises the head part; test_dragon.c drives dragon_attack_part per part. Not verified: whether any vanilla server-side code reads field_146032_b beyond the constructor. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): part names are indices natively. Formerly listed as missing: The part name strings carried by field_146032_b are not stored natively; parts are identified by their index in dragon_state.part. Since lane/endbot: the client pick lists the seven parts of the client copy right after the dragon (pickobj_client_candidates), the client attack runs attackEntityFromPart's three draws on the copy and wears the held sword or tool (pickobj_client_attack), and the server's C02 on a part is processUseEntity plus attackTargetEntityWithCurrentItem with the part as target (no crit, no enchantment, hitEntity on the dragon, no damageDealt stat)."
+}

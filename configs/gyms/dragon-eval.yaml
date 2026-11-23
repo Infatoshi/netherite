@@ -1,0 +1,58 @@
+# The End gyms' frozen eval run file: the bank's held-out eval starts (cache/end-bank-dev-2026-11-23/eval, 16
+# seeds no train start shares). The flywheel and nether eval hold it to configs/fidelity.yaml (cast_precision
+# 32, the full tick, every mob and spawn) before ntloop --score sees it; its policy part is the trainer's shape only.
+policy:
+  net:
+    kind: small
+  ppo:
+    lr: 1e-5
+    horizon: 128
+  reward:
+    relative: on
+    end: 0
+    dragon: 50
+    dragon_hp: 0.5
+    crystals: 10.0
+    log_cap: 8
+    values: 4/1.0,61/8
+    caps: 4/8,15/8,265/8,263/8
+
+sim:
+  world:
+    seed: 437203103
+    difficulty: easy
+    render_distance: 4
+  client:
+    observation: 64x64
+    camera: raycast
+    cast_precision: 32
+    ticks_per_step: 1
+  pipeline:
+    worlds: 128
+    groups: 4
+    episode_seconds: 900
+    kind: snapshot
+    start: cache/end-bank-dev-2026-11-23/eval/s437203103-end/start
+  engine:
+    tick: host
+    raycast: device
+    device_mesh: 1
+    device_generation: off
+    device_light: off
+    render: none
+  performance:
+    workers: 48
+    streams: 2
+    group: 32
+    batch: 128
+    depth: 4
+    layout: doms
+    pin: 2
+    place: domain
+    tune: off
+    region_spill: off
+
+actions:
+  macros:
+    macros: none
+    picks: off

@@ -1,0 +1,65 @@
+{
+  "path": "oracle/src/command/CommandWeather.java",
+  "classes": [
+    "CommandWeather"
+  ],
+  "lines": 87,
+  "side": "server",
+  "category": "commands",
+  "role": "The /weather command: clear, rain or thunder, with a drawn duration of (300+rand(600))*20 ticks or a given seconds argument times 20.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [
+    {
+      "file": "csrc/engine/dev.c",
+      "symbols": [
+        "dev_apply"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/dev-pen-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": "csrc/engine/dev.c:dev_apply",
+      "status": "partial",
+      "note": "the Dev 'weather' op sets rain_time/thunder_time/raining/thundering the same way and draws the default duration on the DET_SERVER stream; the chat lines are absent natively"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,String[])List",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "Line 35 draws its Random from netherite.oracle.Det.newRandom(): a determinize hook edit, the draw the native weather op mirrors. Static __OBFID constants are grouped out per the brief."
+}

@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/scoreboard/Team.java",
+  "classes": ["Team"],
+  "lines": 25,
+  "side": "server",
+  "category": "other",
+  "role": "The abstract team base behind ScorePlayerTeam: identity check, registered name, formatted member name and the two flag getters.",
+  "scope": "not_needed",
+  "scope_reason": "Only ScorePlayerTeam extends it and teams require /scoreboard commands, which are off in our survival worlds (DEVLOG 2026-09-25).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "isSameTeam", "sig": "(Team)Z", "native": null, "status": "n/a", "note": "reference equality"},
+    {"kind": "method", "name": "getRegisteredName", "sig": "()String", "native": null, "status": "n/a", "note": "abstract"},
+    {"kind": "method", "name": "func_142053_d", "sig": "(String)String", "native": null, "status": "n/a", "note": "abstract, format a member name"},
+    {"kind": "method", "name": "func_98297_h", "sig": "()Z", "native": null, "status": "n/a", "note": "abstract, see friendly invisibles"},
+    {"kind": "method", "name": "getAllowFriendlyFire", "sig": "()Z", "native": null, "status": "n/a", "note": "abstract"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

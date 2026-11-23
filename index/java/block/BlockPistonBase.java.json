@@ -1,0 +1,281 @@
+{
+ "path": "oracle/src/block/BlockPistonBase.java",
+ "classes": [
+  "BlockPistonBase"
+ ],
+ "lines": 520,
+ "side": "common",
+ "category": "block",
+ "role": "The piston (33) and sticky piston (29): facing from the placer, the power test that fires the extend or retract block event, the push-limit scan and block moving, and the extended-state bounds.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: pistons are craftable and placeable, and placement writes the facing (func_150071_a; onBlockAdded ran in containers2-s42); the retracted piston is a solid block with its own mesh. world.conf redstone = off means it never extends, so the extend/retract members are n/a.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "func_150071_a",
+    "on_block_placed_by"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks3.c",
+   "symbols": [
+    "rb3_piston_dispatch_bounds",
+    "rb3_piston_store_bounds",
+    "rb3_render_piston_base",
+    "rb3_block_icon_index"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.h",
+   "symbols": [
+    "piston_bounds"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "block_bounds",
+    "raytrace_collision"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_place.c",
+  "out/java/place/big2",
+  "csrc/tests/test_meshes.c",
+  "out/java/raypick/rp-1",
+  "csrc/tests/test_raypick.c",
+  "out/java/snapshots/containers2-s42",
+  "out/java/snapshots/cov-blkplace-s1",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150082_a",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "sticky flag; only used by the extend/retract event"
+  },
+  {
+   "kind": "field",
+   "name": "field_150081_b, field_150083_M, field_150084_N",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client icons"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockPistonBase",
+   "sig": "(Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 29 and 33: piston material, render_type 16"
+  },
+  {
+   "kind": "method",
+   "name": "func_150073_e",
+   "sig": "()IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "top icon for the renderer"
+  },
+  {
+   "kind": "method",
+   "name": "func_150070_b",
+   "sig": "(FFFFFF)V",
+   "native": "csrc/engine/render_blocks3.c:rb3_piston_store_bounds",
+   "status": "n/a",
+   "note": "RenderBlocks.renderPistonBase calls it only for an extended piston or a moving one (renderPistonBaseAllFaces); with world.conf redstone = off no piston extends"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks3.c:rb3_block_icon_index",
+   "status": "exact",
+   "note": "the facing-dependent piston faces; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+  },
+  {
+   "kind": "method",
+   "name": "func_150074_e",
+   "sig": "(String)IIcon",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/render_blocks3.c:rb3_render_piston_base",
+   "status": "exact",
+   "note": "16"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockActivated",
+   "sig": "(World,IIIEntityPlayer,IFFF)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "returns false"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockPlacedBy",
+   "sig": "(World,IIIEntityLivingBase,ItemStack)V",
+   "native": "csrc/engine/place.c:on_block_placed_by",
+   "status": "exact",
+   "note": "func_150071_a's facing, flags 2; func_150078_e finds no power"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": null,
+   "status": "n/a",
+   "note": "func_150078_e; no power"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": null,
+   "status": "n/a",
+   "note": "func_150078_e; no power"
+  },
+  {
+   "kind": "method",
+   "name": "func_150078_e",
+   "sig": "(World,III)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the extend/retract decision; power is always 0"
+  },
+  {
+   "kind": "method",
+   "name": "func_150072_a",
+   "sig": "(World,IIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the six-side and above power test"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockEventReceived",
+   "sig": "(World,IIIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "extend and retract, the moving tile entity and the sticky pull"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsBasedOnState",
+   "sig": "(IBlockAccess,III)V",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsForItemRender",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addCollisionBoxesToList",
+   "sig": "(World,IIIAxisAlignedBB,List,Entity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "full cube while retracted (the registry default)"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(World,III)AxisAlignedBB",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150076_b",
+   "sig": "(I)I",
+   "native": "csrc/engine/render_blocks3.c:rb3_piston_dispatch_bounds",
+   "status": "exact",
+   "note": "meta & 7"
+  },
+  {
+   "kind": "method",
+   "name": "func_150075_c",
+   "sig": "(I)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "extended bit 8; never set"
+  },
+  {
+   "kind": "method",
+   "name": "func_150071_a",
+   "sig": "(World,IIIEntityLivingBase)I",
+   "native": "csrc/engine/place.c:func_150071_a",
+   "status": "exact",
+   "note": "also used by dispensers and droppers"
+  },
+  {
+   "kind": "method",
+   "name": "func_150080_a",
+   "sig": "(Block,World,IIIZ)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "can this block be pushed"
+  },
+  {
+   "kind": "method",
+   "name": "func_150077_h",
+   "sig": "(World,IIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the 12-block push-limit scan"
+  },
+  {
+   "kind": "method",
+   "name": "func_150079_i",
+   "sig": "(World,IIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the push itself"
+  }
+ ],
+ "missing": [],
+ "notes": "If redstone comes back, the whole extend/retract machine (block events, TileEntityPiston, the moving blocks) is unported. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

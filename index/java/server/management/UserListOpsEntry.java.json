@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/server/management/UserListOpsEntry.java",
+  "classes": ["UserListOpsEntry"],
+  "lines": 63,
+  "side": "server",
+  "category": "server",
+  "role": "One ops.json entry: a GameProfile plus its permission level, serialized with uuid, name and level.",
+  "scope": "not_needed",
+  "scope_reason": "Only built by UserListOps and ServerConfigurationManager.func_152605_a (the /op command path); commands are off in our survival worlds (DEVLOG 2026-09-25).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_152645_a", "sig": "int (permission level)", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "UserListOpsEntry", "sig": "(GameProfile,int)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "UserListOpsEntry", "sig": "(JsonObject)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152644_a", "sig": "()I", "native": null, "status": "n/a", "note": "the level"},
+    {"kind": "method", "name": "func_152641_a", "sig": "(JsonObject)V", "native": null, "status": "n/a", "note": "write uuid, name, level"},
+    {"kind": "method", "name": "func_152643_b", "sig": "(JsonObject)GameProfile", "native": null, "status": "n/a", "note": "read uuid and name"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

@@ -1,0 +1,27 @@
+{
+ "path": "csrc/engine/phaseprof.c",
+ "lines": 469,
+ "role": "The phase profiler (make -C csrc phase-profile, test_snapshots --phase-profile): at every PHASE_RUN mark and PHASE_SUB sub-mark it reads the TSC (clock_gettime off x86) and, with tests/allocount.c preloaded, the process's allocation count; per row it keeps each (phase, world) column and sub-mark in a mapping reserved at the start; the summary gives per column runs, total, share of session_tick, per-row mean, p50, p99 and max with its row, allocations per row, the five worst rows with the phases and sub-marks they spent their time in, and the environment's state sizes (chunks, bands, packed region blobs per world, the arena pools, peak RSS).",
+ "layer": "test",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "phase_profile_start",
+  "phase_profile_summary",
+  "phase_prof_begin_",
+  "phase_prof_end_",
+  "phase_prof_row_begin_",
+  "phase_prof_row_end_",
+  "phase_sub_begin_",
+  "phase_sub_end_",
+  "phase_prof_instructions"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "harness only: on when a test turns it on; its rows live in one mmap made before the first row, so it allocates nothing inside a row"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "First used for out/plan/gpu-audit-2026-09-26.md (lane/gpuprof2). The sub-marks are inclusive and count the outermost entry only, so LOAD contains GEN, POP and the light work a load triggers."
+}

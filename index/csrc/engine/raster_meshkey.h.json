@@ -1,0 +1,33 @@
+{
+ "path": "csrc/engine/raster_meshkey.h",
+ "lines": 44,
+ "role": "The mesh key's interface (raster_meshkey.c): struct meshkey, MESHKEY_NONE, MESHKEY_EMPTY, MESHKEY_OK, meshkey_section and meshkey_band.",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/RenderGlobal.java",
+   "members": [
+    "markBlocksForUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/WorldRenderer.java",
+   "members": [
+    "updateRenderer"
+   ]
+  }
+ ],
+ "structs": [
+  "meshkey"
+ ],
+ "entry_points": [
+  "meshkey_section",
+  "meshkey_band"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/runtime/pipe_gate.c"
+ ],
+ "notes": "Not vanilla code: vanilla marks a renderer dirty and rebuilds it; a rebuild whose inputs hashed the same is the same bytes, so raster.c keeps the mesh (pipe_gate --mesh-check meshes every spared pass again and compares). Renderer state only, no statics; never in the tick."
+}

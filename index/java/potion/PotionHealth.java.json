@@ -1,0 +1,56 @@
+{
+ "path": "oracle/src/potion/PotionHealth.java",
+ "classes": [
+  "PotionHealth"
+ ],
+ "lines": 27,
+ "side": "common",
+ "category": "entity",
+ "role": "The instant health (id 6), harm (id 7) and saturation (id 23) potions: instant, ready whenever the duration is at least 1.",
+ "scope": "in_scope",
+ "scope_reason": "Instant health and harm run through the splash and witch paths; saturation through food.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/potion.c",
+   "symbols": [
+    "potion_is_instant",
+    "potion_is_ready",
+    "potion_perform_effect",
+    "potion_affect_entity"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/potions/seed2",
+  "out/java/potions/seed42",
+  "csrc/tests/test_potions.c",
+  "out/java/snapshots/fight-witch-s1",
+  "out/java/snapshots/surv_eat-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "PotionHealth",
+   "sig": "(int,Z,int)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInstant",
+   "sig": "()Z",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_is_instant",
+   "note": "heal, harm and saturation are the instant set"
+  },
+  {
+   "kind": "method",
+   "name": "isReady",
+   "sig": "(II)Z",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_is_ready",
+   "note": "the instant branch returns duration >= 1"
+  }
+ ],
+ "missing": []
+}

@@ -1,0 +1,93 @@
+{
+ "path": "csrc/engine/sleep.c",
+ "lines": 398,
+ "role": "Beds and sleeping in the whole-server replay: BlockBed.onBlockActivated's server half, EntityPlayerMP.sleepInBedAt and wakeUpPlayer with their S08/S0A/S0B packets, the sleep timer of EntityPlayer.onUpdate, WorldServer's all-asleep check and wake-all through servertick's hooks, and the client's S0A/S0B handling.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/block/BlockBed.java",
+   "members": [
+    "onBlockActivated",
+    "field_149981_a",
+    "func_149979_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "sleepInBedAt",
+    "wakeUpPlayer",
+    "onUpdate",
+    "resetHeight",
+    "sleeping",
+    "sleepTimer",
+    "playerLocation",
+    "setSpawnChunk"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": [
+    "sleepInBedAt",
+    "wakeUpPlayer",
+    "updateFallState",
+    "resetHeight"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "setSize"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "isDaytime",
+    "getEntitiesWithinAABB"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "updateAllPlayersSleepingFlag",
+    "areAllPlayersAsleep",
+    "wakeAllPlayers"
+   ]
+  },
+  {
+   "path": "oracle/src/network/NetHandlerPlayServer.java",
+   "members": [
+    "setPlayerLocation"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "BED_OFFSET",
+   "java": "BlockBed.field_149981_a",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "sleep_bed_activate",
+  "sleep_server_update",
+  "sleep_server_wake",
+  "sleep_all_asleep",
+  "sleep_wake_all",
+  "sleep_client_use_bed",
+  "sleep_client_wake",
+  "sleep_client_update"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "function monsters_near: the query list holds every match (AN_QUERY_LIST) (lane/querybounds, AI-02)",
+  "line 74, function monsters_near: the answer depends only on any match, so the entity-list order does not matter here",
+  "lines 105-113 and 173-179, functions set_player_location and sleep_in_bed_at: packets pushed to the player's s2c queue"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Evidence: out/java/snapshots/surv2-bed-s1 is the bed recording the snapshot gate replays (name suggests it; not re-read in DEVLOG). Not ported per sleep.h: the Nether/End bed explosion and GuiSleepMP's Leave Bed button (C0B action 3). EnumStatus is mirrored as a private enum. Java member names are taken from the code comments."
+}

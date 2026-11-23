@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/item/ItemColored.java",
+  "classes": ["ItemColored"],
+  "lines": 67,
+  "side": "common",
+  "category": "item",
+  "role": "The ItemBlock of vine and tall grass: places with the damage unchanged, colours and names per subtype (tall grass carries the shrub/grass/fern names).",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["item_block_on_item_use", "item_get_metadata"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/item_color.c", "symbols": ["item_block_color"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150944_b, field_150945_c", "sig": "Block / String[]", "native": null, "status": "n/a", "note": "the colour source block and the subtype names are client presentation"},
+    {"kind": "ctor", "name": "ItemColored", "sig": "(Block,Z)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "vine and tall grass are registered as ItemColored in registerItems"},
+    {"kind": "method", "name": "getColorFromItemStack", "sig": "(ItemStack,I)I", "native": null, "status": "n/a", "note": "client colour"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "method", "name": "getMetadata", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact", "note": "the default return-the-damage branch, named for ItemColored"},
+    {"kind": "method", "name": "func_150943_a", "sig": "(String[])ItemColored", "native": null, "status": "n/a", "note": "client subtype names"},
+    {"kind": "method", "name": "getUnlocalizedName(ItemStack)", "sig": "(ItemStack)String", "native": null, "status": "n/a", "note": "client naming"}
+  ],
+  "missing": [],
+  "notes": " getColorFromItemStack for vines, lily pads and tall grass is item_color.c's item_block_color."
+}

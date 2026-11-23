@@ -1,0 +1,207 @@
+{
+  "path": "oracle/src/tileentity/TileEntityBrewingStand.java",
+  "classes": [
+    "TileEntityBrewingStand"
+  ],
+  "lines": 376,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The brewing stand block entity: three bottle slots and an ingredient slot, the 400-tick brew, the potion damage-value math, the bottle-mask metadata, and the sided inventory for hoppers.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: a placed stand's tile entity is created, saved and ticked every tick (updateEntity ran in pickblock-s1): canBrew answers false under brewing = off (TileEntityBrewingStand.java:100) and the filled-bottle mask is compared and written as metadata.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "te_brewing",
+        "TE_BREWING_STAND",
+        "filled_slots"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "brewing_update"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_brewing",
+        "te_load"
+      ]
+    },
+    {
+      "file": "csrc/engine/comparator.c",
+      "symbols": [
+        "comparator_notify"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/rs-brew-s1",
+    "out/java/snapshots/rs-mach-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145941_a, field_145947_i",
+      "sig": "static int[] side slots",
+      "native": null,
+      "status": "n/a",
+      "note": "hopper sides; hopper transfer off"
+    },
+    {
+      "kind": "field",
+      "name": "field_145945_j",
+      "sig": "ItemStack[4]",
+      "native": "csrc/engine/tileentity.h:te_brewing",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145946_k",
+      "sig": "int brewTime",
+      "native": "csrc/engine/tileentity.h:te_brewing",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145943_l",
+      "sig": "int filledSlots (last mask)",
+      "native": "csrc/engine/tileentity.h:filled_slots",
+      "status": "exact",
+      "note": "the mask this entity last wrote, 0 on construction and not in the NBT; updateEntity compares against it, not the metadata: rs-brew-s1 sets stands whose metadata disagrees with their bottles and keeps it (it failed at row 21 on the metadata compare)"
+    },
+    {
+      "kind": "field",
+      "name": "field_145944_m",
+      "sig": "Item ingredientID",
+      "native": null,
+      "status": "n/a",
+      "note": "only set when a brew starts"
+    },
+    {
+      "kind": "field",
+      "name": "field_145942_n",
+      "sig": "String customName",
+      "native": null,
+      "status": "n/a",
+      "note": "the custom name: only an anvil-named stack (BlockBrewingStand.onBlockPlacedBy) or NBT carrying CustomName sets it; world.conf anvil = off and no generated stand has one, and with brewing = off no window shows it"
+    },
+    {
+      "kind": "method",
+      "name": "getInventoryName, isInventoryNameLocalized, func_145937_a",
+      "sig": "custom name",
+      "native": null,
+      "status": "n/a",
+      "note": "the custom name's accessors; see field_145942_n"
+    },
+    {
+      "kind": "method",
+      "name": "getSizeInventory",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:te_brewing",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "updateEntity",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:brewing_update",
+      "status": "exact",
+      "note": "with brewing = off func_145934_k is false: a running brew stops (onInventoryChanged, comparator.c comparator_notify), and the bottle mask is written as metadata when it differs from field_145943_l"
+    },
+    {
+      "kind": "method",
+      "name": "func_145935_i",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:te_brewing",
+      "status": "n/a",
+      "note": "n/a: its callers are ContainerBrewingStand and GuiBrewingStand; no stand opens (BlockBrewingStand.onBlockActivated: brewing = off)"
+    },
+    {
+      "kind": "method",
+      "name": "func_145934_k",
+      "sig": "()Z",
+      "native": "csrc/engine/tileticks.c:brewing_update",
+      "status": "exact",
+      "note": "false with brewing off"
+    },
+    {
+      "kind": "method",
+      "name": "func_145940_l",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "brew; gated by func_145934_k"
+    },
+    {
+      "kind": "method",
+      "name": "func_145936_c",
+      "sig": "(ILItemStack)I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "Items and BrewTime; CustomName never occurs (see field_145942_n)"
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_brewing",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getStackInSlot, decrStackSize, getStackInSlotOnClosing, setInventorySlotContents, getInventoryStackLimit, isUseableByPlayer, isItemValidForSlot",
+      "sig": "IInventory",
+      "native": null,
+      "status": "n/a",
+      "note": "GUI off with brewing off"
+    },
+    {
+      "kind": "method",
+      "name": "func_145938_d",
+      "sig": "(I)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client brew time"
+    },
+    {
+      "kind": "method",
+      "name": "func_145939_j",
+      "sig": "()I",
+      "native": "csrc/engine/tileticks.c:brewing_update",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getAccessibleSlotsFromSide, canInsertItem, canExtractItem",
+      "sig": "ISidedInventory",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "openInventory, closeInventory",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "empty, and the window never opens with brewing = off"
+    }
+  ],
+  "missing": [],
+  "notes": "SPEC says the brewing stand is a plain block with brewing off, so the GUI and inventory methods are n/a. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact. lane/reloadstate: a chunk reload forgets the last written bottle mask (serverreplay.c sr_tiles_loaded)."
+}

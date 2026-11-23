@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/item/ItemSlab.java",
+  "classes": ["ItemSlab"],
+  "lines": 197,
+  "side": "common",
+  "category": "item",
+  "role": "ItemBlock for the slab pairs (stone/wooden, ids 43/44/125/126): merges a placed slab into the full-block form when the target cell holds the matching half, else the ItemBlock path.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_slab_on_item_use", "item_block_would_use", "is_double_slab", "item_get_metadata", "place_item_block_precheck"]}
+  ],
+  "evidence": ["out/java/snapshots/cov-slab-s1", "csrc/tests/test_place.c", "out/java/snapshots/scen-slabs-stairs-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150948_b", "sig": "boolean", "native": "csrc/engine/place.c:is_double_slab", "status": "exact", "note": "the double-form flag is carried by which item id the row is (43 and 125 are the double items)"},
+    {"kind": "field", "name": "field_150949_c", "sig": "BlockSlab", "native": "csrc/engine/place.c:is_double_slab", "status": "n/a", "note": "the single-slab block, implicit in the block ids"},
+    {"kind": "field", "name": "field_150947_d", "sig": "BlockSlab", "native": "csrc/engine/place.c:is_double_slab", "status": "n/a", "note": "the double-slab block (field_150004_a forms)"},
+    {"kind": "ctor", "name": "ItemSlab", "sig": "(Lnet/minecraft/block/Block;Lnet/minecraft/block/BlockSlab;Lnet/minecraft/block/BlockSlab;Z)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "rows 43, 44, 125, 126"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMetadata", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact", "note": "the passthrough branch"},
+    {"kind": "method", "name": "getUnlocalizedName", "sig": "(Lnet/minecraft/item/ItemStack;)Ljava/lang/String;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": "csrc/engine/place.c:item_slab_on_item_use", "status": "exact", "note": "the double items take the ItemBlock path; the single ones try the merge (top/bottom half, matching damage, collision check, setBlock to the double form) first"},
+    {"kind": "method", "name": "func_150936_a", "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/ItemStack;)Z", "native": "csrc/engine/place.c:place_item_block_precheck", "status": "exact", "note": "the merge case on the clicked face or in the cell beyond answers true, else ItemBlock's test on the clicked cell; the would-use dispatch's ItemSlab branch (item_block_would_use) keeps onItemUse's answer"},
+    {"kind": "method", "name": "func_150946_a", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIII)Z", "native": "csrc/engine/place.c:item_slab_on_item_use", "status": "exact", "note": "the merge-into-neighbour-cell half of the same function"}
+  ],
+  "missing": [],
+  "notes": null
+}

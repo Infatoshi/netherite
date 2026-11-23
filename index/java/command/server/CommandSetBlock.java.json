@@ -1,0 +1,54 @@
+{
+  "path": "oracle/src/command/server/CommandSetBlock.java",
+  "classes": [
+    "CommandSetBlock"
+  ],
+  "lines": 138,
+  "side": "server",
+  "category": "commands",
+  "role": "The /setblock command: places a block (id, meta, replace/destroy/keep mode, optional tile entity NBT) at coordinates.",
+  "scope": "not_needed",
+  "scope_reason": "Never reached: the agent and RL paths have no chat or command input (SPEC input: look, gui ops, held keys; no command source), and the native engine has no command dispatcher. world.conf does not list commands.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,[Ljava/lang/String;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,[Ljava/lang/String;)Ljava/util/List;",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "The underlying World.setBlock path it calls is the native world core's own API (setBlock fuzz probes); only the command shell is unported."
+}

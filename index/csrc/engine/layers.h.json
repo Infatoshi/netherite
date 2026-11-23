@@ -1,0 +1,21 @@
+{
+ "path": "csrc/engine/layers.h",
+ "lines": 46,
+ "role": "Declares the 1.7.10 GenLayer biome stack: the layer kinds, one layer node with its base and world seeds and parent links, the fixed-capacity stack with its genBiomes and voronoi outputs, and the area and biome-id queries.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/layer/GenLayer.java", "members": ["initializeAllBiomeGenerators", "getInts", "baseSeed", "worldGenSeed", "parent"]},
+  {"path": "oracle/src/world/biome/WorldChunkManager.java", "members": ["genBiomes", "biomeIndexLayer", "getBiomesForGeneration", "loadBlockGeneratorData"]}
+ ],
+ "structs": [
+  {"name": "layer", "java": "GenLayer (baseSeed, worldGenSeed, parent; GenLayerHills and GenLayerRiverMix second parent)", "fields": ["kind", "base_seed", "world_seed", "p1", "p2"]},
+  {"name": "layers", "java": "WorldChunkManager.genBiomes and biomeIndexLayer, with every layer node", "fields": ["node", "n", "gen", "full"]}
+ ],
+ "entry_points": ["layers_init", "layer_ints", "biomes_gen", "biomes_full"],
+ "tick_path": true,
+ "gpu": [
+  "line 24, struct layer: p1 and p2 are pointers into the same node array (a pointer graph, though inside one fixed array of LAYER_MAX 64)"
+ ],
+ "tests": ["csrc/tests/test_worldgen.c"],
+ "notes": "The layer nodes live in a fixed array, so the parent pointers could become indices for the GPU. Used by terrain.h, village.c, populate.c, stronghold.c and temple.c."
+}

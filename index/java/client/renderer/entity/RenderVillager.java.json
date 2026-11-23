@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderVillager.java",
+  "classes": ["RenderVillager"],
+  "lines": 164,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for villagers: the profession texture (farmer, librarian, priest, smith, butcher or the plain robe), the child/adult scale, and the held item as renderEquippedItems.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_villager", "model_vertex", "raster_mobs_draw", "texture_names"]}
+  ],
+  "evidence": ["out/java/render/mobs2b_villager_f006", "out/java/render/mobs2b_villager_f011", "out/java/render/mobs2b_professions_f006", "out/java/render/mobs2b_professions_f011", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "villagerTextures, farmerVillagerTextures, librarianVillagerTextures, priestVillagerTextures, smithVillagerTextures, butcherVillagerTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constants, grouped; the TEX_VILLAGER and TEX_FARMER..TEX_BUTCHER entries"},
+    {"kind": "field", "name": "villagerModel", "sig": "ModelVillager", "native": "csrc/engine/raster_mobs.c:model_villager", "status": "exact"},
+    {"kind": "ctor", "name": "RenderVillager", "sig": "()V", "native": "csrc/engine/raster_mobs.c:model_villager", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityVillager,int,float)V", "native": null, "status": "n/a", "note": "always -1 (checked lines 33-43)"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityVillager,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityVillager)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "TEX_FARMER + profession for 0-4, else TEX_VILLAGER"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityVillager,float)V", "native": null, "status": "missing", "note": "the villager's held item (ItemRenderer path) is not drawn"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityVillager,float)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the MOB_VILLAGER branch scales 0.9375, or 0.46875 for children"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": ["renderEquippedItems' held item: villagers draw no held item natively (the RenderLiving/ItemRenderer equipped path is not ported)."]
+}

@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenDesert.java",
+  "classes": ["BiomeGenDesert"],
+  "lines": 37,
+  "side": "common",
+  "category": "worldgen",
+  "role": "Desert (2) and DesertHills (17): sand top and filler, no passive mobs, dead bushes, reeds and cacti, and a 1-in-1000 desert well after the decorator.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of", "desert_post", "decorator_decorate"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["biome_has_creatures"]},
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES"]}
+  ],
+  "evidence": ["csrc/tests/test_populate.c", "csrc/tests/test_worldgen.c", "csrc/tests/test_spawning.c", "out/java/populate"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenDesert", "sig": "(int)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "trees -999, dead bush 2, reeds 50, cacti 10"},
+    {"kind": "method", "name": "decorate", "sig": "(World,Random,int,int)V", "native": "csrc/engine/decorator.c:desert_post", "status": "exact", "note": "desert well through features_lakes_for(\"desertwell\")"}
+  ],
+  "missing": [],
+  "notes": "Desert Hills M (130) delegates to this decorate through BiomeGenMutated; decorator.c shape_of does not give 130 S_DESERT, so the mutation runs only the body (matches BiomeGenMutated.decorate calling the base's decorator directly, not the base's decorate)."
+}

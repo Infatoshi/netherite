@@ -1,0 +1,444 @@
+{
+ "path": "oracle/src/entity/player/InventoryPlayer.java",
+ "classes": [
+  "InventoryPlayer"
+ ],
+ "lines": 833,
+ "side": "common",
+ "category": "inventory",
+ "role": "The player's 36 main slots plus 4 armor slots: add/pickup, hotbar selection, consume/has, NBT round-trip, armor value and armor damage, and drop-all on death.",
+ "scope": "in_scope",
+ "scope_reason": "The whole wooden-pickaxe loop (SPEC milestone 5) runs through this inventory on both sides.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "read_inventory",
+    "store_partial_item_stack",
+    "add_item_stack_to_inventory",
+    "decr_stack_size",
+    "drop_all_items",
+    "damage_armor",
+    "total_armor_value",
+    "detect_and_send_changes",
+    "surv_server_fresh_state"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity_nbt.c",
+   "symbols": [
+    "player_inventory"
+   ]
+  },
+  {
+   "file": "csrc/engine/throw.c",
+   "symbols": [
+    "has_arrow",
+    "consume_arrow",
+    "empty_slot"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvest.c",
+   "symbols": [
+    "inventory_str_vs_block",
+    "can_harvest_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "player_store_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/surv_drop-s1",
+  "out/java/snapshots/throw-bow-s1",
+  "out/java/snapshots/dev-give-s1",
+  "out/java/snapshots/cat-recipes-s1",
+  "csrc/tests/test_items.c",
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/pickblock-s1",
+  "out/java/snapshots/item-tags-s1",
+  "out/java/snapshots/cont-pickpart-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "mainInventory",
+   "sig": "ItemStack[36]",
+   "native": "csrc/engine/survival.c:read_inventory",
+   "status": "exact",
+   "note": "surv_state's 36 main stacks"
+  },
+  {
+   "kind": "field",
+   "name": "armorInventory",
+   "sig": "ItemStack[4]",
+   "native": "csrc/engine/survival.c:read_inventory",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "currentItem",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_server_load",
+   "status": "exact",
+   "note": "SelectedItemSlot in the player NBT"
+  },
+  {
+   "kind": "field",
+   "name": "currentItemStack",
+   "sig": "ItemStack",
+   "native": null,
+   "status": "n/a",
+   "note": "the func_70439_a swap guard's cache has no native; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "player",
+   "sig": "EntityPlayer",
+   "native": null,
+   "status": "n/a",
+   "note": "back-reference; the native surv_state is embedded in the player struct"
+  },
+  {
+   "kind": "field",
+   "name": "itemStack",
+   "sig": "ItemStack",
+   "native": "csrc/engine/survival.c:detect_and_send_changes",
+   "status": "partial",
+   "note": "the cursor stack rides the container sync"
+  },
+  {
+   "kind": "field",
+   "name": "inventoryChanged",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "a change flag nothing resets in vanilla either"
+  },
+  {
+   "kind": "ctor",
+   "name": "InventoryPlayer",
+   "sig": "(EntityPlayer)",
+   "native": null,
+   "status": "n/a",
+   "note": "the native state is zero-initialized with its player"
+  },
+  {
+   "kind": "method",
+   "name": "getCurrentItem",
+   "sig": "()ItemStack",
+   "native": "csrc/engine/survival.c:sync_current_play_item",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getHotbarSize",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "constant 9, hardwired in the native slot loops"
+  },
+  {
+   "kind": "method",
+   "name": "func_146029_c",
+   "sig": "(Item)I",
+   "native": "csrc/engine/survival.c:surv_client_pick_block",
+   "status": "exact",
+   "note": "the first main slot with the item"
+  },
+  {
+   "kind": "method",
+   "name": "func_146024_c",
+   "sig": "(Item,I)I",
+   "native": "csrc/engine/survival.c:surv_client_pick_block",
+   "status": "exact",
+   "note": "the first main slot with the item and the damage"
+  },
+  {
+   "kind": "method",
+   "name": "storeItemStack",
+   "sig": "(ItemStack)I",
+   "native": "csrc/engine/survival.c:store_partial_item_stack",
+   "status": "exact",
+   "note": "the matching-stackable-slot scan is inlined there (container.c carries a second copy for machine inventories)"
+  },
+  {
+   "kind": "method",
+   "name": "getFirstEmptyStack",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:store_partial_item_stack",
+   "status": "exact",
+   "note": "inlined"
+  },
+  {
+   "kind": "method",
+   "name": "func_146030_a",
+   "sig": "(Item,IZZ)V",
+   "native": "csrc/engine/survival.c:surv_client_pick_block",
+   "status": "exact",
+   "note": "survival (no creative fill): a hotbar hit becomes the current item"
+  },
+  {
+   "kind": "method",
+   "name": "changeCurrentItem",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the mouse-wheel hotbar cycle is not replayed; acts name the slot directly; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "clearInventory",
+   "sig": "(Item,I)I",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_70439_a",
+   "sig": "(Item,I)V",
+   "native": "csrc/engine/dev.c:dev_apply",
+   "status": "n/a",
+   "note": "n/a: its one caller, func_146030_a, calls it only in creative mode (Minecraft.func_147112_ai's pick block passes isCreativeMode); survival only"
+  },
+  {
+   "kind": "method",
+   "name": "storePartialItemStack",
+   "sig": "(ItemStack)I",
+   "native": "csrc/engine/survival.c:store_partial_item_stack",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "decrementAnimations",
+   "sig": "()V",
+   "native": "csrc/engine/player.c:cp_on_living_update",
+   "status": "exact",
+   "note": "the client's hotbar pops counted down (player.h inv_anim); cr-pickup-s1"
+  },
+  {
+   "kind": "method",
+   "name": "consumeInventoryItem",
+   "sig": "(Item)Z",
+   "native": "csrc/engine/throw.c:consume_arrow",
+   "status": "exact",
+   "note": "the bow's arrow consumption is the replayed caller"
+  },
+  {
+   "kind": "method",
+   "name": "hasItem",
+   "sig": "(Item)Z",
+   "native": "csrc/engine/throw.c:has_arrow",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addItemStackToInventory",
+   "sig": "(ItemStack)Z",
+   "native": "csrc/engine/survival.c:add_item_stack_to_inventory",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(II)ItemStack",
+   "native": "csrc/engine/survival.c:decr_stack_size",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlotOnClosing",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/survival.c:surv_server_close_screen",
+   "status": "n/a",
+   "note": "n/a: the containers call it on their crafting grids and merchant slots, never on the player's inventory"
+  },
+  {
+   "kind": "method",
+   "name": "setInventorySlotContents",
+   "sig": "(I,ItemStack)V",
+   "native": "csrc/engine/survival.c:decr_stack_size",
+   "status": "partial",
+   "note": "writes land through the survival slot helpers, not a standalone setter"
+  },
+  {
+   "kind": "method",
+   "name": "func_146023_a",
+   "sig": "(Block)F",
+   "native": "csrc/engine/harvest.c:inventory_str_vs_block",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "writeToNBT",
+   "sig": "(NBTTagList)NBTTagList",
+   "native": "csrc/engine/entity_nbt.c:player_inventory",
+   "status": "exact",
+   "note": "armor at slots 100..103, as the comment says"
+  },
+  {
+   "kind": "method",
+   "name": "readFromNBT",
+   "sig": "(NBTTagList)V",
+   "native": "csrc/engine/survival.c:read_inventory",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSizeInventory",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "constant 40, hardwired"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlot",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/survival.c:read_inventory",
+   "status": "partial",
+   "note": "indexed access is direct over surv_state's arrays"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryName",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInventoryNameLocalized",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryStackLimit",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:store_partial_item_stack",
+   "status": "exact",
+   "note": "the 64 cap is applied inside the add"
+  },
+  {
+   "kind": "method",
+   "name": "func_146025_b",
+   "sig": "(Block)Z",
+   "native": "csrc/engine/harvest.c:can_harvest_block",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "armorItemInSlot",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/survival.c:damage_armor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getTotalArmorValue",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:total_armor_value",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "damageArmor",
+   "sig": "(F)V",
+   "native": "csrc/engine/survival.c:damage_armor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "dropAllItems",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:drop_all_items",
+   "status": "exact",
+   "note": "through func_146097_a, as the comment says"
+  },
+  {
+   "kind": "method",
+   "name": "onInventoryChanged",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setItemStack",
+   "sig": "(ItemStack)V",
+   "native": "csrc/engine/survival.c:detect_and_send_changes",
+   "status": "partial"
+  },
+  {
+   "kind": "method",
+   "name": "getItemStack",
+   "sig": "()ItemStack",
+   "native": "csrc/engine/survival.c:detect_and_send_changes",
+   "status": "partial"
+  },
+  {
+   "kind": "method",
+   "name": "isUseableByPlayer",
+   "sig": "(EntityPlayer)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the 64-block distance check guards open GUIs the replay opens directly"
+  },
+  {
+   "kind": "method",
+   "name": "hasItemStack",
+   "sig": "(ItemStack)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "no replayed caller; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "openInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "closeInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValidForSlot",
+   "sig": "(I,ItemStack)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "always true in vanilla"
+  },
+  {
+   "kind": "method",
+   "name": "copyInventory",
+   "sig": "(InventoryPlayer)V",
+   "native": "csrc/engine/survival.c:surv_server_fresh_state",
+   "status": "exact",
+   "note": "the respawn's clonePlayer carries it"
+  },
+  {
+   "kind": "method",
+   "name": "InventoryPlayer$1.call",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: a CrashReportCategory detail (InventoryPlayer.java:435, the item being added); it runs only while a crash report is written, which no game path in scope does"
+  }
+ ],
+ "missing": [],
+ "notes": "The armor slots live in the same surv_state struct as the main slots, so several getters cite the survival helpers that read them. storeItemStack exists twice in Java-shaped form: survival.c's inlined scan for the player and container.c's player_store_item for machine inventories. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): clearInventory and hasItemStack have no survival caller; the mouse wheel arrives as the hotbar slot. Formerly listed as missing: clearInventory (the /clear-style wipe) and hasItemStack have no native and no replayed caller. The mouse-wheel hotbar cycle (changeCurrentItem) is not replayed; acts carry the selected slot instead. func_70439_a's enchanted-current-item guard (currentItemStack cache) is missing; dev gives always replace."
+}

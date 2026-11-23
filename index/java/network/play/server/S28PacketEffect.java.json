@@ -1,0 +1,199 @@
+{
+ "path": "oracle/src/network/play/server/S28PacketEffect.java",
+ "classes": [
+  "S28PacketEffect"
+ ],
+ "lines": 96,
+ "side": "server",
+ "category": "network",
+ "role": "A server broadcast effect (playAuxSFX): the sound-effect ids the client answers with Random draws and the ids that carry state.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_aux_sfx"
+   ]
+  },
+  {
+   "file": "csrc/engine/env.h",
+   "symbols": [
+    "env_aux_sfx"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_client_pump"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_aux_sfx"
+   ]
+  },
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_handle_packet"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_clientworld.c",
+  "out/java/clientworld/smoke-s1",
+  "out/java/snapshots/te-spawner-s1",
+  "out/java/snapshots/idx-spawner-s1",
+  "out/java/snapshots/rc-items-s1",
+  "out/java/snapshots/bonemeal-s1",
+  "out/java/snapshots/cat-fall-s1",
+  "out/java/snapshots/surv_fall12-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149251_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "the effect id: s2c_pkt i0",
+   "native": "csrc/engine/survival.h:s2c_pkt"
+  },
+  {
+   "kind": "field",
+   "name": "field_149249_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "x: s2c_pkt f0",
+   "native": "csrc/engine/survival.h:s2c_pkt"
+  },
+  {
+   "kind": "field",
+   "name": "field_149250_c",
+   "sig": "int",
+   "status": "exact",
+   "note": "y: s2c_pkt f1",
+   "native": "csrc/engine/survival.h:s2c_pkt"
+  },
+  {
+   "kind": "field",
+   "name": "field_149247_d",
+   "sig": "int",
+   "status": "exact",
+   "note": "z: s2c_pkt f2",
+   "native": "csrc/engine/survival.h:s2c_pkt"
+  },
+  {
+   "kind": "field",
+   "name": "field_149248_e",
+   "sig": "int",
+   "status": "exact",
+   "note": "the data: s2c_pkt i1",
+   "native": "csrc/engine/survival.h:s2c_pkt"
+  },
+  {
+   "kind": "field",
+   "name": "field_149246_f",
+   "sig": "boolean",
+   "status": "n/a",
+   "note": "the global (all-dimensions) flag; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int,int,int,int,boolean)V",
+   "status": "exact",
+   "note": "WorldManager.playAuxSFX's S28 to the player within 64 blocks of the effect in its dimension (env.h env_aux_sfx, the server's playAuxSFX calls: fall dust, spawners, bats, ghasts, blazes, doors, zombies, potions, the anvil, fire)",
+   "native": "csrc/engine/serverreplay.c:sr_aux_sfx"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/particles_live.c:particles_live_aux_sfx",
+   "note": "handleEffect: RenderGlobal.playAuxSFX on the client world (survival.c surv_client_pump's PK_S28): the sounds' pitch draws, 2000 the smoke, 2001 the block's destroy effects, 2002 the potion, 2003 the eye, 2004 the spawner's 20 flames and smoke, 2005 bonemeal's itemRand draws, 2006 the fall dust; the recordings' d.cw, d.cseed, d.cmath and d.cstat hold them (test_snapshots). The global flag (1013, 1018: broadcast sounds) draws nothing. clientworld.c keeps the ClientWorldProbe half"
+  },
+  {
+   "kind": "method",
+   "name": "func_149244_c",
+   "sig": "()Z",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149242_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149241_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149240_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149243_g",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149239_h",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes). Formerly listed as missing: No live-flow emission: the packet is exercised through the ClientWorldProbe recordings only, where the recording supplies the effect list. idxaudit 2026-09-27: was in_scope/exact: a reachable behaviour is not native (missing). lane/idxlast 2026-09-27: stale since lane/clientgate (the server's S28s and the whole of playAuxSFX on the client, compared through d.cw, d.cseed, d.cmath and d.cstat on every row of the recordings named, none of which clientdraw.allow excuses)."
+}

@@ -1,0 +1,114 @@
+{
+ "path": "oracle/src/client/model/ModelQuadruped.java",
+ "classes": [
+  "ModelQuadruped"
+ ],
+ "lines": 91,
+ "side": "client",
+ "category": "client_model",
+ "role": "The four-legged base model shared by pig, cow and sheep: head, body and four legs with the cos leg swing.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "quadruped",
+    "quad_legs",
+    "pose_model",
+    "model_vertex"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs_pig_f011",
+  "out/java/render/mobs_cow_f012",
+  "out/java/render/mobs_sheep_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "head",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:quadruped",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "body",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:quadruped",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "leg1",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:quad_legs",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "leg2",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:quad_legs",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "leg3",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:quad_legs",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "leg4",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:quad_legs",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_78145_g",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:model_vertex",
+   "status": "exact",
+   "note": "the child head translate (mob_model.child_head_y, set per model)"
+  },
+  {
+   "kind": "field",
+   "name": "field_78151_h",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:model_vertex",
+   "status": "exact",
+   "note": "the child head translate (mob_model.child_head_z)"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelQuadruped",
+   "sig": "(int,float)V",
+   "native": "csrc/engine/raster_mobs.c:quadruped",
+   "status": "exact",
+   "note": "the height and grow parameters"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact",
+   "note": "the child branch (half scale, head offset) is model_vertex"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact",
+   "note": "the cos leg swing on parts 2 to 5"
+  }
+ ],
+ "missing": []
+}

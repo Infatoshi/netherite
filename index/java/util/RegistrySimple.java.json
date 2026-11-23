@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/util/RegistrySimple.java",
+  "classes": ["RegistrySimple"],
+  "lines": 59,
+  "side": "common",
+  "category": "util",
+  "role": "The plain key-to-object map every registry builds on. In the game the block/item registries (through RegistryNamespaced) and the client sound and metadata registries use it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": ["csrc/tests/test_registry.c"],
+  "members": [
+    {"kind": "field", "name": "registryObjects", "sig": "Map", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "replaced by the static generated tables whose index is the id"},
+    {"kind": "method", "name": "createUnderlyingMap", "sig": "()Map", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getObject", "sig": "(Object)Object", "native": "csrc/engine/activate.c:block_named", "status": "partial", "note": "name scans over the generated tables where a string lookup is needed"},
+    {"kind": "method", "name": "putObject", "sig": "(Object,Object)V", "native": null, "status": "n/a", "note": "no runtime registration; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getKeys", "sig": "()Set", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "containsKey", "sig": "(Object)Z", "native": "csrc/engine/activate.c:block_named", "status": "partial"}
+  ],
+  "missing": [],
+  "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): runtime registry replaced by the generated blocks.h/items.h tables; nothing registers at runtime. Formerly listed as missing: No runtime map: putObject and getKeys have no native counterpart; the registry's contents are the generated blocks.h/items.h tables."
+}

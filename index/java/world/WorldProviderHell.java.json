@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/world/WorldProviderHell.java",
+  "classes": ["WorldProviderHell"],
+  "lines": 101,
+  "side": "common",
+  "category": "world",
+  "role": "The Nether's WorldProvider: one hell biome everywhere, no sky, dimension -1, a constant dark red fog, a light table lifted by 0.1 ambient, a fixed celestial angle of 0.5, ChunkProviderHell as the generator, and no respawning or spawn point.",
+  "scope": "in_scope",
+  "scope_reason": "The Nether is vanilla and in scope (SPEC Decisions: all other worldgen is vanilla, the Nether and the End included).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.h", "symbols": ["no_sky", "dim"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["spawner_brightness"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["servertick_celestial_radians", "skylight_no_sky"]},
+    {"file": "csrc/engine/renderstate.c", "symbols": ["rs_celestial", "rs_providerfog", "renderstate_compute"]},
+    {"file": "csrc/engine/nether.c", "symbols": ["nether_init", "nether_terrain", "nether_surface"]},
+    {"file": "csrc/engine/chunkload.c", "symbols": ["cl_set_respawn"]},
+    {"file": "csrc/engine/seedworld.c", "symbols": ["seedworld_build_dim"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/nether-trip-s1",
+    "out/java/snapshots/nether-trip2-s42",
+    "out/java/dims/nether-42-small",
+    "csrc/tests/test_dims.c",
+    "csrc/tests/test_renderstate.c",
+    "csrc/tests/test_fortress_spawn.c",
+    "out/java/clientframes/idx-wither-s1"
+  ],
+  "members": [
+    {"kind": "method", "name": "registerWorldChunkManager", "sig": "()V", "native": "csrc/engine/world.h:no_sky", "status": "exact", "note": "WorldChunkManagerHell(hell, 0.0F), isHellWorld, hasNoSky, dimensionId -1: native world dim -1 and no_sky 1; the single biome is in nether.h."},
+    {"kind": "method", "name": "getFogColor", "sig": "(float,float)Vec3", "native": "csrc/engine/renderstate.c:rs_providerfog", "status": "exact", "note": "The widened-float constants 0.20000000298023224 and 0.029999999329447746 copied as printed; drawn in idx-wither-s1's Nether frames (a frame replay: lane/covframes' coverage of the frame recordings)"},
+    {"kind": "method", "name": "generateLightBrightnessTable", "sig": "()V", "native": "csrc/engine/spawning.c:spawner_brightness", "status": "exact", "note": "The 0.1F ambient when dim == -1."},
+    {"kind": "method", "name": "createChunkGenerator", "sig": "()IChunkProvider", "native": "csrc/engine/nether.c:nether_terrain", "status": "exact", "note": "ChunkProviderHell; indexed in detail under world/gen/ChunkProviderHell.java."},
+    {"kind": "method", "name": "isSurfaceWorld", "sig": "()Z", "native": null, "status": "missing", "note": "No explicit counterpart; client clock/compass rendering keys off dim."},
+    {"kind": "method", "name": "canCoordinateBeSpawn", "sig": "(int,int)Z", "native": "csrc/engine/seedworld.c:seedworld_build_dim", "status": "n/a", "note": "only WorldServer.createSpawnPosition calls it, in the branch after !provider.canRespawnHere(), and this provider's canRespawnHere is false"},
+    {"kind": "method", "name": "calculateCelestialAngle", "sig": "(long,float)F", "native": "csrc/engine/servertick.c:servertick_celestial_radians", "status": "exact", "note": "0.5; skylight_no_sky returns 11 for the Nether. Frame side rs_celestial."},
+    {"kind": "method", "name": "canRespawnHere", "sig": "()Z", "native": "csrc/engine/chunkload.c:cl_set_respawn", "status": "exact"},
+    {"kind": "method", "name": "doesXZShowFog", "sig": "(int,int)Z", "native": "csrc/engine/renderstate.c:renderstate_compute", "status": "exact", "note": "The xzfog input; true in the Nether gives fog start 0.05 and end min(far,192)*0.5; idx-wither-s1's Nether frames (a frame replay: lane/covframes' coverage of the frame recordings)"},
+    {"kind": "method", "name": "getDimensionName", "sig": "()String", "native": null, "status": "n/a", "note": "Display name \"Nether\"."}
+  ],
+  "missing": [],
+  "notes": "isSurfaceWorld has no explicit counterpart but only feeds client clock/compass item icons; left as missing rather than claimed. Exactness is from the nether-trip recordings, the nether dumps under out/java/dims and test_dims.c; I did not run them."
+}

@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/renderer/GLAllocation.java",
+  "classes": ["GLAllocation"],
+  "lines": 76,
+  "side": "client",
+  "category": "client_render",
+  "role": "Static GL plumbing: hands out GL display lists and tracks them for deletion, and allocates direct NIO byte/int/float buffers for vertex and matrix data.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Display lists and NIO buffers are GL-call-stream machinery; the C engine keeps world meshes in flat int arrays and never emits display lists (SPEC 'Java, then C, then the GPU': the GL call stream is not reproduced).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "mapDisplayLists", "sig": "static Map", "native": null, "status": "n/a", "note": "GL display list bookkeeping"},
+    {"kind": "field", "name": "listDummy", "sig": "static List", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "generateDisplayLists", "sig": "(I)I", "native": null, "status": "n/a", "note": "no GL display lists in the C engine"},
+    {"kind": "method", "name": "deleteDisplayLists", "sig": "(I)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "deleteTexturesAndDisplayLists", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "createDirectByteBuffer", "sig": "(I)LByteBuffer;", "native": null, "status": "n/a", "note": "the C engine's Tessellator mirror (rb_tess) is a plain int array"},
+    {"kind": "method", "name": "createDirectIntBuffer", "sig": "(I)LIntBuffer;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "createDirectFloatBuffer", "sig": "(I)LFloatBuffer;", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Users in oracle/src (RenderGlobal, ClippingHelperImpl, Tessellator, Minecraft's shutdown) are all GL-call-stream paths the C engine replaces with its own flat buffers."
+}

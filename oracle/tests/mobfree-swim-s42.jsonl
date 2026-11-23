@@ -1,0 +1,202 @@
+{"cmd": "run", "class": "MobFree", "radius": 0}
+{"cmd": "run", "class": "Snapshot"}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {"hold": ["forward"]}}
+{"n": 12, "act": {"hold": ["back"]}}
+{"n": 12, "act": {"hold": ["forward", "jump"]}}
+{"n": 12, "act": {"hold": ["back", "jump"]}}
+{"n": 12, "act": {"hold": ["forward", "sprint"]}}
+{"n": 12, "act": {"hold": ["back", "sprint"]}}
+{"n": 12, "act": {}}
+{"n": 12, "act": {}}

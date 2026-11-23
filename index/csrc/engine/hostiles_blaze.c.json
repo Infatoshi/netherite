@@ -1,0 +1,110 @@
+{
+ "path": "csrc/engine/hostiles_blaze.c",
+ "lines": 542,
+ "role": "The EntityBlaze kind on the old (non-task) AI: attributes and constructor, the living-tick hover and water damage, EntityCreature.updateEntityActionState's path-following and wander (with the blaze's attackEntity: melee under 2 blocks, else the three-shot small-fireball volley), the idle EntityLiving.updateEntityActionState branch, the burning flag in data watcher 16, no fall damage, and blaze-rod drops.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntityBlaze.java",
+   "members": [
+    "EntityBlaze",
+    "applyEntityAttributes",
+    "onLivingUpdate",
+    "attackEntity",
+    "fall",
+    "dropFewItems",
+    "func_70845_n",
+    "func_70844_e",
+    "heightOffset",
+    "heightOffsetUpdateTime",
+    "field_70846_g"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "updateEntityActionState",
+    "updateWanderPath",
+    "findPlayerToAttack",
+    "field_110181_i",
+    "fleeingTick",
+    "hasAttacked",
+    "entityToAttack",
+    "pathToEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "updateEntityActionState",
+    "getVerticalFaceSpeed",
+    "faceEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMob.java",
+   "members": [
+    "attackEntityAsMob",
+    "findPlayerToAttack"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntitySmallFireball.java",
+   "members": [
+    "EntitySmallFireball"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityFireball.java",
+   "members": [
+    "EntityFireball"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "fleeing_speed_bonus_modifier",
+   "java": "EntityCreature.field_110181_i, the Fleeing speed bonus AttributeModifier",
+   "fields": [
+    "name",
+    "amount",
+    "operation",
+    "uuid_msb",
+    "uuid_lsb",
+    "saved"
+   ]
+  },
+  {
+   "name": "vec3",
+   "java": "Vec3 as PathEntity.getPosition returns it",
+   "fields": [
+    "x",
+    "y",
+    "z"
+   ]
+  }
+ ],
+ "entry_points": [
+  "blaze_construct",
+  "blaze_on_living_update",
+  "blaze_update_entity_action_state",
+  "blaze_fall",
+  "blaze_drop_few_items",
+  "blaze_set_on_fire",
+  "blaze_is_on_fire"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 110, function blaze_clear_path: free() of the heap path inside the tick; paths are rebuilt by ai_creature_path_to_entity/xyz (heap) at lines 153, 395, 414",
+  "line 176, function blaze_spawn_small_fireball: calloc of the fireball ie_ent, and line 222 calloc of its an_ent",
+  "line 297, function blaze_construct: kind_fall function pointer",
+  "line 437, function blaze_update_entity_action_state: while loop advancing the path index, bounded by the path length",
+  "line 329, function blaze_drop_few_items: an_spawn_item heap allocation per rod",
+  "references to other livings (entity_to_attack, attack_target, last targets, a projectile's shooter) are lrefs read through lv_get, and the old AI's path a pathref (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_fortress_spawn.c"
+ ],
+ "notes": "EntityBlaze.onLivingUpdate's particle and sound draws are consumed as bare Random draws (lines 355-371). The blaze's getBrightnessForRender/getBrightness overrides and the isBurning override are not in this file; not verified whether living.c covers them. Java field names (field_70846_g for the attack step, heightOffset) taken from MCP memory, not checked against EntityBlaze.java. Evidence recordings: out/java/hostiles b-2 and b-42 (blaze runs by their prefix, assumed from the file name pattern)."
+}

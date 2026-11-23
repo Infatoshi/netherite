@@ -1,0 +1,47 @@
+{
+ "path": "oracle/src/potion/PotionAttackDamage.java",
+ "classes": [
+  "PotionAttackDamage"
+ ],
+ "lines": 18,
+ "side": "common",
+ "category": "entity",
+ "role": "The strength (id 5) and weakness (id 18) potions: their modifier amount scales differently per amplifier.",
+ "scope": "in_scope",
+ "scope_reason": "Strength and weakness modifiers feed melee damage in the combat paths.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/potion.c",
+   "symbols": [
+    "potion_apply_attributes",
+    "potion_remove_attributes",
+    "POT_WEAKNESS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/potions/seed2",
+  "out/java/potions/seed42",
+  "csrc/tests/test_potions.c",
+  "out/java/snapshots/fight-witch-s1",
+  "out/java/snapshots/surv_eat-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "PotionAttackDamage",
+   "sig": "(int,Z,int)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_111183_a",
+   "sig": "(I,AttributeModifier)D",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_apply_attributes",
+   "note": "the weakness branch's -0.5F * (amp + 1) and the strength 1.3 * (amp + 1) scaling in the per id switch (potion.c:504)"
+  }
+ ],
+ "missing": []
+}

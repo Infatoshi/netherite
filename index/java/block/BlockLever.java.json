@@ -1,0 +1,218 @@
+{
+  "path": "oracle/src/block/BlockLever.java",
+  "classes": [
+    "BlockLever"
+  ],
+  "lines": 260,
+  "side": "common",
+  "category": "block",
+  "role": "The lever: a wall-or-floor toggle whose meta bit 8 is the powered state; under world.conf redstone = off its activation is the only live half.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: levers are craftable and placeable, and right-clicking one flips metadata bit 8 and notifies neighbours in the oracle with redstone = off (onBlockActivated ran in rc-blocks-s1). Only the power the lever emits reaches nothing.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "on_block_activated",
+        "ID_LEVER"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "lever_neighbor",
+        "ID_LEVER",
+        "bwl_on_broken"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks2.c",
+      "symbols": [
+        "rb2_render_lever"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "can_place_block_at",
+        "can_replace",
+        "on_block_placed",
+        "on_block_placed_by"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/activate/full2",
+    "csrc/tests/test_activate.c",
+    "out/java/snapshots/rc-blocks-s1",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/rs-lever-s1",
+    "csrc/tests/test_snapshots.c",
+    "out/java/meshes/scene3-2",
+    "csrc/tests/test_meshes.c",
+    "out/java/snapshots/struct-jungle-s1",
+    "out/java/snapshots/cov-blkpower-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockLever",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 69: circuits material, render_type 12"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(World,III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "null: row 69's no-collision setting"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "opaque_cube 0"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "normal_block 0"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "render_type 12 -> rb2_render_lever"
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockOnSide",
+      "sig": "(World,IIII)Z",
+      "native": "csrc/engine/place.c:can_replace",
+      "status": "exact",
+      "note": "the side's own support test (a normal cube behind the clicked face, a solid top for side 1); rs-lever-s1 places on the floor, the four walls and the ceiling"
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockAt",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/place.c:can_place_block_at",
+      "status": "exact",
+      "note": "any of the six supports"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlaced",
+      "sig": "(World,IIIFFFI)I",
+      "native": "csrc/engine/place.c:on_block_placed",
+      "status": "exact",
+      "note": "the side to facing map (0 ceiling, 5 floor, 4..1 the walls) with the item's bit 8"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(World,IIILnet/minecraft/entity/EntityLivingBase;ItemStack)V",
+      "native": "csrc/engine/place.c:on_block_placed_by",
+      "status": "exact",
+      "note": "a floor or ceiling lever turns with the placer's yaw (5/6, 7/0): rs-lever-s1 places both at yaws 0, 90, 180 and 270"
+    },
+    {
+      "kind": "method",
+      "name": "func_149819_b",
+      "sig": "(I)I",
+      "native": "csrc/engine/place.c:on_block_placed_by",
+      "status": "exact",
+      "note": "the side to facing map, read back by onBlockPlacedBy"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIIBlock)V",
+      "native": "csrc/engine/blockcb.c:lever_neighbor",
+      "status": "exact",
+      "note": "the per-meta support check and the drop"
+    },
+    {
+      "kind": "method",
+      "name": "func_149820_e",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/blockcb.c:lever_neighbor",
+      "status": "exact",
+      "note": "the canPlaceBlockAt guard: rs-lever-s1 removes the wall behind a powered lever and it drops with its sweep"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z",
+      "native": "csrc/engine/activate.c:on_block_activated",
+      "status": "exact",
+      "note": "the metadata flip (flag 3), the self round and the facing's extra round (activate.c); rs-lever-s1 toggles floor, wall and ceiling levers and a floor lever beside a water pit that the facing round sets flowing"
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(World,IIIBlockI)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_broken",
+      "status": "exact",
+      "note": "a powered lever's sweep before the empty super: rs-lever-s1 digs a powered ceiling lever and one beside the water pit, and pulls the wall from under powered wall levers"
+    },
+    {
+      "kind": "method",
+      "name": "canProvidePower",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "the registry flag the wire renderer's connections read"
+    },
+    {
+      "kind": "method",
+      "name": "isProvidingWeakPower",
+      "sig": "(IBlockAccess,IIII)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Redstone off: the power it emits reaches nothing: World.isBlockProvidingPowerTo and getIndirectPowerLevelTo answer 0 with world.conf redstone = off (World.java:3511, 3585)."
+    },
+    {
+      "kind": "method",
+      "name": "isProvidingStrongPower",
+      "sig": "(IBlockAccess,IIII)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Redstone off: the power it emits reaches nothing: World.isBlockProvidingPowerTo and getIndirectPowerLevelTo answer 0 with world.conf redstone = off (World.java:3511, 3585)."
+    }
+  ],
+  "missing": [],
+  "notes": "The activation path (meta flip, notifications) is verified in the activate probe; the render lane is rb2_render_lever. The powered sweep on break is in blockcb.c's lever case. Nothing downstream of the lever consumes power in this game. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact on rs-lever-s1 (every face and yaw placed by hand, toggles, a powered lever dug, walls pulled from under powered levers, the rounds shown on a water pit; removing the floor lever's facing round fails it)."
+}

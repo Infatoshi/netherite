@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/entity/SharedMonsterAttributes.java",
+  "classes": ["SharedMonsterAttributes"],
+  "lines": 138,
+  "side": "common",
+  "category": "entity",
+  "role": "The five standard attributes (maxHealth, followRange, knockbackResistance, movementSpeed, attackDamage) and the NBT read/write of attribute maps and modifiers.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.h", "symbols": ["ATTR_MAX_HEALTH", "ATTR_MOVEMENT_SPEED", "attr_mod", "attr_instance"]},
+    {"file": "csrc/engine/living.c", "symbols": ["attrs_init", "attrs_set_base", "attrs_apply", "attrs_value", "attr_instance_w"]},
+    {"file": "csrc/engine/entity_nbt.c", "symbols": ["player_attributes"]},
+    {"file": "csrc/engine/snapshot_entities.c", "symbols": ["restore_attributes"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/auditfix-attr-s1",
+    "out/java/snapshots/fight-zombie-s1",
+    "csrc/tests/test_hostiles.c",
+    "csrc/tests/test_potions.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "maxHealth, followRange, knockbackResistance, movementSpeed, attackDamage (static constants)", "sig": "IAttribute", "native": "csrc/engine/living.h:ATTR_MAX_HEALTH", "status": "exact", "note": "ATTR_ enum in registration order with the same defaults (20, 32, 0, 0.699999988079071, 2)"},
+    {"kind": "field", "name": "logger", "sig": "Logger (static)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writeBaseAttributeMapToNBT", "sig": "(BaseAttributeMap)NBTTagList", "native": "csrc/engine/living.c:living_write_nbt", "status": "exact", "note": "the Attributes list in registration order; the player twin is entity_nbt.c's player_attributes"},
+    {"kind": "method", "name": "writeAttributeInstanceToNBT", "sig": "(IAttributeInstance)NBTTagCompound", "native": "csrc/engine/living.c:attr_instance_w", "status": "exact", "note": "Name, Base, and the Modifiers list whenever any modifier is applied, with unsaved ones skipped inside"},
+    {"kind": "method", "name": "writeAttributeModifierToNBT", "sig": "(AttributeModifier)NBTTagCompound", "native": "csrc/engine/living.c:attr_instance_w", "status": "exact", "note": "folded into attr_instance_nbt"},
+    {"kind": "method", "name": "func_151475_a", "sig": "(BaseAttributeMapNBTTagList)V", "native": "csrc/engine/snapshot_entities.c:restore_attributes", "status": "exact", "note": "the read side: name lookup, Base, then the Modifiers list"},
+    {"kind": "method", "name": "applyModifiersToAttributeInstance", "sig": "(IAttributeInstanceNBTTagCompound)V", "native": "csrc/engine/snapshot_entities.c:restore_attributes", "status": "exact", "note": "folded into restore_attributes"},
+    {"kind": "method", "name": "readAttributeModifierFromNBT", "sig": "(NBTTagCompound)AttributeModifier", "native": "csrc/engine/snapshot_entities.c:restore_attributes", "status": "exact", "note": "folded into restore_attributes"},
+    {"kind": "ctor", "name": "SharedMonsterAttributes", "sig": "()V", "native": null, "status": "n/a", "note": "n/a: a static-only class; nothing in oracle/src constructs it (no new SharedMonsterAttributes())"}
+  ],
+  "missing": [],
+  "notes": "The value computation (operation 0/1/2 then the attribute clamp) is documented at living.h:11-16 and lives in attrs_value/attrs_apply. The write side for the player's twin is entity_nbt.c (player_attributes), which reproduces the empty-Modifiers-list quirk for unsaved modifiers. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the unknown-attribute warning is logging. Formerly listed as missing: The unknown-attribute warning branch of func_151475_a has no logging counterpart (the native reader skips unknown names silently)."
+}

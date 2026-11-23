@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/util/EntityDamageSource.java",
+  "classes": ["EntityDamageSource"],
+  "lines": 39,
+  "side": "server",
+  "category": "combat",
+  "role": "A DamageSource caused by an entity (mob or player attacks, thorns): carries the attacking entity, builds the death message, and scales damage by difficulty for non-player attackers.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.h", "symbols": ["DMG_MOB", "damage_attacker"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_attack_entity_from_attacker"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/combat-mobs-s1",
+    "out/java/snapshots/fight-zombie-s1",
+    "csrc/tests/test_hostiles.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "damageSourceEntity", "sig": "Entity", "native": "csrc/engine/living.h:damage_attacker", "status": "exact"},
+    {"kind": "ctor", "name": "EntityDamageSource", "sig": "(String,Entity)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntity", "sig": "()Entity", "native": "csrc/engine/living.h:damage_attacker", "status": "exact"},
+    {"kind": "method", "name": "func_151519_b", "sig": "(EntityLivingBase)IChatComponent (death message)", "native": null, "status": "n/a", "note": "chat only"},
+    {"kind": "method", "name": "isDifficultyScaled", "sig": "()boolean", "native": null, "status": "n/a", "note": "no native difficulty scaling of entity damage verified; not a gap (triage 2026-09-25)"}
+  ],
+  "missing": [],
+  "notes": "The attacking entity survives as living.h's damage_attacker, applied by living.c living_attack_entity_from_attacker. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): difficulty scaling is identity at the pinned NORMAL. Formerly listed as missing: isDifficultyScaled has no native counterpart; no scaling of mob damage by difficulty was found."
+}

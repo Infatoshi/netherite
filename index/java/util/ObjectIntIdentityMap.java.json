@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/util/ObjectIntIdentityMap.java",
+  "classes": ["ObjectIntIdentityMap"],
+  "lines": 48,
+  "side": "common",
+  "category": "util",
+  "role": "The identity map from registry object to integer id plus the dense id-to-object list, backing RegistryNamespaced for blocks and items.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": ["csrc/tests/test_registry.c"],
+  "members": [
+    {"kind": "field", "name": "field_148749_a", "sig": "IdentityHashMap", "native": null, "status": "n/a", "note": "the native registry is a static id-indexed table generated from the 1.7.10 source; no runtime map exists"},
+    {"kind": "field", "name": "field_148748_b", "sig": "List", "native": null, "status": "n/a", "note": "same: the table's index is the id"},
+    {"kind": "method", "name": "func_148746_a", "sig": "(Object,int)V", "native": null, "status": "n/a", "note": "registration happens at table-generation time, not at runtime; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "func_148747_b", "sig": "(Object)I", "native": "csrc/engine/items.h:ITEMS", "status": "partial", "note": "the id is the array index; every lookup by id is a direct index"},
+    {"kind": "method", "name": "func_148745_a", "sig": "(I)Object", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "BLOCKS[id] / ITEMS[id]"},
+    {"kind": "method", "name": "iterator", "sig": "()Iterator", "native": null, "status": "n/a", "note": "native code iterates the tables with plain for loops; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "func_148744_b", "sig": "(I)Z", "native": null, "status": "n/a", "note": "callers bounds-check the array index directly; not a gap (triage 2026-09-25)"}
+  ],
+  "missing": [],
+  "notes": "test_registry.c checks the generated tables against hand-read 1.7.10 values, which is what this map ultimately feeds. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): runtime registry replaced by the generated blocks.h/items.h tables; nothing registers at runtime. Formerly listed as missing: No runtime registry: the object-to-id and id-to-object directions are the generated blocks.h/items.h tables, whose index is the id; addObject and the iterator have no native counterpart because nothing registers at runtime."
+}

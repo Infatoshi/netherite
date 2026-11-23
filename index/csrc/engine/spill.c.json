@@ -1,0 +1,65 @@
+{
+ "path": "csrc/engine/spill.c",
+ "lines": 159,
+ "role": "The container blocks' breakBlock inventory spill (chest, trapped chest, furnace, lit furnace, dispenser, dropper, hopper, brewing stand) and the eight Block singletons' own Randoms it draws, with their born states.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/block/BlockChest.java",
+   "members": [
+    "breakBlock",
+    "field_149955_b"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFurnace.java",
+   "members": [
+    "breakBlock",
+    "field_149933_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDispenser.java",
+   "members": [
+    "breakBlock",
+    "field_149942_b"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockHopper.java",
+   "members": [
+    "breakBlock",
+    "field_149922_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockBrewingStand.java",
+   "members": [
+    "breakBlock",
+    "field_149961_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": [
+    "EntityItem"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "container_spill",
+  "block_rand_reset",
+  "block_rand_index"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "function container_spill: while loop bounded by the slot's stack count; output through a function-pointer sink"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_dig.c"
+ ],
+ "notes": "Callers: dig.c:container_drops (the player's break, before the write) and blockcb.c:block_on_broken (every other write, when blockcb_env.item_spill is installed: explosion.c). Recordings: chest-break-s1, furnace-break-s1, spill-boom-s1, chest-chain-s1."
+}

@@ -1,0 +1,64 @@
+{
+ "path": "oracle/src/network/play/server/S3DPacketDisplayScoreboard.java",
+ "classes": [
+  "S3DPacketDisplayScoreboard"
+ ],
+ "lines": 69,
+ "side": "common",
+ "category": "network",
+ "role": "Which objective a display slot (below name, sidebar, team color) shows.",
+ "scope": "not_needed",
+ "scope_reason": "Vanilla creates no scoreboard objectives or teams and commands are not used, so the server's scoreboard stays empty and none of these packets is ever sent.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S3DPacketDisplayScoreboard",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "S3DPacketDisplayScoreboard",
+   "sig": "(...)V",
+   "status": "n/a",
+   "note": "the payload constructors"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static)",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Sent by ServerScoreboard.setDisplayObjective (ServerScoreboard.java:57, 69, 179) and in the login batch; the display slots are only ever set by /scoreboard, which this game does not use."
+}

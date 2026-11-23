@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/hostiles_creeper.h",
+ "lines": 46,
+ "role": "Declares the EntityCreeper and EntityAICreeperSwell functions of hostiles_creeper.c that hostiles.c, ai.c, living.c and the replay code call.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntityCreeper.java", "members": ["EntityCreeper", "onUpdate", "fall", "getMaxSafePointTries", "attackEntityAsMob", "writeEntityToNBT", "onStruckByLightning", "func_146077_cc"]},
+  {"path": "oracle/src/entity/ai/EntityAICreeperSwell.java", "members": ["shouldExecute", "updateTask"]}
+ ],
+ "structs": [],
+ "entry_points": ["creeper_construct", "creeper_pre_on_update", "creeper_on_living_update", "creeper_fall", "creeper_attack_entity_as_mob", "creeper_drop_few_items", "creeper_struck_by_lightning", "creeper_max_safe_point_tries", "creeper_write_kind_nbt", "creeper_explode", "creeper_swell_should_execute", "creeper_swell_update"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_hostiles.c", "csrc/tests/test_lightning.c"],
+ "notes": ""
+}

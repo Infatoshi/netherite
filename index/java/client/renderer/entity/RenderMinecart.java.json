@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderMinecart.java",
+  "classes": ["RenderMinecart"],
+  "lines": 153,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders a minecart: the ModelMinecart body plus the carried block (RenderBlocks) riding it, positioned along the rail's slope.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has minecarts = off: mineshaft chest carts are never spawned and carts cannot be placed, so no EntityMinecart ever exists in the game both sides run.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "minecartTextures", "sig": "ResourceLocation (static)", "native": null, "status": "n/a", "note": "static constant, grouped"},
+    {"kind": "field", "name": "modelMinecart", "sig": "ModelMinecart", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_94145_f", "sig": "RenderBlocks", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "RenderMinecart", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityMinecart,double,double,double,float,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityMinecart)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_147910_a", "sig": "(EntityMinecart,float,Block,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

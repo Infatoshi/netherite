@@ -1,0 +1,66 @@
+{
+ "path": "oracle/src/network/rcon/RConConsoleSource.java",
+ "classes": [
+  "RConConsoleSource"
+ ],
+ "lines": 60,
+ "side": "server",
+ "category": "commands",
+ "role": "The command sender the RCON remote console uses: buffers command output and answers ICommandSender's queries with the name Rcon and position 0,0,0.",
+ "scope": "not_needed",
+ "scope_reason": "The RCON server (net.minecraft.server.rcon) is never started: no dedicated server and no rcon configuration, so this sender is never constructed by gameplay.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_70010_a",
+   "sig": "RConConsoleSource (static singleton)",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_70009_b",
+   "sig": "StringBuffer",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getCommandSenderName",
+   "sig": "()String",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_145748_c_",
+   "sig": "()IChatComponent",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addChatMessage",
+   "sig": "(IChatComponent)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canCommandSenderUseCommand",
+   "sig": "(int,String)Z",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerCoordinates",
+   "sig": "()ChunkCoordinates",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityWorld",
+   "sig": "()World",
+   "status": "n/a"
+  }
+ ],
+ "missing": []
+}

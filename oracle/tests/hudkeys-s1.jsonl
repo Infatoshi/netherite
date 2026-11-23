@@ -1,0 +1,9 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"dev","op":"slot","slot":9,"item":4,"count":64}
+{"cmd":"dev","op":"slot","slot":10,"item":297,"count":16}
+{"cmd":"dev","op":"slot","slot":11,"item":267,"count":1}
+{"cmd":"dev","op":"slot","slot":0,"item":280,"count":8}
+{"n":3,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":5,"act":{}}

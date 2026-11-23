@@ -1,0 +1,204 @@
+{
+ "path": "oracle/src/client/gui/GuiButton.java",
+ "classes": [
+  "GuiButton"
+ ],
+ "lines": 134,
+ "side": "client",
+ "category": "client_gui",
+ "role": "A clickable labelled button drawn from the widgets sheet; the base class of GuiOptionButton and of every screen's buttons.",
+ "scope": "in_scope",
+ "scope_reason": "The death and pause screens' buttons are part of the gated frame; the native overlay draws them.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_hud.c",
+   "symbols": [
+    "screen_button"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/gui_death",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_146122_a (static)",
+   "sig": "ResourceLocation",
+   "native": "csrc/engine/raster_hud.c:screen_button",
+   "status": "partial",
+   "note": "the widgets sheet is loaded with the other GUI sheets in raster_hud_draw"
+  },
+  {
+   "kind": "field",
+   "name": "field_146120_f",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "width; the native caller passes the rectangle per draw; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_146121_g",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "height; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_146128_h",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "x; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_146129_i",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "y; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "displayString",
+   "sig": "String",
+   "native": "csrc/engine/raster_hud.c:screen_button",
+   "status": "partial",
+   "note": "a draw parameter, no stored state"
+  },
+  {
+   "kind": "field",
+   "name": "id",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "enabled",
+   "sig": "boolean",
+   "native": "csrc/engine/raster_hud.c:screen_button",
+   "status": "partial"
+  },
+  {
+   "kind": "field",
+   "name": "field_146125_m",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "visible; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_146123_n",
+   "sig": "boolean",
+   "native": "csrc/engine/raster_hud.c:screen_button",
+   "status": "partial",
+   "note": "hovered"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiButton",
+   "sig": "(int,int,int,String)",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiButton",
+   "sig": "(int,int,int,int,int,String)",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getHoverState",
+   "sig": "(boolean)I",
+   "native": "csrc/engine/raster_hud.c:screen_button",
+   "status": "partial",
+   "note": "hover and enabled states computed by the caller; the disabled texture row matches"
+  },
+  {
+   "kind": "method",
+   "name": "drawButton",
+   "sig": "(Minecraft,int,int)V",
+   "native": "csrc/engine/raster_hud.c:screen_button",
+   "status": "partial",
+   "note": "the 200x20 widgets-sheet button with hover, disabled and label; no per-button object"
+  },
+  {
+   "kind": "method",
+   "name": "mouseDragged",
+   "sig": "(Minecraft,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "mouseReleased",
+   "sig": "(int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "mousePressed",
+   "sig": "(Minecraft,int,int)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the native client's clicks go through the recorded gui ops (play.c), not a button object; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_146115_a",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_146111_b",
+   "sig": "(int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_146113_a",
+   "sig": "(SoundHandler)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the button press sound; audio is out of scope; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_146117_b",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "width accessor; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_154310_c",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "height accessor; not a gap (triage 2026-09-25)"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): buttons are drawn inline and clicks arrive as gui ops; the click sound is audio. Formerly listed as missing: No native button object: the death and pause screens draw their buttons inline (screen_button) and clicks are handled by the recorded gui ops, so the geometry fields and mousePressed/mouseDragged/mouseReleased have no counterpart. The button press sound (func_146113_a) is not played."
+}

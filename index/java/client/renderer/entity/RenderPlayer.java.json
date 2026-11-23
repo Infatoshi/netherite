@@ -1,0 +1,42 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderPlayer.java",
+  "classes": ["RenderPlayer"],
+  "lines": 543,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders the player: armor passes over the biped model, the held item, the third-person body, the sleeping rotation, the name tag, and the first-person bare arm.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_hand.c", "symbols": ["first_person_arm", "model_box", "raster_hand_draw"]},
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["raster_mobs_player_preview"]}
+  ],
+  "evidence": ["out/java/render/hand_idle", "out/java/render/hand_swing", "out/java/render/hand_pickaxe", "out/java/render/hand_bow_a", "out/java/render/hand_sword_block", "out/java/render/gui_inventory", "csrc/tests/test_render.c", "out/java/render/gui_inventory_preview", "out/java/clientframes/idx-heldblock-s1", "out/java/clientframes/idx-preview-s1"],
+  "members": [
+    {"kind": "field", "name": "steveTextures", "sig": "ResourceLocation (static)", "native": null, "status": "n/a", "note": "static constant, grouped; no native player body texture is loaded; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "modelBipedMain, modelArmorChestplate, modelArmor", "sig": "ModelBiped", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "ctor", "name": "RenderPlayer", "sig": "()V", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(AbstractClientPlayer,int,float)V", "native": null, "status": "n/a", "note": "the armor layer passes (helmet, plate, legs, boots with per-piece brightness); not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "func_82408_c", "sig": "(AbstractClientPlayer,int,float)V", "native": null, "status": "n/a", "note": "the armor brightening pass; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "doRender", "sig": "(AbstractClientPlayer,double,double,double,float,float)V", "native": null, "status": "n/a", "note": "the third-person body (cloak, held item, cape rotation); the camera player is never drawn natively and the gui_inventory player preview is a known gap; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(AbstractClientPlayer)ResourceLocation", "native": null, "status": "n/a", "note": "steve.png plus the downloaded-skin logic; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(AbstractClientPlayer,float)V", "native": null, "status": "n/a", "note": "the third-person held item via ItemRenderer; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(AbstractClientPlayer,float)V", "native": null, "status": "n/a", "note": "empty in vanilla (lines 398-403)"},
+    {"kind": "method", "name": "func_96449_a", "sig": "(AbstractClientPlayer,double,double,double,String,float,double)V", "native": null, "status": "n/a", "note": "the player's own name tag suppression/scale logic; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "renderFirstPersonArm", "sig": "(EntityPlayer)V", "native": "csrc/engine/raster_hand.c:first_person_arm", "status": "exact", "note": "the bare right arm drawn by the hand pass; measured pixel-tight by the hand_* scenes"},
+    {"kind": "method", "name": "renderLivingAt", "sig": "(AbstractClientPlayer,double,double,double)V", "native": null, "status": "n/a", "note": "the yaw shift for the third-person body; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(AbstractClientPlayer,float,float,float)V", "native": null, "status": "n/a", "note": "the sleeping-lying-down rotation; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "func_96449_a", "sig": "(EntityLivingBase,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "func_82408_c", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityLivingBase,float,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "renderLivingAt", "sig": "(EntityLivingBase,double,double,double)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "In agent mode the snapshot holds only players, so the camera player never appears as a world entity; third-person bodies would matter for the gui_inventory preview and any future spectate path. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): third person is off-profile; the first-person arm is ported. Formerly listed as missing: The third-person player body: no native player model, armor passes, held item or skin exist; the only player pixels drawn are the first-person arm and held item (raster_hand.c). Name-tag rendering for players and the sleeping rotation have no native counterpart. doRender's GUI use (GuiInventory.func_147046_a) is raster_mobs_player_preview: preRenderCallback's 0.9375, the y - yOffset translate, heldItemRight. lane/idxclient (later): the held block's renderItemIn3d branch (see RenderBiped) and the inventory preview through this renderer whole (GuiInventory)."
+}

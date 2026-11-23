@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/item/crafting/RecipesArmorDyes.java",
+  "classes": ["RecipesArmorDyes"],
+  "lines": 156,
+  "side": "common",
+  "category": "crafting",
+  "role": "Dyes a leather armor piece: one CLOTH armor plus any number of dyes averages the colours and writes the result's display.color.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/crafting.c", "symbols": ["dye_matches", "dye_result", "craft_armor_material", "armor_color", "armor_set_color"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c"],
+  "members": [
+    {"kind": "method", "name": "matches", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;Lnet/minecraft/world/World;)Z", "native": "csrc/engine/crafting.c:dye_matches", "status": "exact", "note": "exactly one CLOTH ItemArmor and at least one dye, nothing else"},
+    {"kind": "method", "name": "getCraftingResult", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/crafting.c:dye_result", "status": "exact", "note": "the colour average over dyes and the armor's own colour, then the brightest-channel rescale, written through ItemArmor.func_82813_b"},
+    {"kind": "method", "name": "getRecipeSize", "sig": "()I", "native": "csrc/engine/crafting.c:dye_matches", "status": "exact", "note": "the size-10 constant only mattered to the sort, already baked"},
+    {"kind": "method", "name": "getRecipeOutput", "sig": "()Lnet/minecraft/item/ItemStack;", "native": null, "status": "exact", "note": "returns null in Java until a match sets it"}
+  ],
+  "missing": [],
+  "notes": null
+}

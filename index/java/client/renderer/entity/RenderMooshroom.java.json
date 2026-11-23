@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderMooshroom.java",
+  "classes": ["RenderMooshroom"],
+  "lines": 116,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the mooshroom: the cow model and texture, plus three red mushrooms drawn on the back as renderEquippedItems.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_cow", "draw_mooshroom_mushrooms", "raster_mobs_draw", "texture_names"]}
+  ],
+  "evidence": ["out/java/clientframes/cov-zoo-s1", "out/java/render/mobs2b_mooshroom_f006", "out/java/render/mobs2b_mooshroom_f011", "out/java/render/mobs2b_mooshroom_child_f006", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "mooshroomTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constant, grouped; the TEX_MOOSHROOM entry"},
+    {"kind": "ctor", "name": "RenderMooshroom", "sig": "(ModelBase,float)V", "native": "csrc/engine/raster_mobs.c:model_cow", "status": "exact", "note": "MOB_MOOSHROOM shares the cow model"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityMooshroom,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the shared living path; the mushrooms draw with culling back on, matching raster_mobs_draw's target choice"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityMooshroom)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityMooshroom,float)V", "native": "csrc/engine/raster_mobs.c:draw_mooshroom_mushrooms", "status": "exact", "note": "the three mushrooms (42-degree, shifted 42-degree, 12-degree top) with the child skip"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

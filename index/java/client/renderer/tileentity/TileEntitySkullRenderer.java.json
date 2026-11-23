@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntitySkullRenderer.java",
+  "classes": ["TileEntitySkullRenderer"],
+  "lines": 124,
+  "side": "client",
+  "category": "client_render",
+  "role": "TileEntitySpecialRenderer for TileEntitySkull: draws ModelSkeletonHead for the placed skull block, choosing skeleton, wither-skeleton, zombie, player (via the SkinManager profile lookup) or creeper texture by func_145904_a, offset and rotated by the block metadata and the skull's func_145906_b rotation.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+   {
+    "file": "csrc/engine/raster_tileent.c",
+    "symbols": [
+     "render_skull",
+     "render_part"
+    ]
+   }
+  ],
+  "evidence": [
+   "out/java/rendertick/te_skulls",
+   "out/java/render/te_skulls_f25",
+   "out/java/render/te_skulls_left",
+   "out/java/render/te_skulls_right",
+   "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_147537_c, field_147534_d, field_147535_e, field_147532_f", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_tileent.c:tex", "status": "exact"},
+    {"kind": "field", "name": "field_147536_b", "sig": "TileEntitySkullRenderer (static)", "native": null, "status": "n/a", "note": "the static instance other renderers call through"},
+    {"kind": "field", "name": "field_147533_g, field_147538_h", "sig": "ModelSkeletonHead", "native": "csrc/engine/raster_tileent.c:render_skull", "status": "exact"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntitySkull,D,D,D,F)V", "native": "csrc/engine/raster_tileent.c:render_skull", "status": "exact"},
+    {"kind": "method", "name": "func_147497_a", "sig": "(TileEntityRendererDispatcher)V", "native": null, "status": "n/a", "note": "registers the static instance"},
+    {"kind": "method", "name": "func_152674_a", "sig": "(F,F,F,I,F,I,GameProfile)V", "native": "csrc/engine/raster_tileent.c:render_skull", "status": "exact", "note": "a player head with no profile binds steve.png; an owner's skin (SkinManager) is unreachable without creative"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntity,D,D,D,F)V", "native": null, "status": "n/a", "note": "bridge overload"}
+  ],
+  "missing": [],
+  "notes": "All five types on the floor at ten rotations and on walls at the four facings (te_skulls). The renderer disables GL_CULL_FACE and enables GL_RESCALE_NORMAL without restoring either, so the dispatcher threads both into the tile entities after it, as vanilla leaves them."
+}

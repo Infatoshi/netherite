@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/util/StringTranslate.java",
+  "classes": ["StringTranslate"],
+  "lines": 133,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Reads assets/minecraft/lang/en_US.lang into a key-to-string map and translates keys, with String.format for the formatted variants.",
+  "scope": "in_scope",
+  "status": "partial",
+  "native": [{"file": "csrc/engine/lang.c", "symbols": ["lang_text"]}, {"file": "csrc/engine/chatcomp.c", "symbols": ["chat_translate", "chat_can_translate"]}],
+  "evidence": ["out/java/snapshots/chat-deaths-s1", "out/java/snapshots/achieve-s1"],
+  "members": [
+    {"kind": "field", "name": "numericVariablePattern", "sig": "Pattern", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "equalSignSplitter", "sig": "Splitter", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "instance", "sig": "StringTranslate", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "languageList", "sig": "Map", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "lastUpdateTimeInMilliseconds", "sig": "long", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "StringTranslate", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getInstance", "sig": "()StringTranslate", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "replaceWith", "sig": "(Map)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "translateKey", "sig": "(String)String", "native": "csrc/engine/lang.c:lang_text", "status": "partial", "note": "the engine checks a fixed subset of keys during generation"},
+    {"kind": "method", "name": "translateKeyFormat", "sig": "(String,Object...)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "tryTranslateKey", "sig": "(String)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "containsTranslateKey", "sig": "(String)Z", "native": "csrc/engine/chatcomp.c:chat_can_translate", "status": "partial", "note": "server chat subset only"},
+    {"kind": "method", "name": "getLastUpdateTimeInMilliseconds", "sig": "()J", "native": null, "status": "n/a"}
+  ],
+  "missing": ["Dynamic language reload and translation of keys outside the checked engine set are not implemented."],
+  "notes": "tools/langgen.c extracts the checked engine keys from the user jar into out/native/lang_generated.h. Chat components and HUD code consume the generated values; item display names still come from the oracle scene. Three numeric command formats and the inventory key hint reproduce Java substitutions.",
+  "scope_reason": "The engine resolves chat and screen text from the user-owned en_US.lang file through a generated checked key table."
+}

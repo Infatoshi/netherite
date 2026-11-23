@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/animals.h",
+ "lines": 28,
+ "role": "Declares the passive-mob kind functions implemented in animals.c: farm-animal attributes, construction, living-tick tail, drops, breeding children, kind NBT, squid swim and bat AI.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/passive/EntityAnimal.java", "members": ["onLivingUpdate", "getBlockPathWeight"]},
+  {"path": "oracle/src/entity/passive/EntitySquid.java", "members": ["isInWater", "moveEntityWithHeading", "updateEntityActionState", "onLivingUpdate"]},
+  {"path": "oracle/src/entity/passive/EntityBat.java", "members": ["onUpdate", "updateAITasks", "writeEntityToNBT"]},
+  {"path": "oracle/src/entity/passive/EntitySheep.java", "members": ["eatGrassBonus", "createChild"]}
+ ],
+ "structs": [],
+ "entry_points": ["animal_attributes", "animal_construct", "animal_write_kind_nbt", "bat_write_kind_nbt", "animal_on_living_update", "squid_on_living_update", "squid_move_entity_with_heading", "squid_update_entity_action_state", "squid_is_in_water", "bat_on_base_update", "bat_update_ai_tasks", "squidbat_bat_on_living_update", "squidbat_kind_tick", "animal_drop_few_items", "animal_eat_grass_bonus", "animal_create_child", "animal_get_block_path_weight"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_animals.c", "csrc/tests/test_hostiles.c", "csrc/tests/test_potions.c"],
+ "notes": "animal_write_kind_nbt is declared twice (lines 10 and 23), harmless. animal_on_spawn_with_egg is declared in living.h, not here."
+}

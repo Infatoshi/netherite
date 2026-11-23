@@ -1,0 +1,13 @@
+{
+  "path": "oracle/harness/netherite/oracle/Control.java",
+  "lines": 209,
+  "role": "Command sources for agent mode: a JSONL script, a tape to replay (read and parsed ahead on its own thread), or the TCP control port on 127.0.0.1 (the Malmo replacement); one JSON object per line in and out, consumed on the client thread through a queue; lastLine keeps the text a replay row was parsed from for the row compare.",
+  "kind": "harness",
+  "used_by": [
+    "make -C oracle script / replay / serve (oracle/Makefile)",
+    "oracle/tests/tcp_smoke.sh",
+    "oracle/harness/netherite/oracle/Oracle.java"
+  ],
+  "vanilla_hooks": [],
+  "notes": "The word Control in oracle/src/tileentity/TileEntity.java is the command block's registry name, not a hook. stop() ends a replay's reader thread, closes the script and drops queued commands between pool runs."
+}

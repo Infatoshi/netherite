@@ -1,0 +1,13 @@
+{"cmd":"run","class":"Snapshot"}
+{"n":3,"act":{"look":[0.0,10.0]}}
+{"n":6,"act":{"hotbar":2}}
+{"n":4,"act":{}}
+{"n":1,"act":{"press":["inventory"]}}
+{"n":6,"act":{}}
+{"n":1,"act":{"gui":[["close"]]}}
+{"n":2,"act":{}}
+{"n":1,"act":{"press":["drop"]}}
+{"n":30,"act":{"look":[0.0,45.0]}}
+{"n":4,"act":{}}
+{"cmd":"run","class":"Stats"}
+{"cmd":"run","class":"Snapshot","sub":"end"}

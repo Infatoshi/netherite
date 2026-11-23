@@ -1,0 +1,1491 @@
+{
+ "path": "oracle/src/entity/player/EntityPlayer.java",
+ "classes": [
+  "EntityPlayer",
+  "EntityPlayer.EnumChatVisibility",
+  "EntityPlayer.EnumStatus"
+ ],
+ "lines": 2362,
+ "side": "common",
+ "category": "player",
+ "role": "The base player entity: inventory and held item, the item-in-use (eating, bow) flow, hunger and experience, damage and death, dropping items, sleeping in beds, attacking, and the XP bar.",
+ "scope": "in_scope",
+ "scope_reason": "The played entity on both sides; the native engine keeps both a client and a server player in the oracle's lockstep order (SPEC 'Two sides, like the game').",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_load",
+    "surv_server_base_tick",
+    "surv_client_base_tick",
+    "surv_server_eat_tick",
+    "surv_server_food_tick",
+    "surv_add_exhaustion",
+    "surv_server_add_xp",
+    "surv_server_death",
+    "surv_server_damage_by",
+    "throw_item",
+    "drop_one_item",
+    "collide_with_player_pool",
+    "surv_add_stat",
+    "surv_server_jump",
+    "surv_server_move_stat",
+    "surv_bed_safe_spot",
+    "surv_server_fresh_state",
+    "surv_server_fresh",
+    "surv_server_close_screen",
+    "entity_interact"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvest.c",
+   "symbols": [
+    "player_str_vs_block",
+    "can_harvest_block",
+    "inventory_str_vs_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/sleep.c",
+   "symbols": [
+    "sleep_in_bed_at",
+    "sleep_server_wake",
+    "sleep_server_update",
+    "bed_position"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_move_entity_with_heading",
+    "living_fall",
+    "living_on_living_update",
+    "living_attack_entity_from"
+   ]
+  },
+  {
+   "file": "csrc/engine/combat.c",
+   "symbols": [
+    "combat_server_attack"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.c",
+   "symbols": [
+    "client_player_tick",
+    "server_player_tick",
+    "server_player_load"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity_nbt.c",
+   "symbols": [
+    "ent_nbt_player",
+    "player_abilities",
+    "player_inventory",
+    "player_ender_items"
+   ]
+  },
+  {
+   "file": "csrc/engine/slimes.c",
+   "symbols": [
+    "player_on_living_update",
+    "player_should_heal",
+    "player_add_movement_stat"
+   ]
+  },
+  {
+   "file": "csrc/engine/throw.c",
+   "symbols": [
+    "set_item_in_use",
+    "empty_slot"
+   ]
+  },
+  {
+   "file": "csrc/engine/portal.c",
+   "symbols": [
+    "max_in_portal_time",
+    "portal_cooldown"
+   ]
+  },
+  {
+   "file": "csrc/engine/combatench.c",
+   "symbols": [
+    "ench_modifier_living",
+    "ench_hurt_iter"
+   ]
+  },
+  {
+   "file": "csrc/engine/riding.c",
+   "symbols": [
+    "ride_server_update_entity",
+    "ride_server_dismount",
+    "ride_server_pickup_box"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_player_kill"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/ender-death-s1",
+  "out/java/snapshots/peaceful-s1",
+  "out/java/snapshots/phys-lavaswim-s1",
+  "out/java/snapshots/bed-ride-s1",
+  "out/java/snapshots/bed-refuse-s1",
+  "out/java/snapshots/bed-wake-s1",
+  "out/java/snapshots/surv_eat-s1",
+  "out/java/snapshots/surv_food-s1",
+  "out/java/snapshots/surv_drop-s1",
+  "out/java/snapshots/surv2-bed-s1",
+  "out/java/snapshots/death-keepinv-s1",
+  "out/java/snapshots/throw-bow-s1",
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/dmg-sources-s1",
+  "out/java/snapshots/melee-mods-s1",
+  "out/java/snapshots/ride-pig-s1",
+  "out/java/snapshots/stats-s1",
+  "out/java/snapshots/stats-s1-pre",
+  "out/java/snapshots/ride-stats-s1",
+  "out/java/snapshots/ent-kill-s1",
+  "out/java/snapshots/scen-web-s1",
+  "out/java/snapshots/idx-deadclose-s1",
+  "out/java/snapshots/diff-switch-s1",
+  "out/java/snapshots/hard-night-s1",
+  "out/java/snapshots/arrow-reload-player-s1",
+  "out/java/clientframes/idx-usehand-s1",
+  "out/java/snapshots/pfc-speedpot-f329"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "inventory",
+   "sig": "InventoryPlayer",
+   "native": "csrc/engine/survival.c:surv_server_load",
+   "status": "exact",
+   "note": "surv_state's main/armor stacks (survival.h), loaded from the snapshot's Inventory list"
+  },
+  {
+   "kind": "field",
+   "name": "theInventoryEnderChest",
+   "sig": "InventoryEnderChest",
+   "native": "csrc/engine/survival.c:read_ender_inventory",
+   "status": "exact",
+   "note": "surv_state.ender[27]; gui_open_ender/gui_close_ender serve it"
+  },
+  {
+   "kind": "field",
+   "name": "inventoryContainer",
+   "sig": "Container",
+   "native": "csrc/engine/survival.c:surv_seed_client_container",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "openContainer",
+   "sig": "Container",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact",
+   "note": "chests, furnaces, dispensers, the workbench, the merchant and the ender chest (survival.c gui_open_tile, gui_open_merchant); the enchanting, anvil, beacon and brewing screens are world.conf switches (off)"
+  },
+  {
+   "kind": "field",
+   "name": "foodStats",
+   "sig": "FoodStats",
+   "native": "csrc/engine/survival.c:surv_server_food_tick",
+   "status": "exact",
+   "note": "struct surv_food: level, saturation, exhaustion, timer"
+  },
+  {
+   "kind": "field",
+   "name": "flyToggleTimer",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "double-jump fly toggle, creative only; player.h keeps fly_toggle_timer on the client struct but no replayed act reaches it"
+  },
+  {
+   "kind": "field",
+   "name": "prevCameraYaw",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "render-only view bobbing"
+  },
+  {
+   "kind": "field",
+   "name": "cameraYaw",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "render-only; renderstate.h keeps ecyaw for the hand but no compared field depends on it"
+  },
+  {
+   "kind": "field",
+   "name": "xpCooldown",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_server_eat_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_71091_bM",
+   "sig": "double",
+   "native": null,
+   "status": "n/a",
+   "note": "render interpolation (last-tick position lerp)"
+  },
+  {
+   "kind": "field",
+   "name": "field_71096_bN",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_71097_bO",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_71094_bP",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_71095_bQ",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_71085_bR",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "sleeping",
+   "sig": "boolean",
+   "native": "csrc/engine/sleep.c:sleep_server_update",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "playerLocation",
+   "sig": "ChunkCoordinates",
+   "native": "csrc/engine/sleep.c:set_player_location",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "sleepTimer",
+   "sig": "int",
+   "native": "csrc/engine/sleep.c:sleep_server_update",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_71079_bU",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "bed render offset"
+  },
+  {
+   "kind": "field",
+   "name": "field_71082_cx",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "bed render offset"
+  },
+  {
+   "kind": "field",
+   "name": "field_71089_bV",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "bed render offset"
+  },
+  {
+   "kind": "field",
+   "name": "spawnChunk",
+   "sig": "ChunkCoordinates",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "exact",
+   "note": "set_spawn carries the bed into the respawn"
+  },
+  {
+   "kind": "field",
+   "name": "spawnForced",
+   "sig": "boolean",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "startMinecartRidingCoordinate",
+   "sig": "ChunkCoordinates",
+   "native": null,
+   "status": "n/a",
+   "note": "minecarts are switched off (world.conf minecarts=off)"
+  },
+  {
+   "kind": "field",
+   "name": "capabilities",
+   "sig": "PlayerCapabilities",
+   "native": "csrc/engine/entity_nbt.c:player_abilities",
+   "status": "exact",
+   "note": "round-trips through the abilities NBT; isCreativeMode and allowEdit are read by the container and placement code"
+  },
+  {
+   "kind": "field",
+   "name": "experienceLevel",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_server_add_xp",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "experienceTotal",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_server_add_xp",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "experience",
+   "sig": "float",
+   "native": "csrc/engine/survival.c:surv_server_add_xp",
+   "status": "exact",
+   "note": "surv_state.xp_progress"
+  },
+  {
+   "kind": "field",
+   "name": "itemInUse",
+   "sig": "ItemStack",
+   "native": "csrc/engine/survival.c:surv_server_eat_tick",
+   "status": "exact",
+   "note": "surv_state tracks the slot and the stack generation (survival.h itemInUse comment)"
+  },
+  {
+   "kind": "field",
+   "name": "itemInUseCount",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_server_eat_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "speedOnGround",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "unused by the paths the replay reaches"
+  },
+  {
+   "kind": "field",
+   "name": "speedInAir",
+   "sig": "float",
+   "native": "csrc/engine/player.c:jump_movement_factor",
+   "status": "exact",
+   "note": "0.02F plus 0.02 * 0.3 while sprinting, the player's jumpMovementFactor each tick"
+  },
+  {
+   "kind": "field",
+   "name": "field_82249_h",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "levelup-sound throttle, client cosmetic"
+  },
+  {
+   "kind": "field",
+   "name": "field_146106_i",
+   "sig": "GameProfile",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact",
+   "note": "the name and the UUID the snapshot carries; no authentication happens in play"
+  },
+  {
+   "kind": "field",
+   "name": "fishEntity",
+   "sig": "EntityFishHook",
+   "native": null,
+   "status": "n/a",
+   "note": "fishing is switched off (world.conf fishing = off)"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityPlayer",
+   "sig": "(World,GameProfile)",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact",
+   "note": "yOffset 1.62, fireResistance 20, the spawn point: server_player_load and surv_server_fresh"
+  },
+  {
+   "kind": "method",
+   "name": "applyEntityAttributes",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:attrs_init",
+   "status": "exact",
+   "note": "the attribute map with attackDamage 1.0"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "()V",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact",
+   "note": "DataWatcher 16 (the cape flag, client cosmetic), 17 (absorption) and 18 (score) as explicit fields"
+  },
+  {
+   "kind": "method",
+   "name": "getItemInUse",
+   "sig": "()ItemStack",
+   "native": "csrc/engine/throw.c:using_stack",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getItemInUseCount",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:surv_server_eat_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isUsingItem",
+   "sig": "()Z",
+   "native": "csrc/engine/survival.c:surv_server_eat_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getItemInUseDuration",
+   "sig": "()I",
+   "native": "csrc/engine/throw.c:bow_charge",
+   "status": "exact",
+   "note": "the bow's charge reads it (throw.c bow_charge); the food and potion use times run on the same counter"
+  },
+  {
+   "kind": "method",
+   "name": "stopUsingItem",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:process_c07",
+   "status": "exact",
+   "note": "processPlayerDigging status 5 and the client's onStoppedUsingItem both land here (throw.h)"
+  },
+  {
+   "kind": "method",
+   "name": "clearItemInUse",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_eat_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isBlocking",
+   "sig": "()Z",
+   "native": "csrc/engine/survival.c:server_blocking",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_base_tick",
+   "status": "exact",
+   "note": "server half; the client half is surv_client_base_tick"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxInPortalTime",
+   "sig": "()I",
+   "native": "csrc/engine/portal.c:max_in_portal_time",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSwimSound",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "sounds are client cosmetic"
+  },
+  {
+   "kind": "method",
+   "name": "getSplashSound",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getPortalCooldown",
+   "sig": "()I",
+   "native": "csrc/engine/portal.c:portal_cooldown",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "playSound",
+   "sig": "(String,F,F)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "updateItemUse",
+   "sig": "(ItemStack,I)V",
+   "native": "csrc/engine/survival.c:server_eat_fx",
+   "status": "exact",
+   "note": "the RNG draws are kept even though the particles and sound are cosmetic (survival.c comment 1780)"
+  },
+  {
+   "kind": "method",
+   "name": "onItemUseFinish",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:server_eat_fx",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "handleHealthUpdate",
+   "sig": "(B)V",
+   "native": "csrc/engine/survival.c:client_on_item_use_finish",
+   "status": "exact",
+   "note": "status 9 is the client's onItemUseFinish (the eat or drink finish), handled at the S19"
+  },
+  {
+   "kind": "method",
+   "name": "isMovementBlocked",
+   "sig": "()Z",
+   "native": "csrc/engine/player.c:cp_living_core",
+   "status": "exact",
+   "note": "health <= 0 or sleeping: the client's living core and the server's (player.c sp_on_update_entity) zero the movement for a dead or sleeping player"
+  },
+  {
+   "kind": "method",
+   "name": "closeScreen",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_close_screen",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "mountEntity",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/riding.c:ride_server_dismount",
+   "status": "exact",
+   "note": "the dismount half on the server (dismountEntity's spot); the mount is Entity.mountEntity (riding.c ride_pig_interact), the client's in ride_client_s1b"
+  },
+  {
+   "kind": "method",
+   "name": "updateRidden",
+   "sig": "()V",
+   "native": "csrc/engine/riding.c:ride_server_update_entity",
+   "status": "exact",
+   "note": "the sneak dismount, the mounted-movement stat and the pig rider's kept look; the client's is player.c ride_client_update_ridden"
+  },
+  {
+   "kind": "method",
+   "name": "preparePlayerToSpawn",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_fresh",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateEntityActionState",
+   "sig": "()V",
+   "native": "csrc/engine/player.c:client_swing_item",
+   "status": "exact",
+   "note": "the arm swing progress (client_swing_item) and the entityAge bump"
+  },
+  {
+   "kind": "method",
+   "name": "onLivingUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/slimes.c:player_on_living_update",
+   "status": "exact",
+   "note": "with living_on_living_update for the EntityLivingBase base and surv_server_base_tick for the food/potion halves; the server player's head, the PEACEFUL heal every 20 ticks, is survival.c:surv_server_peaceful_heal (player.c sp_on_update_entity, peaceful-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "collideWithPlayer",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/survival.c:collide_with_player_pool",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getScore",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:surv_server_load",
+   "status": "exact",
+   "note": "surv_state.score"
+  },
+  {
+   "kind": "method",
+   "name": "setScore",
+   "sig": "(I)V",
+   "native": "csrc/engine/survival.c:surv_server_add_xp",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addScore",
+   "sig": "(I)V",
+   "native": "csrc/engine/survival.c:surv_server_add_xp",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onDeath",
+   "sig": "(DamageSource)V",
+   "native": "csrc/engine/survival.c:surv_server_death",
+   "status": "n/a",
+   "note": "n/a: EntityPlayerMP.onDeath overrides it without super (surv_server_death ports that one); the client runs it only for another player's entity status 3, and the game has one player"
+  },
+  {
+   "kind": "method",
+   "name": "getHurtSound",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDeathSound",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addToPlayerScore",
+   "sig": "(Entity,I)V",
+   "native": "csrc/engine/serverreplay.c:sr_player_kill",
+   "status": "exact",
+   "note": "the score add (scoreValue is always 0) and the mobKills counter (sr_player_kill's part 1, called with the victim's func_94060_bK); the scoreboard objectives need a command, which play has none of; ent-kill-s1"
+  },
+  {
+   "kind": "method",
+   "name": "dropOneItem",
+   "sig": "(Z)EntityItem",
+   "native": "csrc/engine/survival.c:drop_one_item",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "dropPlayerItemWithRandomChoice",
+   "sig": "(ItemStack,Z)EntityItem",
+   "native": "csrc/engine/survival.c:throw_item",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_146097_a",
+   "sig": "(ItemStack,ZZ)EntityItem",
+   "native": "csrc/engine/survival.c:throw_item",
+   "status": "exact",
+   "note": "with the dropStat for every non-empty throw (Q drops, container spills, the death drop)"
+  },
+  {
+   "kind": "method",
+   "name": "joinEntityItemWithWorld",
+   "sig": "(EntityItem)V",
+   "native": "csrc/engine/survival.c:throw_item",
+   "status": "exact",
+   "note": "inside throw_item"
+  },
+  {
+   "kind": "method",
+   "name": "getCurrentPlayerStrVsBlock",
+   "sig": "(Block,Z)F",
+   "native": "csrc/engine/harvest.c:player_str_vs_block",
+   "status": "exact",
+   "note": "the standing-in-water /5 branch is not ported; the reference never enters it (harvest.h)"
+  },
+  {
+   "kind": "method",
+   "name": "canHarvestBlock",
+   "sig": "(Block)Z",
+   "native": "csrc/engine/harvest.c:can_harvest_block",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/survival.c:surv_server_load",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_player",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIChest",
+   "sig": "(IInventory)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "n/a",
+   "note": "n/a: EntityPlayer's empty body: EntityPlayerMP and EntityPlayerSP both override it without super"
+  },
+  {
+   "kind": "method",
+   "name": "func_146093_a",
+   "sig": "(TileEntityHopper)V",
+   "native": null,
+   "status": "n/a",
+   "note": "redstone off: hoppers only store, never opened"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIHopperMinecart",
+   "sig": "(EntityMinecartHopper)V",
+   "native": null,
+   "status": "n/a",
+   "note": "minecarts off"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIHorse",
+   "sig": "(EntityHorse,IInventory)V",
+   "native": null,
+   "status": "n/a",
+   "note": "horses off"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIEnchantment",
+   "sig": "(IIILjava/lang/String;)V",
+   "native": null,
+   "status": "n/a",
+   "note": "world.conf enchanting=off"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIAnvil",
+   "sig": "(III)V",
+   "native": null,
+   "status": "n/a",
+   "note": "world.conf anvil=off"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIWorkbench",
+   "sig": "(III)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "n/a",
+   "note": "n/a: EntityPlayer's empty body: EntityPlayerMP and EntityPlayerSP both override it without super"
+  },
+  {
+   "kind": "method",
+   "name": "getEyeHeight",
+   "sig": "()F",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact",
+   "note": "yOffset 1.62 and the 0.12 abstract value ride the loaded player state"
+  },
+  {
+   "kind": "method",
+   "name": "resetHeight",
+   "sig": "()V",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(DamageSource,F)Z",
+   "native": "csrc/engine/survival.c:surv_server_damage_by",
+   "status": "exact",
+   "note": "the difficulty scaling, creative rejection and arrow-to-shooter redirect are in the survival damage chain; the damageTaken counter runs before super's Fire Resistance refusal of fire damage (phys-lavaswim-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "canAttackPlayer",
+   "sig": "(EntityPlayer)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "PVP teams; the replay's single player never meets a second one"
+  },
+  {
+   "kind": "method",
+   "name": "damageArmor",
+   "sig": "(F)V",
+   "native": "csrc/engine/survival.c:damage_armor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getTotalArmorValue",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:total_armor_value",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getArmorVisibility",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a",
+   "note": "read only for an invisible player (World.getClosestVulnerablePlayer); play gives no invisibility (brewing is off, and no drop, trade or chest holds the potion)"
+  },
+  {
+   "kind": "method",
+   "name": "damageEntity",
+   "sig": "(DamageSource,F)V",
+   "native": "csrc/engine/survival.c:damage_entity",
+   "status": "exact",
+   "note": "blocking, armor, potion and absorption halves all inside damage_entity"
+  },
+  {
+   "kind": "method",
+   "name": "func_146101_a",
+   "sig": "(TileEntityFurnace)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "n/a",
+   "note": "n/a: EntityPlayer's empty body: EntityPlayerMP and EntityPlayerSP both override it without super"
+  },
+  {
+   "kind": "method",
+   "name": "func_146102_a",
+   "sig": "(TileEntityDispenser)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "n/a",
+   "note": "n/a: EntityPlayer's empty body: EntityPlayerMP and EntityPlayerSP both override it without super"
+  },
+  {
+   "kind": "method",
+   "name": "func_146100_a",
+   "sig": "(TileEntity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "sign editing off"
+  },
+  {
+   "kind": "method",
+   "name": "func_146095_a",
+   "sig": "(CommandBlockLogic)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146098_a",
+   "sig": "(TileEntityBrewingStand)V",
+   "native": null,
+   "status": "n/a",
+   "note": "world.conf brewing=off"
+  },
+  {
+   "kind": "method",
+   "name": "func_146104_a",
+   "sig": "(TileEntityBeacon)V",
+   "native": null,
+   "status": "n/a",
+   "note": "world.conf beacon=off"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIMerchant",
+   "sig": "(IMerchant,String)V",
+   "native": "csrc/engine/survival.c:gui_open_merchant",
+   "status": "n/a",
+   "note": "n/a: EntityPlayer's empty body: EntityPlayerMP and EntityPlayerSP both override it without super"
+  },
+  {
+   "kind": "method",
+   "name": "displayGUIBook",
+   "sig": "(ItemStack)V",
+   "native": null,
+   "status": "n/a",
+   "note": "book editing off"
+  },
+  {
+   "kind": "method",
+   "name": "interactWith",
+   "sig": "(Entity)Z",
+   "native": "csrc/engine/survival.c:entity_interact",
+   "status": "exact",
+   "note": "animals and the item-on-entity path; process_c02_interact is the server entry"
+  },
+  {
+   "kind": "method",
+   "name": "getCurrentEquippedItem",
+   "sig": "()ItemStack",
+   "native": "csrc/engine/survival.c:sync_current_play_item",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "destroyCurrentEquippedItem",
+   "sig": "()V",
+   "native": "csrc/engine/throw.c:empty_slot",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getYOffset",
+   "sig": "()D",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact",
+   "note": "the 0.0 MP / 1.62 base split is in the loaded player"
+  },
+  {
+   "kind": "method",
+   "name": "attackTargetEntityWithCurrentItem",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/combat.c:combat_server_attack",
+   "status": "exact",
+   "note": "attackDamage with the potion modifiers and the weapon modifier, the held item's enchantment damage, knockback, the blindness-gated crit, fire aspect, thorns and bane through combatench.c, the hitEntity wear"
+  },
+  {
+   "kind": "method",
+   "name": "onCriticalHit",
+   "sig": "(Entity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client particle cosmetic"
+  },
+  {
+   "kind": "method",
+   "name": "onEnchantmentCritical",
+   "sig": "(Entity)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "respawnPlayer",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_fresh",
+   "status": "n/a",
+   "note": "n/a: EntityPlayer's empty body: EntityClientPlayerMP overrides it (the C16); the server respawns through ServerConfigurationManager.respawnPlayer"
+  },
+  {
+   "kind": "method",
+   "name": "setDead",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_death",
+   "status": "exact",
+   "note": "the container closes ride the death chain: inventoryContainer's onContainerClosed (the cursor, then the 2x2 grid, dropped along the look) at deathTime 20 on the server (survival.c set_dead_close) and the client (surv_client_base_tick), before the death particles' draws: idx-deadclose-s1 (master misses the two drops at row 123)"
+  },
+  {
+   "kind": "method",
+   "name": "isEntityInsideOpaqueBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:living_on_living_update",
+   "status": "exact",
+   "note": "the in-wall suffocation check calls it with the sleeping guard"
+  },
+  {
+   "kind": "method",
+   "name": "getGameProfile",
+   "sig": "()GameProfile",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact",
+   "note": "the name and the UUID the snapshot carries"
+  },
+  {
+   "kind": "method",
+   "name": "sleepInBedAt",
+   "sig": "(III)EnumStatus",
+   "native": "csrc/engine/sleep.c:sleep_in_bed_at",
+   "status": "exact",
+   "note": "the refusals (bed-refuse-s1: NOT_POSSIBLE_NOW, NOT_SAFE over EntityMob only, TOO_FAR_AWAY) and the riding player's mountEntity(null) first (ride_server_dismount, bed-ride-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "func_71013_b",
+   "sig": "(I)V",
+   "native": "csrc/engine/sleep.c:bed_position",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "wakeUpPlayer",
+   "sig": "(ZZZ)V",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isInBed",
+   "sig": "()Z",
+   "native": "csrc/engine/sleep.c:sleep_server_update",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "verifyRespawnCoordinates",
+   "sig": "(World,ChunkCoordinates,Z)ChunkCoordinates",
+   "native": "csrc/engine/survival.c:surv_bed_safe_spot",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBedOrientationInDegrees",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a",
+   "note": "render only"
+  },
+  {
+   "kind": "method",
+   "name": "isPlayerSleeping",
+   "sig": "()Z",
+   "native": "csrc/engine/sleep.c:sleep_server_update",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isPlayerFullyAsleep",
+   "sig": "()Z",
+   "native": "csrc/engine/sleep.c:sleep_server_update",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSleepTimer",
+   "sig": "()I",
+   "native": "csrc/engine/sleep.c:sleep_server_update",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getHideCape",
+   "sig": "(I)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "skin flag, client cosmetic"
+  },
+  {
+   "kind": "method",
+   "name": "setHideCape",
+   "sig": "(IZ)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addChatComponentMessage",
+   "sig": "(IChatComponent)V",
+   "native": null,
+   "status": "n/a",
+   "note": "chat is not replayed"
+  },
+  {
+   "kind": "method",
+   "name": "getBedLocation",
+   "sig": "()ChunkCoordinates",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isSpawnForced",
+   "sig": "()Z",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnChunk",
+   "sig": "(ChunkCoordinates,Z)V",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "triggerAchievement",
+   "sig": "(StatBase)V",
+   "native": "csrc/engine/survival.c:surv_add_stat",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addStat",
+   "sig": "(StatBase,I)V",
+   "native": "csrc/engine/survival.c:surv_add_stat",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "jump",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_server_jump",
+   "status": "exact",
+   "note": "with living_jump for the EntityLivingBase body"
+  },
+  {
+   "kind": "method",
+   "name": "moveEntityWithHeading",
+   "sig": "(FF)V",
+   "native": "csrc/engine/living.c:living_move_entity_with_heading",
+   "status": "exact",
+   "note": "the fly branch is dead for the survival player; addMovementStat rides it"
+  },
+  {
+   "kind": "method",
+   "name": "getAIMoveSpeed",
+   "sig": "()F",
+   "native": "csrc/engine/living.c:attrs_value",
+   "status": "exact",
+   "note": "the server player's attribute follows its potions: a Speed or Slowness begun or ended mid-session re-derives it, keeping the sprint modifier (player.c sp_sync_speed, pfc-speedpot-f329)"
+  },
+  {
+   "kind": "method",
+   "name": "addMovementStat",
+   "sig": "(DDD)V",
+   "native": "csrc/engine/survival.c:surv_server_move_stat",
+   "status": "exact",
+   "note": "the server player's; flown counts the horizontal distance and climbed rounds a double (slimes.c keeps the probe's copy)"
+  },
+  {
+   "kind": "method",
+   "name": "addMountedMovementStat",
+   "sig": "(DDD)V",
+   "native": null,
+   "status": "n/a",
+   "note": "minecarts, boats and pigs off"
+  },
+  {
+   "kind": "method",
+   "name": "fall",
+   "sig": "(F)V",
+   "native": "csrc/engine/survival.c:surv_server_fall",
+   "status": "exact",
+   "note": "the distanceFallen stat, then EntityLivingBase.fall (the probe's player is living.c:living_fall); a rider falls through riding.c:ride_player_fall, same stat"
+  },
+  {
+   "kind": "method",
+   "name": "func_146067_o",
+   "sig": "(I)String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onKillEntity",
+   "sig": "(EntityLivingBase)V",
+   "native": "csrc/engine/serverreplay.c:sr_player_kill",
+   "status": "exact",
+   "note": "killEnemy for an IMob and the victim egg's killEntity stat (sr_player_kill's part 2, called only when the player is the damage source's entity); ent-kill-s1"
+  },
+  {
+   "kind": "method",
+   "name": "setInWeb",
+   "sig": "()V",
+   "native": "csrc/engine/entity.c:entity_set_in_web",
+   "status": "exact",
+   "note": "Entity.setInWeb for the client player's move (the flying guard never holds in survival); scen-web-s1"
+  },
+  {
+   "kind": "method",
+   "name": "getItemIcon",
+   "sig": "(ItemStack,I)IIcon",
+   "native": "csrc/play/play.c:draw_hand",
+   "status": "exact",
+   "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-idx-usehand-s1, cf-idx-watch-s1 and others (the hand and the third-person model)"
+  },
+  {
+   "kind": "method",
+   "name": "getCurrentArmor",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/survival.c:damage_armor",
+   "status": "exact",
+   "note": "the armor array itself is surv_state's"
+  },
+  {
+   "kind": "method",
+   "name": "addExperience",
+   "sig": "(I)V",
+   "native": "csrc/engine/survival.c:surv_server_add_xp",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addExperienceLevel",
+   "sig": "(I)V",
+   "native": "csrc/engine/survival.c:surv_server_add_xp",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "xpBarCap",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:xp_bar_cap",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addExhaustion",
+   "sig": "(F)V",
+   "native": "csrc/engine/survival.c:surv_add_exhaustion",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getFoodStats",
+   "sig": "()FoodStats",
+   "native": "csrc/engine/survival.c:surv_server_food_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canEat",
+   "sig": "(Z)Z",
+   "native": "csrc/engine/survival.c:surv_server_use_packet",
+   "status": "exact",
+   "note": "the food-use path checks needFood and creative (activate.c canEat comment)"
+  },
+  {
+   "kind": "method",
+   "name": "shouldHeal",
+   "sig": "()Z",
+   "native": "csrc/engine/slimes.c:player_should_heal",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setItemInUse",
+   "sig": "(ItemStack,I)V",
+   "native": "csrc/engine/throw.c:set_item_in_use",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isCurrentToolAdventureModeExempt",
+   "sig": "(III)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "adventure mode never runs"
+  },
+  {
+   "kind": "method",
+   "name": "canPlayerEdit",
+   "sig": "(IIIIItemStack)Z",
+   "native": "csrc/engine/place.c:item_block_on_item_use",
+   "status": "exact",
+   "note": "capabilities.allowEdit is true in survival; the placement paths read it inline"
+  },
+  {
+   "kind": "method",
+   "name": "getExperiencePoints",
+   "sig": "(EntityPlayer)I",
+   "native": "csrc/engine/survival.c:death_xp_value",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isPlayer",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "type marker"
+  },
+  {
+   "kind": "method",
+   "name": "getAlwaysRenderNameTagForRender",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "clonePlayer",
+   "sig": "(EntityPlayer,Z)V",
+   "native": "csrc/engine/survival.c:surv_server_fresh_state",
+   "status": "exact",
+   "note": "respawn carries inventory, health, food, XP and score (survival.c comment 2027); theInventoryEnderChest is always the old player's (surv_server_fresh_state keeps sv.ender, after a death and the End exit: ender-death-s1, end-bed-exit-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "canTriggerWalking",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "sendPlayerAbilities",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the S39 abilities packet has no replayed trigger"
+  },
+  {
+   "kind": "method",
+   "name": "setGameType",
+   "sig": "(GameType)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the replayed game is survival"
+  },
+  {
+   "kind": "method",
+   "name": "getCommandSenderName",
+   "sig": "()String",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityWorld",
+   "sig": "()World",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryEnderChest",
+   "sig": "()InventoryEnderChest",
+   "native": "csrc/engine/survival.c:read_ender_inventory",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getEquipmentInSlot",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/survival.c:read_inventory",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getHeldItem",
+   "sig": "()ItemStack",
+   "native": "csrc/engine/survival.c:sync_current_play_item",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setCurrentItemOrArmor",
+   "sig": "(I,ItemStack)V",
+   "native": "csrc/engine/survival.c:armor_right_click",
+   "status": "exact",
+   "note": "ItemArmor.onItemRightClick puts the piece on (both sides); the dev slot op writes the inventory directly"
+  },
+  {
+   "kind": "method",
+   "name": "isInvisibleToPlayer",
+   "sig": "(EntityPlayer)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "needs a second player (and a team); play is single-player"
+  },
+  {
+   "kind": "method",
+   "name": "getLastActiveItems",
+   "sig": "()[ItemStack",
+   "native": "csrc/engine/survival.c:read_inventory",
+   "status": "exact",
+   "note": "the armor array"
+  },
+  {
+   "kind": "method",
+   "name": "getHideCape",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isPushedByWater",
+   "sig": "()Z",
+   "native": "csrc/engine/player.c:handle_water_movement",
+   "status": "exact",
+   "note": "the water push runs; the flying guard never holds in survival"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldScoreboard",
+   "sig": "()Scoreboard",
+   "native": null,
+   "status": "n/a",
+   "note": "scoreboards are not replayed"
+  },
+  {
+   "kind": "method",
+   "name": "getTeam",
+   "sig": "()Team",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_145748_c_",
+   "sig": "()IChatComponent",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setAbsorptionAmount",
+   "sig": "(F)V",
+   "native": "csrc/engine/survival.c:damage_entity",
+   "status": "exact",
+   "note": "sv.absorption feeds the damage chain and the potions set it"
+  },
+  {
+   "kind": "method",
+   "name": "getAbsorptionAmount",
+   "sig": "()F",
+   "native": "csrc/engine/survival.c:damage_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_146094_a",
+   "sig": "(GameProfile)UUID",
+   "native": "csrc/engine/player.c:server_player_load",
+   "status": "exact",
+   "note": "the offline UUID the snapshot carries (the name hash is the same value)"
+  },
+  {
+   "kind": "field",
+   "name": "EnumChatVisibility values",
+   "sig": "FULL,SYSTEM,HIDDEN",
+   "native": null,
+   "status": "n/a",
+   "note": "client options, never replayed"
+  },
+  {
+   "kind": "field",
+   "name": "EnumStatus values",
+   "sig": "OK..NOT_SAFE",
+   "native": "csrc/engine/sleep.c:sleep_in_bed_at",
+   "status": "exact",
+   "note": "the statuses are the return codes sleep_in_bed_at answers (sleep.c comment)"
+  },
+  {
+   "kind": "method",
+   "name": "EntityPlayer$EnumChatVisibility.getResourceKey",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: its one caller is GameSettings.getKeyBinding's chat option label, drawn only on the chat options screen (client_cosmetic)"
+  }
+ ],
+ "missing": [],
+ "notes": "Members marked n/a are out of the replayed scope (render cosmetics, sounds, chat, switched-off features) rather than ported. The GUI openers all funnel through survival.c's gui_open_tile/gui_open_merchant; enchanting, anvil, beacon, brewing, horse and hopper screens are n/a per world.conf. The canEat citation points at the use-packet path because the predicate is inlined there; not verified as a standalone symbol. lane/idxentity: the missing list was stale or out of play: the scoreboard and teams need commands or a second player, fishing is switched off, handleHealthUpdate(9) is client_on_item_use_finish, the fly toggle needs creative. addToPlayerScore and onKillEntity are now called separately with Java's two entities (ent-kill-s1). lane/reloadstate: attackEntityFrom keeps a shooterless arrow as the source entity, so its knockback comes from the arrow (serverreplay.c sr_player_attack)."
+}

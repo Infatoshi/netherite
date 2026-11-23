@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIWatchClosest2.java",
+  "classes": ["EntityAIWatchClosest2"],
+  "lines": 14,
+  "side": "server",
+  "category": "ai",
+  "role": "WatchClosest with mutex bits 3 instead of 2, used by the villager so watching does not fight the trade tasks for the mutex.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_setup_kind", "ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_update"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-village-full-s42", "out/java/villagers/vil-2", "csrc/tests/test_villagers.c"],
+  "members": [
+    {"kind": "ctor", "name": "EntityAIWatchClosest2", "sig": "(EntityLiving,Class,float,float)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "folded into AIC_WATCH_CLOSEST2; the villager registers two entries (watch_class 0 player at 1.0f/3.0f and watch_class 1 villager at 0.02f/5.0f), priority 9, mutex 3"}
+  ],
+  "missing": [],
+  "notes": "The subclass declares no members beyond the constructor; everything else is inherited from EntityAIWatchClosest and runs through the same AIC_WATCH_CLOSEST2 cases in ai.c. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

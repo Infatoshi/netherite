@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/item/ItemLilyPad.java",
+  "classes": ["ItemLilyPad"],
+  "lines": 67,
+  "side": "server",
+  "category": "item",
+  "role": "The lily pad: right click on a source water block places the waterlily block one above, keeping the pad from the stack except in creative.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/itemuse.c", "symbols": ["lily_rclick", "look_ray"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_get_metadata", "item_block_on_item_use"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/rc-items-s1",
+    "csrc/tests/test_itemuse.c",
+    "out/java/itemuse/seed2-v2"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemLilyPad", "sig": "(Block)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "the waterlily item is registered as ItemLilyPad in registerItems"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/itemuse.c:lily_rclick", "status": "exact", "note": "the canMineBlock, canPlayerEdit, the water material + metadata 0 + air-above checks, the setBlock one above and the stack decrement"},
+    {"kind": "method", "name": "getColorFromItemStack", "sig": "(ItemStack,I)I", "native": null, "status": "n/a", "note": "client colour"},
+    {"kind": "method", "name": "getMetadata (inherited)", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "rc-items-s1 gates placing the lily pad; test_itemuse.c compares the body against the oracle probe."
+}

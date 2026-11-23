@@ -1,0 +1,56 @@
+{
+ "path": "oracle/src/client/model/ModelSign.java",
+ "classes": [
+  "ModelSign"
+ ],
+ "lines": 27,
+ "side": "client",
+ "category": "client_model",
+ "role": "The sign's tile-entity model: board and stick, rendered blank (sign_editing is off).",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_tileent.c",
+   "symbols": [
+    "render_sign"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/clientframes/cov-zoo-s1",
+  "out/java/rendertick/te_signs",
+  "out/java/render/te_signs_f25"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "signBoard",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_tileent.c:render_sign",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "signStick",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_tileent.c:render_sign",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelSign",
+   "sig": "()V",
+   "native": "csrc/engine/raster_tileent.c:render_sign",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderSign",
+   "sig": "()V",
+   "native": "csrc/engine/raster_tileent.c:render_sign",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

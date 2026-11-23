@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenHills.java",
+  "classes": ["BiomeGenHills"],
+  "lines": 107,
+  "side": "common",
+  "category": "worldgen",
+  "role": "Extreme Hills (3), Extreme Hills Edge (20), Extreme Hills+ (34) and their M variants (131, 162): spruce-heavy tree choice, emerald ore and silverfish-stone veins after the decorator, and a stone/gravel surface by noise.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of", "place_tree", "TR_HILLS", "hills_post"]},
+    {"file": "csrc/engine/surface.c", "symbols": ["column", "SURF_HILLS"]},
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_populate.c", "out/java/chunks/hills-2", "out/java/chunks/hills-42", "out/java/populate"],
+  "members": [
+    {"kind": "field", "name": "theWorldGenerator", "sig": "WorldGenMinable (monster_egg, 8)", "native": "csrc/engine/decorator.c:hills_post", "status": "exact"},
+    {"kind": "field", "name": "field_150634_aD", "sig": "WorldGenTaiga2", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "feature_taiga2"},
+    {"kind": "field", "name": "field_150635_aE", "sig": "int 0", "native": "csrc/engine/surface.c:column", "status": "exact", "note": "p1 == 0"},
+    {"kind": "field", "name": "field_150636_aF", "sig": "int 1", "native": "csrc/engine/surface.c:column", "status": "exact", "note": "p1 == 1"},
+    {"kind": "field", "name": "field_150637_aG", "sig": "int 2", "native": "csrc/engine/surface.c:column", "status": "exact", "note": "p1 == 2"},
+    {"kind": "field", "name": "field_150638_aH", "sig": "int (variant)", "native": "csrc/engine/biomes.h:BIOMES", "status": "exact", "note": "the p1 column"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenHills", "sig": "(int,boolean)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "trees 3 on edge/plus"},
+    {"kind": "method", "name": "func_150567_a", "sig": "(Random)WorldGenAbstractTree", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "TR_HILLS"},
+    {"kind": "method", "name": "decorate", "sig": "(World,Random,int,int)V", "native": "csrc/engine/decorator.c:hills_post", "status": "exact"},
+    {"kind": "method", "name": "func_150573_a", "sig": "(World,Random,Block[],byte[],int,int,double)V", "native": "csrc/engine/surface.c:column", "status": "exact", "note": "SURF_HILLS, rewrites the object's topBlock (surface.top) that caves read back"},
+    {"kind": "method", "name": "func_150633_b", "sig": "(BiomeGenBase)BiomeGenHills", "native": "csrc/engine/biomes.h:BIOMES", "status": "exact", "note": "generated rows 131, 162"},
+    {"kind": "method", "name": "func_150566_k", "sig": "()BiomeGenBase", "native": "csrc/engine/biomes.h:BIOMES", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": ""
+}

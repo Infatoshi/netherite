@@ -1,0 +1,79 @@
+{
+  "path": "oracle/src/nbt/JsonToNBT.java",
+  "classes": [
+    "JsonToNBT",
+    "JsonToNBT.Any",
+    "JsonToNBT.Compound",
+    "JsonToNBT.List",
+    "JsonToNBT.Primitive"
+  ],
+  "lines": 560,
+  "side": "common",
+  "category": "nbt",
+  "role": "The vanilla tag-string parser: turns text like {Item:\"minecraft:stone\",Count:1b} into an NBT tree, with a Stack-based recursive descent over compounds, lists and typed primitives.",
+  "scope": "not_needed",
+  "scope_reason": "Its callers are the command classes (CommandSummon, CommandSetBlock, CommandTestForBlock, CommandGive) and the chat GUI's command path, none of which is reachable in this game: commands are unused and the chat screen is never opened by agent or play input.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "func_150315_a",
+      "sig": "(Ljava/lang/String;)LNBTBase;",
+      "native": null,
+      "status": "n/a",
+      "note": "The parse entry point; the native dev ops carry NBT as JSON structures in the tape header instead of vanilla tag strings."
+    },
+    {
+      "kind": "method",
+      "name": "func_150310_b",
+      "sig": "(Ljava/lang/String;)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Skips a tag string to find where a command's next argument begins."
+    },
+    {
+      "kind": "method",
+      "name": "func_150316_a",
+      "sig": "(Ljava/lang/String;Ljava/lang/String;)LJsonToNBT$Any;",
+      "native": null,
+      "status": "n/a",
+      "note": "Builds the root Any node for a key."
+    },
+    {
+      "kind": "method",
+      "name": "func_150314_a",
+      "sig": "(Ljava/lang/String;Z)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "Reads a quoted string with escapes."
+    },
+    {
+      "kind": "method",
+      "name": "func_150313_b",
+      "sig": "(Ljava/lang/String;Z)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "Reads an unquoted token."
+    },
+    {
+      "kind": "method",
+      "name": "func_150311_c",
+      "sig": "(Ljava/lang/String;Z)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "Reads a key."
+    },
+    {
+      "kind": "method",
+      "name": "func_150312_a",
+      "sig": "(Ljava/lang/String;C)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Skips to the next occurrence of a delimiter character."
+    }
+  ],
+  "missing": [],
+  "notes": "The nested classes Any, Compound, List and Primitive are the parser's node types; they have no counterpart because nothing in the recorded game parses a tag string. Verified callers by grep: GuiChat, CommandSummon, CommandSetBlock, CommandTestForBlock, CommandGive. If a future lane adds /summon-style text NBT, this parser is the file to port."
+}

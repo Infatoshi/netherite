@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/populate_nether.h",
+ "lines": 110,
+ "role": "Declares the Nether and End populate drivers: the HELL_* and END_* stage ids, the fortress map offer, count, generate and spawn-list test, the eight ChunkProviderHell feature stages, the three BiomeEndDecorator pieces, and the dragon-spawn report; its header comment documents which Random each stage draws from.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/ChunkProviderHell.java", "members": ["populate", "getPossibleCreatures", "hellRNG"]},
+  {"path": "oracle/src/world/gen/structure/MapGenStructure.java", "members": ["generateStructuresInChunk", "hasStructureAt", "func_142038_b"]},
+  {"path": "oracle/src/world/gen/MapGenBase.java", "members": ["func_151539_a"]},
+  {"path": "oracle/src/world/biome/BiomeEndDecorator.java", "members": ["func_150513_a"]}
+ ],
+ "structs": [
+  {"name": "struct end_dragon_spawn", "java": "BiomeEndDecorator's dragon spawn at chunk 0,0", "fields": ["spawned", "yaw"]}
+ ],
+ "entry_points": ["populate_hell_init", "populate_hell_free", "populate_hell_offer_chunk", "populate_hell_count", "populate_hell_structures", "populate_hell_fortress_at", "populate_hell_lava", "populate_hell_fire", "populate_hell_glow1", "populate_hell_glow2", "populate_hell_brown", "populate_hell_red", "populate_hell_quartz", "populate_hell_hidden", "populate_end_ores", "populate_end_spike", "populate_end_dragon"],
+ "tick_path": true,
+ "gpu": ["its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"],
+ "tests": ["csrc/tests/test_populate.c", "csrc/tests/test_seedworld.c", "csrc/tests/test_fortress_spawn.c"],
+ "notes": "The header's statement that the fortress pieces are replayed from oracle writes is stale: populate_nether.c generates them with sc_generate."
+}

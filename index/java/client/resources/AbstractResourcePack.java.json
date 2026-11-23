@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/client/resources/AbstractResourcePack.java",
+  "classes": ["AbstractResourcePack"],
+  "lines": 97,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Base class of the file-backed resource packs: maps a ResourceLocation to the assets/<domain>/<path> name, delegates to the subclass's stream/existence hooks, and reads pack.mcmeta metadata and pack.png.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "resourcePackFile", "sig": "File", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "AbstractResourcePack", "sig": "(File)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "locationToName", "sig": "(ResourceLocation)String", "native": null, "status": "n/a", "note": "static"},
+    {"kind": "method", "name": "getRelativeName", "sig": "(File,File)String", "native": null, "status": "n/a", "note": "static"},
+    {"kind": "method", "name": "getInputStream", "sig": "(ResourceLocation)InputStream", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resourceExists", "sig": "(ResourceLocation)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getInputStreamByName", "sig": "(String)InputStream", "native": null, "status": "n/a", "note": "abstract"},
+    {"kind": "method", "name": "hasResourceName", "sig": "(String)Z", "native": null, "status": "n/a", "note": "abstract"},
+    {"kind": "method", "name": "logNameNotLowercase", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPackMetadata", "sig": "(IMetadataSerializer,String)IMetadataSection", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readMetadata", "sig": "(IMetadataSerializer,InputStream,String)IMetadataSection", "native": null, "status": "n/a", "note": "static JSON parse"},
+    {"kind": "method", "name": "getPackImage", "sig": "()BufferedImage", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPackName", "sig": "()String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Only DefaultResourcePack (jar-backed, not this hierarchy) is actually used in this game; FileResourcePack/FolderResourcePack exist for user packs that are never loaded. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Resource-pack file plumbing; the game runs the default pack only and native reads its pre-converted assets by path."
+}

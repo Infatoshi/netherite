@@ -1,0 +1,51 @@
+# The whole End fight from the first End step (crystals standing): the dev End bank's starts at every End stage,
+# the dragon and crystal rewards, the exact eval over the held-out End starts, KEEP on the dragon rate. A dev bank
+# (dev_portal_entry starts): ntloop takes --dev, and its replays are WHAT-IFs, not benchmark rows.
+description: the End fight from the first End step, dev End bank, dragon rate (256 episodes)
+name: end-crystal-bow
+sim:
+  world:
+    difficulty: easy
+  pipeline:
+    kind: snapshot
+    start: cache/end-bank-dev-2026-11-23/train/s9058709-end/start
+episode:
+  seconds: 600
+macros: none
+starts:
+  library: cache/end-bank-dev-2026-11-23/train
+  stages: end+crystals_gone1+crystals_gone3+crystals_gone6+crystals_gone9+dragon_75+dragon_50+dragon_25
+  curriculum: adaptive
+  floor: 0.15
+  spawn_min: 0.0
+policy:
+  reward:
+    relative: on
+    end: 0
+    dragon: 50
+    dragon_hp: 0.5
+    crystals: 10.0
+    step_pen: 2e-4
+    log_cap: 8
+train:
+  flags: --dev --fresh-opt --train-skip-ambient --graph 0
+  distant_tick_radius: 64
+harvest:
+  mode: milestone
+  milestone: end
+  source: cache/end-bank-dev-2026-11-23/train,cache/end-bank-dev-2026-11-23/eval
+  split_train: 0.75
+eval:
+  primary_metric: dragon
+  max_p: 0.01
+  min_z: 3
+  episodes: 256
+  minutes: 15
+  seed: 1000
+  groups: 8
+  library: cache/end-bank-dev-2026-11-23/eval
+  stages: end+crystals_gone1+crystals_gone3+crystals_gone6+crystals_gone9+dragon_75+dragon_50+dragon_25
+  start: cache/end-bank-dev-2026-11-23/eval/s437203103-end/start
+  clock: wrap
+  start_cycle: on
+  flags: --dev

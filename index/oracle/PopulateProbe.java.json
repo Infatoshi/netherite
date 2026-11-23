@@ -1,0 +1,19 @@
+{
+ "path": "oracle/harness/netherite/oracle/PopulateProbe.java",
+ "lines": 1323,
+ "role": "Populate reference: ChunkProviderServer.populate for every chunk of a W x W raw region (overworld, nether or end), recorded call by call: biome, structure-map sizes and intersecting starts, chunk loads, populate Random seed at each stage marker, every block write, tile entity deltas, spawned entities, then pending ticks and the final region. Also a scan command that picks regions covering every biome.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=PopulateProbe (writes out/java/populate/<name>)",
+  "csrc/tests/test_populate.c (csrc/engine/populate.c)",
+  "oracle/harness/netherite/oracle/SpawnProbe.java"
+ ],
+ "vanilla_hooks": [
+  "oracle/src/world/gen/ChunkProviderServer.java",
+  "oracle/src/world/gen/ChunkProviderGenerate.java",
+  "oracle/src/world/gen/ChunkProviderHell.java",
+  "oracle/src/world/biome/BiomeDecorator.java",
+  "oracle/src/world/biome/BiomeEndDecorator.java"
+ ],
+ "notes": "Hooks: PopulateProbe.mark(stage, rand) stage markers in the decorators and chunk providers; PopulateProbe.onChunkLoaded in ChunkProviderServer.loadChunk. csrc/engine/populate.h, populate_nether.h and decorator.h cite it."
+}

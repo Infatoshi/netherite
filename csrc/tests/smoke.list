@@ -1,0 +1,258 @@
+# make smoke's jobs, written by tests/smoke_select (then .py) on 2026-09-26 (make smoke-select refreshes it).
+# TEST DIR [FLAGS]: out/native/test_TEST on out/java/DIR (- for none), those that reserve memory
+# first, each group longest first; the
+# seconds are the job's on the normal build, then the memory it reserves and why it was chosen.
+# 251 of 1283 suite jobs, 300 of 3100 job-seconds, 15.0 GB-seconds reserved (--budget 300 --mem-budget 15000 --max-job 8);
+# engine/ lines the suite runs: 69202 of 70270 (98.5%); (phase, class) pairs: 110 of 110.
+# lines left to the full suite, by file: serverreplay.c:253 place.c:168 blockcb.c:71 decorator.c:56 projectile.c:52 villagers.c:38 drops.c:33 ai.c:32 render_blocks.c:29 survival.c:28 randomtick.c:26 structure_blocks.c:26
+portals portals/seed2  # 13.5s 285 MB binary
+snapshots snapshots/gold-g14-s42 --rows 1500  # 7.6s 273 MB phase
+snapshots snapshots/item-tags-s1  # 5.0s 112 MB lines
+snapshots snapshots/gold-g8-s42 --rows 300  # 4.6s 133 MB phase
+interleave interleave/nether-end --rows 100  # 4.4s 213 MB binary
+snapshots snapshots/village-hurt-s42 --rows 1500  # 4.4s 135 MB lines
+snapshots snapshots/lead-s1  # 4.1s 113 MB lines
+snapshots snapshots/play-reload2-s1 --rows 1500  # 2.9s 131 MB phase
+sblocks sblocks/vi42-f  # 2.7s 121 MB lines
+tileticks tileticks/full42-v2  # 2.6s 340 MB binary
+snapshots snapshots/gold-g18-s42 --rows 300  # 2.3s 188 MB lines
+snapshots snapshots/pickblock-s1  # 2.2s 117 MB lines
+snapshots snapshots/nf-blaze-s42 --rows 300  # 2.0s 120 MB phase
+snapshots snapshots/surv_starve-s1 --rows 300  # 1.9s 114 MB phase
+seedworld seedworld/seed123456789  # 1.8s 113 MB lines
+snapshots snapshots/riders-walkback-s1 --rows 300  # 1.7s 101 MB lines
+populate populate/pop42_02  # 1.7s 324 MB lines
+snapshots snapshots/village-cp-s42  # 1.6s 108 MB phase
+snapshots snapshots/swamp-night-s2 --rows 300  # 1.6s 234 MB lines
+render render/anim_dials_f103  # 1.6s 251 MB lines
+snapshots snapshots/portal-mobs-s42 --rows 300  # 1.3s 104 MB lines
+rendertick rendertick/fx_explode  # 1.2s 112 MB lines
+render render/gui_furnace  # 1.1s 178 MB lines
+render render/gui_inventory_effects  # 1.1s 179 MB lines
+snapshots snapshots/fight-witherskel-s1  # 1.0s 100 MB lines
+snapshots snapshots/fight-blaze-s42 --rows 300  # 0.9s 114 MB lines
+render render/gui_merchant_named  # 0.9s 179 MB lines
+snapshots snapshots/use-kinds-s1 --rows 1500  # 0.8s 108 MB lines
+render render/gui_inventory_preview  # 0.7s 179 MB lines
+snapshots snapshots/details-blocks-s1 --rows 300  # 0.6s 115 MB lines
+hudscreens hudscreens/hudscreens-s1  # 0.2s 165 MB binary
+animals animals/an-42  # 10.5s binary
+villagers villagers/vil-42  # 6.6s binary
+snapshots snapshots/endbot-s42 --rows 1500  # 5.6s lines
+harvestdrops harvestdrops/s42  # 5.3s lines
+snapshots snapshots/portal-pigspawn-s1  # 4.8s depth 12000
+fortress_spawn fortress_spawn/fs-2  # 3.2s binary
+render render/blockicons_shapes  # 3.2s lines
+snapshots snapshots/stats-s1  # 2.7s lines
+ghasts ghasts/gh-b2  # 2.7s lines
+snapshots snapshots/gold-g5-s42 --rows 1500  # 2.7s phase
+snapshots snapshots/sh-portal-s42  # 2.6s lines
+hostiles hostiles/b-2  # 2.5s lines
+ghasts ghasts/gh-b42  # 2.4s binary
+snapshots snapshots/gold-g2-s42  # 2.3s lines
+hostiles hostiles/s-42  # 2.2s lines
+explosions explosions/exp-2-3000 --cases 300  # 2.1s binary
+drops drops/s42  # 2.1s binary
+dig dig/r2  # 2.1s binary
+hostiles hostiles/sk-42  # 2.0s lines
+ticks ticks/ticks-s42 --cases 2000  # 2.0s binary
+hostiles hostiles/pigman-merged2-repeat  # 1.9s lines
+snapshots snapshots/spill-boom-s1  # 1.9s lines
+hostiles hostiles/z-2  # 1.9s lines
+hostiles hostiles/e-42  # 1.8s lines
+snapshots snapshots/replay2-jump-s1  # 1.8s lines
+potions potions/seed2  # 1.8s binary
+feature probes/fe-dungeons-2  # 1.8s lines
+hostiles hostiles/silverfish-final-2  # 1.8s lines
+hostiles hostiles/w-42  # 1.7s binary
+fallhang fallhang/fh42  # 1.7s binary
+snapshots snapshots/surv2-block-armor-s1  # 1.7s lines
+snapshots snapshots/act2-s1  # 1.6s lines
+snapshots snapshots/scen-slabs-stairs-s1  # 1.6s lines
+snapshots snapshots/ore-use-s1  # 1.6s lines
+servertick servertick/s42  # 1.6s binary
+snapshots snapshots/cp-end-s1  # 1.6s phase
+snapshots snapshots/melee-mods-s1  # 1.6s lines
+slimes slimes/seed2-overworld  # 1.5s lines
+seedworld seedworld/seed42-end  # 1.5s binary
+snapshots snapshots/scen-ladder-vine-s1  # 1.5s lines
+render render/ent_painting_w6  # 1.5s lines
+render render/hud_boss_f051  # 1.5s lines
+snapshots snapshots/surv2-bed-s1  # 1.4s phase
+slimes slimes/seed2-nether  # 1.4s binary
+snapshots snapshots/pick-shapes-s1  # 1.4s lines
+chunkload chunkload/smoke  # 1.4s binary
+seedworld seedworld/seed99  # 1.4s lines
+render render/mobs_sheep_f006  # 1.4s lines
+meshes meshes/scene3-2-fast  # 1.3s lines
+render render/fx_explode_f101  # 1.3s lines
+render render/painting  # 1.3s lines
+clientworld clientworld/smoke-s1  # 1.3s lines
+clientworld clientworld/walk300-s42  # 1.3s binary
+render render/ent_death_x12  # 1.3s lines
+snapshots snapshots/scen-water-lava-s1  # 1.3s lines
+snapshots snapshots/cp-throw-s1  # 1.2s lines
+snapshots snapshots/mobattack-overlap-s1  # 1.2s phase
+snapshots snapshots/bed-boom-s1  # 1.2s lines
+snapshots snapshots/fight-silverfish-s1 --rows 300  # 1.2s phase
+snapshots snapshots/rare-drops-s1  # 1.1s lines
+render render/ent_hand_swing1  # 1.1s lines
+hostiles hostiles/c-charged  # 1.1s lines
+trades trades/seed42  # 1.1s binary
+render render/ent_zvil_v6  # 1.1s lines
+render render/mobs2b_ghast_f006  # 1.1s lines
+render render/ent_held_f6  # 1.1s lines
+render render/terrain_hudbar  # 1.0s lines
+render render/particles_dig  # 1.0s lines
+render render/mobs2b_dragon_death_f041  # 1.0s lines
+render render/cs_bow_b8  # 1.0s lines
+render render/te_portal_sh_side  # 1.0s lines
+projectiles projectiles/eggs2-42  # 1.0s binary
+render render/ent_tnt_t78  # 1.0s lines
+render render/ent_held2_g8  # 1.0s lines
+render render/ent_pickup_p9  # 1.0s lines
+activate activate/seed2t  # 1.0s lines
+render render/hand_eat  # 1.0s lines
+render render/mobs2b_iron_golem_f006  # 1.0s lines
+snapshots snapshots/end-crystals-s1 --rows 300  # 1.0s phase
+render render/mv_glass_gs  # 0.9s lines
+render render/toast  # 0.9s lines
+render render/mobs2b_dragon_hurt_f007  # 0.9s lines
+snapshots snapshots/persist-hanging-s1  # 0.9s lines
+snapshots snapshots/pot-poison-s1  # 0.9s lines
+snapshots snapshots/dev-world-s1  # 0.9s lines
+render render/mv_variants_sr  # 0.9s lines
+snapshots snapshots/pot-apple-s1  # 0.9s lines
+snapshots snapshots/rc-animals-s1  # 0.9s lines
+render render/mobs2b_magma_cube_f006  # 0.9s lines
+paths paths/pf42-20k --cases 2000  # 0.9s binary
+render render/te_signs_left  # 0.9s lines
+render render/ent_throw_x1  # 0.9s lines
+render render/gui_death  # 0.9s lines
+snapshots snapshots/te-furnace-s1  # 0.8s lines
+render render/worldfx_snow_up  # 0.8s lines
+snapshots snapshots/surv2-tnt-s1 --rows 300  # 0.8s lines
+snapshots snapshots/world-storm-s1  # 0.8s lines
+snapshots snapshots/fight-pigmen-s1  # 0.8s lines
+snapshots snapshots/gold-g4-s42 --rows 300  # 0.8s phase
+render render/worldfx_underwater  # 0.8s lines
+snapshots snapshots/rc-blocks-s1  # 0.8s lines
+snapshots snapshots/fight-magmacube-s1 --rows 300  # 0.8s lines
+render render/ent_armor_h8  # 0.8s lines
+render render/fx_eye_e20  # 0.8s lines
+lightning lightning/light2  # 0.8s binary
+render render/mobs2b_mooshroom_child_f011  # 0.8s lines
+render render/gui_credits_f600  # 0.8s lines
+snapshots snapshots/ride-pig-s1  # 0.8s lines
+render render/te_skulls_f25  # 0.8s lines
+snapshots snapshots/throw-bow-s1  # 0.7s lines
+render render/mobs2a_slime_f006  # 0.7s lines
+snapshots snapshots/auditfixa-easy-fight-s1 --rows 300  # 0.7s lines
+biome_spawn biome_spawn/bs-1  # 0.7s binary
+snapshots snapshots/cat-recipes-s1  # 0.7s lines
+eyes eyes/eye42  # 0.7s binary
+snapshots snapshots/dmg-sources-s1 --rows 300  # 0.7s lines
+snapshots snapshots/details-mobs-s1 --rows 300  # 0.7s lines
+snapshots snapshots/details-frames-s1  # 0.7s lines
+snapshots snapshots/container-break-s1  # 0.7s lines
+snapshots snapshots/rc-items-s1  # 0.7s lines
+snapshots snapshots/cat-lightning-s1  # 0.7s phase
+spawning spawning/rec-s2-mushroom  # 0.7s binary
+snapshots snapshots/cat-clicks-s1  # 0.7s lines
+snapshots snapshots/te-spawner-s1  # 0.7s phase
+render render/fx_rain_f120  # 0.7s lines
+render render/gui_death_chat  # 0.6s lines
+render render/te_portal_end_side  # 0.6s lines
+render render/te_chests_o7  # 0.6s lines
+itemuse itemuse/seed42-v2 --cases 1000  # 0.6s binary
+snapshots snapshots/chest-chain-s1  # 0.6s lines
+rendertick rendertick/cs_sprint  # 0.6s lines
+snapshots snapshots/cat-wear-s1  # 0.6s phase
+sblocks sblocks/sh-42c  # 0.6s lines
+render render/te_spawner_c  # 0.6s lines
+render render/mobs2a_enderman_f011  # 0.6s lines
+render render/hand_sword_block  # 0.6s lines
+rendertick rendertick/cs_storm  # 0.6s lines
+rendertick rendertick/cs_portal  # 0.6s lines
+containers containers/seed2  # 0.6s binary
+snapshots snapshots/te-chest-s1  # 0.6s lines
+rendertick rendertick/fx_crit  # 0.6s lines
+render render/worldfx_flat  # 0.5s lines
+rendertick rendertick/fx_portal  # 0.5s lines
+rendertick rendertick/fx_eye  # 0.5s lines
+rendertick rendertick/fx_potion  # 0.5s lines
+render render/worldfx_fire  # 0.5s lines
+activate activate/smoke-n  # 0.5s lines
+render render/cs_hurt_c25  # 0.5s lines
+sblocks sblocks/sh-2a  # 0.5s lines
+render render/hand_grass  # 0.5s lines
+render render/cs_storm_l7  # 0.5s lines
+populate populate/hellsmoke  # 0.5s lines
+snapshots snapshots/te-charcoal-s1 --rows 1500  # 0.5s phase
+render render/hand_equip_up  # 0.5s lines
+place place/dbl  # 0.5s binary
+rendertick rendertick/fx_rain  # 0.5s lines
+rendertick rendertick/cs_bow  # 0.5s lines
+rendertick rendertick/cs_hurt  # 0.5s lines
+render render/ent_falling_c4  # 0.5s lines
+feature probes/fe-lakes-cold-2  # 0.5s lines
+render render/worldfx_orbs  # 0.5s lines
+render render/worldfx_pumpkin  # 0.5s lines
+render render/ent_arrow_a8  # 0.5s lines
+loot loot/seed2  # 0.4s binary
+snapshots snapshots/walk300-s42  # 0.4s lines
+render render/cs_portal_p40  # 0.4s lines
+render render/ent_creeper_k6  # 0.4s lines
+render render/hud_achieve  # 0.4s binary
+render render/hud_worn  # 0.4s lines
+feature probes/fe-jungle-42  # 0.4s lines
+feature probes/fe-forest-2  # 0.4s lines
+feature probes/fe-shrub-42  # 0.4s lines
+snapshots snapshots/trade-s1  # 0.4s phase
+items items/ent-2  # 0.4s binary
+dragon dragon/blocks-2  # 0.4s lines
+feature probes/fe-swamp-42  # 0.4s lines
+feature probes/fe-canopy-42  # 0.3s lines
+feature probes/fe-megapine-2  # 0.3s lines
+feature probes/fe-icespike-42  # 0.3s lines
+feature probes/fe-bigtree-42  # 0.3s binary
+worldgen chunks/mesa-123456789  # 0.3s lines
+feature probes/fe-vines-42  # 0.3s lines
+feature probes/fe-desertwell-42  # 0.3s lines
+sblocks sblocks/te2-08b  # 0.3s lines
+feature probes/fe-trees-2-recmp  # 0.3s lines
+move moves/mv-dense-2  # 0.3s binary
+dragon dragon/multi-2  # 0.3s binary
+renderstate renderstate/rs-bench2k  # 0.3s lines
+feature probes/fe-icepath-42  # 0.2s lines
+structures structures/vi-5  # 0.2s lines
+meshes meshes/scene-2  # 0.2s binary
+crafting crafting/s42  # 0.2s binary
+det det/seed42  # 0.2s binary
+feature probes/fe-minable-2  # 0.2s lines
+populate populate/popw21  # 0.2s lines
+sblocks sblocks/te2-14  # 0.2s lines
+populate populate/popw27  # 0.2s lines
+dragon dragon/parts-42  # 0.2s lines
+raypick raypick/rp-42  # 0.2s binary
+probe probes/sb-plain  # 0.2s binary
+populate populate/popw22  # 0.2s lines
+sblocks sblocks/te42-11  # 0.2s binary
+sblocks sblocks/te42-02  # 0.2s lines
+activate activate/smoke  # 0.2s binary
+worldgen chunks/junglem-123456789  # 0.2s lines
+sblocks sblocks/te2-16  # 0.1s lines
+structures structures/s2-recheck  # 0.1s binary
+dims dims/nether-2-fortress  # 0.1s binary
+renderstate renderstate/rs-night  # 0.1s binary
+harvest harvest/seed42  # 0.1s binary
+harvestdrops harvestdrops/s2 --cases 3000  # 0.1s binary
+rendertick rendertick/anim_dials  # 0.1s lines
+worldgen chunks/sb-cave-42  # 0.1s binary
+populate populate/popsm23  # 0.1s binary
+registry -  # 0.1s binary
+rendertick rendertick/te_dungeon  # 0.1s binary
+rendertick rendertick/mv_glass  # 0.1s lines
+rendertick rendertick/te_chests  # 0.1s lines
+structures structures/nf-42  # 0.1s lines
+rendertick rendertick/te_portal_end  # 0.1s lines

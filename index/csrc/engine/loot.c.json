@@ -1,0 +1,68 @@
+{
+ "path": "csrc/engine/loot.c",
+ "lines": 149,
+ "role": "WeightedRandomChestContent's chest and dispenser fill (generateChestContents, func_150706_a) over WeightedRandom.getRandomItem, the per-structure chest count draws, table lookup by name, and the enchanted-book stack a structure appends (ItemEnchantedBook.func_92114_b/func_92112_a through add_random_enchantment_tag).",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/util/WeightedRandomChestContent.java",
+   "members": [
+    "generateChestContents",
+    "func_150706_a",
+    "func_92080_a",
+    "theItemId",
+    "theMinimumChanceToGenerateItem",
+    "theMaximumChanceToGenerateItem"
+   ]
+  },
+  {
+   "path": "oracle/src/util/WeightedRandom.java",
+   "members": [
+    "getTotalWeight",
+    "getRandomItem"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemEnchantedBook.java",
+   "members": [
+    "func_92114_b",
+    "func_92112_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureComponent.java",
+   "members": [
+    "generateStructureChestContents",
+    "generateStructureDispenserContents"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "loot_tables (const table of pointers)",
+   "java": "every structure's WeightedRandomChestContent[] in a fixed order, from loot_tables.h",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "loot_table_by_name",
+  "loot_count",
+  "loot_generate_contents",
+  "loot_generate_dispenser",
+  "loot_book_build",
+  "loot_book_free",
+  "loot_free",
+  "loot_tables"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 76, function dup_str: malloc of each slot's tag text; called from put_entry (lines 91 and 102) for every placed stack whose entry is the enchanted book",
+  "line 142, function loot_book_build: add_random_enchantment_tag (enchant.c) returns a heap string held in struct loot_book",
+  "lines 19-20, function loot_table_by_name: linear strcmp lookup by name string"
+ ],
+ "tests": [
+  "csrc/tests/test_loot.c",
+  "csrc/tests/test_populate.c"
+ ],
+ "notes": "The count draw per call site (loot_count) follows the comment in each loot_tables.h row. func_92080_a's table concatenation is precomputed: the book row sits at the end of each table and its stack is built from the structure RNG at generation time. The chest RNG does not move for the book. Callers: features_dungeons.c, mineshaft_blocks.c, stronghold_blocks.c, temple_blocks.c, village_blocks.c, fortress_blocks.c, structure_blocks.c. Oracle recordings of loot draws are under out/java/loot/. test_populate.c compares tile entity deltas of populated chunks; whether it checks chest slot contents was not verified."
+}

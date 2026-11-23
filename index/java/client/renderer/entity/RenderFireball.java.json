@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderFireball.java",
+  "classes": ["RenderFireball"],
+  "lines": 85,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityFireball (ghast fireballs and blaze small fireballs): a billboard quad of the fire charge item icon, scaled by the renderer's size parameter and rotated to face the camera.",
+  "scope": "in_scope",
+  "scope_reason": "Ghast fireballs occur in gated recordings (ghasts, fight scenes), so their pixels are in the compared frames' scope.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_things.c", "symbols": ["draw_sprite", "billboard"]}
+  ],
+  "evidence": [
+    "out/java/clientframes/cov-zoo-s1",
+    "out/java/ghasts/gh-b2",
+    "out/java/render-src/ent_fireball",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_77002_a", "sig": "private float", "native": "csrc/engine/raster_things.c:draw_sprite", "status": "exact", "note": "the scale, 2.0 for EntityLargeFireball and 0.5 for EntitySmallFireball"},
+    {"kind": "ctor", "name": "RenderFireball", "sig": "(F)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityFireball,DDD FF)V", "native": "csrc/engine/raster_things.c:draw_sprite", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityFireball)ResourceLocation", "native": "csrc/engine/raster_things.c:draw_sprite", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "the bridge overload"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "the bridge overload"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: raster_things.c draw_sprite with Items.fire_charge's icon from the row; ent_fireball (a large and a small fireball drifting), 5 views within 8 px (master 10,857 to 16,917 px)."
+}

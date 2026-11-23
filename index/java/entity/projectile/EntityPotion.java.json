@@ -1,0 +1,44 @@
+{
+  "path": "oracle/src/entity/projectile/EntityPotion.java",
+  "classes": ["EntityPotion"],
+  "lines": 188,
+  "side": "common",
+  "category": "entity",
+  "role": "The thrown splash potion: a heavier, flatter throw, and on impact an area splash (radius 4) that applies the potion's effects with distance falloff, then the 2002 sound event.",
+  "scope": "in_scope",
+  "scope_reason": "Splash potions are the witch's attack (pot-witch-s1) and the potion registry stays; brewing itself is off but the thrown entity is not.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/projectile.c", "symbols": ["proj_spawn_throwable", "proj_spawn_throwable_shooter", "proj_throwable_heading", "projectile_update"]},
+    {"file": "csrc/engine/living.c", "symbols": ["an_potion_splash_cb", "living_heal"]},
+    {"file": "csrc/engine/potion.c", "symbols": ["potion_get_effects_for_damage", "potion_affect_entity"]},
+    {"file": "csrc/engine/entity_nbt.c", "symbols": ["ent_nbt_ie"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["sr_player_heal"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/use-kinds-s1",
+    "out/java/potions/seed2",
+    "out/java/potions/seed42",
+    "csrc/tests/test_potions.c",
+    "out/java/snapshots/iu-splash-s1",
+    "out/java/snapshots/cov-reload-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "potionDamage", "sig": "ItemStack", "native": "csrc/engine/living.c:an_potion_splash_cb", "status": "exact", "note": "the int potion_damage plus potion_spent (item_entity.h): the player's throw keeps its own shrunk stack, so the NBT Count is 0 for a single potion; a witch's is a new stack (Count 1)"},
+    {"kind": "ctor", "name": "EntityPotion", "sig": "(World)", "native": "csrc/engine/snapshot_entities.c:sr_throwable_from_nbt", "status": "exact", "note": "EntityList's NBT constructor: cov-reload-s1 saves a splash potion in flight with its chunk and reloads it"},
+    {"kind": "ctor", "name": "EntityPotion", "sig": "(World,EntityLivingBase,I)", "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter", "status": "exact"},
+    {"kind": "ctor", "name": "EntityPotion", "sig": "(World,EntityLivingBase,ItemStack)", "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter", "status": "exact", "note": "the player's splash throw (throw.c:spawn_throwable)"},
+    {"kind": "ctor", "name": "EntityPotion", "sig": "(World,DDD,I)", "native": null, "status": "n/a", "note": "the position constructors are the dispenser's (BehaviorProjectileDispense), which needs redstone power (redstone = off)"},
+    {"kind": "ctor", "name": "EntityPotion", "sig": "(World,DDD,ItemStack)", "native": null, "status": "n/a", "note": "see (World,DDD,I)"},
+    {"kind": "method", "name": "getGravityVelocity", "sig": "()F", "native": "csrc/engine/projectile.c:projectile_update", "status": "exact", "note": "0.05F, the IE_POTION gravity branch"},
+    {"kind": "method", "name": "func_70182_d", "sig": "()F", "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter", "status": "exact", "note": "0.5F, the per-kind throw speed"},
+    {"kind": "method", "name": "func_70183_g", "sig": "()F", "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter", "status": "exact", "note": "-20.0F, the per-kind pitch offset of the initial motion"},
+    {"kind": "method", "name": "setPotionDamage", "sig": "(I)V", "native": "csrc/engine/projectile.c:proj_spawn_throwable", "status": "exact", "note": "the damage value rides the spawn argument"},
+    {"kind": "method", "name": "getPotionDamage", "sig": "()I", "native": "csrc/engine/potion.c:potion_get_effects_for_damage", "status": "exact", "note": "the effects lookup keys on the damage value"},
+    {"kind": "method", "name": "onImpact", "sig": "(MovingObjectPosition)V", "native": "csrc/engine/living.c:an_potion_splash_cb", "status": "exact", "note": "the radius-4 entity query, the 1 - sqrt(d)/4 falloff, the direct-hit 1.0, instant versus duration effects, and the 2002 aux; an instant healing on the server player reaches it through the twin's external_heal (serverreplay.c:sr_player_heal; iu-splash-s1, where a healing splash thrown at a zombie heals the thrower)"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/entity_nbt.c:ent_nbt_ie", "status": "exact", "note": "the Potion stack, with the legacy potionValue int fallback; cov-reload-s1"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/entity_nbt.c:ent_nbt_ie", "status": "exact", "note": "the Potion stack only, no legacy key"}
+  ],
+  "missing": [],
+  "notes": "The witch and the player throw through the shooter constructor; use-kinds-s1 gates the player's splash poison (on the thrower) and splash healing. lane/idxentity: only the thrower constructor is reached in play (the player's and the witch's throws). idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): pot-witch-s1."
+}

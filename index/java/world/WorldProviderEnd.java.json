@@ -1,0 +1,50 @@
+{
+  "path": "oracle/src/world/WorldProviderEnd.java",
+  "classes": ["WorldProviderEnd"],
+  "lines": 141,
+  "side": "common",
+  "category": "world",
+  "role": "The End's WorldProvider: one sky biome, no sky light, dimension 1, celestial angle fixed at 0, a dim purple fog, ChunkProviderEnd as the generator, the hard-coded arrival point (100, 50, 0), average ground level 50, and no respawning.",
+  "scope": "in_scope",
+  "scope_reason": "The End is vanilla and in scope (SPEC Decisions: the Nether and the End are vanilla; the End and the dragon are in the loop).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.h", "symbols": ["no_sky", "dim"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["servertick_celestial_radians", "skylight_no_sky"]},
+    {"file": "csrc/engine/renderstate.c", "symbols": ["rs_celestial", "rs_providerfog", "rs_sunrise", "renderstate_compute"]},
+    {"file": "csrc/engine/end.c", "symbols": ["end_init", "end_terrain", "end_surface", "end_biomes"]},
+    {"file": "csrc/engine/seedworld.c", "symbols": ["seedworld_build_dim"]},
+    {"file": "csrc/engine/chunkload.c", "symbols": ["cl_set_respawn"]},
+    {"file": "csrc/engine/portal.c", "symbols": ["teleporter_place_in_portal"]},
+    {"file": "csrc/engine/raster.c", "symbols": ["draw_end_sky"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/end-arrival-s1",
+    "out/java/snapshots/end-dragon-s1",
+    "out/java/snapshots/end-exit-s1",
+    "out/java/dims/end-42-small",
+    "csrc/tests/test_dims.c",
+    "csrc/tests/test_renderstate.c",
+    "csrc/tests/test_dragon.c",
+    "out/java/clientframes/idx-dragondeath-s42",
+    "out/java/clientframes/cr-sweep-gold-g30-s42"
+  ],
+  "members": [
+    {"kind": "method", "name": "registerWorldChunkManager", "sig": "()V", "native": "csrc/engine/end.c:end_biomes", "status": "exact", "note": "WorldChunkManagerHell(sky, 0.0F), dimensionId 1, hasNoSky: world dim 1, no_sky 1."},
+    {"kind": "method", "name": "createChunkGenerator", "sig": "()IChunkProvider", "native": "csrc/engine/end.c:end_terrain", "status": "exact", "note": "ChunkProviderEnd; indexed under world/gen/ChunkProviderEnd.java."},
+    {"kind": "method", "name": "calculateCelestialAngle", "sig": "(long,float)F", "native": "csrc/engine/servertick.c:servertick_celestial_radians", "status": "exact", "note": "0.0; skylight_no_sky gives 0. Frame side rs_celestial."},
+    {"kind": "method", "name": "calcSunriseSunsetColors", "sig": "(float,float)float[]", "native": "csrc/engine/renderstate.c:rs_sunrise", "status": "partial", "note": "Returns null in the End; the End sky (draw_end_sky) never asks, EntityRenderer.updateFogColor does when the look faces the sun's side. Not checked that rs_sunrise itself returns 0 for dim 1. cr-sweep-gold-g30-s42's End frame runs it (a frame replay: lane/covframes' coverage of the frame recordings)"},
+    {"kind": "method", "name": "getFogColor", "sig": "(float,float)Vec3", "native": "csrc/engine/renderstate.c:rs_providerfog", "status": "exact", "note": "0xA080A0 times the constant 0.15; drawn in idx-dragondeath-s42's and cr-sweep-gold-g30-s42's End frames (a frame replay: lane/covframes' coverage of the frame recordings)"},
+    {"kind": "method", "name": "isSkyColored", "sig": "()Z", "native": "csrc/engine/raster.c:draw_end_sky", "status": "n/a", "note": "its only caller is RenderGlobal.renderSky's isSurfaceWorld() branch; the End (dimension 1) takes renderSky's own End branch first, so it is never asked"},
+    {"kind": "method", "name": "canRespawnHere", "sig": "()Z", "native": "csrc/engine/chunkload.c:cl_set_respawn", "status": "exact"},
+    {"kind": "method", "name": "isSurfaceWorld", "sig": "()Z", "native": null, "status": "missing", "note": "No explicit counterpart; only client clock/compass rendering reads it."},
+    {"kind": "method", "name": "getCloudHeight", "sig": "()F", "native": null, "status": "n/a", "note": "8.0; the End draws no clouds, so it is never read on the frame path."},
+    {"kind": "method", "name": "canCoordinateBeSpawn", "sig": "(int,int)Z", "native": "csrc/engine/seedworld.c:seedworld_build_dim", "status": "n/a", "note": "only WorldServer.createSpawnPosition calls it, in the branch after !provider.canRespawnHere(), and this provider's canRespawnHere is false"},
+    {"kind": "method", "name": "getEntrancePortalLocation", "sig": "()ChunkCoordinates", "native": "csrc/engine/portal.c:teleporter_place_in_portal", "status": "partial", "note": "(100, 50, 0) is used where the player is placed on entering the End (ServerConfigurationManager.transferEntityToWorld); I did not find the literal cited next to this Java name."},
+    {"kind": "method", "name": "getAverageGroundLevel", "sig": "()I", "native": "csrc/engine/seedworld.c:seedworld_build_dim", "status": "exact", "note": "spawn_y = 50 for dim 1."},
+    {"kind": "method", "name": "doesXZShowFog", "sig": "(int,int)Z", "native": "csrc/engine/renderstate.c:renderstate_compute", "status": "exact", "note": "the xzfog input; drawn in idx-dragondeath-s42's End frames (a frame replay: lane/covframes' coverage of the frame recordings)"},
+    {"kind": "method", "name": "getDimensionName", "sig": "()String", "native": null, "status": "n/a", "note": "Display name \"The End\"."}
+  ],
+  "missing": [],
+  "notes": "Status exact because every server-side and frame behavior has a counterpart proven by the end-* recordings and dims dumps; the member-level partial entries are client presentation switches expressed as dimension checks. Recordings not rerun by me."
+}

@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/village_blocks.c",
+ "lines": 940,
+ "role": "The block half of every village piece (StructureVillagePieces' addComponentParts): well, road, torch, both fields, wood hut, garden house, the three houses, church and hall, with the ground-level settle, the desert block swap, doors, the blacksmith chest and the villagers each house spawns.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/StructureVillagePieces.java", "members": ["addComponentParts", "getAverageGroundLevel", "field_143015_k", "func_151558_b", "func_151557_c", "func_151550_a", "func_151549_a", "func_151554_b", "spawnVillagers", "getVillagerType"]},
+  {"path": "oracle/src/world/gen/structure/StructureComponent.java", "members": ["placeDoorAtCurrentPosition"]},
+  {"path": "oracle/src/item/ItemDoor.java", "members": ["func_150924_a"]},
+  {"path": "oracle/src/world/World.java", "members": ["getTopSolidOrLiquidBlock"]},
+  {"path": "oracle/src/util/MathHelper.java", "members": ["getRandomIntegerInRange"]}
+ ],
+ "structs": [],
+ "entry_points": ["village_blocks"],
+ "tick_path": true,
+ "gpu": [
+  "lines 40-55, function top_solid_or_liquid: world_load_chunk may load or generate a chunk from inside the piece builder, and the material test uses strcmp on the material name",
+  "line 196, function spawn_villagers: villager construction through sc_villager_new (entity creation during population)",
+  "lines 160-185, function place_door: raw world_set_block writes and neighbour notifications outside the piece's box guard for the upper half"
+ ],
+ "tests": ["csrc/tests/test_sblocks.c", "csrc/tests/test_populate.c", "csrc/tests/test_villagers.c"],
+ "notes": "The piece helpers (sc_place, sc_fill_meta, sc_fill_down, sc_clear_upwards, sc_chest_contents, sc_villager_new, sc_orient_meta) are structure_blocks.c's. getAverageGroundLevel assumes the default overworld's average ground level of 64. The blacksmith chest draws 3 + nextInt(6) items from the 'blacksmith' loot table. Villager professions per house are fixed callbacks (farmer 0, librarian 1, priest 2, blacksmith 3, the hall's type 4 for slot 0). Not verified per-piece against the Java line by line; test_sblocks.c is the gate that compares block writes."
+}

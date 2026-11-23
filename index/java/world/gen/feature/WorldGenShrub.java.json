@@ -1,0 +1,76 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenShrub.java",
+ "classes": [
+  "WorldGenShrub"
+ ],
+ "lines": 62,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Jungle bush: a single log on grass or dirt with a small pyramid of leaves around it.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_trees_small.c",
+   "symbols": [
+    "feature_shrub"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "place_tree"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-shrub-2",
+  "out/java/probes/fe-shrub-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150528_a",
+   "sig": "int",
+   "native": "csrc/engine/features_trees_small.c:feature_shrub",
+   "status": "exact",
+   "note": "Leaves meta (0) fixed by the only vanilla construction WorldGenShrub(3, 0)."
+  },
+  {
+   "kind": "field",
+   "name": "field_150527_b",
+   "sig": "int",
+   "native": "csrc/engine/features_trees_small.c:feature_shrub",
+   "status": "exact",
+   "note": "Wood meta (3), as above."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenShrub",
+   "sig": "(int,int)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_trees_small.c:feature_shrub",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

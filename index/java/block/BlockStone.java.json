@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/block/BlockStone.java",
+  "classes": ["BlockStone"],
+  "lines": 23,
+  "side": "common",
+  "category": "block",
+  "role": "Stone (id 1): the terrain's base block; drops cobblestone.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS", "MATERIALS"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_drops.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockStone", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 1: Material.rock row, hardness 1.5, resistance 30, opacity 255, in the table"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 1: cobblestone, damage 0"}
+  ],
+  "missing": [],
+  "notes": "Every terrain dump in out/java/chunks is full of stone, so the table row is exercised by test_worldgen.c against the chunk dumps."
+}

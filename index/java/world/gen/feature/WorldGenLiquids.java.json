@@ -1,0 +1,73 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenLiquids.java",
+ "classes": [
+  "WorldGenLiquids"
+ ],
+ "lines": 90,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Rock-pocket water or lava spring: places flowing liquid where three neighbours are stone and one is air, then runs its update tick immediately (scheduledUpdatesAreImmediate).",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_springs.c",
+   "symbols": [
+    "feature_spring",
+    "liquid_update_tick",
+    "features_springs_for"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "features_springs_for"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-springwater-2",
+  "out/java/probes/fe-springwater-42",
+  "out/java/probes/fe-springlava-2",
+  "out/java/probes/fe-springlava-42",
+  "out/java/seedworld/seed1",
+  "out/java/snapshots/portalmake-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150521_a",
+   "sig": "Block",
+   "native": "csrc/engine/features_springs.c:feature_spring",
+   "status": "exact",
+   "note": "Blocks.flowing_water or flowing_lava via the row."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenLiquids",
+   "sig": "(Block)",
+   "native": "csrc/engine/features_springs.c:features_springs_for",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_springs.c:feature_spring",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "The immediate updateTick re-enters through setBlock in Java; features_springs.c documents how it bounds that recursion. Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

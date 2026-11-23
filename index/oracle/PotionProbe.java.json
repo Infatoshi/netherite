@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/PotionProbe.java",
+ "lines": 1066,
+ "role": "Potion effects reference: spawns the five farm animals on a raw region and ticks them under a scripted event list (addPotionEffect, clearActivePotions, food application, thrown EntityPotion spawns), recording spawns, events, per-tick entity state and the final region.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=PotionProbe (writes out/java/potions/<name>)",
+  "csrc/tests/test_potions.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output: manifest.json (kind potions), shapes.bin, spawns.bin, events.bin, ticks.bin.gz, final.bin.gz. test_potions.c's header comment is copied from the AnimalProbe gate and does not name this class; the link is the out/java/potions data directory. Not verified which effects the event list covers."
+}

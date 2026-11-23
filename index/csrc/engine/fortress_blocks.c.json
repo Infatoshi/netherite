@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/fortress_blocks.c",
+ "lines": 643,
+ "role": "StructureNetherBridgePieces' addComponentParts for every piece kind: nether brick fills, fences and stairs, corridor chests from the netherBridge loot table, the throne's blaze spawner, the entrance's lava bath with its immediate flow tick, the dead end's seeded fills and the nether wart room.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/StructureNetherBridgePieces.java", "members": ["Crossing3.addComponentParts", "Straight.addComponentParts", "Corridor.addComponentParts", "Corridor2.addComponentParts", "Corridor3.addComponentParts", "Corridor4.addComponentParts", "Corridor5.addComponentParts", "Crossing.addComponentParts", "Crossing2.addComponentParts", "Stairs.addComponentParts", "Throne.addComponentParts", "Throne.hasSpawner", "End.addComponentParts", "End.fillSeed", "Entrance.addComponentParts", "NetherStalkRoom.addComponentParts", "Piece.field_111019_a", "Corridor.field_111021_b", "Corridor2.field_111020_b"]},
+  {"path": "oracle/src/world/gen/structure/StructureComponent.java", "members": ["fillWithBlocks", "placeBlockAtCurrentPosition", "func_151554_b", "generateStructureChestContents", "getXWithOffset", "getYWithOffset", "getZWithOffset"]}
+ ],
+ "structs": [],
+ "entry_points": ["fortress_blocks"],
+ "tick_path": true,
+ "gpu": [
+  "line 26, function dup_text: malloc of the spawner mob id string (line 373) during population",
+  "line 372, function throne_parts: free of the old spawner mob id (heap-owned tile entity data, fetched by pointer)",
+  "lines 502-504, function entrance_parts: toggles the global ticks_set_immediate flag around liquid_update_tick, whose immediate cascade recurses (features_springs.c)"
+ ],
+ "tests": ["csrc/tests/test_sblocks.c", "csrc/tests/test_structures.c", "csrc/tests/test_populate.c"],
+ "notes": "The block writes go through structure_blocks.h's sc_* helpers (sc_fill, sc_place, sc_fill_down, sc_chest_contents), clipped to the population step's chunk box. Corridor chests draw 2 + nextInt(4) only when the chest lies in the step box. Field names like hasSpawner, fillSeed and field_111021_b are from memory of the MCP names and not verified against oracle/src."
+}

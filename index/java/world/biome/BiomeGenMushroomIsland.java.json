@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenMushroomIsland.java",
+  "classes": ["BiomeGenMushroomIsland"],
+  "lines": 24,
+  "side": "common",
+  "category": "worldgen",
+  "role": "MushroomIsland (14) and its shore (15): mycelium top, no trees, flowers or grass, one mushroom and one big mushroom per chunk, and mooshrooms as the only mob.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["biome_is_mushroom", "spawning_list_for"]},
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES"]}
+  ],
+  "evidence": ["csrc/tests/test_populate.c", "csrc/tests/test_spawning.c", "csrc/tests/test_worldgen.c", "out/java/populate"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenMushroomIsland", "sig": "(int)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "counts in deco_of case 14/15; mycelium (110) top in BIOMES; mooshroom-only creature list and empty monster/water lists in spawning_list_for"}
+  ],
+  "missing": [],
+  "notes": "Whether a mushroom island chunk is in the populate dumps was not checked."
+}

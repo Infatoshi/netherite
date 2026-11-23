@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/entity/monster/IMob.java",
+  "classes": ["IMob"],
+  "lines": 22,
+  "side": "common",
+  "category": "entity",
+  "role": "Marker interface for hostile, player-attacking mobs; consumed by the mob-selector used in spawn rules, EntityAITarget and the IMob-aware entity helpers.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_is_imob"]},
+    {"file": "csrc/engine/hostiles.c", "symbols": ["hostile_spawn"]}
+  ],
+  "evidence": ["out/java/snapshots/mobspawn-final-s1", "csrc/tests/test_spawning.c"],
+  "members": [
+    {"kind": "field", "name": "mobSelector", "sig": "IEntitySelector (static)", "native": "csrc/engine/survival.c:surv_is_imob", "status": "exact", "note": "the isAssignableFrom check folds into a kind-range test over the hostile kinds (survival.c:392's comment names the EntityGiantZombie hole)"}
+  ],
+  "missing": [],
+  "notes": "The Java selector includes EntityGiantZombie via instanceof; the native kind-range test covers exactly the hostile kinds, which is the same set on the probe since the giant is never spawned."
+}

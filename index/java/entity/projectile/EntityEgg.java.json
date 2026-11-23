@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/entity/projectile/EntityEgg.java",
+  "classes": ["EntityEgg"],
+  "lines": 66,
+  "side": "common",
+  "category": "entity",
+  "role": "The thrown egg: a 0-damage thrown hit, a 1-in-8 chance of spawning one (1-in-32 of four) baby chickens, and snowballpoof particles.",
+  "scope": "in_scope",
+  "scope_reason": "A throwable the replay's throw-items scene exercises; chickens are in scope.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/projectile.c", "symbols": ["egg_on_impact", "proj_spawn_throwable", "proj_spawn_throwable_shooter", "proj_throwable_heading", "projectile_update"]},
+    {"file": "csrc/engine/living.c", "symbols": ["an_potion_splash_cb"]}
+  ],
+  "evidence": [
+    "out/java/projectiles/eggs2-2",
+    "out/java/projectiles/eggs2-42",
+    "csrc/tests/test_projectiles.c",
+    "out/java/snapshots/end-throw-s42",
+    "out/java/snapshots/throw-blaze-s1",
+    "out/java/snapshots/portal-proj-s1",
+    "out/java/snapshots/cov-reload-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "EntityEgg", "sig": "(World)", "native": null, "status": "n/a", "note": "n/a: EntityList registers no name for EntityEgg, so an egg is never saved (writeToNBTOptional needs getEntityString) or read back; the client builds its copy with (World, DDD). cov-reload-s1 throws one across an unload: it is gone after, on both sides"},
+    {"kind": "ctor", "name": "EntityEgg", "sig": "(World,EntityLivingBase)", "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter", "status": "exact"},
+    {"kind": "ctor", "name": "EntityEgg", "sig": "(World,DDD)", "native": "csrc/engine/projectile.c:proj_spawn_throwable", "status": "exact"},
+    {"kind": "method", "name": "onImpact", "sig": "(MovingObjectPosition)V", "native": "csrc/engine/projectile.c:egg_on_impact", "status": "exact", "note": "the 1-in-8 chick roll, the 1-in-32 four-chick roll, the growth age and the poof; living.c 568 carries the chicken side"}
+  ],
+  "missing": [],
+  "notes": "The EntityThrowable base (heading, gravity, flight, the hit test) is projectile.c's throwable half; only this class's own onImpact is its own code."
+}

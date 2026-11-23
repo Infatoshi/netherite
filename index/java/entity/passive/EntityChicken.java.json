@@ -1,0 +1,255 @@
+{
+ "path": "oracle/src/entity/passive/EntityChicken.java",
+ "classes": [
+  "EntityChicken"
+ ],
+ "lines": 243,
+ "side": "server",
+ "category": "entity",
+ "role": "The chicken: the wing-flap animation fields, a slowed fall, an egg timer that lays an egg every 6000-12000 ticks, wheat-seed breeding, and the baby-zombie chicken-jockey flag.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/animals.c",
+   "symbols": [
+    "animal_construct",
+    "animal_on_living_update",
+    "animal_drop_few_items",
+    "animal_write_kind_nbt",
+    "animal_create_child",
+    "chicken_fall",
+    "time_until_next_egg",
+    "is_chicken_jockey",
+    "chicken_dest_pos"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "animal_breeding_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_can_despawn",
+    "living_update_entity"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "egg_zombie"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/eggs-s1",
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_spawning.c",
+  "out/java/snapshots/rc-animals-s1",
+  "out/java/snapshots/mobspawn-final-s1",
+  "out/java/render/mobs_chicken_f006",
+  "out/java/snapshots/ent-jockey-s1",
+  "out/java/snapshots/breed-sheep-s1",
+  "out/java/snapshots/nether-away-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_70886_e",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:chicken_field_70886_e",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "destPos",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:chicken_dest_pos",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_70884_g",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:chicken_field_70884_g",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_70888_h",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:chicken_field_70888_h",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "timeUntilNextEgg",
+   "sig": "int",
+   "native": "csrc/engine/animals.c:time_until_next_egg",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_152118_bv",
+   "sig": "boolean",
+   "native": "csrc/engine/animals.c:is_chicken_jockey",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityChicken",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_construct",
+   "status": "exact",
+   "note": "size, the egg timer's first draw, the task list"
+  },
+  {
+   "kind": "method",
+   "name": "isAIEnabled",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "applyEntityAttributes",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:animal_attributes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onLivingUpdate",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:animal_on_living_update",
+   "status": "exact",
+   "note": "the kind branch after EntityAnimal's shared body"
+  },
+  {
+   "kind": "method",
+   "name": "fall",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:chicken_fall",
+   "status": "exact",
+   "note": "the empty override"
+  },
+  {
+   "kind": "method",
+   "name": "getLivingSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getHurtSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDeathSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_145780_a",
+   "sig": "(4p)",
+   "native": null,
+   "status": "n/a",
+   "note": "step sounds are client-only"
+  },
+  {
+   "kind": "method",
+   "name": "func_146068_u",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a",
+   "note": "dropFewItems hardcodes the items"
+  },
+  {
+   "kind": "method",
+   "name": "dropFewItems",
+   "sig": "(2p)",
+   "native": "csrc/engine/animals.c:animal_drop_few_items",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "createChild",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_create_child",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isBreedingItem",
+   "sig": "(1p)",
+   "native": "csrc/engine/survival.c:animal_breeding_item",
+   "status": "exact",
+   "note": "the ItemSeeds kinds"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_write_kind_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getExperiencePoints",
+   "sig": "(1p)",
+   "native": "csrc/engine/living.c:living_on_death_update",
+   "status": "exact",
+   "note": "the jockey chicken's flat 10; ent-jockey-s1 kills a jockey's rider, then its chicken"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_write_kind_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canDespawn",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_can_despawn",
+   "status": "exact",
+   "note": "the jockey flag and no rider"
+  },
+  {
+   "kind": "method",
+   "name": "updateRiderPosition",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_update_entity",
+   "status": "exact",
+   "note": "ported in the updateRidden tail for a chicken vehicle"
+  },
+  {
+   "kind": "method",
+   "name": "func_152116_bZ",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:is_chicken_jockey",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_152117_i",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:is_chicken_jockey",
+   "status": "exact"
+  }
+ ],
+ "missing": [
+
+ ],
+ "notes": "The jockey flag is set on the spawn path by the zombie- and skeleton-jockey machinery in spawning.c's egg_zombie; the egg-laying plop's two pitch draws are kept as bare RNG draws. lane/idxentity: the jockey XP was already ported (living_on_death_update); ent-jockey-s1 pins it (without it the orbs differ at row 116)."
+}

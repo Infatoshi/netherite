@@ -1,0 +1,73 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenClay.java",
+ "classes": [
+  "WorldGenClay"
+ ],
+ "lines": 59,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Clay disk under water: when the start block is water, replaces dirt and clay in a radius 2..numberOfBlocks-1 disk one block above and below with clay.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_plants.c",
+   "symbols": [
+    "feature_clay"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-clay-2",
+  "out/java/probes/fe-clay-42",
+  "out/java/probes/fe-clay-wide-2",
+  "out/java/probes/fe-clay-wide-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150546_a",
+   "sig": "Block",
+   "native": "csrc/engine/features_plants.c:feature_clay",
+   "status": "exact",
+   "note": "Always Blocks.clay; the row's block."
+  },
+  {
+   "kind": "field",
+   "name": "numberOfBlocks",
+   "sig": "int",
+   "native": "csrc/engine/features_plants.c:feature_clay",
+   "status": "exact",
+   "note": "The row's count parameter."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenClay",
+   "sig": "(int)",
+   "native": "csrc/engine/features_plants.c:features_plants_for",
+   "status": "exact",
+   "note": "Config carried as a feature table row."
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_plants.c:feature_clay",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderLiving.java",
+  "classes": ["RenderLiving"],
+  "lines": 155,
+  "side": "client",
+  "category": "client_render",
+  "role": "Base class for all EntityLiving renderers: after RendererLivingEntity.doRender it draws the leash rope from a leashed living to its holder.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["draw_model", "pose_model", "raster_mobs_draw", "leash_draw"]}
+  ],
+  "evidence": ["out/java/render/mobs_pig_f006", "out/java/render/mobs_sheep_f006", "csrc/tests/test_render.c", "out/java/snapshots/idx-lead-s1"],
+  "members": [
+    {"kind": "ctor", "name": "RenderLiving", "sig": "(ModelBase,float)V", "native": "csrc/engine/raster_mobs.c:draw_model", "status": "exact", "note": "the shared model+shadow living path it feeds"},
+    {"kind": "method", "name": "func_110813_b", "sig": "(EntityLiving)boolean", "native": null, "status": "n/a", "note": "bridge to the EntityLivingBase overload"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the shared living path (raster_mobs_draw), then the lead (leash_draw)"},
+    {"kind": "method", "name": "func_110828_a", "sig": "(double,double,double)double", "native": null, "status": "n/a", "note": "linear interpolation helper, only used by the leash"},
+    {"kind": "method", "name": "func_110827_b", "sig": "(EntityLiving,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:leash_draw", "status": "exact", "note": "the two 25-pair strips (texture and lighting off, the lightmap kept) toward the holder play.c places: the client copy's lead from its S1B type 1 (clientents.c, lane/idxworld), a knot's copy or the client player"},
+    {"kind": "method", "name": "func_110813_b", "sig": "(EntityLivingBase)boolean", "native": null, "status": "n/a", "note": "client-world gate; the native renders only client worlds"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,...)V", "native": null, "status": "n/a", "note": "bridge: RenderLiving.doRender(Entity) overrides the bridge that would call it, so no call has the static type EntityLivingBase (lane/covframes)"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "exact", "note": "the shared living path (raster_mobs_draw), then the lead (leash_draw)"}
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: the holder is the client copy's own (lane/idxworld's S1B handling), so the lead no longer appears a tick early."
+}

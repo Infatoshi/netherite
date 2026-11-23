@@ -1,0 +1,31 @@
+# s64strip2.yaml (lane/strip2): the strip mine's case, measured with no GPU: s64trade.yaml's sim (s64van's with the ray
+# cast on the host, natural spawning on as in s64chain.yaml), from gold-g5-s42 (seed 42's chain at flint and steel: an
+# iron pickaxe held in the main inventory, no diamond, so the strip mine runs for diamonds). The macros are
+# strip_case's --macros (32767 recipe,strip,food; 16809983 with strip2):
+#   make -C csrc/runtime strip_case && out/runtime/strip_case --config configs/s64strip2.yaml --ns 32 --steps 36000 \
+#     --threads 8 --seed 1 --macros 16809983 -v
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: host
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: gold-g5-s42         # out/java/snapshots/gold-g5-s42: the iron pickaxe, the bucket, flint and steel
+    worlds: 32
+    groups: 2
+    episode_seconds: 1800
+policy:
+  actions:
+    macros: recipe,strip,food,strip2
+    picks: off

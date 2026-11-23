@@ -1,0 +1,155 @@
+{
+ "path": "oracle/src/block/BlockQuartz.java",
+ "classes": [
+  "BlockQuartz"
+ ],
+ "lines": 147,
+ "side": "common",
+ "category": "block",
+ "role": "The quartz block (155): plain, chiseled and pillar variants; the pillar picks its axis meta 2/3/4 from the placement side and drops as meta 2.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "on_block_placed"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvestdrops.c",
+   "symbols": [
+    "create_stacked_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks3.c",
+   "symbols": [
+    "rb3_render_quartz"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "table_icon"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_harvestdrops.c",
+  "csrc/tests/test_drops.c",
+  "out/java/snapshots/cov-blkbreak-s1",
+  "out/java/snapshots/cov-blkplace-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150191_a",
+   "sig": "static String[]",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150189_b",
+   "sig": "static String[]",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150192_M, field_150193_N, field_150194_O, field_150190_P, field_150188_Q",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client icons"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockQuartz",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 155: rock"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockPlaced",
+   "sig": "(World,IIIIFFFI)I",
+   "native": "csrc/engine/place.c:on_block_placed",
+   "status": "exact",
+   "note": "meta 2 -> 2/4/3 by side"
+  },
+  {
+   "kind": "method",
+   "name": "damageDropped",
+   "sig": "(I)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 155: 3 and 4 -> 2"
+  },
+  {
+   "kind": "method",
+   "name": "createStackedBlock",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/harvestdrops.c:create_stacked_block",
+   "status": "exact",
+   "note": "3 and 4 -> 2"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/render_blocks3.c:rb3_render_quartz",
+   "status": "exact",
+   "note": "39"
+  },
+  {
+   "kind": "method",
+   "name": "getSubBlocks",
+   "sig": "(Item,CreativeTabs,List)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative tab listing, client only"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration"
+  },
+  {
+   "kind": "method",
+   "name": "getMapColor",
+   "sig": "(I)MapColor",
+   "native": null,
+   "status": "n/a",
+   "note": "maps off"
+  }
+ ],
+ "missing": [],
+ "notes": "Quartz blocks are crafted, not generated, in 1.7.10; no played scene is known to place one."
+}

@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/render_blocks_int.h",
+ "lines": 199,
+ "role": "Internal header shared by render_blocks.c, render_blocks2.c, render_blocks3.c and the render consumers (particles_live.c, block_item_model.c): the Tessellator emitters, icon lookups, light and colour helpers, face renderers, the rb2_/rb3_ render-type entry points and the special-icon slot enums.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/RenderBlocks.java", "members": ["renderFaceYNeg", "renderFaceYPos", "renderFaceZNeg", "renderFaceZPos", "renderFaceXNeg", "renderFaceXPos", "renderStandardBlock", "renderStandardBlockWithAmbientOcclusion", "renderStandardBlockWithAmbientOcclusionPartial", "renderStandardBlockWithColorMultiplier", "getAoBrightness", "mixAoBrightness", "drawCrossedSquares", "setRenderBounds", "renderTorchAtAngle"]},
+  {"path": "oracle/src/client/renderer/Tessellator.java", "members": ["setBrightness", "setColorOpaque", "setColorOpaque_F", "addVertex", "addVertexWithUV"]},
+  {"path": "oracle/src/block/Block.java", "members": ["colorMultiplier", "shouldSideBeRendered", "getBlockBrightness"]},
+  {"path": "oracle/src/block/BlockPistonBase.java", "members": ["setBlockBoundsBasedOnState", "func_150070_b"]},
+  {"path": "oracle/src/block/BlockFence.java", "members": ["func_149826_e"]},
+  {"path": "oracle/src/util/MathHelper.java", "members": ["sin", "cos"]}
+ ],
+ "structs": [
+  {"name": "RB2_ICON_* enum", "java": "fire_layer_0/1 and redstone_dust_* icon names", "fields": ["RB2_ICON_FIRE_0", "RB2_ICON_FIRE_1", "RB2_ICON_DUST_CROSS", "RB2_ICON_DUST_LINE", "RB2_ICON_DUST_CROSS_OVERLAY", "RB2_ICON_DUST_LINE_OVERLAY"]},
+  {"name": "RB3_* enum", "java": "piston, anvil, pane top, cauldron, water, brewing base, end frame eye, hopper and stem connected icons", "fields": ["RB3_PISTON_SIDE", "RB3_ANVIL_BASE", "RB3_PANE_TOP", "RB3_CAULDRON_INNER", "RB3_WATER_STILL", "RB3_BREWING_BASE", "RB3_ENDFRAME_EYE", "RB3_HOPPER_OUTSIDE", "RB3_STEM_PUMPKIN_CONNECTED", "RB3_PANE_TOP_STAINED", "RB3_ICONS"]}
+ ],
+ "entry_points": ["icon_name", "tess_set_brightness", "tess_set_color_opaque", "tess_set_color_opaque_f", "tess_add_vertex", "tess_add_vertex_with_uv", "table_icon_index", "icon_is", "table_icon", "icon_from_side_meta", "icon_from_side", "block_icon_world", "rb_foliage_color_multiplier", "block_brightness", "ao_light_of", "can_block_grass", "opaque_cube", "get_ao_brightness", "mix_ao_brightness", "color_multiplier", "set_bounds", "slab_super_should_side", "should_side_be_rendered", "interp_u", "interp_v", "render_face_y_neg", "render_face_y_pos", "render_face_z_neg", "render_face_z_pos", "render_face_x_neg", "render_face_x_pos", "set_face_color", "scale_face_colors", "render_standard_block", "render_standard_block_ao", "render_standard_block_ao_partial", "render_standard_block_color", "mh_sin", "mh_cos", "rb2_init", "rb2_set_render_bounds", "draw_crossed_squares", "rb_atlas_by_name", "rb_solid_top_surface", "rb_torch_at_angle", "vec_rot_x", "vec_rot_y", "fence_connects", "rb3_block_icon_index", "rb3_piston_dispatch_bounds", "rb3_piston_store_bounds", "rb3_init"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_meshes.c"],
+ "notes": "Declarations only. The rb2_render_* and rb3_render_* per-type functions are declared here too (see render_blocks2.c and render_blocks3.c records). Its mh_sin/mh_cos take the mesher (table.bin's SIN_TABLE) and share names with jmath.h's inline versions, so a file cannot include both. The header comment still says only render_blocks2.c shares it; render_blocks3.c and particles_live.c include it as well."
+}

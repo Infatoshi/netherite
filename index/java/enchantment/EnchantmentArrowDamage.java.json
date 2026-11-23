@@ -1,0 +1,63 @@
+{
+  "path": "oracle/src/enchantment/EnchantmentArrowDamage.java",
+  "classes": [
+    "EnchantmentArrowDamage"
+  ],
+  "lines": 36,
+  "side": "common",
+  "category": "item",
+  "role": "The amage bow enchantment: constructor metadata plus its enchantability window and max level.",
+  "scope": "in_scope",
+  "scope_reason": "Enchantments reach the world through loot books and villager trades even with the enchanting table off (world.conf enchanting = off).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/enchants.h",
+      "symbols": [
+        "ENCHANTS"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_trades.c",
+    "csrc/tests/test_loot.c",
+    "out/java/trades/seed2",
+    "out/java/snapshots/trade-full-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "EnchantmentArrowDamage",
+      "sig": "(II)V",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "row 48: power, min 1+(l-1)*10, max +15, level 5"
+    },
+    {
+      "kind": "method",
+      "name": "getMinEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "row 48: power, min 1+(l-1)*10, max +15, level 5"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "row 48: power, min 1+(l-1)*10, max +15, level 5"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxLevel",
+      "sig": "()I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "row 48: power, min 1+(l-1)*10, max +15, level 5"
+    }
+  ],
+  "missing": [],
+  "notes": "The class carries no effect code; the bow's own behavior (flame arrows, infinity) lives in the ItemBow/EntityArrow ports, not here. The row is exercised through the trades and loot-book paths. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

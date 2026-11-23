@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/temple_blocks.h",
+ "lines": 10,
+ "role": "Declares temple_blocks, the scattered features' addComponentParts dispatch that sc_generate runs as the Temple type's piece_fn.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/ComponentScatteredFeaturePieces.java", "members": ["DesertPyramid.addComponentParts", "JunglePyramid.addComponentParts", "SwampHut.addComponentParts"]}
+ ],
+ "structs": [],
+ "entry_points": ["temple_blocks"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_sblocks.c"],
+ "notes": "Header only."
+}

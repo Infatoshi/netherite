@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/client/renderer/RenderList.java",
+  "classes": ["RenderList"],
+  "lines": 89,
+  "side": "client",
+  "category": "client_render",
+  "role": "One 8x8x8-chunk bucket of GL display lists in RenderGlobal's old render-list system: it records which lists to call for a chunk position and replays them with a camera-relative translate.",
+  "scope": "in_scope",
+  "scope_reason": "Part of the compared frame's draw path, but its job (camera-relative replay of section geometry) is done by the live pipeline's direct draw.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster.c", "symbols": ["draw_section", "live_draw_section", "clip_triangle"]}
+  ],
+  "evidence": [
+    "out/java/render/terrain1",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "renderChunkX", "sig": "int", "native": null, "status": "n/a", "note": "bucket position; the live pipeline addresses sections by chunk coords directly"},
+    {"kind": "field", "name": "renderChunkY", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "renderChunkZ", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "cameraX", "sig": "double", "native": null, "status": "n/a", "note": "the camera offset is applied per vertex in raster.c clip_triangle's modelview stage"},
+    {"kind": "field", "name": "cameraY", "sig": "double", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "cameraZ", "sig": "double", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "glLists", "sig": "IntBuffer", "native": null, "status": "n/a", "note": "GL display list ids; native emits vertices, not lists"},
+    {"kind": "field", "name": "valid", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "bufferFlipped", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setupRenderList", "sig": "(int,int,int,DDD)V", "native": null, "status": "n/a", "note": "bucket setup of the GL list era"},
+    {"kind": "method", "name": "rendersChunk", "sig": "(int,int,int)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "addGLRenderList", "sig": "(int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "callLists", "sig": "()V", "native": "csrc/engine/raster.c:live_draw_section", "status": "partial", "note": "replaying a bucket of lists becomes drawing the section's recorded triangles in order (live_draw_section); the GL glCallLists stream is not reproduced"},
+    {"kind": "method", "name": "resetList", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "This class is only reachable through RenderGlobal's renderAllRenderLists; the live pipeline never builds GL lists. Status partial because the behaviour it provided (camera-relative replay of section geometry in order) exists, but no member maps to a named C function. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): GL plumbing: GL is the numerical oracle, not emitted (SPEC); atlases and meshes are consumed as data. Formerly listed as missing: No member has a symbol-level counterpart: the whole GL render-list system is replaced by raster.c's direct triangle pipeline (SPEC: GL is the numerical oracle, not something we emit). The observable draw order and geometry are preserved by live_draw_section."
+}

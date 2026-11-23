@@ -1,0 +1,40 @@
+{
+  "path": "oracle/src/entity/monster/EntityWitch.java",
+  "classes": ["EntityWitch"],
+  "lines": 272,
+  "side": "common",
+  "category": "entity",
+  "role": "The witch: throws splash potions at its target (slowness, poison, weakness, instant damage chosen by target health) and drinks healing potions when hurt.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/hostiles_witch.c", "symbols": ["witch_construct", "witch_on_living_update", "witch_attack_entity_with_ranged_attack", "witch_drop_few_items", "witch_set_aggressive", "witch_get_aggressive", "witch_attack_timer", "witch_drops"]},
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_setup_kind", "AIC_ARROW_ATTACK"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_damage_entity"]},
+    {"file": "csrc/engine/hostiles.c", "symbols": ["hostile_spawn", "hostile_loot_update"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-witch-s1", "out/java/snapshots/pot-witch-s1", "csrc/tests/test_hostiles.c",
+    "out/java/snapshots/witch-drink-s1"],
+  "members": [
+    {"kind": "field", "name": "field_110184_bp (static)", "sig": "UUID", "native": "csrc/engine/hostiles_witch.c:witch_construct", "status": "exact", "note": "the drinking-speed-penalty modifier's UUID rides the shared attribute-modifier table"},
+    {"kind": "field", "name": "field_110185_bq (static)", "sig": "AttributeModifier", "native": "csrc/engine/hostiles_witch.c:witch_construct", "status": "exact", "note": "Drinking speed penalty -0.25, unsaved"},
+    {"kind": "field", "name": "witchDrops (static)", "sig": "Item[]", "native": "csrc/engine/hostiles_witch.c:witch_drops", "status": "exact", "note": "glowstone dust, sugar, redstone, spider eye, glass bottle, gunpowder, stick, stick"},
+    {"kind": "field", "name": "witchAttackTimer", "sig": "int", "native": "csrc/engine/hostiles_witch.c:witch_attack_timer", "status": "exact"},
+    {"kind": "ctor", "name": "EntityWitch", "sig": "(World)V", "native": "csrc/engine/hostiles_witch.c:witch_construct", "status": "exact", "note": "size 0.6x1.95, experienceValue 5"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": "csrc/engine/hostiles_witch.c:witch_construct", "status": "exact", "note": "dataWatcher 21 (aggressive)"},
+    {"kind": "method", "name": "getLivingSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getHurtSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getDeathSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "setAggressive", "sig": "(Z)V", "native": "csrc/engine/hostiles_witch.c:witch_set_aggressive", "status": "exact"},
+    {"kind": "method", "name": "getAggressive", "sig": "()Z", "native": "csrc/engine/hostiles_witch.c:witch_get_aggressive", "status": "exact"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": "csrc/engine/hostiles_witch.c:witch_construct", "status": "exact", "note": "maxHealth 26, movement 0.25, followRange 16 (no attackDamage)"},
+    {"kind": "method", "name": "isAIEnabled", "sig": "()Z", "native": "csrc/engine/hostiles_witch.c:witch_construct", "status": "exact", "note": "true; ai_setup_kind wires the ranged task"},
+    {"kind": "method", "name": "onLivingUpdate", "sig": "()V", "native": "csrc/engine/hostiles_witch.c:witch_on_living_update", "status": "exact", "note": "the aggressive flag set when a target is seen, the drink when hurt (healing 2/3, speed 1, regeneration 2) with the potion draw, the throw-timer countdown, then EntityMob's body"},
+    {"kind": "method", "name": "handleHealthUpdate", "sig": "(B)V", "native": null, "status": "n/a", "note": "client-side potion-drink response to entity state"},
+    {"kind": "method", "name": "applyPotionDamageCalculations", "sig": "(Lnet/minecraft/util/DamageSource;F)F", "native": "csrc/engine/living.c:living_damage_entity", "status": "exact", "note": "the HK_WITCH branch: self-damage 0, DMG_MAGIC x0.15 (living.c:1385-1389)"},
+    {"kind": "method", "name": "dropFewItems", "sig": "(ZI)V", "native": "csrc/engine/hostiles_witch.c:witch_drop_few_items", "status": "exact", "note": "the 8-item loot table with up to 3 rolls per hit"},
+    {"kind": "method", "name": "attackEntityWithRangedAttack", "sig": "(Lnet/minecraft/entity/EntityLivingBase;F)V", "native": "csrc/engine/hostiles_witch.c:witch_attack_entity_with_ranged_attack", "status": "exact", "note": "the 4-slot potion table: slowness 90s / poison 40s / weakness 90s / instant damage, chosen by target health and the rng draw; the entityHealth flag for the self-heal"}
+  ],
+  "missing": [],
+  "notes": "The thrown potions are EntityPotion through the projectile path. pot-witch-s1 records the thrown-potion effects; fight-witch-s1 the fight. test_hostiles.c covers HK_WITCH."
+}

@@ -1,0 +1,39 @@
+# lane/macromod: the macros' digest matrix's Nether row (csrc/runtime/macrodig.tsv, make -C csrc/runtime macro-digests):
+# configs/nether.yaml's world and start with the cast on the host (a case never touches a GPU)
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: host
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: nether              # gold-g7-s42: the Nether, just through the portal
+    worlds: 32
+    groups: 2
+    episode_seconds: 1200
+  fidelity:
+    spawning: off
+    spawn_types: monster,creature,ambient,water
+    mobs: all
+    random_ticks: off
+    weather: off
+  performance:
+    workers: 16
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: any
+    pin: 0
+    place: none
+    tune: off

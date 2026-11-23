@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/MobFree.java",
+ "lines": 245,
+ "role": "Tape setup for server-replay lanes, run just before Snapshot: turns doMobSpawning off (unless mobs:true), removes every non-player entity on server and client, stops chunk generation on provide and empties the unload queue, preloads a (2r+1)^2 chunk square around the player, and zeroes Rows.blkCount; optional rain/thunder/generateNether/generateEnd keys.",
+ "kind": "devop",
+ "used_by": [
+  "{\"cmd\":\"run\",\"class\":\"MobFree\"} in oracle/tests/*.jsonl (mobfree-*, pickaxemf*, pickwalk, scen-*, fight-*, end-dragon-s1, ...)",
+  "csrc/engine/serverreplay.c, csrc/engine/chunkload.c, csrc/engine/combat.c, csrc/play/play.c",
+  "csrc/tests/test_snapshots.c",
+  "oracle/harness/netherite/oracle/Oracle.java (legacySetup), Dev.java, Rows.java"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Accepted as a legacy setup entry in old non-dev tapes (Oracle.legacySetup)."
+}

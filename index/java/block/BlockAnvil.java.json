@@ -1,0 +1,207 @@
+{
+  "path": "oracle/src/block/BlockAnvil.java",
+  "classes": [
+    "BlockAnvil"
+  ],
+  "lines": 169,
+  "side": "common",
+  "category": "block",
+  "role": "The anvil: a falling block that damages entities and itself as it lands, with a rename-and-repair GUI the player opens by right click.",
+  "scope": "in_scope",
+  "scope_reason": "world.conf anvil = off switches only the GUI's rename/repair machine (WorldConf.anvil gates BlockAnvil.onBlockActivated); the falling block, its entity damage, its damage states and its drops still run.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/fallhang.c",
+      "symbols": [
+        "damage_dropped",
+        "fh_spawn_falling"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "block_on_neighbor_changed"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "place_try",
+        "on_block_placed_by"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks3.c",
+      "symbols": [
+        "rb3_render_anvil",
+        "rb3_block_icon_index"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/world-falling-s1",
+    "out/java/snapshots/fall-s42",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/meshes/scene3-42",
+    "csrc/tests/test_meshes.c",
+    "out/java/snapshots/idx-anvil-s1",
+    "out/java/snapshots/iu-off-s1",
+    "out/java/snapshots/cov-blkbreak-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockAnvil",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "Entry 145 carries the hardness, bounds and class name from the constructor."
+    },
+    {
+      "kind": "field",
+      "name": "field_149833_b",
+      "sig": "int (render part)",
+      "native": "csrc/engine/render_blocks.h:anvil_part",
+      "status": "exact",
+      "note": "The renderer's per-part state; render_blocks3.c sets it for the four parts."
+    },
+    {
+      "kind": "field",
+      "name": "field_149834_a",
+      "sig": "String[] (damage names)",
+      "native": null,
+      "status": "n/a",
+      "note": "The damage-state name strings are item tooltip text; the three damaged top icons the renderer needs are atlas specials (render_blocks3.c)."
+    },
+    {
+      "kind": "field",
+      "name": "field_149835_N",
+      "sig": "String[] (facing names)",
+      "native": null,
+      "status": "n/a",
+      "note": "Icon name strings; icons are resolved by atlas lookup."
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "false, baked into entry 145."
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)IIcon",
+      "native": "csrc/engine/render_blocks3.c:rb3_block_icon_index",
+      "status": "exact",
+      "note": "The side-1 top icon by damage state; entry 130 of render_blocks3.c's comment names field_149833_b."
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": "csrc/engine/render_blocks3.c:RB3_ANVIL_BASE",
+      "status": "exact",
+      "note": "The atlas names resolve at load; the mesh scenes compare every anvil vertex u and v in each damage state."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(World,IIIIEntityLivingBaseItemStack)V",
+      "native": "csrc/engine/place.c:on_block_placed_by",
+      "status": "exact",
+      "note": "Already in place.c: the yaw quadrant plus one, mod 4, mapped to 2, 3, 0, 1, with the damage bits kept. details-blocks-s1 places four anvils, one per facing."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIIIIIIFFF)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "world.conf anvil = off: the rename and repair GUI never opens."
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "35 (BlockAnvil) in entry 145; render_blocks3.c:5 names it."
+    },
+    {
+      "kind": "method",
+      "name": "damageDropped",
+      "sig": "(I)I",
+      "native": "csrc/engine/fallhang.c:damage_dropped",
+      "status": "exact",
+      "note": "meta >> 2 at fallhang.c:100; the dig-time value is in drops.c:586."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getSubBlocks",
+      "sig": "(Item,CreativeTabs,List)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Creative inventory only."
+    },
+    {
+      "kind": "method",
+      "name": "func_149829_a",
+      "sig": "(EntityFallingBlock)Z",
+      "native": "csrc/engine/fallhang.c:fh_spawn_falling",
+      "status": "exact",
+      "note": "hurt_entities = 1 at fallhang.c:1147."
+    },
+    {
+      "kind": "method",
+      "name": "func_149828_a",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/env.h:fallhang",
+      "status": "exact",
+      "note": "The landing's playAuxSFX 1022 at fallhang.c:916, through the environment's aux_sfx callback."
+    },
+    {
+      "kind": "method",
+      "name": "shouldSideBeRendered",
+      "sig": "(IBlockAccess,IIII)Z",
+      "native": "csrc/engine/render_blocks.c:should_side_be_rendered",
+      "status": "exact",
+      "note": "render_blocks.c:1071 keeps sides for 145's non-full shape; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+    }
+  ],
+  "missing": [],
+  "notes": "The fall machinery lives in fallhang.c's EntityFallingBlock port: the landing damage roll (fallhang.c:822, 0.05 + var2 * 0.05, the meta>>2 increment and the break at 3), the entity damage with the hurt_entities flag, the sound and the drops. world-falling-s1 and fall-s42 exercise the falling family including the anvil's meta path. The activation GUI is the only switched-off part; WorldConf.anvil gates it in Java at line 113. lane/idxblocks: a landing anvil now hurts every entity in its box (serverreplay.c:sr_fh_hurt, DamageSource.anvil with the helmet's share), and a tick-made falling anvil carries func_149829_a's hurtEntities (fallhang.c:fh_adopt_falling); idx-anvil-s1 drops anvils on a zombie in a helmet, a pig, an orb and the player. lane/itemuse: iu-off-s1 uses it with world.conf's switch off (right-clicked with dirt, empty-handed and sneaking: the dirt is placed against it, nothing opens)."
+}

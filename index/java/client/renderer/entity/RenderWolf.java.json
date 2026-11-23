@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderWolf.java",
+  "classes": ["RenderWolf"],
+  "lines": 89,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for wolves: the wild/tamed/angry textures, the tail-rotation rotation float, the shaking brightness pass, and the dyed collar pass.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has wolves = off: wolves leave every spawn list, so EntityWolf never exists in the game both sides run.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "wolfTextures, tamedWolfTextures, anrgyWolfTextures, wolfCollarTextures", "sig": "ResourceLocation (static)", "native": null, "status": "n/a", "note": "static constants, grouped"},
+    {"kind": "ctor", "name": "RenderWolf", "sig": "(ModelBase,ModelBase,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "handleRotationFloat", "sig": "(EntityWolf,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityWolf,int,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityWolf)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "handleRotationFloat", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

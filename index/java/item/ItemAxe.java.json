@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/item/ItemAxe.java",
+  "classes": ["ItemAxe"],
+  "lines": 23,
+  "side": "common",
+  "category": "item",
+  "role": "The axe tool: efficiency 3.0 on wood, plants and vine blocks plus the explicit plank/bookshelf/log/chest/pumpkin set, harvesting through ItemTool's material.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/harvest.c", "symbols": ["axe_set", "item_str_vs_block", "item_can_harvest"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "TOOL_MATERIALS", "efficiency"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_harvest.c",
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/pickaxe-complete-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150917_c", "sig": "Set of Blocks", "native": "csrc/engine/harvest.c:axe_set", "status": "exact", "note": "the axe's explicit block set"},
+    {"kind": "ctor", "name": "ItemAxe", "sig": "(ToolMaterial)V", "native": "csrc/engine/items.h:TOOL_MATERIALS", "status": "exact", "note": "the damage 3.0 and the material land in the generated ITEMS rows"},
+    {"kind": "method", "name": "func_150893_a", "sig": "(ItemStack,Block)F", "native": "csrc/engine/harvest.c:item_str_vs_block", "status": "exact", "note": "harvest.c answers the material efficiency on wood, plants and vine and on the axe_set blocks"}
+  ],
+  "missing": [],
+  "notes": null
+}

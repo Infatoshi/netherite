@@ -1,0 +1,79 @@
+{
+ "path": "oracle/src/client/gui/ChatLine.java",
+ "classes": [
+  "ChatLine"
+ ],
+ "lines": 38,
+ "side": "client",
+ "category": "client_gui",
+ "role": "One line in the chat history: its text component, the GUI update counter it was added at (for fading) and an optional id.",
+ "scope": "in_scope",
+ "scope_reason": "C4: GuiNewChat's line record, drawn by the HUD's chat.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/chat.h",
+   "symbols": [
+    "chat_line",
+    "chat_message"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/hudscreens/hudscreens-s1",
+  "csrc/tests/test_hudscreens.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "updateCounterCreated",
+   "sig": "int",
+   "native": "csrc/engine/chat.h:chat_line",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "lineString",
+   "sig": "IChatComponent",
+   "native": "csrc/engine/chat.h:chat_line",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "chatLineID",
+   "sig": "int",
+   "native": "csrc/engine/chat.h:chat_line",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ChatLine",
+   "sig": "(I,IChatComponent,I)",
+   "native": "csrc/engine/chat.h:chat_line",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151461_a",
+   "sig": "()IChatComponent",
+   "native": "csrc/engine/chat.h:chat_line",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getUpdatedCounter",
+   "sig": "()I",
+   "native": "csrc/engine/chat.h:chat_line",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getChatLineID",
+   "sig": "()I",
+   "native": "csrc/engine/chat.h:chat_line",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "activate.c records which chat message a bed click would print (d->chat) as a number, but draws no chat line. If the HUD pixel gate ever covers the bed messages, the chat overlay (GuiNewChat) would need this."
+}

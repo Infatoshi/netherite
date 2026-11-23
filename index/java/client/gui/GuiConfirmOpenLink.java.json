@@ -1,0 +1,90 @@
+{
+ "path": "oracle/src/client/gui/GuiConfirmOpenLink.java",
+ "classes": [
+  "GuiConfirmOpenLink"
+ ],
+ "lines": 65,
+ "side": "client",
+ "category": "client_gui",
+ "role": "The open-web-link confirm dialog raised from a chat or book link click, with copy-link support.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Only reachable from a chat or book link click; chat is client-only presentation here and book editing is off (world.conf book_editing = off).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_146363_r",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146362_s",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146361_t",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146360_u",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiConfirmOpenLink",
+   "sig": "(GuiYesNoCallback,String,int,boolean)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "initGui",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "actionPerformed",
+   "sig": "(GuiButton)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146359_e",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "copy to clipboard"
+  },
+  {
+   "kind": "method",
+   "name": "drawScreen",
+   "sig": "(int,int,float)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146358_g",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

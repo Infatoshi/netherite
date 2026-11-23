@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/model/ModelLeashKnot.java",
+  "classes": ["ModelLeashKnot"],
+  "lines": 44,
+  "side": "client",
+  "category": "client_model",
+  "role": "The leash knot model: the 6x8x6 box hanging on a fence when a lead is tied.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["knot_draw"]}
+  ],
+  "evidence": ["out/java/clientframes/cr-hang-s1", "out/java/clientframes/cr-hang-s1", "out/java/snapshots/idx-lead-s1"],
+  "members": [
+    {"kind": "field", "name": "field_110723_a", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:knot_draw", "status": "exact", "note": "the one box addBox(-3,-6,-3, 6,8,6)"},
+    {"kind": "ctor", "name": "ModelLeashKnot", "sig": "()V", "native": "csrc/engine/raster_mobs.c:knot_draw", "status": "exact", "note": "no native counterpart"},
+    {"kind": "ctor", "name": "ModelLeashKnot", "sig": "(int,int,int,int)V", "native": "csrc/engine/raster_mobs.c:knot_draw", "status": "exact", "note": "(0, 0, 32, 32): the box at texture 0,0 on the 32x32 sheet"},
+    {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:knot_draw", "status": "exact", "note": "no native counterpart"},
+    {"kind": "method", "name": "setRotationAngles", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:knot_draw", "status": "exact", "note": "the yaw and pitch in radians on the one box"}
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: stale record. The knot exists natively (leash.c, EntityLeashKnot through pickobj.c's hanging copies) and is drawn by raster_mobs.c knot_draw (MOB_LEASH_KNOT): the one 6x8x6 box at the origin turned by the yaw and pitch setRotationAngles reads, with the 32x32 lead_knot texture. Evidence: the hang-s1 frames (a cow tied to a fence knot) within their budgets, idx-lead-s1."
+}

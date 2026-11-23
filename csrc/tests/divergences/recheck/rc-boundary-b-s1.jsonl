@@ -1,0 +1,4 @@
+{"n":2,"act":{}}
+{"cmd":"run","class":"MobFree","radius":8}
+{"cmd":"run","class":"Snapshot"}
+{"n":80,"act":{}}

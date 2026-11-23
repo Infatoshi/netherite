@@ -1,0 +1,35 @@
+{
+ "path": "oracle/src/client/model/ModelLargeChest.java",
+ "classes": [
+  "ModelLargeChest"
+ ],
+ "lines": 25,
+ "side": "client",
+ "category": "client_model",
+ "role": "The double chest's tile-entity model: lid, knob and base over a 128x64 texture.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_tileent.c",
+   "symbols": [
+    "model_chest"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/rendertick/te_chests",
+  "out/java/render/te_chests_o7"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "ModelLargeChest",
+   "sig": "()V",
+   "native": "csrc/engine/raster_tileent.c:model_chest",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Not verified whether any native GUI path draws the double chest; gui_screens.c only lays out slots."
+}

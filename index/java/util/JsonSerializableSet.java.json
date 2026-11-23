@@ -1,0 +1,71 @@
+{
+  "path": "oracle/src/util/JsonSerializableSet.java",
+  "classes": [
+    "JsonSerializableSet"
+  ],
+  "lines": 53,
+  "side": "client",
+  "category": "util",
+  "role": "A string set that serializes itself as a JsonArray of strings; used by the statistics save to store unlocked achievement/stat lists.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: EntityPlayerMP.func_147098_j adds the player's biome to this set every 20 ticks while Adventuring Time is locked (server state; the delegate set ran in 44 recordings), and native ports the tracker (survival.c explored_count, surv_stats).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_explore_biome",
+        "stats_read_map",
+        "surv_stats_compare"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.h",
+      "symbols": [
+        "surv_stats"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/stats-s1",
+    "out/java/snapshots/idx-blocks-s1",
+    "out/java/snapshots/creeper-fall-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "underlyingSet",
+      "sig": "Set",
+      "native": "csrc/engine/survival.h:surv_stats",
+      "status": "exact",
+      "note": "explored: one bit per biome member (the first id of a biomeName)"
+    },
+    {
+      "kind": "method",
+      "name": "func_152753_a",
+      "sig": "(JsonElement)V",
+      "native": "csrc/engine/survival.c:stats_read_map",
+      "status": "exact",
+      "note": "the stats file's progress list, as the snapshot's stats.json carries it"
+    },
+    {
+      "kind": "method",
+      "name": "getSerializableElement",
+      "sig": "()JsonElement",
+      "native": null,
+      "status": "n/a",
+      "note": "writes the stats file (StatisticsFile.func_150883_b at a save and the 900-tick autosave): a file on disk, not game state; native writes no save files (IntegratedServer's record: Java writes every checkpoint)"
+    },
+    {
+      "kind": "method",
+      "name": "delegate",
+      "sig": "()Set",
+      "native": "csrc/engine/survival.c:surv_explore_biome",
+      "status": "exact",
+      "note": "EntityPlayerMP.func_147098_j's add, and the achievement's all-biomes test"
+    }
+  ],
+  "missing": [],
+  "notes": "The set is compared with the oracle's StatisticsFile at every stats.jsonl dump (test_snapshots stats_dumps, surv_stats_compare): stats-s1 grows it to Forest, ForestHills, Plains and River. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/world/gen/layer/GenLayerBiome.java",
+  "classes": ["GenLayerBiome"],
+  "lines": 108,
+  "side": "server",
+  "category": "worldgen",
+  "role": "Turns climate classes into real biome ids: warm, medium, cold and icy tables, with the special flag giving mesa plateaus, jungle or mega taiga.",
+  "scope": "in_scope",
+  "scope_reason": "Part of the overworld biome layer stack (GenLayer.initializeAllBiomeGenerators) that decides the biome of every overworld column.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/layers.c", "symbols": ["biome", "layer_ints", "layers_init"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "out/java/chunks/seed1", "out/java/chunks/wide2", "out/java/chunks/wide42", "out/java/chunks/hills-42", "out/java/chunks/mesa-123456789", "out/java/chunks/junglem-123456789"],
+  "members": [
+    {"kind": "field", "name": "field_151623_c", "sig": "BiomeGenBase[] (warm table)", "native": "csrc/engine/layers.c:biome", "status": "exact", "note": "static const int warm[] inside biome()."},
+    {"kind": "field", "name": "field_151621_d", "sig": "BiomeGenBase[] (medium table)", "native": "csrc/engine/layers.c:biome", "status": "exact", "note": "medium[]."},
+    {"kind": "field", "name": "field_151622_e", "sig": "BiomeGenBase[] (cold table)", "native": "csrc/engine/layers.c:biome", "status": "exact", "note": "cold[]."},
+    {"kind": "field", "name": "field_151620_f", "sig": "BiomeGenBase[] (icy table)", "native": "csrc/engine/layers.c:biome", "status": "exact", "note": "ice[]."},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "GenLayerBiome", "sig": "(long,GenLayer,WorldType)V", "native": "csrc/engine/layers.c:layers_init", "status": "partial", "note": "Only WorldType.DEFAULT; the DEFAULT_1_1 warm table swap is not ported (the game only makes default worlds)."},
+    {"kind": "method", "name": "getInts", "sig": "(int,int,int,int)[I", "native": "csrc/engine/layers.c:biome", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The DEFAULT_1_1 branch is unreachable for this game's world type, so it is not counted as missing. layers.c builds the stack as a pointer graph of struct layer nodes (p1, p2) in a fixed 64-node array and recurses through it, and each layer mallocs its parent area per call (area()); both are GPU-contract hazards but outside the tick (chunk generation). Status exact rests on test_worldgen comparing the genbiomes and biomes stages against the oracle chunk dumps; the gate was not re-run for this record."
+}

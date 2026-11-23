@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/client/gui/achievement/GuiAchievement.java",
+  "classes": ["GuiAchievement"],
+  "lines": 149,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The achievement toast in the top right: unlock (\"Achievement get!\" over the name) or hint (name over description), a 3 second slide/fade driven by Minecraft.getSystemTime, the achievement's item icon drawn at the left.",
+  "scope": "in_scope",
+  "scope_reason": "The toast is drawn on the pixel-gated overlay path: the oracle's --toasts flag records it in agent mode and the native raster_hud renders it (DEVLOG 2026-09-25 achievements lane).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["toast_unlock", "toast_hint", "surv_client_toast_json", "toast_clock", "surv_ach_name", "surv_ach_desc"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["draw_toast"]},
+    {"file": "csrc/engine/raster.h", "symbols": ["raster_hud_toast_json"]}
+  ],
+  "evidence": ["out/java/snapshots/achieve-s1", "out/java/render/toast", "csrc/tests/hud_live_test.c", "out/java/render/hud_achieve", "out/java/clientframes/idx-tpv-s1"],
+  "members": [
+    {"kind": "field", "name": "field_146261_a", "sig": "static ResourceLocation", "native": null, "status": "n/a", "note": "static texture constant"},
+    {"kind": "field", "name": "field_146259_f", "sig": "Minecraft", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146260_g", "sig": "int", "native": null, "status": "exact", "note": "the scaled width, the HUD layout's"},
+    {"kind": "field", "name": "field_146267_h", "sig": "int", "native": null, "status": "exact", "note": "scaled height"},
+    {"kind": "field", "name": "field_146268_i", "sig": "String", "native": "csrc/engine/survival.c:toast_unlock", "status": "exact", "note": "\"Achievement get!\" title vs the toast_title/toast_sub pair"},
+    {"kind": "field", "name": "field_146265_j", "sig": "String", "native": "csrc/engine/survival.c:surv_ach_name", "status": "exact", "note": "the achievement text comes from surv_ach_name and surv_ach_desc over the generated user-jar language table"},
+    {"kind": "field", "name": "field_146266_k", "sig": "Achievement", "native": "csrc/engine/survival.c:toast_unlock", "status": "exact", "note": "the achievement enum index in st->toast_ach"},
+    {"kind": "field", "name": "field_146263_l", "sig": "long", "native": "csrc/engine/survival.c:toast_clock", "status": "exact", "note": "toast_l; the clock is server tick * 50 (agent-mode getSystemTime pin)"},
+    {"kind": "field", "name": "field_146264_m", "sig": "RenderItem", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146262_n", "sig": "boolean", "native": "csrc/engine/survival.c:toast_hint", "status": "exact", "note": "the hint flag is toast_desc"},
+    {"kind": "ctor", "name": "GuiAchievement", "sig": "(Minecraft)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_146256_a", "sig": "(Achievement)V", "native": "csrc/engine/survival.c:toast_unlock", "status": "exact", "note": "the comment at survival.c:557 names func_146256_a"},
+    {"kind": "method", "name": "func_146255_b", "sig": "(Achievement)V", "native": "csrc/engine/survival.c:toast_hint", "status": "exact", "note": "the hint toast, clock + 2500ms, survival.c:570 names func_146255_b"},
+    {"kind": "method", "name": "func_146258_c", "sig": "()V", "native": "csrc/engine/raster_hud.c:draw_toast", "status": "exact", "note": "the viewport and ortho projection it sets are the HUD's own (ScaledResolution over the display), which draw_toast draws in"},
+    {"kind": "method", "name": "func_146254_a", "sig": "()V", "native": "csrc/engine/survival.c:surv_client_toast_json", "status": "exact", "note": "the gate, the 3000ms clock and the slide curve are in surv_client_toast_json; the pixels are raster_hud.c:draw_toast. The item icon is drawn 2D from the item atlas entry, not RenderItem's 3D render"},
+    {"kind": "method", "name": "func_146257_b", "sig": "()V", "native": "csrc/engine/survival.c:surv_client_toast_json", "status": "exact", "note": "the clear is folded into the clock expiry path (toast_l = 0) and the reset at survival.c:2043/3846"}
+  ],
+  "missing": [],
+  "notes": "The oracle hooks: GuiAchievement.func_146256_a and func_146255_b both call netherite.oracle.Oracle.cleanHudToast() (seen in the Java source), which is how --toasts recording is gated. Verification only (triage 2026-09-25, out/plan/remaining-2026-09-25.md): verification only: the member is ported but no scene pins it; covered by the verify list, not a port. It stays partial until a recording pins it. lane/idxclient: the join's hint toast now slides in on the clock of a seed start's join whatever the snapshot's tick (play.c: it was drawn fully in for a snapshot after tick 2); idx-tpv-s1's frames from 49 on show it within 16 to 358 px over 25."
+}

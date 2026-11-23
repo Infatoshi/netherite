@@ -1,0 +1,175 @@
+{
+ "path": "oracle/src/block/BlockEnderChest.java",
+ "classes": [
+  "BlockEnderChest"
+ ],
+ "lines": 165,
+ "side": "common",
+ "category": "block",
+ "role": "The ender chest: a 0.875-tall obsidian-skin tile-entity block whose window is the player's own ender inventory; breaks into 8 obsidian.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "client_block_activated",
+    "TE_ENDER_CHEST"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "te_kind_of_block",
+    "TE_ENDER_CHEST"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileticks.c",
+   "symbols": [
+    "ender_chest_update"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvestdrops.c",
+   "symbols": [
+    "can_silk_harvest"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "func_150071_a"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_rendertick.c",
+  "csrc/tests/test_tileticks.c",
+  "out/java/activate/full2",
+  "out/java/rendertick/fx_portal",
+  "out/java/snapshots/act2-s1",
+  "out/java/tileticks/full2-v2",
+  "out/java/snapshots/cov-blkmisc-s1",
+  "out/java/snapshots/cov-blkbreak-s1",
+  "out/java/snapshots/cov-blkplace-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "BlockEnderChest",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 130: the 0.9375 box, render_type 22"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "opaque_cube 0"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "normal_block 0"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "render_type 22"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 130: obsidian"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Ljava/util/Random;)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "8"
+  },
+  {
+   "kind": "method",
+   "name": "canSilkHarvest",
+   "sig": "()Z",
+   "native": "csrc/engine/harvestdrops.c:can_silk_harvest",
+   "status": "exact",
+   "note": "one of the named true overrides"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockPlacedBy",
+   "sig": "(World,IIILnet/minecraft/entity/EntityLivingBase;ItemStack)V",
+   "native": "csrc/engine/place.c:func_150071_a",
+   "status": "exact",
+   "note": "the yaw facing map; cov-blkplace-s1"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockActivated",
+   "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z",
+   "native": "csrc/engine/survival.c:client_block_activated",
+   "status": "exact",
+   "note": "case 130: the blocked-above check, then the ender window over the player's own inventory"
+  },
+  {
+   "kind": "method",
+   "name": "createNewTileEntity",
+   "sig": "(World,I)Lnet/minecraft/tileentity/TileEntity;",
+   "native": "csrc/engine/tileentity.c:te_kind_of_block",
+   "status": "exact",
+   "note": "case 130 returns TE_ENDER_CHEST"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the particles and every draw, checked per tick against the spawn log in fx_portal"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture registration"
+  }
+ ],
+ "missing": [],
+ "notes": "Verified by the activate probe and act2-s1 (the ender chest is among the activate2 recordings' blocks); the ender window lives in survival.c's container rows; the tile entity ticks in the tileticks census."
+}

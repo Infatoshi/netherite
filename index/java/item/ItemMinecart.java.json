@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/item/ItemMinecart.java",
+  "classes": ["ItemMinecart", "ItemMinecart$1"],
+  "lines": 106,
+  "side": "common",
+  "category": "item",
+  "role": "The minecart item (ids 328, 342, 343, 407, 408, 422): places an EntityMinecart on a rail on right click, and carries a dispenser behavior.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf minecarts = off: carts cannot be placed; the Java onItemUse body starts with the WorldConf.minecarts gate and returns false.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": ["out/java/snapshots/iu-off-s1"],
+  "members": [
+    {"kind": "field", "name": "dispenserMinecartBehavior", "sig": "IBehaviorDispenseItem", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "minecartType", "sig": "int", "native": null, "status": "n/a", "note": "the type is carried by the item id (328 rideable, 342 chest, 343 furnace, 407 tnt, 408 hopper, 422 command block)"},
+    {"kind": "ctor", "name": "ItemMinecart", "sig": "(I)V", "native": "csrc/engine/items.h:ITEMS", "status": "n/a", "note": "the six rows, stack 1"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": null, "status": "n/a", "note": "the world switch returns false before the rail check; the native has no minecart placement path and the base Item.onItemUse also answers false"}
+  ],
+  "missing": [],
+  "notes": "lane/itemuse: iu-off-s1 uses it with world.conf's switch off (used on the ground and in the air: nothing happens)."
+}

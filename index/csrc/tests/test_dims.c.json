@@ -1,0 +1,50 @@
+{
+ "path": "csrc/tests/test_dims.c",
+ "lines": 191,
+ "role": "Gate: native Nether and End raw worldgen against DimDump: nether terrain (func_147419_a), surface (func_147418_b) and MapGenCavesHell; end biomes, terrain (func_147420_a) and surface (func_147421_b); each stage runs on native output from the previous one.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderHell.java",
+   "members": [
+    "func_147419_a",
+    "func_147418_b"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/MapGenCavesHell.java",
+   "members": [
+    "func_151538_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderEnd.java",
+   "members": [
+    "func_147420_a",
+    "func_147421_b"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/DimDump.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "stage",
+   "java": null,
+   "fields": [
+    "name",
+    "in",
+    "bad"
+   ]
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "Data: out/java/dims (end-2/42 small and wide, nether-2/42 small and wide, nether-2-fortress). Uses dump.h. The fortress is not applied in these stages. MapGenCavesHell member name func_151538_a is the recursiveGenerate SRG name, not checked in the Java file. Test code, built only into out/native/test_*; not on the product or GPU path, so no GPU hazards are listed."
+}

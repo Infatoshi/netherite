@@ -1,0 +1,15 @@
+{
+ "path": "csrc/tests/test_relocate.c",
+ "lines": 283,
+ "role": "The image relocated between rows: each recording of a relocate set (out/java/relocate/NAME/manifest.json: recs, every) replays twice in image environments on one round-robin baton; before every EVERY-th row the first run's image is copied to another slot (image_relocate against its twin at the same row) and its old mapping unmapped. Every run must replay exact; prints moves, bytes copied, words rebased per move by part, and words naming run memory outside the image. no-rebase is the negative check (the copy alone must fail).",
+ "layer": "test",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "lane/gpuimage."
+}

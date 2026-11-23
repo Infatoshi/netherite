@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/Roundtrip.java",
+ "lines": 306,
+ "role": "Checkpoint roundtrip gate (K01): compares the Snapshot taken before a save op's Save and Quit with the Snapshot a --from run takes after its quiet join; blocks, tile entities, player and entity NBT must match and every other difference must fall under a named, counted reset (chunk-set, entity-unloaded, entity-spawned, join-write, light, rotation-wrap, chunk-cache).",
+ "kind": "harness",
+ "used_by": [
+  "oracle/tests/cp-mobs-s1.jsonl",
+  "oracle/tests/cp-far-s1.jsonl",
+  "make -C oracle script ... FROM=../out/java/checkpoints/..."
+ ],
+ "vanilla_hooks": [],
+ "notes": "Reads Snapshot directories written by Snapshot.java; no native consumer."
+}

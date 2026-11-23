@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/client/resources/data/PackMetadataSection.java",
+  "classes": ["PackMetadataSection"],
+  "lines": 26,
+  "side": "client",
+  "category": "client_resources",
+  "role": "The parsed 'pack' section of a resource pack's .mcmeta: the pack description chat component and the pack format int.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Resource pack listing UI data; the game runs the default pack only.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "PackMetadataSection", "sig": "(IChatComponent,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152805_a", "sig": "()IChatComponent", "native": null, "status": "n/a", "note": "the description"},
+    {"kind": "method", "name": "getPackFormat", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "packDescription", "sig": "IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "packFormat", "sig": "int", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

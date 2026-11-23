@@ -1,0 +1,19 @@
+{
+ "path": "csrc/engine/endfight.h",
+ "lines": 65,
+ "role": "Declares the whole-server replay's End fight holder (the dragon state with its crystals, spawn and list flags, and the living shadow the End's mobs target) and the endfight_* construction, chunk bookkeeping, reload, NBT and count calls.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/boss/EntityDragon.java", "members": ["EntityDragon"]},
+  {"path": "oracle/src/entity/item/EntityEnderCrystal.java", "members": ["EntityEnderCrystal"]},
+  {"path": "oracle/src/world/biome/BiomeEndDecorator.java", "members": ["func_150513_a"]}
+ ],
+ "structs": [
+  {"name": "sr_end", "java": "the End WorldServer's dragon and crystal entities (loadedEntityList entries) plus a shadow EntityLivingBase view of the dragon", "fields": ["d", "dragon_spawned", "dragon_listed", "shadow"]}
+ ],
+ "entry_points": ["endfight_spawn_dragon", "endfight_spawn_crystal", "endfight_dragon_chunk", "endfight_dragon_listed_near", "endfight_reload_dragon", "endfight_dragon_nbt", "endfight_crystal_nbt", "endfight_count"],
+ "tick_path": true,
+ "gpu": ["line 28, struct sr_end: shadow is a pointer to a living owned elsewhere"],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Pool ids SR_POOL_DRAGON = 4 and SR_POOL_CRYSTAL = 5 are declared here."
+}

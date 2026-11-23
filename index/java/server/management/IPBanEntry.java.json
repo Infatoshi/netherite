@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/server/management/IPBanEntry.java",
+  "classes": ["IPBanEntry"],
+  "lines": 38,
+  "side": "server",
+  "category": "server",
+  "role": "A BanEntry whose key is an IP string, serialized with an 'ip' property.",
+  "scope": "not_needed",
+  "scope_reason": "Only built by BanList when reading or writing banned-ips.json; the list is never read or written in the oracle.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "IPBanEntry", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "IPBanEntry", "sig": "(String,Date,String,Date,String)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "IPBanEntry", "sig": "(JsonObject)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152647_b", "sig": "(JsonObject)String", "native": null, "status": "n/a", "note": "read the 'ip' property"},
+    {"kind": "method", "name": "func_152641_a", "sig": "(JsonObject)V", "native": null, "status": "n/a", "note": "write the 'ip' property then the ban fields"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

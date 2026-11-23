@@ -1,0 +1,22 @@
+{
+ "path": "csrc/engine/blockwl.c",
+ "lines": 138,
+ "role": "The block-callback worklist's run loop: a step's emitted calls are pushed so they run in emission order before the step's frame resumes; the entry points push one frame and run the stack down to where it was; the order checks (an op emitted outside a run, a read after an emit) abort.",
+ "layer": "tick",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "bwl_emit_",
+  "bwl_call",
+  "bwl_order_fail"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "the run loop is a while over the env's frame stack with a switch per op kind: no recursion, no allocation"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_populate.c"
+ ],
+ "notes": "The steps themselves live beside the code they port: world.c (set_block_step, notify_step, chest_added_step), blockcb.c (the callbacks and their continuations), features_springs.c (liquid_step, static_step), ticks.c (the schedule and the falling block)."
+}

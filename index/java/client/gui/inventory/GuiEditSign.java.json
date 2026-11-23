@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/client/gui/inventory/GuiEditSign.java",
+  "classes": ["GuiEditSign"],
+  "lines": 161,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The sign editing screen: four GuiTextField lines over the TileEntitySign text, sent back as the C12PacketUpdateSign on close.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf sign_editing = off: signs are placed blank (SPEC Decisions), so TileEntitySign never opens this screen on the oracle side either.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_146848_f", "sig": "TileEntitySign", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146849_g", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146851_h", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146852_i", "sig": "GuiButton", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "GuiEditSign", "sig": "(TileEntitySign)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "initGui", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onGuiClosed", "sig": "()V", "native": null, "status": "n/a", "note": "the C12PacketUpdateSign send"},
+    {"kind": "method", "name": "updateScreen", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "actionPerformed", "sig": "(GuiButton)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "keyTyped", "sig": "(char,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "drawScreen", "sig": "(int,int,float)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No native grep hit for GuiEditSign."
+}

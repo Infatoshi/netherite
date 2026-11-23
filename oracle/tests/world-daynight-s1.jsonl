@@ -1,0 +1,17 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4,"mobs":true}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":162,"y0":100,"z0":237,"x1":193,"y1":100,"z1":266,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":162,"y0":101,"z0":237,"x1":193,"y1":118,"z1":266,"id":0,"meta":0}
+{"cmd":"dev","op":"tp","x":178.5,"y":101.0,"z":254.5,"yaw":0.0,"pitch":0.0}
+{"cmd":"dev","op":"gamerule","name":"doDaylightCycle","value":"true"}
+{"cmd":"dev","op":"time","mode":"set","value":12000}
+{"cmd":"dev","op":"setblock","x":177,"y":101,"z":253,"id":50,"meta":5,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":178,"y":101,"z":253,"id":50,"meta":5,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":179,"y":101,"z":253,"id":50,"meta":5,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":177,"y":101,"z":255,"id":50,"meta":5,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":179,"y":101,"z":255,"id":50,"meta":5,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":177,"y":101,"z":256,"id":50,"meta":5,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":178,"y":101,"z":256,"id":50,"meta":5,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":179,"y":101,"z":256,"id":50,"meta":5,"mode":"replace"}
+{"n":13000,"act":{}}

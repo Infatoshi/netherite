@@ -1,0 +1,3 @@
+id	found	by	area	field	cause	status	commit	pin	repro
+# meshsplit: the device mesher split by render type (cuda/mesh/meshdev.c)
+meshsplit-fix-chunk-carry	2026-09-29	lane/meshsplit (audit)	cuda	-	cumesh_fix held the lane after a redrawn one against its new end only inside a 32-lane chunk, so when a chunk's last lane was drawn again the next chunk's first lane kept the check made against the old end and could keep a start that was not its predecessor's end (over the MESH quick gate's four recordings about 100 such re-checks were skipped, the differing words piston_bounds, which the block gallery's pistons move and no later draw read: never seen to change a mesh); the check is now carried to the next chunk	fixed	40086eab	cuda-mesh-check (MESH quick gate)	-

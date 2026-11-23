@@ -1,0 +1,62 @@
+{
+  "path": "csrc/engine/snapshot.c",
+  "lines": 1581,
+  "role": "Loads the oracle's snapshot directory (manifest, chunkstate.jsonl, chunks.bin.gz, entities.jsonl, ticks.jsonl.gz, six NBT files) into a struct world plus lists; also the oracle chunk byte layout, its FNV-1a hashes and the first-difference report.",
+  "layer": "io",
+  "java": [
+    {
+      "path": "oracle/src/world/chunk/Chunk.java",
+      "members": [
+        "readChunkFromNBT",
+        "func_150807_a",
+        "isTerrainPopulated",
+        "isLightPopulated",
+        "queuedLightChecks",
+        "inhabitedTime",
+        "updateSkylightColumns",
+        "isGapLightingUpdated"
+      ]
+    },
+    {
+      "path": "oracle/src/world/chunk/storage/ExtendedBlockStorage.java",
+      "members": [
+        "tickRefCount"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "snapshot_load",
+    "snapshot_free",
+    "snapshot_drop_runtime",
+    "snapshot_chunk_bytes",
+    "snapshot_chunk_hash",
+    "snapshot_chunk_hash_around",
+    "snapshot_chunk_diff",
+    "snapshot_chunk_hash_n",
+    "snapshot_chunk_hash_around_n",
+    "snapshot_fnv",
+    "snapshot_chunk_tail",
+    "snapshot_chunk_from_bytes",
+    "snapshot_chunk_want",
+    "snap_tile_runtime"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "function load_chunk_bytes: each record of chunks.bin.gz and saved-chunks.bin.gz is read (gunzip stream) into one scratch buffer and stored into a new chunk's bands (snapshot_chunk_from_bytes: bands with a nonzero cell only), which load_world inserts (world_insert_chunk_at); the bytes are not kept, snapshot_chunk_want writes them back from the live chunk (load time; lane worldmem)",
+    "lines 121, 163, 232, 350, 470, 479: heap growth while loading (load time, outside the tick)",
+    "lines 46-60, function read_text: file reads (I/O, load time only)",
+    "functions fnv_chunk and fnv_lanes: a chunk's layout hashed straight from its bands (a band with no storage is a zero run of the stream, struct fnv_stream), the tail (height maps, mask) written out; eight FNV chains in step",
+    "functions load_ticks, load_seed_ticks: tick_fields reads a line's fields without a JSON tree, json_parse for any other shape"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_servertick.c",
+    "csrc/tests/test_spawning.c",
+    "csrc/tests/test_clientworld.c",
+    "csrc/tests/test_seedworld.c",
+    "csrc/tests/test_activate.c"
+  ],
+  "notes": "Reads what oracle/harness/netherite/oracle/Snapshot.java writes; the chunk byte layout is Probe.fillChunkBytes and the 3x3 hash Probe.hashAround (oracle files, not oracle/src). dim 0 chunks become the struct world, dim -1 and 1 chunks the snapshot's hell_world and end_world, and the saved:1 region chunks (saved-chunks.bin.gz, the Nether's and the End's region files) hell_saved and end_saved with their Entities and TileTicks; tile entities from chunkstate are installed into the world (te_new/te_load). tickRefCount is rebuilt from ids. Chunk member names are from comments; ExtendedBlockStorage path assumed from MCP layout, checked by tools/index_check.c only for existence. load_world inserts each chunk with world_insert_chunk (no terrain generated; the chunkstate's biome array; the provider state the skipped generations would leave is kept by world.c) and copies the recorded bytes into the chunk's bands (lane suitestart, 2026-09-25; bands since lane worldmem, 2026-09-26). The chunk hash streams each band column straight into the FNV chain (fnv_band_column, fnv_put: only nonzero bytes touch it), the same value as the chain over the byte layout (lane worldmem). Also reads each entity's rt, trkrt (the tracker entry's fields) and cidx, clientents.jsonl and chunkstate tilesrt (snap_tile_runtime: the furnace's currentItemBurnTime, a chest's viewers, sync counter and lid). lane/keyframes: a snapshot in blob form loads too: chunks.idx and saved-chunks.idx in place of the .bin.gz files (load_chunk_idx: each blob a gzip of one chunk's bytes, its path relative to the snapshot directory), and chunkstate, saved-chunkstate, entities and clientents from NAME.jsonl.gz when NAME.jsonl is absent (text_open: the inflated file through fmemopen)."
+}

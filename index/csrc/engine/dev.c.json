@@ -1,0 +1,32 @@
+{
+ "path": "csrc/engine/dev.c",
+ "lines": 1022,
+ "role": "The agent-only dev ops (built only with NETHERITE_DEV, into play-dev and test_snapshots): applies one tape-header Dev command at the head of the integrated server tick, mirroring netherite.oracle.Dev: time, weather, gamerule, difficulty, clear, xp, setblock/fill (with destroy drops and spawner, furnace, sign-line and skull tile data), give, summon, hurt (the dragon), hanging, purge, orb, slot, state and tp.",
+ "layer": "tool",
+ "java": [
+  {"path": "oracle/harness/netherite/oracle/Dev.java", "members": ["time", "weather", "gamerule", "difficulty", "clear", "xp", "setblock", "fill", "give", "summon", "hurt", "hanging", "purge", "orb", "slot", "state", "tp"]},
+  {"path": "oracle/src/entity/EntityList.java", "members": ["createEntityFromNBT"]},
+  {"path": "oracle/src/entity/boss/EntityDragon.java", "members": ["attackEntityFromPart"]},
+  {"path": "oracle/src/entity/item/EntityPainting.java", "members": ["EntityPainting"]},
+  {"path": "oracle/src/entity/item/EntityItemFrame.java", "members": ["EntityItemFrame", "setDisplayedItem"]},
+  {"path": "oracle/src/entity/item/EntityXPOrb.java", "members": ["EntityXPOrb"]},
+  {"path": "oracle/src/tileentity/TileEntityDispenser.java", "members": ["TileEntityDispenser"]},
+  {"path": "oracle/src/entity/passive/EntityBat.java", "members": ["readEntityFromNBT"]}
+ ],
+ "structs": [],
+ "entry_points": ["dev_apply", "dev_end"],
+ "tick_path": true,
+ "gpu": [
+  "line 54, function dev_end: malloc of the dev_writes copy",
+  "line 245, function dev_set_blocks (setblock tile): malloc of the spawner's mob id string, free of the old one",
+  "line 268, 285, function dev_set_blocks (setblock tile): free of furnace slot tags and te->raw",
+  "line 87-94, 514-552, functions dev_summon and dev_apply (hanging): a copied det_state swapped in through pointers (the fake-det dance) so constructor draws land on the server streams",
+  "line 145-166, function dev_purge: frees and reinitializes whole entity worlds (ie_free, fh_free, an_free, spawner_free)",
+  "line 361, 371, function dev_apply: writes the global surv (keep_inventory, difficulty)",
+  "line 185-300, function dev_set_blocks (setblock/fill): saves and restores the global blockcb_env",
+  "line 408-422, function dev_apply (setblock/fill): swaps the global te_dispenser_random hook and place.c's case det around the writes",
+  "function dev_purge: the purged livings and the old player twin go to grave_bury (grave.c's global list; off unless the replay harness enables it)"
+ ],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Not vanilla gameplay: it replaces the vanilla commands (CommandSetBlock, CommandSummon, CommandGive, CommandTime, CommandWeather, CommandGameRule, CommandXP, CommandTeleport) with the oracle's own Dev ops, so tick_path is true only in dev tapes. The product play binary never links it (csrc/Makefile filters src/dev.c out of SRC). Recordings: out/java/snapshots/dev-give-s1, dev-pen-s1, dev-world-s1 and the end-*-s1 tapes (hurt op) use it. The summon kind table lists CaveSpider twice (harmless). The hanging kind check at line 458 uses && where || looks intended, so an unknown kind is not rejected there (it falls to fh_spawn_frame); not verified against Dev.java. setblock and fill spend TileEntityDispenser's constructor seeder draw on the SERVER role (a dispenser or dropper written by the op), with the placement case's OTHER-role draw swapped off around the writes. lane/netherfire: dev_summon registers every summoned mob with a spawn kind in the spawner records (spawner_register_living), so World.countEntities counts a summoned blaze or ghast toward the natural cap and its box blocks a natural spawn (fight-blaze-s42 failed at row 132 without it). lane/idxentity: the summon's \"loot\" and \"breakdoors\" keys; a summoned living's air is 0 (the NBT read)."
+}

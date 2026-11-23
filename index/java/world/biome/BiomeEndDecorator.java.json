@@ -1,0 +1,79 @@
+{
+  "path": "oracle/src/world/biome/BiomeEndDecorator.java",
+  "classes": [
+    "BiomeEndDecorator"
+  ],
+  "lines": 40,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The End's decorator: ores (which place nothing on end stone but draw), a 1-in-5 obsidian spike with its ender crystal, and the ender dragon spawned at chunk 0,0.",
+  "scope": "in_scope",
+  "scope_reason": "The End and the dragon are vanilla and in scope (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/populate_nether.h",
+      "symbols": [
+        "populate_end_ores",
+        "populate_end_spike",
+        "populate_end_dragon",
+        "end_dragon_spawn"
+      ]
+    },
+    {
+      "file": "csrc/engine/seedworld.c",
+      "symbols": [
+        "sw_populate_end"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_sky_populate"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_populate.c",
+    "csrc/tests/test_dragon.c",
+    "csrc/tests/test_seedworld.c",
+    "out/java/populate/endsmoke",
+    "out/java/snapshots/end-arrival-s1",
+    "out/java/snapshots/end-dragon-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "spikeGen",
+      "sig": "WorldGenerator (WorldGenSpikes end_stone)",
+      "native": "csrc/engine/populate_nether.h:populate_end_spike",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "__OBFID",
+      "sig": "static String",
+      "native": null,
+      "status": "n/a",
+      "note": "obfuscation id"
+    },
+    {
+      "kind": "ctor",
+      "name": "BiomeEndDecorator",
+      "sig": "()",
+      "native": null,
+      "status": "n/a",
+      "note": "only builds the spike generator"
+    },
+    {
+      "kind": "method",
+      "name": "func_150513_a",
+      "sig": "(BiomeGenBase)V",
+      "native": "csrc/engine/seedworld.c:sw_populate_end",
+      "status": "exact",
+      "note": "also populate_end_ores/spike/dragon (test path) and serverreplay.c sr_sky_populate (in-loop)"
+    }
+  ],
+  "missing": [],
+  "notes": ""
+}

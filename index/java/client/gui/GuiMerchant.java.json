@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/client/gui/GuiMerchant.java",
+  "classes": ["GuiMerchant", "GuiMerchant.MerchantButton"],
+  "lines": 239,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The villager trading GUI: the villager sheet, the two page arrows, the locked recipe's grey quads, the recipe items over the buy/sell slots and the hovered slot's tooltip.",
+  "scope": "in_scope",
+  "scope_reason": "Villages and trading are vanilla and in scope (world.conf villages = on, SPEC Decisions); the trading screen is part of the gated frames.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["raster_gui_live", "screen_texture", "screen_tooltip", "screen_highlight", "raster_hud_draw_item"]},
+    {"file": "csrc/engine/gui_screens.c", "symbols": ["gui_screen_slot_xy"]},
+    {"file": "csrc/engine/gui_input.c", "symbols": ["merchant_buttons"]}
+  ],
+  "evidence": ["out/java/render/gui_merchant", "out/java/snapshots/trade-full-s1", "csrc/tests/test_render.c", "csrc/tests/test_snapshots.c", "csrc/tests/test_trades.c", "out/java/render/gui_merchant_named", "out/java/snapshots/trade-prof-s1"],
+  "members": [
+    {"kind": "field", "name": "field_147038_v (static)", "sig": "ResourceLocation", "native": "csrc/engine/raster_hud.c:screen_texture", "status": "exact", "note": "the villager sheet is decoded from the owned client jar by make play into out/native/gui"},
+    {"kind": "field", "name": "field_147037_w", "sig": "IMerchant", "native": "csrc/engine/container.h:client_recipes", "status": "exact", "note": "the NpcMerchant's recipe list is the container's client_recipes, set by the MC|TrList S3F"},
+    {"kind": "field", "name": "field_147043_x", "sig": "GuiMerchant.MerchantButton", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the next arrow: drawn and hit-tested where GuiButton would, its enabled state updateScreen's"},
+    {"kind": "field", "name": "field_147042_y", "sig": "GuiMerchant.MerchantButton", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the previous arrow"},
+    {"kind": "field", "name": "field_147041_z", "sig": "int", "native": "csrc/engine/container.c:current_recipe_index", "status": "exact", "note": "the client's selected recipe index"},
+    {"kind": "field", "name": "field_147040_A", "sig": "String", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the S2D title (a named villager's custom name) else \"Villager\""},
+    {"kind": "ctor", "name": "GuiMerchant", "sig": "(InventoryPlayer,IMerchant,World,String)V", "native": "csrc/engine/container.c:container_init", "status": "exact", "note": "built from the S2D window open (CONTAINER_MERCHANT with its title)"},
+    {"kind": "method", "name": "initGui", "sig": "()V", "native": null, "status": "exact", "note": "the two MerchantButtons at (left+120+27, top+24-1) and (left+36-19, top+24-1): their places in the hit test and the draw"},
+    {"kind": "method", "name": "func_146979_b", "sig": "(int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the 'Villager' and 'Inventory' labels"},
+    {"kind": "method", "name": "updateScreen", "sig": "()V", "native": null, "status": "exact", "note": "the arrows' enabled states from currentRecipeIndex and the list size, read where they are drawn and clicked"},
+    {"kind": "method", "name": "actionPerformed", "sig": "(GuiButton)V", "native": "csrc/engine/gui_input.c:merchant_buttons", "status": "exact", "note": "the arrow click sends the C17 MC|TrSel as the trsel gui op"},
+    {"kind": "method", "name": "func_146976_a", "sig": "(float,int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the sheet, the locked recipe's two grey quads, the two arrows with their hover and disabled rows"},
+    {"kind": "method", "name": "drawScreen", "sig": "(int,int,float)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the background, the labels, the recipe items over slots 0/1/2 at zLevel 100, the slots and the tooltip"},
+    {"kind": "method", "name": "func_147035_g", "sig": "()IMerchant", "native": null, "status": "exact", "note": "the merchant getter handleCustomPayload uses: the open merchant container"}
+  ],
+  "missing": [],
+  "notes": "DEVLOG 2026-09-25 (trade): the render scene out/java/render/gui_merchant measures mean 0.452/0.438/0.438 per channel; uses/maxUses are pinned through func_82785_h/func_82783_a because the fields have no setters; vanilla 1.7.10 trades spawn no XP orbs. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

@@ -1,0 +1,136 @@
+{
+ "classes": [
+  "ContainerPlayer"
+ ],
+ "lines": 198,
+ "side": "common",
+ "category": "inventory",
+ "role": "The player's own container: the 4 armor slots (armor pieces, plus pumpkin and skull as helmets), the 2x2 craft grid with its result, and the 36 main slots.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_init",
+    "matrix_changed",
+    "container_close",
+    "transfer_player",
+    "can_collect_from",
+    "slot_valid"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/pickaxe-complete-s1",
+  "out/java/snapshots/pickaxe-complete-s42",
+  "out/java/snapshots/cat-clicks-s1",
+  "out/java/snapshots/cat-wear-s1",
+  "out/java/snapshots/dev-give-s1",
+  "out/java/snapshots/cov-containers-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "craftMatrix",
+   "sig": "InventoryCrafting",
+   "native": "csrc/engine/container.h:grid",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "craftResult",
+   "sig": "IInventory",
+   "native": "csrc/engine/container.h:result",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "isLocalWorld",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "thePlayer",
+   "sig": "EntityPlayer",
+   "native": null,
+   "status": "n/a",
+   "note": "single player"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerPlayer",
+   "sig": "(InventoryPlayer,Z,EntityPlayer)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact",
+   "note": "CONTAINER_PLAYER: the 4 armor slots, the 2x2 grid, the result"
+  },
+  {
+   "kind": "method",
+   "name": "onCraftMatrixChanged",
+   "sig": "(Lnet/minecraft/inventory/IInventory;)V",
+   "native": "csrc/engine/container.c:matrix_changed",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onContainerClosed",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": "csrc/engine/container.c:container_close",
+   "status": "exact",
+   "note": "the player branch: the 4-grid spill and the result clear; the client half (the same spills from the client player, whose EntityItems are discarded) is survival.c:client_container_closed (portal-inv-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "always true in Java"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:transfer_player",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_94530_a",
+   "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/inventory/Slot;)Z",
+   "native": "csrc/engine/container.c:can_collect_from",
+   "status": "exact",
+   "note": "cov-containers-s1: a double-click (mode 6) collect in the inventory screen"
+  },
+  {
+   "kind": "method",
+   "name": "armor Slot.isItemValid",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/container.c:slot_valid",
+   "status": "exact",
+   "note": "ItemArmor by armor_type, plus pumpkin 86 and skull 397 as helmets"
+  },
+  {
+   "kind": "method",
+   "name": "armor Slot.getSlotStackLimit",
+   "sig": "()I",
+   "native": "csrc/engine/container.c:slot_limit",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "armor Slot.getBackgroundIconIndex",
+   "sig": "()Lnet/minecraft/util/IIcon;",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture"
+  }
+ ],
+ "missing": [],
+ "notes": "Armor wear and the craft grid are exercised by cat-wear-s1 and the pickaxe-complete replays; dev-give-s1 covers give-into-inventory on the same container.",
+ "path": "oracle/src/inventory/ContainerPlayer.java"
+}

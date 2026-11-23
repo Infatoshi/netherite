@@ -1,0 +1,381 @@
+{
+  "path": "oracle/src/client/multiplayer/WorldClient.java",
+  "classes": [
+    "WorldClient"
+  ],
+  "lines": 488,
+  "side": "client",
+  "category": "world",
+  "role": "The client's world: the chunk provider, the entity sets fed by the tracker packets, the tick's void fog and display ticks, and the break prediction.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/clientworld.c",
+      "symbols": [
+        "clientworld_init",
+        "clientworld_handle_packet",
+        "clientworld_tick",
+        "clientworld_tick_entities",
+        "clientworld_random_display_tick",
+        "clientworld_add_entity",
+        "clientworld_get_entity"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "serverreplay_client_chunk_fresh",
+        "serverreplay_sync_client",
+        "sr_flush_capture"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "client_destroy",
+        "surv_client_fresh"
+      ]
+    },
+    {
+      "file": "csrc/engine/combat.c",
+      "symbols": [
+        "combat_client_world_change"
+      ]
+    },
+    {
+      "file": "csrc/engine/player.c",
+      "symbols": [
+        "client_player_tick",
+        "cp_world_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/particles_live.c",
+      "symbols": [
+        "particles_live_display_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "world_client_set_block"
+      ]
+    },
+    {
+      "file": "csrc/engine/session.c",
+      "symbols": [
+        "session_client",
+        "session_client_blocks",
+        "client_world_change"
+      ]
+    },
+    {
+      "file": "csrc/engine/player.c",
+      "symbols": [
+        "cp_world_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/cwrand.c",
+      "symbols": [
+        "cwrand_from_tape",
+        "cwrand_recover"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/idx-cwcheck-s1",
+    "csrc/tests/play_check.sh",
+    "csrc/tests/test_clientworld.c",
+    "csrc/tests/test_rendertick.c",
+    "out/java/clientworld/smoke-s1",
+    "out/java/clientworld/walk300-s1",
+    "out/java/rendertick/fx_portal",
+    "out/java/rendertick/fx_rain",
+    "out/java/snapshots/bed-respawn-s1",
+    "out/java/snapshots/death-drown-s1",
+    "out/java/snapshots/idx-cwlight-s1",
+    "out/java/snapshots/walk300-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "WorldClient",
+      "sig": "(NetHandlerPlayClient,WorldSettings,int,EnumDifficulty,Profiler)V",
+      "native": "csrc/engine/clientworld.c:clientworld_init",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "tick",
+      "sig": "()V",
+      "native": "csrc/engine/session.c:session_client",
+      "status": "exact",
+      "note": "the clock, the chunk cache (ChunkProviderClient.unloadQueuedChunks then func_150804_b: recheckGaps a column a flagged chunk a tick, chunk_recheck_gaps) and func_147456_g (session_client_blocks: the light check at cp_world_tick's cell, then the relight rotation) run in the live client and are checked section by section against the oracle (play_check over cwhash.txt: idx-cwlight-s1, idx-cwcheck-s1); the entity spawn queue is unreachable (see entitySpawnQueue)"
+    },
+    {
+      "kind": "method",
+      "name": "invalidateBlockReceiveRegion",
+      "sig": "(int,int,int,int,int,int)V",
+      "native": null,
+      "status": "n/a",
+      "note": "vanilla no-op"
+    },
+    {
+      "kind": "method",
+      "name": "createChunkProvider",
+      "sig": "()IChunkProvider",
+      "native": "csrc/engine/clientworld.c:clientworld_init",
+      "status": "exact",
+      "note": "the chunk map is the client world's own (world.h load order and chunk table); ChunkProviderClient's record is exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_147456_g",
+      "sig": "()V",
+      "native": "csrc/engine/session.c:session_client_blocks",
+      "status": "exact",
+      "note": "setActivePlayerChunksAndCheckLight's active set (the render distance square in HashSet order, jord_ccp_window), its playerCheckLight (the client's one player by nextInt(1), then func_147451_t, world_check_light_at, at the cell three nextInt(11) pick around it: the draws are WorldClient.rand's own, recovered from the rows' d.cw at the bind (cwrand.c, lane/clientgate) and stepped by cp_world_tick, which keeps the cell for session_client_blocks) and the previousActiveChunkSet walk (ten a tick, Chunk.enqueueRelightChecks; a received overworld chunk's cursor starts at 4096, serverreplay_client_chunk_fresh). idx-cwcheck-s1: the check rewrote client light on 4 ticks and all 35,136 compared section hashes (every 20th tick) match the oracle's; with the check off they differ from tick 260. A recording whose WorldClient.rand cannot be recovered at the bind (one made before d.cw) runs no check, and play draws it from the server's world"
+    },
+    {
+      "kind": "method",
+      "name": "doPreChunk",
+      "sig": "(int,int,boolean)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "the S21/S26 load entries; the unload goes through serverreplay_sync_client_chunks and play.c's rw_on_chunk"
+    },
+    {
+      "kind": "method",
+      "name": "spawnEntityInWorld",
+      "sig": "(Entity)Z",
+      "native": "csrc/engine/clientworld.c:clientworld_add_entity",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "removeEntity",
+      "sig": "(Entity)V",
+      "native": null,
+      "status": "n/a",
+      "note": "removal runs through the S0D path in clientworld_handle_packet"
+    },
+    {
+      "kind": "method",
+      "name": "onEntityAdded",
+      "sig": "(Entity)V",
+      "native": null,
+      "status": "n/a",
+      "note": "bookkeeping over the spawn queue, which is not ported"
+    },
+    {
+      "kind": "method",
+      "name": "onEntityRemoved",
+      "sig": "(Entity)V",
+      "native": null,
+      "status": "n/a",
+      "note": "bookkeeping over the spawn queue, which is not ported"
+    },
+    {
+      "kind": "method",
+      "name": "addEntityToWorld",
+      "sig": "(int,Entity)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "the S0F spawn packet"
+    },
+    {
+      "kind": "method",
+      "name": "getEntityByID",
+      "sig": "(int)Entity",
+      "native": "csrc/engine/clientworld.c:clientworld_get_entity",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "removeEntityFromWorld",
+      "sig": "(int)Entity",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "the S0D destroy packet"
+    },
+    {
+      "kind": "method",
+      "name": "func_147492_c",
+      "sig": "(int,int,int,Block,int)Z",
+      "native": "csrc/engine/world.c:world_client_set_block",
+      "status": "exact",
+      "note": "the block packets' setBlock(3) on the client world: Chunk.func_150807_a's client half (no breakBlock or onBlockAdded, a replaced tile entity dropped) and the light pass (serverreplay_sync_client)"
+    },
+    {
+      "kind": "method",
+      "name": "sendQuittingDisconnectingPacket",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "no network layer in the native replay"
+    },
+    {
+      "kind": "method",
+      "name": "updateWeather",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "vanilla body is empty for sky providers"
+    },
+    {
+      "kind": "method",
+      "name": "func_152379_p",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "render distance"
+    },
+    {
+      "kind": "method",
+      "name": "doVoidFogParticles",
+      "sig": "(int,int,int)V",
+      "native": "csrc/engine/player.c:cp_world_tick",
+      "status": "exact",
+      "note": "the live client's 1000-cell pass on WorldClient.rand (recovered from the rows' d.cw at the bind, lane/clientgate), each air cell's depthsuspend roll and each other cell's randomDisplayTick on a fresh Random (particles_live_display_tick), at the tape's particle setting; clientworld_tick's pass is checked in test_clientworld and test_rendertick, and the Random's draws by d.cw in test_snapshots"
+    },
+    {
+      "kind": "method",
+      "name": "removeAllEntities",
+      "sig": "()V",
+      "native": "csrc/engine/combat.c:combat_client_world_change",
+      "status": "exact",
+      "note": "a new dimension gets a new empty WorldClient (NetHandlerPlayClient.handleRespawn; session.c client_world_change, combat_client_world_change); a same-dimension respawn keeps the world, and removeAllEntities then drops the unloaded and dead entities that World.updateEntities drops later in the same tick with nothing reading the lists between, so the native per-tick removal leaves the same list (death-drown-s1, bed-respawn-s1)"
+    },
+    {
+      "kind": "method",
+      "name": "addWorldInfoToCrashReport",
+      "sig": "(CrashReport)CrashReportCategory",
+      "native": null,
+      "status": "n/a",
+      "note": "crash reporting"
+    },
+    {
+      "kind": "method",
+      "name": "playSound",
+      "sig": "(double,double,double,String,float,float,boolean)V",
+      "native": null,
+      "status": "n/a",
+      "note": "audio"
+    },
+    {
+      "kind": "method",
+      "name": "makeFireworks",
+      "sig": "(double,double,double,double,double,double,NBTTagCompound)V",
+      "native": null,
+      "status": "n/a",
+      "note": "fireworks are off (world.conf)"
+    },
+    {
+      "kind": "method",
+      "name": "setWorldScoreboard",
+      "sig": "(Scoreboard)V",
+      "native": null,
+      "status": "n/a",
+      "note": "scoreboards are not used"
+    },
+    {
+      "kind": "method",
+      "name": "setWorldTime",
+      "sig": "(long)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the daylight rule rides in the tape's world state"
+    },
+    {
+      "kind": "field",
+      "name": "sendQueue",
+      "sig": "NetHandlerPlayClient",
+      "native": null,
+      "status": "n/a",
+      "note": "packets are structs"
+    },
+    {
+      "kind": "field",
+      "name": "clientChunkProvider",
+      "sig": "ChunkProviderClient",
+      "native": "csrc/engine/clientworld.c:clientworld_init",
+      "status": "exact",
+      "note": "ChunkProviderClient's record is exact (the client world's chunk table, chunkExists true on the client)"
+    },
+    {
+      "kind": "field",
+      "name": "entityHashSet",
+      "sig": "IntHashMap",
+      "native": "csrc/engine/clientworld.c:clientworld_get_entity",
+      "status": "exact",
+      "note": "the native client entity table looked up by id (clientworld_get_entity)"
+    },
+    {
+      "kind": "field",
+      "name": "entityList",
+      "sig": "Set",
+      "native": "csrc/engine/clientworld.c:clientworld_add_entity",
+      "status": "exact",
+      "note": "membership only (add at spawn, remove at destroy, contains in onEntityRemoved); its HashSet order is walked only by addWorldInfoToCrashReport"
+    },
+    {
+      "kind": "field",
+      "name": "entitySpawnQueue",
+      "sig": "Set",
+      "status": "n/a",
+      "note": "unreachable in 1.7.10: ChunkProviderClient.chunkExists always returns true (oracle/src/client/multiplayer/ChunkProviderClient.java:52), so World.spawnEntityInWorld never refuses a client entity and WorldClient.spawnEntityInWorld never queues one; the tick's ten retries run over an empty set"
+    },
+    {
+      "kind": "field",
+      "name": "mc",
+      "sig": "Minecraft",
+      "native": null,
+      "status": "n/a",
+      "note": "harness context"
+    },
+    {
+      "kind": "field",
+      "name": "previousActiveChunkSet",
+      "sig": "Set",
+      "native": "csrc/engine/session.c:session_client_blocks",
+      "status": "exact",
+      "note": "ss->cw_prev, carried by the snapshot (clientworld.nbt prevActive and activeCap)"
+    },
+    {
+      "kind": "method",
+      "name": "WorldClient$1",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (WorldClient.addWorldInfoToCrashReport) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "WorldClient$2",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (WorldClient.addWorldInfoToCrashReport) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "WorldClient$3",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (WorldClient.addWorldInfoToCrashReport) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "WorldClient$4",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (WorldClient.addWorldInfoToCrashReport) (lane/covclient)"
+    }
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: the client world keeps its own light as WorldClient does: PlayerInstance's flush after the server tick (fewer than 64 cells a chunk as S22/S23 the client relights, 64 as a partial S21 of the flagged sections, which takes the server's light at flush time and resets the chunk's relight cursor; writes without flag 2 are never sent), each received chunk's relight cursor, recheckGaps, and func_147456_g's relight rotation. play renders from this client world (frame_budget: 26 shots lowered, none raised). The random light check (lane/idxclient, second pass): with WorldClient.rand known (lane/clientgate's d.cw) its cell is vanilla's own, so the check runs exactly in the replay and in play (idx-cwcheck-s1). play draws this client world (its light) only while every check of it ran at a known cell (rw_from_cw); otherwise it draws the server's world, since the oracle's client light went through checks at unknowable cells (gold-g29-s42 at 2039: a pocket the client's check lit at 1878 stayed dark natively, 99,719 px, when drawn from the client world)."
+}

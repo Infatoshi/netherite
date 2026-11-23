@@ -1,0 +1,64 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenDeadBush.java",
+ "classes": [
+  "WorldGenDeadBush"
+ ],
+ "lines": 41,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Desert dead bush: walks down through air and leaves, then 4 tries placing the bush where it can stay.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_plants.c",
+   "symbols": [
+    "feature_deadbush"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-deadbush-2",
+  "out/java/probes/fe-deadbush-42",
+  "out/java/probes/fe-deadbush-desert-2",
+  "out/java/probes/fe-deadbush-desert-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150547_a",
+   "sig": "Block",
+   "native": "csrc/engine/features_plants.c:feature_deadbush",
+   "status": "exact",
+   "note": "Blocks.deadbush via the row."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenDeadBush",
+   "sig": "(Block)",
+   "native": "csrc/engine/features_plants.c:features_plants_for",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_plants.c:feature_deadbush",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

@@ -1,0 +1,6 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"state","fire":300}
+{"cmd":"dev","op":"weather","type":"rain","seconds":600}
+{"n":400,"act":{}}

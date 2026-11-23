@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/network/play/client/C11PacketEnchantItem.java",
+  "classes": ["C11PacketEnchantItem"],
+  "lines": 68,
+  "side": "client",
+  "category": "network",
+  "role": "A click on an enchanting table's enchant button: window id and which enchantment button.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has enchanting = off: the enchanting table is a plain block on both sides, so the enchant screen never opens and the packet is never built.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149541_a (window id)", "sig": "I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149540_b (button)", "sig": "I", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "C11PacketEnchantItem", "sig": "(II)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149539_c", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149537_d", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "serialize", "sig": "()String", "native": null, "status": "n/a", "note": "logging only"}
+  ],
+  "missing": [],
+  "notes": "Enchantments themselves are in scope (loot books, villager trades); only the table interaction is switched off. See index/java/enchantment/Enchantment.java.json."
+}

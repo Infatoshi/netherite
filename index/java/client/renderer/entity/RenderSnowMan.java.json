@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderSnowMan.java",
+  "classes": ["RenderSnowMan"],
+  "lines": 73,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the snow golem: ModelSnowMan and the pumpkin head drawn as renderEquippedItems via ItemRenderer.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has built_golems = off: snow golems are never built from pumpkins (only village iron golems remain in scope), so EntitySnowman never exists in the game both sides run.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "snowManTextures", "sig": "ResourceLocation (static)", "native": null, "status": "n/a", "note": "static constant, grouped"},
+    {"kind": "field", "name": "snowmanModel", "sig": "ModelSnowMan", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "RenderSnowMan", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntitySnowman,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntitySnowman)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

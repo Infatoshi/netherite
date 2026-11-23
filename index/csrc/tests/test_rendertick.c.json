@@ -1,0 +1,66 @@
+{
+  "path": "csrc/tests/test_rendertick.c",
+  "lines": 904,
+  "role": "Gate over each render recording with an animation dump (out/java/rendertick): rebuilds the atlases from anim.rgba, steps the sprite counters, dials and updateTorchFlicker between frame rows bit for bit; replays every one-tick step of the client particles natively for recordings with the particle spawn log, matching each spawn and its streams and every FX field; steps each chest lid and spawner spin (raster_tileent.c); and, for rows with a cs block (ClientStateProbe), the client view state (clientstate.c): getFOVMultiplier and the movementSpeed attribute at every row, then per tick the packets' S20, S19, S0B, S1C, S06 and S2C, updateFovModifierHand, every living entity's hurt fields, the portal timer with the player's Random, the client bolts and lastLightningBolt, and each frame's camera, lightmap, sky and fog recomputed from that state; each with negative controls.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/texture/TextureMap.java",
+      "members": [
+        "updateAnimations"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/texture/TextureAtlasSprite.java",
+      "members": [
+        "updateAnimation"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/texture/TextureClock.java",
+      "members": [
+        "updateAnimation"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/texture/TextureCompass.java",
+      "members": [
+        "updateAnimation",
+        "updateCompass"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "updateTorchFlicker"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/tileentity/RenderItemFrame.java",
+      "members": [
+        "func_82402_b"
+      ]
+    },
+    {
+      "path": "oracle/src/tileentity/TileEntityChest.java",
+      "members": [
+        "updateEntity"
+      ]
+    },
+    {
+      "path": "oracle/src/tileentity/MobSpawnerBaseLogic.java",
+      "members": [
+        "updateSpawner"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_rendertick.c"
+  ]
+}

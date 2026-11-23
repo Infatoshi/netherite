@@ -1,0 +1,16 @@
+{
+  "path": "oracle/src/util/MinecraftError.java",
+  "classes": ["MinecraftError"],
+  "lines": 6,
+  "side": "client",
+  "category": "client_gui",
+  "role": "An empty Error subclass thrown by the loading screen when startup fails fatally.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Only the loading screen path uses it (LoadingScreenRenderer, Minecraft); startup failure handling is client presentation.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [],
+  "missing": [],
+  "notes": "Empty class; nothing to port."
+}

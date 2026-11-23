@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/network/play/client/C16PacketClientStatus.java",
+  "classes": ["C16PacketClientStatus", "C16PacketClientStatus.EnumState"],
+  "lines": 79,
+  "side": "client",
+  "category": "network",
+  "role": "Client state requests: 0 PERFORM_RESPAWN (the death screen's respawn button), 1 REQUEST_STATS (the stats screen), 2 OPEN_INVENTORY_ACHIEVEMENT (the first inventory open's achievement).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["client_out"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_client_input", "surv_server_tick_start", "surv_server_fresh", "surv_add_stat"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/death-keepinv-s1",
+    "out/java/snapshots/death-drops-s1",
+    "out/java/snapshots/achieve-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149437_a (state)", "sig": "C16PacketClientStatus.EnumState", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c16 carries the gui ops' PERFORM_RESPAWN (1); the inventory key's OPEN_INVENTORY_ACHIEVEMENT (2) is a CPK_C16 entry in client_out's ordered packet list"},
+    {"kind": "ctor", "name": "C16PacketClientStatus", "sig": "(EnumState)V", "native": "csrc/engine/survival.c:surv_client_input", "status": "exact", "note": "the respawn gui op and the game-over screen set out->c16 = 1; Minecraft's keyBindInventory branch sets out->c16 = 2 (skipped when the game is creative)"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/survival.c:surv_server_tick_start", "status": "exact", "note": "state 2 awards openInventory (surv_add_stat, whose tail sends the S37); REQUEST_STATS never comes"},
+    {"kind": "method", "name": "func_149435_c", "sig": "()EnumState", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "field", "name": "EnumState enum (PERFORM_RESPAWN, REQUEST_STATS, OPEN_INVENTORY_ACHIEVEMENT, field_151403_d, field_151404_e)", "sig": "enum", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "the int values 1 and 2 (client_out c16, a CPK_C16 entry's v)"},
+    {"kind": "ctor", "name": "C16PacketClientStatus", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [
+    "REQUEST_STATS (state 1) is never sent in this game: the stats screen is not part of the agent or native client."
+  ],
+  "notes": null
+}

@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/world/gen/structure/MapGenScatteredFeature.java",
+  "classes": ["MapGenScatteredFeature", "MapGenScatteredFeature.Start"],
+  "lines": 161,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The temple generator: one candidate per 32-chunk grid cell (min spacing 8) seeded through World.setRandomSeed(salt 14357617), allowed in desert, jungle and swamp biomes; the Start picks a desert pyramid, jungle pyramid or swamp hut by biome, and swamp huts carry a witch spawn list.",
+  "scope": "in_scope",
+  "scope_reason": "Temples and witch huts are vanilla worldgen and on (SPEC Decisions).",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/temple.c", "symbols": ["structure_temple", "temple_begin", "temple_can_spawn", "temple_make_start", "biome_listed", "set_random_seed"]}, {"file": "csrc/engine/spawning.c", "symbols": ["spawning_scattered_witch", "scattered_witch"]}, {"file": "csrc/engine/serverreplay.c", "symbols": ["sr_swamp_hut_at", "sr_possible_creatures"]}],
+  "evidence": ["csrc/tests/test_structures.c", "csrc/tests/test_sblocks.c", "out/java/structures/te-1", "out/java/structures/te-2", "out/java/structures/s2", "out/java/sblocks/te2-01", "out/java/sblocks/te42-01", "out/java/snapshots/swamp-night-s2", "out/java/snapshots/struct-witchhut-s1"],
+  "members": [
+    {"kind": "field", "name": "biomelist", "sig": "static List<BiomeGenBase>", "native": "csrc/engine/temple.c:biome_listed", "status": "exact"},
+    {"kind": "field", "name": "scatteredFeatureSpawnList", "sig": "List<SpawnListEntry>", "native": "csrc/engine/spawning.c:scattered_witch", "status": "exact"},
+    {"kind": "field", "name": "maxDistanceBetweenScatteredFeatures", "sig": "int (32)", "native": "csrc/engine/temple.c:temple_can_spawn", "status": "exact", "note": "A file-level constant in temple.c."},
+    {"kind": "field", "name": "minDistanceBetweenScatteredFeatures", "sig": "int (8)", "native": "csrc/engine/temple.c:temple_can_spawn", "status": "exact"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "MapGenScatteredFeature", "sig": "()V", "native": "csrc/engine/temple.c:structure_temple", "status": "exact"},
+    {"kind": "ctor", "name": "MapGenScatteredFeature", "sig": "(Map)V", "native": null, "status": "n/a", "note": "Option-map constructor for superflat presets only."},
+    {"kind": "method", "name": "func_143025_a", "sig": "()String", "native": "csrc/engine/temple.c:structure_temple", "status": "exact", "note": "The name \"Temple\"."},
+    {"kind": "method", "name": "canSpawnStructureAtCoords", "sig": "(int,int)Z", "native": "csrc/engine/temple.c:temple_can_spawn", "status": "exact"},
+    {"kind": "method", "name": "getStructureStart", "sig": "(int,int)StructureStart", "native": "csrc/engine/temple.c:temple_make_start", "status": "exact"},
+    {"kind": "method", "name": "func_143030_a", "sig": "(int,int,int)Z", "native": "csrc/engine/serverreplay.c:sr_swamp_hut_at", "status": "exact", "note": "Is (x,y,z) inside a swamp hut; drives the witch spawn list."},
+    {"kind": "method", "name": "getScatteredFeatureSpawnList", "sig": "()List", "native": "csrc/engine/spawning.c:spawning_scattered_witch", "status": "exact"},
+    {"kind": "ctor", "name": "Start", "sig": "()V", "native": null, "status": "n/a", "note": "NBT-load constructor."},
+    {"kind": "ctor", "name": "Start", "sig": "(World,Random,int,int)V", "native": "csrc/engine/temple.c:temple_make_start", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The swamp-hut witch path (func_143030_a) is exercised by out/java/snapshots/swamp-night-s2 (a pack of four witches in the seed 2 hut at row 126; the recording fails there without the branch). Gate not re-run for this record."
+}

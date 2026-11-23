@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderSheep.java",
+  "classes": ["RenderSheep"],
+  "lines": 77,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the sheep: the sheared body texture, and the wool as a second pass (ModelSheep1) tinted by the fleece color, or the jeb_ rainbow interpolation.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_sheep", "fleece", "raster_mobs_draw", "texture_names"]}
+  ],
+  "evidence": ["out/java/render/mobs_sheep_f006", "out/java/render/mobs_sheep_f011", "out/java/render/mobs_sheep_f016", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "sheepTextures, shearedSheepTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constants, grouped; the TEX_FUR and TEX_SHEEP entries"},
+    {"kind": "ctor", "name": "RenderSheep", "sig": "(ModelBase,ModelBase,float)V", "native": "csrc/engine/raster_mobs.c:model_sheep", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntitySheep,int,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "partial", "note": "the fur pass with the fleece color from EntitySheep.fleeceColorTable (raster_mobs.c fleece) is drawn when not sheared; the jeb_ name-tag rainbow branch is not ported"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntitySheep)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): jeb_ wool needs a name tag named jeb_ (after B5); cosmetic. Formerly listed as missing: The jeb_ rainbow wool: the color interpolation from ticksExisted/25 + entityId is not implemented natively (the fur pass uses only the stored fleece color)."
+}

@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntityRendererPiston.java",
+  "classes": ["TileEntityRendererPiston"],
+  "lines": 80,
+  "side": "client",
+  "category": "client_render",
+  "role": "TileEntitySpecialRenderer for TileEntityPiston: draws the moving piston's block (base, extension, or the pushed block) offset by the interpolated piston progress through Tessellator translations, reusing RenderBlocks face emitters.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf redstone = off: no block ever receives power, so pistons never move and TileEntityPiston is never created; the piston base/extension block models exist in native (csrc/engine/render_blocks3.c rb3_render_piston_base/rb3_render_piston_extension) only for the static blocks.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_147516_b", "sig": "RenderBlocks", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntityPiston,D,D,D,F)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_147496_a", "sig": "(World)V", "native": null, "status": "n/a", "note": "creates the RenderBlocks for the world"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntity,D,D,D,F)V", "native": null, "status": "n/a", "note": "bridge overload"}
+  ],
+  "missing": [],
+  "notes": "If redstone ever ships, this renderer is the piece that makes a moving piston's pushed block draw smoothly between blocks; its progress interpolation comes from TileEntityPiston.func_145860_a."
+}

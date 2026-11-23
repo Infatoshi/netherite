@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/network/play/client/C17PacketCustomPayload.java",
+  "classes": ["C17PacketCustomPayload"],
+  "lines": 88,
+  "side": "client",
+  "category": "network",
+  "role": "The vanilla plugin-channel packet (channel name up to 20 chars plus a byte payload). Vanilla's only client-to-server use is MC|TrSel, the villager trade selection; book editing uses MC|BEdit/MC|BSign.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: selecting another trade in a villager's window sends MC|TrSel (GuiMerchant.actionPerformed; NetHandlerPlayServer.processVanilla250Packet sets the merchant container's recipe index), which trade-s1 exercises. Only the book channels (book_editing = off), MC|ItemName (anvil = off), MC|Beacon (beacon = off) and MC|AdvCdm (command blocks cannot be obtained) are unreachable.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["client_out"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_server_tick_start", "surv_client_input", "container_merchant_set_recipe_index"]},
+    {"file": "csrc/engine/container.c", "symbols": ["container_merchant_set_recipe_index"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/trade-s1",
+    "out/java/snapshots/trade-full-s1",
+    "out/java/trades/seed2",
+    "out/java/snapshots/trade-prof-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149562_a (channel)", "sig": "String", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "the only channel modelled is MC|TrSel (client_out trsel_window/trsel_index/has_trsel)"},
+    {"kind": "field", "name": "field_149560_b (length)", "sig": "I", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "field", "name": "field_149561_c (payload)", "sig": "byte[]", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "the payload's one recipe index is trsel_index"},
+    {"kind": "ctor", "name": "C17PacketCustomPayload", "sig": "(String,ByteBuf)V", "native": "csrc/engine/survival.c:surv_client_input", "status": "exact", "note": "GuiMerchant.actionPerformed's own index change and its C17 ride the act's [\"trsel\"] op, which builds the packet with this ctor as GuiMerchant does (the payload is the buffer's whole backing array; the server reads its first int); trade-s1, trade-full-s1 and trade-prof-s1 run it"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/survival.c:surv_server_tick_start", "status": "exact", "note": "the MC|TrSel handler: NetHandlerPlayServer's setCurrentRecipeIndex on the open merchant container, gated on window id"},
+    {"kind": "method", "name": "func_149559_c", "sig": "()String", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149558_e", "sig": "()byte[]", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "ctor", "name": "C17PacketCustomPayload", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [],
+  "notes": "The container_merchant_set_recipe_index citation appears under both survival.c (call site) and container.c (implementation); the implementation is container.c:1060. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour. lane/villagetrade 2026-09-27: the client's trsel op never set client_out.has_trsel, so the server never ran MC|TrSel; fixed in survival.c surv_client_input, and trade-full-s1 (row 149's trsel and the sound draw of its reset) and trade-prof-s1 (four selections of offer 1) replay exactly."
+}

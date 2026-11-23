@@ -1,0 +1,76 @@
+{
+ "path": "csrc/tests/test_villagers.c",
+ "lines": 722,
+ "role": "Gate: native villagers, VillageCollection and village state (csrc/engine/villagers.c) against VillageProbe dumps (out/java/villagers/<name>/, manifest kind villagers): loads the region, builds door shapes, spawns villagers, ticks VillageCollection and each villager with a scripted player trade, and compares entity NBT hashes, village state and block writes per tick.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/entity/passive/EntityVillager.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/village/VillageCollection.java",
+   "members": [
+    "tick",
+    "addVillagerPosition"
+   ]
+  },
+  {
+   "path": "oracle/src/village/Village.java",
+   "members": [
+    "tick"
+   ]
+  },
+  {
+   "path": "oracle/src/village/VillageDoorInfo.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "calculateCelestialAngle",
+    "calculateSkylightSubtracted"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/VillageProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "splitref",
+   "java": "a recorded Det split Random state",
+   "fields": []
+  },
+  {
+   "name": "ref",
+   "java": "the loaded reference record files",
+   "fields": []
+  },
+  {
+   "name": "block_write",
+   "java": "one recorded block write",
+   "fields": [
+    "x",
+    "y",
+    "z",
+    "meta",
+    "flags"
+   ]
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 24: static failures",
+  "line 254-255: static tick_writes[512], num_tick_writes",
+  "line 230-248: calc_celestial_angle uses libm cos, a test-local reimplementation of World.calculateCelestialAngle"
+ ],
+ "tests": [
+  "csrc/tests/test_villagers.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. No header comment; role inferred from main's sections (shapes, Det, VillageCollection, spawns, player, ticks). Record sizes ENT_STATE_BYTES 320, VILLAGE_STATE_BYTES 36."
+}

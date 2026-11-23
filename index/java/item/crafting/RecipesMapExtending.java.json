@@ -1,0 +1,55 @@
+{
+  "path": "oracle/src/item/crafting/RecipesMapExtending.java",
+  "classes": [
+    "RecipesMapExtending"
+  ],
+  "lines": 82,
+  "side": "common",
+  "category": "crafting",
+  "role": "The map-extending recipe: paper around a filled map upgrades the map's scale one step; matching reads the filled map's MapData and requires scale below 4.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf maps = off: an empty map stays empty and filled maps never draw, so a filled map never exists in the game and this recipe can never match.",
+  "status": "not_applicable",
+  "native": [
+    {
+      "file": "csrc/engine/crafting.c",
+      "symbols": [
+        "map_extend_matches",
+        "map_extend_result"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_crafting.c",
+    "out/java/crafting/s2",
+    "out/java/crafting/s42"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "RecipesMapExtending",
+      "sig": "()V",
+      "native": "csrc/engine/recipes.h:RECIPES",
+      "status": "exact",
+      "note": "The recipe's kind, 3x3 paper ring and output are in the generated table as kind RECIPE_MAP_EXTENDING; the matching code is in crafting.c."
+    },
+    {
+      "kind": "method",
+      "name": "matches",
+      "sig": "(LInventoryCrafting;LWorld;)Z",
+      "native": "csrc/engine/crafting.c:map_extend_matches",
+      "status": "partial",
+      "note": "The shaped shape check and the filled-map scan are ported; the MapData scale read is a hook the native world answers 'no data' because it has no map storage yet, so the recipe never matches until the map layer lands. A null World throws in Java; native reports CRAFT_THROW for it."
+    },
+    {
+      "kind": "method",
+      "name": "getCraftingResult",
+      "sig": "(LInventoryCrafting;)LItemStack;",
+      "native": "csrc/engine/crafting.c:map_extend_result",
+      "status": "exact",
+      "note": "A copy of the filled map at stack size 1 with map_is_scaling set, keeping the rest of its tag."
+    }
+  ],
+  "missing": [],
+  "notes": "The matching code is ported and probe-tested (special.jsonl in test_crafting.c covers map extending with a null world, where Java throws), but the game runs with maps off, so no recording exercises a real match; status reflects the switch, not the probe coverage."
+}

@@ -1,0 +1,7 @@
+{"cmd":"run","class":"Snapshot"}
+{"n":20,"act":{}}
+{"cmd":"dev","op":"tp","x":40.5,"y":67.0,"z":14.5,"yaw":0.0,"pitch":0.0}
+{"n":3000,"act":{}}
+{"cmd":"dev","op":"tp","x":700.5,"y":65.0,"z":-318.5,"yaw":90.0,"pitch":20.0}
+{"n":600,"act":{}}
+{"cmd":"run","class":"Snapshot","sub":"end"}

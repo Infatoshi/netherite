@@ -1,0 +1,21 @@
+{
+ "path": "csrc/engine/enchants.h",
+ "lines": 81,
+ "role": "Generated table of the 24 vanilla enchantments (effect id, weight, level range, EnumEnchantmentType, name, per-level min and max enchantability) and the canApplyTogether relation as a bitmask per enchantment, produced from the live oracle by netherite.oracle.EnchantTable.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/enchantment/Enchantment.java", "members": ["effectId", "getWeight", "getMinLevel", "getMaxLevel", "type", "getName", "getMinEnchantability", "getMaxEnchantability", "canApplyTogether"]},
+  {"path": "oracle/src/enchantment/EnumEnchantmentType.java", "members": ["all", "armor", "armor_feet", "armor_legs", "armor_torso", "armor_head", "weapon", "digger", "fishing_rod", "breakable", "bow"]},
+  {"path": "oracle/harness/netherite/oracle/EnchantTable.java", "members": ["main"]}
+ ],
+ "structs": [
+  {"name": "enchantment_def", "java": "Enchantment (effectId, weight, min/max level, type ordinal, name, enchantability per level)", "fields": ["effect_id", "weight", "min_level", "max_level", "type", "name", "min_enchantability", "max_enchantability"]},
+  {"name": "ENCHANTS", "java": "Enchantment.enchantmentsList, the 24 registered enchantments in effect-id order", "fields": []},
+  {"name": "CAN_APPLY_TOGETHER", "java": "Enchantment.canApplyTogether(other) over every pair, bit j of row i", "fields": []}
+ ],
+ "entry_points": ["ENCHANTS", "CAN_APPLY_TOGETHER"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_loot.c", "csrc/tests/test_trades.c"],
+ "notes": "Do not edit by hand; regenerate with netherite.oracle.EnchantTable. Static const tables only, GPU friendly. Included by enchant.c and trades.c."
+}

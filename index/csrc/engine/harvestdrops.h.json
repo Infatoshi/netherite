@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/harvestdrops.h",
+ "lines": 89,
+ "role": "Declares the one-break harvest API of harvestdrops.c: the 3x3x3 cell context, the case (held stack, silk/fortune levels, exhaustion, world seed, Math.random stream) and the result (cells after, held stack after, stats, dropped entities).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/server/management/ItemInWorldManager.java", "members": ["tryHarvestBlock"]},
+  {"path": "oracle/src/block/Block.java", "members": ["harvestBlock", "canSilkHarvest", "createStackedBlock"]},
+  {"path": "oracle/src/stats/StatList.java", "members": ["mineBlockStatArray"]},
+  {"path": "oracle/src/enchantment/EnchantmentHelper.java", "members": ["getSilkTouchModifier", "getFortuneModifier"]}
+ ],
+ "structs": [
+  {"name": "hd_cell", "java": "a block id and metadata at one position", "fields": ["id", "meta"]},
+  {"name": "hd_case", "java": "the break's inputs: position, world cells, the player's held ItemStack, the enchant levels, FoodStats.foodExhaustionLevel, the world Random seed and Math.random", "fields": ["x", "y", "z", "cells", "held_item", "held_damage", "held_count", "silk", "fortune", "exhaustion", "opseed", "math"]},
+  {"name": "hd_result", "java": "the break's outputs: world cells, held stack, exhaustion, the three StatList counters, spawned EntityItems", "fields": ["cells", "held_item", "held_damage", "held_count", "exhaustion", "stat_mine", "stat_use", "stat_break", "nents", "ents", "bad"]}
+ ],
+ "entry_points": ["harvestdrops_break", "harvestdrops_has_mine_stat"],
+ "tick_path": true,
+ "gpu": [
+  "line 65, struct hd_case: carries a jrand pointer to the shared Math.random stream"
+ ],
+ "tests": ["csrc/tests/test_harvestdrops.c"],
+ "notes": "HD_MAX_ENTS is drops.h's DROPS_MAX_ENTS, so the result's entity array is fixed size."
+}

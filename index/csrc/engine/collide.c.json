@@ -1,0 +1,171 @@
+{
+ "path": "csrc/engine/collide.c",
+ "lines": 1001,
+ "role": "Per-block collision shapes for 1.7.10: the plain cube default and every override the move probe's shape table places (bed, cocoa, slabs, stairs with corner boxes, farmland, doors, ladder, snow, cactus, fence and fence gate, soul sand, cake, trapdoor, panes, lily pad, wall, carpet), the null-box blocks, and the web, soul sand and cactus entity effects, all computed in float then widened like Java.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "addCollisionBoxesToList",
+    "getCollisionBoundingBoxFromPool",
+    "onEntityCollidedWithBlock",
+    "setBlockBounds"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockStairs.java",
+   "members": [
+    "addCollisionBoxesToList",
+    "func_150146_f",
+    "func_150145_f",
+    "func_150144_g",
+    "func_150147_e",
+    "collisionRayTrace"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFence.java",
+   "members": [
+    "addCollisionBoxesToList",
+    "func_149826_e"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockWall.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool",
+    "setBlockBoundsBasedOnState",
+    "func_150091_e"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockPane.java",
+   "members": [
+    "addCollisionBoxesToList",
+    "func_150098_a",
+    "getCollisionBoundingBoxFromPool"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockCocoa.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool",
+    "setBlockBoundsBasedOnState"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockBed.java",
+   "members": [
+    "func_149978_e"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockSlab.java",
+   "members": [
+    "setBlockBoundsBasedOnState"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFarmland.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDoor.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLadder.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool",
+    "func_149797_b"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockSnow.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockCactus.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool",
+    "onEntityCollidedWithBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockSoulSand.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool",
+    "onEntityCollidedWithBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockCake.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTrapDoor.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool",
+    "func_150117_b"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFenceGate.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLilyPad.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockCarpet.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockWeb.java",
+   "members": [
+    "getCollisionBoundingBoxFromPool",
+    "onEntityCollidedWithBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockEndPortalFrame.java",
+   "members": [
+    "addCollisionBoxesToList"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "collide_list_clear",
+  "collide_add_boxes",
+  "collide_entity_effect",
+  "collide_pool_box",
+  "collide_stairs_traced",
+  "collide_pane_bounds_set"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "lines 52 and 86-87, functions is_stairs/pane_connects: strcmp on BLOCKS class_name strings per neighbor test (string compare in the hot collision path)",
+  "function add_query: past COLLIDE_MAX_BOXES the list moves to a slab block that doubles (lane/capacity); a GPU port needs the slab"
+ ],
+ "tests": [
+  "csrc/tests/test_move.c"
+ ],
+ "notes": "Called from world.c (collide_add_boxes in the getCollidingBoundingBoxes walk), entity.c (collide_entity_effect), item_entity.c, projectile.c and raytrace.c (collide_pool_box). No allocation or global state; pure functions of the world. Blocks not in the shape table fall to the constructor-bounds cube; any override outside the listed ids is not ported (not enumerated here). State: the fence's shared bounds (fence_bounds) and each BlockStairs object's (stairs_octant: octant 7 once collisionRayTrace has run on that id, since field_150152_N is never cleared, until its next addCollisionBoxesToList resets the full cube), which collide_pool_box reports as Block.getCollisionBoundingBoxFromPool does. BlockEndPortalFrame: the 13/16 base and the eye box when meta bit 4 is set (lane/stronghold, sh-bot-s42). A pane object's (101, 102, 160) pool box is its shared bounds, which addCollisionBoxesToList and the ray trace leave (env collide.pane_bounds; lane/covblock, cov-blkbreak-s1)."
+}

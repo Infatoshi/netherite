@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/client/util/QuadComparator.java",
+  "classes": ["QuadComparator"],
+  "lines": 62,
+  "side": "client",
+  "category": "client_render",
+  "role": "Comparator that orders Tessellator quads far-to-near by the squared distance of each quad's four-vertex average from a camera point, reading positions out of the raw vertex int array (Float.intBitsToFloat at stride 8).",
+  "scope": "client_cosmetic",
+  "scope_reason": "The generic Tessellator translucent-quad sort. The native renderer sorts its translucent draw lists itself; the live water path orders quads by camera distance in csrc/engine/raster.c (water_quad_compare, water_section_compare), which is the same behaviour for the section quads.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/raster.c", "symbols": ["water_quad_compare", "water_section_compare"]}
+  ],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "QuadComparator", "sig": "(int[],float,float,float)V", "native": null, "status": "n/a", "note": "the raw vertex array and the camera x,y,z"},
+    {"kind": "method", "name": "compare", "sig": "(Integer,Integer)I", "native": "csrc/engine/raster.c:water_quad_compare", "status": "partial", "note": "the live renderer's water_quad_compare orders translucent water quads by distance (ascending nearest-first here, vanilla far-to-near); the generic Tessellator sort itself has no native counterpart"},
+    {"kind": "method", "name": "compare", "sig": "(Object,Object)I", "native": null, "status": "n/a", "note": "Comparator bridge"},
+    {"kind": "field", "name": "field_147630_a", "sig": "float", "native": null, "status": "n/a", "note": "camera x"},
+    {"kind": "field", "name": "field_147628_b", "sig": "float", "native": null, "status": "n/a", "note": "camera y"},
+    {"kind": "field", "name": "field_147629_c", "sig": "float", "native": null, "status": "n/a", "note": "camera z"},
+    {"kind": "field", "name": "field_147627_d", "sig": "int[]", "native": null, "status": "n/a", "note": "the raw vertex array"}
+  ],
+  "missing": [],
+  "notes": "The native counterpart is behavioural, not a port: raster.c's water_section_compare and water_quad_compare implement the section and quad ordering the live translucent pass needs, and the recorded-path draw lists are pre-sorted by the scene dump."
+}

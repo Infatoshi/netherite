@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/SaveOverlay.java",
+ "lines": 290,
+ "role": "Writes a snapshot's save/ overlay: every region chunk whose stored NBT differs from the checkpoint's save (a checkpoint start's join ticks), or, for a mid-run snapshot of a seed start, every chunk the run saved; Anvil region layout with zero timestamps.",
+ "kind": "snapshot",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Snapshot.java",
+  "csrc/engine/serverreplay.c (join_save_dir)",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "The any-tick sweep's snapshots (Oracle --snap-at) always write it. lane/keyframes: a region chunk's stored zlib payload is copied as stored (no inflate and re-deflate); per live region file the run remembers the file's checksum and the overlay it made, so an unchanged file is not parsed again and its overlay is hard-linked to the earlier snapshot's copy; the checkpoint's per-slot payload checksums are read once, and a payload that differs is compared as NBT once per checksum (sameNbt)."
+}

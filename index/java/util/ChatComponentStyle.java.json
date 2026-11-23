@@ -1,0 +1,168 @@
+{
+  "path": "oracle/src/util/ChatComponentStyle.java",
+  "classes": [
+    "ChatComponentStyle"
+  ],
+  "lines": 179,
+  "side": "common",
+  "category": "util",
+  "role": "Abstract base of the chat component tree: holds a ChatStyle and sibling components, and composes the flat and formatting-code text forms used to draw chat.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: the base of the chat components whose formatted text (getFormattedText with siblings and styles) GuiNewChat (in scope) draws in the HUD.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcomp.c",
+      "symbols": [
+        "chat_append",
+        "chat_append_text",
+        "chat_set_style",
+        "chat_style_of",
+        "chat_parts",
+        "pw_expand",
+        "chat_style_code",
+        "sj_expand"
+      ]
+    },
+    {
+      "file": "csrc/engine/chatcomp.h",
+      "symbols": [
+        "cc_comp",
+        "chat_comp"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/chat-achieve-s1",
+    "out/java/snapshots/chat-bed-refuse-s1",
+    "out/java/snapshots/chat-deaths-s1",
+    "out/java/snapshots/chat-deaths2-s1",
+    "out/java/snapshots/chat-build-s1",
+    "out/java/snapshots/chat-climbfall-s1",
+    "out/java/snapshots/chat-edge-knock-s1",
+    "out/java/snapshots/chat-idx-blast-s1",
+    "out/java/snapshots/chat-fight-witch-s1",
+    "out/java/snapshots/chat-fight-enderman-s1",
+    "out/java/snapshots/chat-death-drown-s1",
+    "out/java/snapshots/chat-death-lava-s1",
+    "out/java/snapshots/chat-death-starve-s1",
+    "out/java/snapshots/chat-act2-s1",
+    "out/java/snapshots/chat-surv2-bed-s1",
+    "csrc/tests/test_snapshots.c",
+    "out/java/hudscreens/hudscreens-s1",
+    "csrc/tests/test_hudscreens.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "siblings",
+      "sig": "List",
+      "native": "csrc/engine/chatcomp.h:cc_comp",
+      "status": "exact",
+      "note": "sib, nsib"
+    },
+    {
+      "kind": "field",
+      "name": "style",
+      "sig": "ChatStyle",
+      "native": "csrc/engine/chatcomp.h:cc_comp",
+      "status": "exact",
+      "note": "style, a slot of the tree's styles (-1 not made yet)"
+    },
+    {
+      "kind": "method",
+      "name": "appendSibling",
+      "sig": "(IChatComponent)IChatComponent",
+      "native": "csrc/engine/chatcomp.c:chat_append",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getSiblings",
+      "sig": "()List",
+      "native": "csrc/engine/chatcomp.c:sj_expand",
+      "status": "exact",
+      "note": "the serializer's extra and the iterator's tail (pw_expand)"
+    },
+    {
+      "kind": "method",
+      "name": "appendText",
+      "sig": "(String)IChatComponent",
+      "native": "csrc/engine/chatcomp.c:chat_append_text",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setChatStyle",
+      "sig": "(ChatStyle)IChatComponent",
+      "native": "csrc/engine/chatcomp.c:chat_set_style",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getChatStyle",
+      "sig": "()ChatStyle",
+      "native": "csrc/engine/chatcomp.c:chat_style_of",
+      "status": "exact",
+      "note": "made empty on first use, the siblings parented to it"
+    },
+    {
+      "kind": "method",
+      "name": "iterator",
+      "sig": "()Iterator",
+      "native": "csrc/engine/chatcomp.c:pw_expand",
+      "status": "exact",
+      "note": "itself then its siblings' iterators, without recursion (a work list)"
+    },
+    {
+      "kind": "method",
+      "name": "getUnformattedText",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "feeds only the server console log (MinecraftServer.addChatMessage)"
+    },
+    {
+      "kind": "method",
+      "name": "getFormattedText",
+      "sig": "()String",
+      "native": "csrc/engine/chatcomp.c:chat_parts",
+      "status": "exact",
+      "note": "the parts GuiNewChat joins: each iterated component's formatting code and text. Java runs it only where a frame draws the chat (GuiNewChat.func_146230_a, skipped unless the tape's header has \"chat\": true: Oracle.cleanHudChat); the frame replay of out/java/hudscreens/hudscreens-s1 runs it (lane/covnet, JaCoCo on make replay FRAMES=... EVERY=10) and test_hudscreens judges its lines"
+    },
+    {
+      "kind": "method",
+      "name": "createDeepCopyIterator",
+      "sig": "(Iterable)Iterator",
+      "native": "csrc/engine/chatcomp.c:chat_style_code",
+      "status": "exact",
+      "note": "the copies' only use is their deep-copied style, the parent chain resolved"
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Object)boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "the only caller is CombatTracker.func_151521_b's var6.equals(var4) in the fall branch, where var4 is the last (fall) entry's attacker name: CombatEntry.func_151522_h returns null for DamageSource.fall (it has no entity), so `var4 == null ||` short-circuits; ChatComponentTranslation.equals and HoverEvent.equals only recurse from it"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a",
+      "note": "no game path hashes a component"
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "logging only"
+    }
+  ],
+  "missing": [],
+  "notes": "Every S02 the server sends is compared per row: the oracle's rows carry each tick's S02s (Rows.s02: the IChatComponent.Serializer JSON and GuiNewChat's iterated parts) and test_snapshots and play --check compare csrc/engine/chatcomp.c chat_s02_check against the queue (lane/idxchat, DEVLOG 2026-09-27). The live client's drawing of these lines (NetHandlerPlayClient.handleChat into GuiNewChat) is GuiNewChat's record and the pixel lane's item N-02; the native client still builds its achievement line from the toast. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

@@ -1,0 +1,14 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":136,"y0":100,"z0":239,"x1":177,"y1":100,"z1":260,"id":1}
+{"cmd":"dev","op":"fill","x0":154,"y0":104,"z0":239,"x1":177,"y1":104,"z1":260,"id":1}
+{"cmd":"dev","op":"setblock","x":166,"y":101,"z":249,"id":52,"tile":{"EntityId":"Zombie","Delay":0,"MinSpawnDelay":40,"MaxSpawnDelay":60}}
+{"cmd":"dev","op":"setblock","x":168,"y":101,"z":249,"id":52,"tile":{"EntityId":"Skeleton","Delay":0,"MinSpawnDelay":40,"MaxSpawnDelay":60}}
+{"cmd":"dev","op":"time","value":13000}
+{"cmd":"dev","op":"tp","x":154.5,"y":101.0,"z":249.5,"yaw":-90.0,"pitch":0.0}
+{"n":150,"act":{}}
+{"cmd":"dev","op":"tp","x":140.5,"y":101.0,"z":249.5,"yaw":-90.0,"pitch":0.0}
+{"n":60,"act":{}}
+{"cmd":"dev","op":"tp","x":154.5,"y":101.0,"z":249.5,"yaw":-90.0,"pitch":0.0}
+{"n":80,"act":{}}

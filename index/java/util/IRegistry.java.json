@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/util/IRegistry.java",
+  "classes": ["IRegistry"],
+  "lines": 11,
+  "side": "common",
+  "category": "util",
+  "role": "The two-method registry interface (getObject/putObject) behind RegistrySimple, RegistryNamespaced and the block/item registries.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_registry.c"
+  ],
+  "members": [
+    {"kind": "method", "name": "getObject", "sig": "(Object)Object", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "native registries are static tables (BLOCKS, ITEMS) indexed by id instead of a map keyed by name"},
+    {"kind": "method", "name": "putObject", "sig": "(Object,Object)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "the tables are fixed at build time; runtime registration does not exist"}
+  ],
+  "missing": [],
+  "notes": "The registry shape is dissolved into generated tables; test_registry.c checks the block/item id tables against the oracle. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): runtime registry replaced by the generated blocks.h/items.h tables; nothing registers at runtime."
+}

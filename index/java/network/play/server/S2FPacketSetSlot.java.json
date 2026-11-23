@@ -1,0 +1,125 @@
+{
+ "path": "oracle/src/network/play/server/S2FPacketSetSlot.java",
+ "classes": [
+  "S2FPacketSetSlot"
+ ],
+ "lines": 70,
+ "side": "server",
+ "category": "network",
+ "role": "One container or inventory slot's contents: window id, slot number and the stack (empty means clear).",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_queue_slot",
+    "surv_client_pump",
+    "surv_client_click"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/te-chest-s1",
+  "out/java/snapshots/flow-craft-s1",
+  "out/java/snapshots/cat-clicks-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149179_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "window id, rides s2c_pkt.window / i0"
+  },
+  {
+   "kind": "field",
+   "name": "field_149177_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "slot number, rides s2c_pkt.slot"
+  },
+  {
+   "kind": "field",
+   "name": "field_149178_c",
+   "sig": "ItemStack",
+   "status": "exact",
+   "note": "the stack, rides the craft_stack fields (item, damage, count)"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int,ItemStack)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:gui_queue_slot",
+   "note": "detect_and_send_changes records the changed slots; surv_client_click's own path uses the same queue"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "PK_S2F case: window slots into the container, inventory slots through container_slot_inventory"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "func_149175_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149173_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149174_e",
+   "sig": "()Lnet/minecraft/item/ItemStack;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": []
+}

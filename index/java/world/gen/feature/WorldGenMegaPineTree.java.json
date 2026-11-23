@@ -1,0 +1,110 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenMegaPineTree.java",
+ "classes": [
+  "WorldGenMegaPineTree"
+ ],
+ "lines": 147,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The 2x2 mega spruce/pine of mega taiga, with a leaf cone and a podzol patch placed after growth (func_150524_b).",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_trees.c",
+   "symbols": [
+    "feature_megapine",
+    "feature_megapine_grow",
+    "mega_pine_crown",
+    "mega_pine_after",
+    "mega_pine_patch",
+    "mega_pine_dirt"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "place_tree"
+   ]
+  },
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "sapling_grow"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/plant-sapling-s1",
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-megapine-2",
+  "out/java/probes/fe-megapine-42",
+  "out/java/seedworld/seed1",
+  "out/java/snapshots/cov-megataiga-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150542_e",
+   "sig": "boolean",
+   "native": "csrc/engine/features_trees.c:feature_megapine",
+   "status": "exact",
+   "note": "The tall flag via count."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenMegaPineTree",
+   "sig": "(boolean,boolean)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_trees.c:feature_megapine_grow",
+   "status": "exact",
+   "note": "the sapling's call; feature_megapine is generate plus the func_150524_b BiomeDecorator runs after it"
+  },
+  {
+   "kind": "method",
+   "name": "func_150541_c",
+   "sig": "(World,int,int,int,int,Random)V",
+   "native": "csrc/engine/features_trees.c:mega_pine_crown",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150524_b",
+   "sig": "(World,Random,int,int,int)V",
+   "native": "csrc/engine/features_trees.c:mega_pine_after",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150539_c",
+   "sig": "(World,Random,int,int,int)V",
+   "native": "csrc/engine/features_trees.c:mega_pine_patch",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150540_a",
+   "sig": "(World,int,int,int)V",
+   "native": "csrc/engine/features_trees.c:mega_pine_dirt",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

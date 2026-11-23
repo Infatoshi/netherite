@@ -1,0 +1,3 @@
+# lane/rlsplit: the speedrun config at 256x144, 2026-09-30
+id	found	by	area	field	cause	status	commit	pin	repro
+rlsplit-hudframe	2026-09-30	lane/rlsplit (gate)	cuda	px	with client.hud on the device frames differ from the C renderer's after tick 89 of sr-speedrun-s1 (the walk; 235 px at 256x144, first 116,62; 199 px at 128x128, first 54,55: near the centre, not the hotbar), in all 32 episodes; hud off is bit-exact (129,056 rows, 32,288 frames); not looked at further	open	-	-	configs/speedrun.yaml with client.hud on as FILE: make -C csrc/runtime pipe-gate CONFIG=FILE PRECS=sr-speedrun-s1 MESH=2

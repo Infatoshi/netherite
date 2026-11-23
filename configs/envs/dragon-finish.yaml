@@ -1,0 +1,47 @@
+# The dragon's last quarter: the dev End bank's dragon_25 starts, the kill rewarded. The eval is a 32-episode smoke
+# by default (minutes a step); --set eval.episodes=256 for the full held-out set.
+description: finish the dragon from 25% health, dev End bank dragon_25 starts, dragon rate (32 smoke, 256 full)
+name: dragon-finish
+sim:
+  world:
+    difficulty: easy
+  pipeline:
+    kind: snapshot
+    start: cache/end-bank-dev-2026-11-23/train/s9058709-end/start
+episode:
+  seconds: 600
+macros: none
+starts:
+  library: cache/end-bank-dev-2026-11-23/train
+  stages: dragon_25
+  curriculum: adaptive
+  floor: 0.15
+  spawn_min: 0.0
+policy:
+  reward:
+    relative: on
+    dragon: 50
+    dragon_hp: 0.5
+    step_pen: 2e-4
+    log_cap: 8
+train:
+  flags: --dev --fresh-opt --train-skip-ambient --graph 0
+  distant_tick_radius: 64
+harvest:
+  mode: milestone
+  milestone: dragon_25
+  source: cache/end-bank-dev-2026-11-23/train,cache/end-bank-dev-2026-11-23/eval
+  split_train: 0.75
+eval:
+  primary_metric: dragon
+  max_p: 0.05
+  episodes: 32
+  minutes: 15
+  seed: 1000
+  groups: 4
+  library: cache/end-bank-dev-2026-11-23/eval
+  stages: dragon_25
+  start: cache/end-bank-dev-2026-11-23/eval/s437203103-end/start
+  clock: wrap
+  start_cycle: on
+  flags: --dev

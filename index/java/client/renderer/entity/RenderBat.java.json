@@ -1,0 +1,41 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderBat.java",
+  "classes": ["RenderBat"],
+  "lines": 149,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityBat: the bat model at 0.35 scale with the hanging pose (upside down, folded wings) or the flying pose with flapping wings.",
+  "scope": "in_scope",
+  "scope_reason": "Bats spawn in gated worlds and the mob render scenes compare their pixels.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_bat", "raster_mobs_draw"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs2b_bat_f006",
+    "out/java/render/mobs2b_bat_f011",
+    "out/java/render/mobs2b_bat_close_f006",
+    "out/java/render/mobs2b_bat_close_f011",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "batTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "TEX_BAT in the texture table (textures/entity/bat.png)"},
+    {"kind": "field", "name": "renderedBatSize", "sig": "private int", "native": null, "status": "n/a", "note": "vanilla cache that swaps the model when the bat's size flag changes; the native model is stateless per draw"},
+    {"kind": "ctor", "name": "RenderBat", "sig": "()V", "native": null, "status": "n/a", "note": "model construction; the native model is built per draw in model_bat"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityBat,DDD FF)V", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "the whole bat draw (body, wings, wing membranes) is model_bat, drawn through raster_mobs_draw"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityBat)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "TEX_BAT selection in the draw dispatch"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityBat,F)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the 0.35 scale is applied in the shared vertex transform (raster_mobs.c 'if (e->kind == MOB_BAT)' branch)"},
+    {"kind": "method", "name": "renderLivingAt", "sig": "(EntityBat,DDD)V", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "the hanging offset is folded into model_bat's root part position"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityBat,FFF)V", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "the pitch/yaw/roll for hanging vs flying is the root part's angles in model_bat"},
+    {"kind": "method", "name": "handleRotationFloat", "sig": "(EntityBat,F)F", "native": null, "status": "n/a", "note": "RenderLiving's default; the bat wing flap uses age + partialTick directly in model_bat"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,DDD FF)V", "native": null, "status": "n/a", "note": "generic bridge"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,F)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityLivingBase,FFF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "renderLivingAt", "sig": "(EntityLivingBase,DDD)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "The flying wing-flap angle (cos(age * 1.3) * PI * 0.25) and the hanging pose are both in model_bat (raster_mobs.c:330). The four bat scenes under out/java/render/ gate both poses through the pixel budget."
+}

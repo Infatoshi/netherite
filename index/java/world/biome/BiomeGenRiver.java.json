@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenRiver.java",
+  "classes": ["BiomeGenRiver"],
+  "lines": 12,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The River (7) and FrozenRiver (11) biome class; its only change from BiomeGenBase is an empty passive-mob list.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["biome_has_creatures"]}
+  ],
+  "evidence": ["csrc/tests/test_spawning.c", "csrc/tests/test_worldgen.c", "out/java/spawning"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenRiver", "sig": "(int)", "native": "csrc/engine/spawning.c:biome_has_creatures", "status": "exact", "note": "ids 7 and 11 return 0"}
+  ],
+  "missing": [],
+  "notes": ""
+}

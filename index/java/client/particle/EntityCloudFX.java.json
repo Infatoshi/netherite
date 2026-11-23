@@ -1,0 +1,29 @@
+{
+ "classes": [
+  "EntityCloudFX"
+ ],
+ "lines": 83,
+ "side": "client",
+ "category": "particles",
+ "role": "The smoke cloud from a mob death or explosion edge: fades through texture indices and drifts toward the player's feet.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Unreached: no code in oracle/src spawns the 'cloud' particle in 1.7.10 (RenderGlobal.java:2223 builds it only for that name).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  }
+ ],
+ "missing": [
+  "Nothing native: constructor and onUpdate physics are unported."
+ ],
+ "notes": "No behavior is ported. The scene renderer csrc/engine/raster_particles.c draws whatever class names the recorded state dump lists (base quads or icon quads), so a dump containing this class would render, but nothing constructs or ticks it natively. idxaudit 2026-09-27: scope reason rewritten.",
+ "path": "oracle/src/client/particle/EntityCloudFX.java"
+}

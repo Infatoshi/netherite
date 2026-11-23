@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/stats/Achievement.java",
+  "classes": ["Achievement"],
+  "lines": 167,
+  "side": "common",
+  "category": "stats",
+  "role": "One achievement: a StatBase with a parent achievement, a GUI grid position, a display ItemStack, a description key and a special flag. The parent gates whether StatFileWriter counts it.",
+  "scope": "in_scope",
+  "scope_reason": "Achievements are awarded on the server and sent in S37 packets; the client's GuiAchievement toast is in the recorded frames (DEVLOG 2026-09-25 achievements).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["ACH_OPEN_INVENTORY", "ACH_COUNT", "ach_parent", "ach_item", "surv_ach_item"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["ach_parent", "ach_item", "surv_ach_name", "surv_ach_desc", "ach_can_unlock"]}
+  ],
+  "evidence": ["out/java/snapshots/achieve-s1", "out/java/render/toast", "out/java/snapshots/stats-s1", "out/java/snapshots/stats-s1-pre"],
+  "members": [
+    {"kind": "field", "name": "displayColumn", "sig": "int", "native": null, "status": "n/a", "note": "GuiAchievements screen layout only"},
+    {"kind": "field", "name": "displayRow", "sig": "int", "native": null, "status": "n/a", "note": "GuiAchievements screen layout only"},
+    {"kind": "field", "name": "parentAchievement", "sig": "Achievement", "native": "csrc/engine/survival.c:ach_parent", "status": "exact"},
+    {"kind": "field", "name": "achievementDescription", "sig": "String", "native": "csrc/engine/survival.c:surv_ach_desc", "status": "exact", "note": "all 33 descriptions read the generated user-jar language table"},
+    {"kind": "field", "name": "statStringFormatter", "sig": "IStatStringFormat", "native": "csrc/engine/survival.c:surv_ach_desc", "status": "partial", "note": "the openInventory key is baked in as 'E'"},
+    {"kind": "field", "name": "theItemStack", "sig": "ItemStack", "native": "csrc/engine/survival.c:ach_item", "status": "exact"},
+    {"kind": "field", "name": "isSpecial", "sig": "boolean", "native": null, "status": "n/a", "note": "display: the GuiAchievements frame and the chat colour"},
+    {"kind": "ctor", "name": "Achievement", "sig": "(String,String,int,int,Item|Block|ItemStack,Achievement)", "native": "csrc/engine/survival.c:ach_parent", "status": "partial", "note": "three constructors; the min/max display column/row bookkeeping on AchievementList is not ported"},
+    {"kind": "method", "name": "initIndependentStat", "sig": "()Achievement", "native": "csrc/engine/survival.c:ach_parent", "status": "exact", "note": "openInventory's parent -1"},
+    {"kind": "method", "name": "setSpecial", "sig": "()Achievement", "native": null, "status": "n/a", "note": "display"},
+    {"kind": "method", "name": "registerStat", "sig": "()Achievement", "native": "csrc/engine/survival.h:ACH_COUNT", "status": "exact", "note": "the enum is AchievementList's 33 in registration order (a static assert against stats_table.h)"},
+    {"kind": "method", "name": "isAchievement", "sig": "()Z", "native": "csrc/engine/survival.c:surv_add_stat", "status": "exact", "note": "stat < ACH_COUNT"},
+    {"kind": "method", "name": "func_150951_e", "sig": "()IChatComponent", "native": null, "status": "n/a", "note": "the chat line component: display"},
+    {"kind": "method", "name": "func_150953_b", "sig": "(Class)Achievement", "native": "csrc/engine/survival.c:surv_explore_biome", "status": "exact", "note": "exploreAllBiomes' JsonSerializableSet: the explored bits"},
+    {"kind": "method", "name": "getDescription", "sig": "()String", "native": "csrc/engine/survival.c:surv_ach_desc", "status": "exact"},
+    {"kind": "method", "name": "setStatStringFormatter", "sig": "(IStatStringFormat)Achievement", "native": null, "status": "n/a", "note": "client install of the key formatter; baked into surv_ach_desc"},
+    {"kind": "method", "name": "getSpecial", "sig": "()Z", "native": null, "status": "n/a", "note": "display"}
+  ],
+  "missing": [],
+  "notes": "surv_ach_name and surv_ach_desc resolve all 33 keys through the generated user-jar language table. The openInventory description applies the default E key substitution. Native achievement ids are enum indices, not the Java statId strings."
+}

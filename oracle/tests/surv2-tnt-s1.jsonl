@@ -1,0 +1,16 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":159,"y0":89,"z0":236,"x1":182,"y1":89,"z1":258,"id":1,"meta":0}
+{"cmd":"dev","op":"setblock","x":164,"y":90,"z":251,"id":46,"meta":0,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":176,"y":90,"z":251,"id":46,"meta":0,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":177,"y":89,"z":251,"id":87,"meta":0,"mode":"replace"}
+{"cmd":"dev","op":"slot","slot":0,"item":259,"count":1}
+{"cmd":"dev","op":"tp","x":164.5,"y":90.0,"z":248.5,"yaw":0.0,"pitch":20.5}
+{"n":4,"act":{}}
+{"cmd":"dev","op":"setblock","x":177,"y":90,"z":251,"id":51,"meta":0,"mode":"replace"}
+{"n":1,"act":{"press":["use"]}}
+{"n":3,"act":{}}
+{"n":20,"act":{"hold":["back"]}}
+{"n":120,"act":{}}
+{"n":500,"act":{}}

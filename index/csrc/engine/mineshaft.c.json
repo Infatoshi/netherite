@@ -1,0 +1,25 @@
+{
+ "path": "csrc/engine/mineshaft.c",
+ "lines": 422,
+ "role": "The mineshaft layout half: MapGenMineshaft's spawn test (0.004 chance and the distance roll) and StructureMineshaftStart, plus the four StructureMineshaftPieces kinds' constructors, findValidPlacement tests and buildComponent recursion (corridor, crossing, room, stairs), registered as structure_mineshaft in the shared structure layer.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/MapGenMineshaft.java", "members": ["field_82673_e", "func_143025_a", "canSpawnStructureAtCoords", "getStructureStart"]},
+  {"path": "oracle/src/world/gen/structure/StructureMineshaftStart.java", "members": ["StructureMineshaftStart"]},
+  {"path": "oracle/src/world/gen/structure/StructureMineshaftPieces.java", "members": ["getRandomComponent", "getNextMineShaftComponent", "Corridor", "Corridor.findValidPlacement", "Corridor.buildComponent", "hasRails", "hasSpiders", "spawnerPlaced", "sectionCount", "Cross", "Cross.findValidPlacement", "Cross.buildComponent", "corridorDirection", "isMultipleFloors", "Room", "Room.buildComponent", "roomsLinkedToTheRoom", "Stairs", "Stairs.findValidPlacement", "Stairs.buildComponent"]}
+ ],
+ "structs": [
+  {"name": "structure_mineshaft (struct structure_type)", "java": "MapGenMineshaft: name, canSpawnStructureAtCoords, getStructureStart", "fields": []}
+ ],
+ "entry_points": ["mineshaft_build_component", "structure_mineshaft"],
+ "tick_path": true,
+ "gpu": [
+  "line 20, function piece_new: calloc of every piece struct during structure start generation",
+  "line 34, function room_add_entrance: realloc-grown array of entrance boxes per room (roomsLinkedToTheRoom)",
+  "lines 168-181, function next_piece: mutual recursion with piece_build_component (structure.c) through corridor_build, crossing_build, room_build and stairs_build; bounded by the depth > 8 test (line 171) and the 80-block radius test (line 172)",
+  "lines 103, 125 and 143, functions corridor_find, crossing_find and stairs_find: start_find_intersecting scans the start's piece list, so placement depends on list insertion order (Java's List order, preserved)",
+  "pieces are linked into struct start (structure.c) as pointers: a pointer graph the GPU cannot mirror as is"
+ ],
+ "tests": ["csrc/tests/test_structures.c", "csrc/tests/test_sblocks.c", "csrc/tests/test_populate.c"],
+ "notes": "Piece NBT (func_143012_a, func_143011_b) is not in this file. Generation runs when the tick generates or populates a chunk. Line numbers are file lines. test_spawning.c also mentions mineshafts (not verified what it checks)."
+}

@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenSavanna.java",
+  "classes": ["BiomeGenSavanna", "BiomeGenSavanna.Mutated"],
+  "lines": 91,
+  "side": "common",
+  "category": "worldgen",
+  "role": "Savanna (35), Savanna Plateau (36) and their shattered mutations (163, 164): acacia-heavy tree choice, seven double-plant grass patches before the decorator, and a stone/coarse-dirt surface on the mutations.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions). The horse spawn row is switched off (world.conf horses = off).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of", "place_tree", "TR_SAVANNA", "savanna_pre", "shape_of"]},
+    {"file": "csrc/engine/surface.c", "symbols": ["column", "SURF_SAVANNA_M"]},
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES"]}
+  ],
+  "evidence": ["csrc/tests/test_populate.c", "csrc/tests/test_worldgen.c", "out/java/populate", "out/java/chunks"],
+  "members": [
+    {"kind": "field", "name": "field_150627_aC", "sig": "static WorldGenSavannaTree", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "feature_savanna"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id (both classes)"},
+    {"kind": "ctor", "name": "BiomeGenSavanna", "sig": "(int)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "trees 1, flowers 4, grass 20; horse row off by world.conf"},
+    {"kind": "method", "name": "func_150567_a", "sig": "(Random)WorldGenAbstractTree", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "TR_SAVANNA"},
+    {"kind": "method", "name": "func_150566_k", "sig": "()BiomeGenBase", "native": "csrc/engine/biomes.h:BIOMES", "status": "exact", "note": "rows 163, 164 with the rescaled temperature and heights"},
+    {"kind": "method", "name": "decorate", "sig": "(World,Random,int,int)V", "native": "csrc/engine/decorator.c:savanna_pre", "status": "exact"},
+    {"kind": "ctor", "name": "Mutated", "sig": "(int,BiomeGenBase)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "case 163/164: trees 2, flowers 2, grass 5"},
+    {"kind": "method", "name": "Mutated.func_150573_a", "sig": "(World,Random,Block[],byte[],int,int,double)V", "native": "csrc/engine/surface.c:column", "status": "exact", "note": "SURF_SAVANNA_M"},
+    {"kind": "method", "name": "Mutated.decorate", "sig": "(World,Random,int,int)V", "native": "csrc/engine/decorator.c:decorator_decorate", "status": "exact", "note": "body only (shape_of default), tree choice delegated to the base"}
+  ],
+  "missing": [],
+  "notes": ""
+}

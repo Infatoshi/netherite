@@ -1,0 +1,27 @@
+{
+ "path": "csrc/engine/phase.c",
+ "lines": 844,
+ "role": "The phase table (each phase's Java, C function, read and write classes) and the tracer: per class a digest (world scalars, World.rand, Det, the chunks a phase wrote plus the chunk maps and cl_digest, the pending set as a set, the entity pass by NBT, tile entities by NBT, the write record, villages and portal caches, the server player, the tracker, the client), the per-row trace line, and the check that fails a phase changing a class it does not declare.",
+ "layer": "test",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "PHASES",
+  "PHASE_CLASS_NAMES",
+  "phase_begin_",
+  "phase_end_",
+  "phase_row_begin_",
+  "phase_row_end_",
+  "phase_trace_start",
+  "phase_trace_summary"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "harness only: runs when a test turns the tracer on; allocates (the written-chunk list, te_render, NBT trees) and walks every chunk slot per phase, which is why it stays out of the tick when off"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_interleave.c"
+ ],
+ "notes": "make -C csrc phase-check runs --phase-check over every snapshot recording; the observed write matrix over all 225 is in DEVLOG (2026-09-26, lane/gpuphase). Not hashed: particles and other client cosmetics, the survival module's dig machine, the spawner's per-tick scratch, the region store's contents beyond its count and write sequence. The profiler (phaseprof.c) is called from phase_begin_/phase_end_ and the row marks when PHASE_PROF is on; it times the phase without the tracer's digests, and test_snapshots refuses both at once. lane/gpuharness: phase_begin_ and phase_end_ call the kernel harness's hook for the phases in kernel_mask. lane/envmem: k_blocks and k_pending count the store's spilled chunks and tick entries with the in-memory ones, so a digest does not depend on the spill."
+}

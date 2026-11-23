@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/FortressSpawnProbe.java",
+ "lines": 182,
+ "role": "Nether monster spawn-list probe: loads the Nether spawn area as SpawnDumpDim does, then over a grid around each fortress start records which list ChunkProviderServer.getPossibleCreatures returns (hell biome, fortress by hasStructureAt, fortress by func_142038_b) and the block below.",
+ "kind": "probe",
+ "used_by": [
+  "oracle/Makefile run target (make run CLASS=FortressSpawnProbe), dispatched by Oracle.java's {\"cmd\":\"run\",\"class\":...}",
+  "csrc/tests/test_fortress_spawn.c (out/java/fortress_spawn/fs-2, fs-42), checking csrc/engine/spawning.c's hell list"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

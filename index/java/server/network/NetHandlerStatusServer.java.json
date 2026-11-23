@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/server/network/NetHandlerStatusServer.java",
+  "classes": ["NetHandlerStatusServer"],
+  "lines": 58,
+  "side": "server",
+  "category": "network",
+  "role": "Answers the multiplayer server-list ping: S00 server info on a query and S01 pong on a ping.",
+  "scope": "not_needed",
+  "scope_reason": "The status protocol is only reached by a multiplayer server-list ping; the single-player integrated server never enters it.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_147314_a", "sig": "MinecraftServer", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_147313_b", "sig": "NetworkManager", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "NetHandlerStatusServer", "sig": "(MinecraftServer,NetworkManager)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onDisconnect", "sig": "(IChatComponent)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onConnectionStateTransition", "sig": "(EnumConnectionState,EnumConnectionState)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onNetworkTick", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processServerQuery", "sig": "(C00PacketServerQuery)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processPing", "sig": "(C01PacketPing)V", "native": null, "status": "n/a"}
+  ],
+  "missing": []
+}

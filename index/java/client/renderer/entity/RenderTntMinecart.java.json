@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderTntMinecart.java",
+  "classes": ["RenderTntMinecart"],
+  "lines": 60,
+  "side": "client",
+  "category": "client_render",
+  "role": "Minecart renderer for the TNT cart: the fuse-driven scale pulse and the flashing TNT overlay while the fuse burns.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has minecarts = off: carts cannot be placed and no mineshaft cart is spawned, so EntityMinecartTNT never exists in the game both sides run.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "func_147910_a", "sig": "(EntityMinecartTNT,float,Block,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_147910_a", "sig": "(EntityMinecart,float,Block,int)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

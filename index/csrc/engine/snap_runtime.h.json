@@ -1,0 +1,17 @@
+{
+ "path": "csrc/engine/snap_runtime.h",
+ "lines": 17,
+ "role": "Declares the snapshot runtime loader (snap_runtime.c).",
+ "layer": "io",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "sr_apply_runtime",
+  "sr_runtime_player_stamp"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ]
+}

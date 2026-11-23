@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/util/RegistryNamespacedDefaultedByKey.java",
+  "classes": ["RegistryNamespacedDefaultedByKey"],
+  "lines": 46,
+  "side": "common",
+  "category": "util",
+  "role": "RegistryNamespaced plus a default object stored under a fixed key; Block's registry uses it so a missing name reads back air.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/activate.c", "symbols": ["block_named"]}
+  ],
+  "evidence": ["csrc/tests/test_registry.c"],
+  "members": [
+    {"kind": "field", "name": "field_148760_d", "sig": "String", "native": null, "status": "n/a", "note": "the default key is fixed at table-generation time; the native tables hold air at id 0"},
+    {"kind": "field", "name": "field_148761_e", "sig": "Object", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "RegistryNamespacedDefaultedByKey", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "addObject", "sig": "(int,String,Object)V", "native": null, "status": "n/a", "note": "generated tables, no runtime registration; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getObject", "sig": "(String)Object", "native": "csrc/engine/activate.c:block_named", "status": "partial", "note": "call sites that must read air for a missing name check the lookup result themselves"},
+    {"kind": "method", "name": "getObjectForID", "sig": "(I)Object", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial"}
+  ],
+  "missing": [],
+  "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): runtime registry replaced by the generated blocks.h/items.h tables; nothing registers at runtime. Formerly listed as missing: The defaulted read has no shared native function: out-of-range and unknown-name reads return air (id 0) by construction of the generated tables, checked per call site."
+}

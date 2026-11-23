@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/util/Facing.java",
+  "classes": ["Facing"],
+  "lines": 26,
+  "side": "common",
+  "category": "util",
+  "role": "Static per-side tables: the opposite side of each of the six faces and the x/y/z offsets each face points to.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.c", "symbols": ["FACE_X", "FACE_Y", "FACE_Z"]},
+    {"file": "csrc/engine/place.c", "symbols": ["FACING_OPPOSITE_SIDE"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "out/java/snapshots/screens-pickaxe-s1",
+    "out/java/snapshots/rc-blocks-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "oppositeSide", "sig": "int[] (static)", "native": "csrc/engine/place.c:FACING_OPPOSITE_SIDE", "status": "exact"},
+    {"kind": "field", "name": "offsetsXForSide", "sig": "int[] (static)", "native": "csrc/engine/world.c:FACE_X", "status": "exact"},
+    {"kind": "field", "name": "offsetsYForSide", "sig": "int[] (static)", "native": "csrc/engine/world.c:FACE_Y", "status": "exact"},
+    {"kind": "field", "name": "offsetsZForSide", "sig": "int[] (static)", "native": "csrc/engine/world.c:FACE_Z", "status": "exact"},
+    {"kind": "field", "name": "facings", "sig": "String[] (static)", "native": null, "status": "n/a", "note": "display names only"},
+    {"kind": "ctor", "name": "Facing", "sig": "()V", "native": null, "status": "n/a", "note": "a holder of static members: oracle/src has no `new Facing(` anywhere, so the implicit ctor never runs"}
+  ],
+  "missing": [],
+  "notes": "world.c's FACE_X/FACE_Y/FACE_Z and place.c's FACING_OPPOSITE_SIDE are the tables verbatim; world.c cites Facing.offsetsXForSide in its comment."
+}

@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/entity/ai/attributes/BaseAttribute.java",
+  "classes": ["BaseAttribute"],
+  "lines": 46,
+  "side": "server",
+  "category": "ai",
+  "role": "Abstract base of the named, default-valued attribute definitions (maxHealth, movementSpeed, ...); RangedAttribute extends it with bounds.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.c", "symbols": ["ATTR_NAME", "ATTR_DEFAULT", "attrs_init"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/auditfix-attr-s1",
+    "csrc/tests/test_lightning.c",
+    "csrc/tests/test_hostiles.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "unlocalizedName", "sig": "String", "native": "csrc/engine/living.c:ATTR_NAME", "status": "exact", "note": "the six attributes' unlocalized names are a fixed const table"},
+    {"kind": "field", "name": "defaultValue", "sig": "double", "native": "csrc/engine/living.c:ATTR_DEFAULT", "status": "exact"},
+    {"kind": "field", "name": "shouldWatch", "sig": "boolean", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "__OBFID", "sig": "static final String (obfuscation id, grouped)", "native": null, "status": "n/a", "note": "decompiler artifact"},
+    {"kind": "ctor", "name": "BaseAttribute", "sig": "(String,double)V", "native": "csrc/engine/living.c:attrs_init", "status": "partial", "note": "no dynamic construction: the six attributes are fixed enum entries whose base and cache are seeded from ATTR_DEFAULT at attrs_init"},
+    {"kind": "method", "name": "getAttributeUnlocalizedName", "sig": "()String", "native": "csrc/engine/living.c:ATTR_NAME", "status": "exact"},
+    {"kind": "method", "name": "getDefaultValue", "sig": "()double", "native": "csrc/engine/living.c:ATTR_DEFAULT", "status": "exact"},
+    {"kind": "method", "name": "getShouldWatch", "sig": "()boolean", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "setShouldWatch", "sig": "(boolean)BaseAttribute", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "hashCode", "sig": "()int", "native": null, "status": "n/a", "note": "name-keyed hashing has no native counterpart; attributes are identified by enum index; not a gap (triage 2026-09-25)"}
+  ],
+  "missing": [],
+  "notes": "Attribute names and defaults live as the ATTR_NAME/ATTR_DEFAULT/ATTR_MIN/ATTR_MAXV const tables at the top of living.c (lines 111-115). Verified against the shared instructions' grep list; no symbol named after this class exists in native. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers; watched-attribute sync is folded into player.c. Formerly listed as missing: the shouldWatch flag and its getShouldWatch/setShouldWatch accessors have no native counterpart: the client never receives attribute sync packets, the sprint speed quirk is hardcoded client-side in player.c."
+}

@@ -1,0 +1,17 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":153,"y0":85,"z0":240,"x1":170,"y1":89,"z1":258,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":153,"y0":90,"z0":240,"x1":170,"y1":96,"z1":258,"id":0,"meta":0}
+{"cmd":"dev","op":"fill","x0":160,"y0":88,"z0":250,"x1":161,"y1":89,"z1":251,"id":0,"meta":0}
+{"cmd":"dev","op":"tp","x":161.0,"y":90.0,"z":249.5,"yaw":0.0,"pitch":30.0}
+{"cmd":"dev","op":"state","health":20.0,"food":20,"saturation":5.0}
+{"cmd":"dev","op":"slot","slot":0,"item":267,"count":1}
+{"n":4,"act":{"hotbar":0}}
+{"cmd":"dev","op":"summon","name":"IronGolem","x":161.0,"y":88.0,"z":251.0}
+{"n":4,"act":{}}
+{"n":1,"act":{"aim":{"cls":"EntityIronGolem","range":4},"press":["attack"]}}
+{"n":12,"act":{}}
+{"n":1,"act":{"aim":{"cls":"EntityIronGolem","range":4},"press":["attack"]}}
+{"n":60,"act":{}}
+{"cmd":"run","class":"Snapshot","sub":"end"}

@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/network/login/client/C00PacketLoginStart.java",
+  "classes": ["C00PacketLoginStart"],
+  "lines": 53,
+  "side": "client",
+  "category": "network",
+  "role": "The login phase's first packet: the username as a GameProfile with a null uuid (offline mode fills it in on the server).",
+  "scope": "not_needed",
+  "scope_reason": "Login-phase plumbing. The oracle runs in offline mode with a fixed player name, so this packet decides nothing, and the native engine starts from the oracle snapshot rather than a login sequence.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149305_a", "sig": "GameProfile", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "C00PacketLoginStart", "sig": "(GameProfile)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerLoginServer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149304_c", "sig": "()GameProfile", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

@@ -1,0 +1,82 @@
+{
+ "path": "oracle/src/client/gui/GuiDisconnected.java",
+ "classes": [
+  "GuiDisconnected"
+ ],
+ "lines": 66,
+ "side": "client",
+ "category": "client_gui",
+ "role": "The kick/disconnect screen: the reason text wrapped to the width and the Back to menu button.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Disconnect presentation; the product's client runs against the local integrated server and no recording shows this screen.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_146306_a",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146304_f",
+   "sig": "IChatComponent",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146305_g",
+   "sig": "List",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146307_h",
+   "sig": "GuiScreen",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiDisconnected",
+   "sig": "(GuiScreen,String,IChatComponent)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "keyTyped",
+   "sig": "(char,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "initGui",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "actionPerformed",
+   "sig": "(GuiButton)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "drawScreen",
+   "sig": "(int,int,float)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

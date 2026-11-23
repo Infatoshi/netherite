@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/FeatureProbe.java",
+ "lines": 651,
+ "role": "Population feature probe: over a raw region (no populateChunk), each case draws a config, position and seed and runs one worldgen feature's generate, recording its block writes in order through Rows.onBlock plus the 3x3 FNV hash, so a native port must write the same blocks in the same order.",
+ "kind": "probe",
+ "used_by": [
+  "Probe.java kind=feature (make probe-style run with {\"kind\":\"feature\"})",
+  "csrc/tests/test_feature.c (out/java/probes/fe-*: minable, trees, lakes, springs, plants, dungeons, nether and end features on seeds 2 and 42)",
+  "csrc/engine/features.h mirrors its FEATURES table one for one"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Row tables are split across FeatureProbeTrees, FeatureProbeDungeons, FeatureProbeLakes, FeatureProbeNether and FeatureProbePlants. Output manifest.json, cases.bin, writes.bin, final.bin.gz (plus tileentities.bin and entity reports for some rows). No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

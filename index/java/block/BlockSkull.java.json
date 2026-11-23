@@ -1,0 +1,242 @@
+{
+  "path": "oracle/src/block/BlockSkull.java",
+  "classes": [
+    "BlockSkull"
+  ],
+  "lines": 331,
+  "side": "common",
+  "category": "block",
+  "role": "The skull block: a tile-entity block placed by ItemSkull, whose type lives in TileEntitySkull; breaking drops one skull item of that type, and the wither skeleton arrangement builds a wither.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_dispatch",
+        "drops_skull_break_stream"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "item_skull_on_item_use"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "te_new",
+        "render_skull"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_pool_box",
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/dig.c",
+      "symbols": [
+        "skull_drops"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/liq-wash-s1",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/render/te_skulls_left"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockSkull",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "id 144 static properties (Material.circuits, bounds, opacity, flags) in the generated table; the constructor itself has no body to port"
+    },
+    {
+      "kind": "field",
+      "name": "__OBFID",
+      "sig": "static final String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "render_type -1: no block render, the tile entity renderer draws it"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_pool_box",
+      "status": "exact",
+      "note": "setBlockBoundsBasedOnState's per-facing box (collide.c:skull_bounds) for both the pool box and addCollisionBoxesToList. details-blocks-s1 walks into a wall skull and steps up onto a floor skull."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/item/ItemStack;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Never reached in survival: ItemSkull.onItemUse places the skull with setBlock and writes the rotation to the tile entity itself (place.c:item_skull_on_item_use); nothing calls BlockSkull.onBlockPlacedBy."
+    },
+    {
+      "kind": "method",
+      "name": "createNewTileEntity",
+      "sig": "(Lnet/minecraft/world/World;II)Lnet/minecraft/tileentity/TileEntity;",
+      "native": "csrc/engine/tileentity.c:te_new",
+      "status": "exact",
+      "note": "TE_SKULL kind, skull_type/skull_rot fields"
+    },
+    {
+      "kind": "method",
+      "name": "getItem",
+      "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/item/Item;",
+      "native": "csrc/engine/pickblock.c:block_get_item",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "getDamageValue",
+      "sig": "(Lnet/minecraft/world/World;III)I",
+      "native": "csrc/engine/pickblock.c:block_get_damage",
+      "status": "exact",
+      "note": "The tile entity's type; pick block (Minecraft.func_147112_ai) reads it here, and dig.c:skull_drops reads the same type for the drop."
+    },
+    {
+      "kind": "method",
+      "name": "damageDropped",
+      "sig": "(I)I",
+      "native": "csrc/engine/dig.c:skull_drops",
+      "status": "n/a",
+      "note": "BlockSkull overrides dropBlockAsItemWithChance empty and getDamageValue (the tile entity's type); falling blocks are only sand, gravel, the anvil and the dragon egg"
+    },
+    {
+      "kind": "method",
+      "name": "dropBlockAsItemWithChance",
+      "sig": "(Lnet/minecraft/world/World;IIIFII)V",
+      "native": "csrc/engine/drops.c:drops_dispatch",
+      "status": "exact",
+      "note": "case 144: the override is empty, no drop on ordinary breaking"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockHarvested",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/player/EntityPlayer;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Its body acts only in creative mode (bit 8 suppresses the drop); survival play never sets it."
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;I)V",
+      "native": "csrc/engine/dig.c:skull_drops",
+      "status": "exact",
+      "note": "One skull of the tile entity's type (dig.c:skull_drops). A player head's SkullOwner tag needs a player head, which survival never makes (no player-head drop in 1.7.10). A flow that replaces a skull drops it in features_springs.c:flow_into on the tick's World.rand; the world write's own tail (world.c block_break_tail) leaves the drop to the paths that harvest a skull themselves (liq-wash-s1)."
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+      "native": "csrc/engine/dig.c:skull_drops",
+      "status": "n/a",
+      "note": "BlockSkull overrides dropBlockAsItemWithChance empty; the skull drops from breakBlock through its tile entity"
+    },
+    {
+      "kind": "method",
+      "name": "func_149965_a",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/tileentity/TileEntitySkull;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "wither construction; the netherite.oracle.WorldConf.wither hook at the top returns early because world.conf wither = off"
+    },
+    {
+      "kind": "method",
+      "name": "func_149966_a",
+      "sig": "(Lnet/minecraft/world/World;IIII)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "only called from func_149965_a, which the wither switch disables"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "empty in vanilla; texture bookkeeping"
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)Lnet/minecraft/util/IIcon;",
+      "native": "csrc/engine/raster_tileent.c:render_skull",
+      "status": "exact",
+      "note": "The block icon (soul sand) is never drawn: render type -1, the tile entity renderer draws the skull (render_skull, te_skulls goldens)."
+    },
+    {
+      "kind": "method",
+      "name": "getItemIconName",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "hopper item icon name, client GUI only"
+    }
+  ],
+  "missing": [],
+  "notes": "The func_149965_a body after the WorldConf.wither hook was read but not indexed member by member; the whole wither build is dead under world.conf wither = off (SPEC 'Unsupported features are world switches'). lane/idxblocks: the creative bit and player heads are not survival-reachable."
+}

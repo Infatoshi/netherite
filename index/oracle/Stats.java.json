@@ -1,0 +1,9 @@
+{
+ "path": "oracle/harness/netherite/oracle/Stats.java",
+ "lines": 131,
+ "role": "Dumps the server player's StatisticsFile (the stats/<uuid>.json form with sorted keys and progress, the dirty set, the last-send tick counter and field_150886_g) and the client StatFileWriter mirror: Snapshot writes it as stats.json, {\"cmd\":\"run\",\"class\":\"Stats\"} appends a line to stats.jsonl that test_snapshots compares at its tick.",
+ "kind": "snapshot",
+ "used_by": ["oracle/harness/netherite/oracle/Snapshot.java (stats.json)", "oracle/tests/stats-s1.jsonl, oracle/tests/stats-s1-pre.jsonl", "csrc/tests/test_snapshots.c (surv_stats_load_snapshot, surv_stats_compare)"],
+ "vanilla_hooks": [],
+ "notes": "Read-only: reflection on the private fields, never a Random draw."
+}

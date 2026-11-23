@@ -1,0 +1,14 @@
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":-271,"y0":63,"z0":-151,"x1":-230,"y1":63,"z1":-110,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":-271,"y0":64,"z0":-151,"x1":-230,"y1":76,"z1":-110,"id":0,"meta":0}
+{"cmd":"dev","op":"tp","x":-250.5,"y":64.0,"z":-130.5,"yaw":0.0,"pitch":0.0}
+{"cmd":"dev","op":"give","item":267,"count":1,"meta":0}
+{"cmd":"dev","op":"give","item":274,"count":1,"meta":0}
+{"cmd":"dev","op":"give","item":4,"count":64,"meta":0}
+{"cmd":"dev","op":"give","item":364,"count":16,"meta":0}
+{"cmd":"dev","op":"state","health":20.0,"food":20,"saturation":5.0}
+{"cmd":"dev","op":"time","value":13000}
+{"n":3,"act":{}}
+{"cmd":"dev","op":"summon","name":"Enderman","x":-250.5,"y":64.0,"z":-116.5}
+{"cmd":"dev","op":"summon","name":"Enderman","x":-264.5,"y":64.0,"z":-130.5}
+{"n":3,"act":{}}

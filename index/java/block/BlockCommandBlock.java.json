@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/block/BlockCommandBlock.java",
+  "classes": ["BlockCommandBlock"],
+  "lines": 116,
+  "side": "common",
+  "category": "block",
+  "role": "The command block: a tile-entity block whose GUI edits a command that redstone or its own updateTick triggers; the block itself is unbreakable in survival and drops nothing.",
+  "scope": "not_needed",
+  "scope_reason": "Not obtainable in survival and commands are not part of the game (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/tileentity.c", "symbols": ["te_kind_of_block", "TE_COMMAND_BLOCK", "render_command_block"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_client_base_tick"]}
+  ],
+  "evidence": ["csrc/tests/test_registry.c", "csrc/tests/test_drops.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockCommandBlock", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 137: unbreakable hardness."},
+    {"kind": "method", "name": "createNewTileEntity", "sig": "(World,I)TileEntity", "native": "csrc/engine/tileentity.c:te_kind_of_block", "status": "exact", "note": "tileentity.c:236 maps 137 to TE_COMMAND_BLOCK; the NBT carries SuccessCount and TrackOutput defaults (tileentity.c:765)."},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": null, "status": "missing", "note": "The redstone-triggered run; redstone off."},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": null, "status": "missing", "note": "The powered re-trigger; redstone off."},
+    {"kind": "method", "name": "func_149738_a", "sig": "(World)I", "native": null, "status": "missing", "note": "The tick-rate override; nothing schedules it."},
+    {"kind": "method", "name": "onBlockActivated", "sig": "(World,IIIIIIIFFF)Z", "native": null, "status": "missing", "note": "Opens the command-editing GUI; no GUI exists (survival.c:4946 answers the client half as true only)."},
+    {"kind": "method", "name": "hasComparatorInputOverride", "sig": "()Z", "native": null, "status": "missing", "note": "The SuccessCount comparator output; redstone off."},
+    {"kind": "method", "name": "getComparatorInputOverride", "sig": "(World,IIII)I", "native": null, "status": "missing"},
+    {"kind": "method", "name": "onBlockPlacedBy", "sig": "(World,IIIIEntityLivingBaseItemStack)V", "native": null, "status": "missing", "note": "The CommandBlockLogic name transfer; no naming is ported."},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Random)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "0, drops.c:329."}
+  ],
+  "missing": [
+    "The command execution machine (CommandBlockLogic.func_145755_a: parse, run, SuccessCount) has no native counterpart; commands are not used in this game.",
+    "BlockCommandBlock.onBlockActivated's GUI and onBlockPlacedBy's name transfer are not ported.",
+    "The redstone trigger (onNeighborBlockChange, updateTick, func_149738_a) is not ported: world.conf redstone = off."
+  ],
+  "notes": "Scope is in_scope because the block, its registry entry and its tile entity all exist and are serialized; the dead parts are named above. The client-side activation answer (survival.c:4946) matches vanilla's isRemote branch."
+}

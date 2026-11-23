@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderFish.java",
+  "classes": ["RenderFish"],
+  "lines": 127,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders the fishing bobber (EntityFishHook) and the fishing line drawn from the bobber back to the player's rod.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has fishing = off: EntityFishHook is never created, so this renderer is unreachable in the game both sides run.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_110792_a", "sig": "ResourceLocation (static, textures/particle/particles.png)", "native": null, "status": "n/a", "note": "static constant, grouped"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityFishHook,double,double,double,float,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityFishHook)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "No native counterpart sought: the fishing switch keeps the entity out of the game. The line rendering lives in doRender's Tessellator path."
+}

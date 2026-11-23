@@ -1,0 +1,47 @@
+{
+ "path": "oracle/src/client/gui/GuiPlayerInfo.java",
+ "classes": [
+  "GuiPlayerInfo"
+ ],
+ "lines": 20,
+ "side": "client",
+ "category": "client_gui",
+ "role": "One TAB player-list entry: the name, its lowercase form and the response time.",
+ "scope": "client_cosmetic",
+ "scope_reason": "The TAB player list is not drawn natively (raster_hud.c's header note) and is pure client presentation.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "name",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "nameinLowerCase",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "responseTime",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiPlayerInfo",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

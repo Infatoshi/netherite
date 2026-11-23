@@ -1,0 +1,56 @@
+{
+ "classes": [
+  "EntitySplashFX"
+ ],
+ "lines": 22,
+ "side": "client",
+ "category": "particles",
+ "role": "The splash when a water drop lands: a rain particle with lower gravity and a texture index bump.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "fx_brf",
+    "fx_update",
+    "new_splash",
+    "particles_live_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "particle_quad",
+    "render_scale",
+    "draw_list",
+    "particles_live_from_json"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_rendertick.c",
+  "out/java/rendertick/fx_client"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntitySplashFX",
+   "sig": "(World,double,double,double,double,double,double)",
+   "native": "csrc/engine/particles_live.c:new_splash",
+   "status": "exact",
+   "note": "EntityRainFX's constructor, gravity 0.04, the next texture, and the motion from the arguments when vy is 0 and vx or vz is not"
+  }
+ ],
+ "missing": [],
+ "notes": "Ported in csrc/engine/particles_live.c (constructor new_splash, onUpdate in fx_update, getBrightnessForRender in fx_brf) and drawn by csrc/engine/raster_particles.c (draw_list, render_scale for the scale renderParticle animates). test_rendertick replays each recorded tick natively and compares every FX field bit for bit with the next frame row (lane/particles2). fx_client: 39 splashes from the player's entry into water. lane/idxlast 2026-09-27: proven by the rendertick scene fx_client (seed 1, --particles 0, 143 ticks, 3,923 FX compared field by field against the oracle's dump, test_rendertick); it fails with the class changed (a negative control of 80 mismatches).",
+ "path": "oracle/src/client/particle/EntitySplashFX.java"
+}

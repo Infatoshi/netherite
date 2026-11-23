@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenOcean.java",
+  "classes": ["BiomeGenOcean"],
+  "lines": 26,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The Ocean (0), FrozenOcean (10) and Deep Ocean (24) biome class: no passive mobs, OCEAN temperature category (read by the biome layers), and the base surface pass.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES", "TEMP_OCEAN"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["biome_has_creatures"]},
+    {"file": "csrc/engine/surface.c", "symbols": ["generic"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_spawning.c", "out/java/chunks"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenOcean", "sig": "(int)", "native": "csrc/engine/spawning.c:biome_has_creatures", "status": "exact", "note": "ids 0, 10, 24 have no creature list"},
+    {"kind": "method", "name": "func_150561_m", "sig": "()TempCategory", "native": "csrc/engine/biomes.h:TEMP_OCEAN", "status": "exact", "note": "temp_cat column of BIOMES; read by layers.c"},
+    {"kind": "method", "name": "func_150573_a", "sig": "(World,Random,Block[],byte[],int,int,double)V", "native": "csrc/engine/surface.c:generic", "status": "exact", "note": "plain super call, SURF_GENERIC"}
+  ],
+  "missing": [],
+  "notes": ""
+}

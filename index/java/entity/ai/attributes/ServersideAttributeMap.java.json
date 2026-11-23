@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/entity/ai/attributes/ServersideAttributeMap.java",
+  "classes": ["ServersideAttributeMap"],
+  "lines": 88,
+  "side": "server",
+  "category": "ai",
+  "role": "The server-side attribute map: registers ModifiableAttributeInstances, indexes them also by RangedAttribute description, and collects the watchable instances the client is told about.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.c", "symbols": ["attrs_init", "attrs_get"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["cp_restore_living"]},
+    {"file": "csrc/engine/entity_nbt.c", "symbols": ["player_attributes"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/auditfix-attr-s1",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_hostiles.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "attributeInstanceSet", "sig": "Set (watchable instances)", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "descriptionToAttributeInstanceMap", "sig": "Map (String to ModifiableAttributeInstance, LowerStringMap)", "native": null, "status": "n/a", "note": "the by-name NBT readers hardcode the known Name strings instead; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "__OBFID", "sig": "static final String (obfuscation id, grouped)", "native": null, "status": "n/a", "note": "decompiler artifact"},
+    {"kind": "method", "name": "getAttributeInstance", "sig": "(IAttribute)ModifiableAttributeInstance", "native": "csrc/engine/living.c:attrs_get", "status": "exact", "note": "lookup by enum index"},
+    {"kind": "method", "name": "getAttributeInstanceByName", "sig": "(String)ModifiableAttributeInstance", "native": "csrc/engine/serverreplay.c:cp_restore_living", "status": "partial", "note": "exists only in the NBT load path: cp_restore_living matches the tag's Name strings against the ATTR_NAME table, entity_nbt.c player_attributes the same for the player"},
+    {"kind": "method", "name": "registerAttribute", "sig": "(IAttribute)IAttributeInstance", "native": "csrc/engine/living.c:attrs_init", "status": "partial", "note": "the fixed six attributes are registered once at init, including their defaults; the already-registered IllegalArgumentException is unrepresentable"},
+    {"kind": "method", "name": "addAttributeInstance", "sig": "(ModifiableAttributeInstance)V", "native": null, "status": "n/a", "note": "the getShouldWatch gate and set insertion; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getAttributeInstanceSet", "sig": "()Set", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getWatchedAttributes", "sig": "()Collection", "native": null, "status": "n/a", "note": "no S20 update-attributes packet exists natively; the client hardcodes the sprint speed boost in player.c instead; not a gap (triage 2026-09-25)"}
+  ],
+  "missing": [],
+  "notes": "DEVLOG records the S20 sprint-attribute quirk as a client-side special case (player.c cp_set_sprinting/sp_set_sprinting multiply the base by 1.30000001192092896), which is where the watched movementSpeed attribute would otherwise flow. I did not verify any other watched attribute in this game. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: the watchable-instance machinery (addAttributeInstance, getAttributeInstanceSet, getWatchedAttributes) has no native counterpart: attributes are never synced to the client. the description-keyed lookup (descriptionToAttributeInstanceMap) does not exist; potion.c and the NBT readers target the enum entries or hardcode the Name strings."
+}

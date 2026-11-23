@@ -1,0 +1,198 @@
+{
+ "classes": [
+  "EffectRenderer"
+ ],
+ "lines": 299,
+ "side": "client",
+ "category": "particles",
+ "role": "The client's particle manager: four per-layer lists of EntityFX, ticked in updateEffects and drawn by renderParticles (layers 0-2) and renderLitParticles (layer 3); also spawns the block dig and break particles.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "fx_add",
+    "fx_slot",
+    "particles_live_tick",
+    "particles_live_destroy",
+    "particles_live_hit",
+    "particles_live_init"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "draw_list",
+    "raster_particles_scene",
+    "raster_particles_draw_live"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_rendertick.c",
+  "out/java/dig/r2",
+  "out/java/render/particles_dig",
+  "out/java/render/particles_tnt",
+  "out/java/render/particles_tnt_t90",
+  "out/java/render/particles_tnt_t99",
+  "out/java/rendertick/fx_crit",
+  "out/java/rendertick/fx_explode",
+  "out/java/rendertick/fx_rain",
+  "out/java/snapshots/surv2-tnt-s1",
+  "out/java/rendertick/fx_client",
+  "out/java/rendertick/fx_redstone",
+  "out/java/clientframes/cr-pickup-s1",
+  "out/java/clientframes/cov-fx-s1",
+  "out/java/snapshots/pfc-hitfx-s7"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "particleTextures",
+   "sig": "ResourceLocation",
+   "native": null,
+   "status": "n/a",
+   "note": "the sheets load from the scene dir in raster_particles.c:layer_texture"
+  },
+  {
+   "kind": "field",
+   "name": "worldObj",
+   "sig": "World",
+   "native": "csrc/engine/particles_live.c:particles_live_init",
+   "status": "exact",
+   "note": "struct particles_live.world"
+  },
+  {
+   "kind": "field",
+   "name": "fxLayers",
+   "sig": "List[4]",
+   "native": "csrc/engine/particles_live.c:particles_live_init",
+   "status": "exact",
+   "note": "one flat array in insertion order with each FX's getFXLayer: updateEffects walks it once a layer, which visits every layer's FX in its own list order and reaches FX added during the pass, as the four ArrayLists do; addEffect drops a layer's oldest past 4000 (fx_add, PLIVE_LAYER_CAP)"
+  },
+  {
+   "kind": "field",
+   "name": "renderer",
+   "sig": "TextureManager",
+   "native": null,
+   "status": "n/a",
+   "note": "texture binding is folded into the raster pass"
+  },
+  {
+   "kind": "field",
+   "name": "rand",
+   "sig": "Random",
+   "native": "csrc/engine/particles_live.c:particles_live_init",
+   "status": "exact",
+   "note": "under Det's client consumer pin (SPEC Pins, every oracle run since lane/clientrand) EffectRenderer.rand is its own stream reseeded per client tick (DET_PIN_EFFECT, particles_live.c effect_rng); only pre-pin recordings see the local constant seed"
+  },
+  {
+   "kind": "ctor",
+   "name": "EffectRenderer",
+   "sig": "(World,TextureManager)",
+   "native": "csrc/engine/particles_live.c:particles_live_init",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addEffect",
+   "sig": "(EntityFX)V",
+   "native": "csrc/engine/particles_live.c:fx_add",
+   "status": "exact",
+   "note": "push to the flat array with drop-oldest on overflow; the 4000-per-layer cap is not mirrored (fixed 4096 total)"
+  },
+  {
+   "kind": "method",
+   "name": "updateEffects",
+   "sig": "()V",
+   "native": "csrc/engine/particles_live.c:particles_live_tick",
+   "status": "exact",
+   "note": "tick then remove-dead pass, same order; crash-report machinery dropped"
+  },
+  {
+   "kind": "method",
+   "name": "renderParticles",
+   "sig": "(Entity,F)V",
+   "native": "csrc/engine/raster_particles.c:draw_list",
+   "status": "exact",
+   "note": "live layers 0-2; the recorded-scene twin is raster_particles_scene"
+  },
+  {
+   "kind": "method",
+   "name": "renderLitParticles",
+   "sig": "(Entity,F)V",
+   "native": "csrc/engine/raster_particles.c:draw_list",
+   "status": "exact",
+   "note": "layer 3 with the yaw/pitch basis; also in raster_particles_draw_live"
+  },
+  {
+   "kind": "method",
+   "name": "clearEffects",
+   "sig": "(World)V",
+   "native": "csrc/engine/particles_live.c:particles_live_init",
+   "status": "exact",
+   "note": "survival.c's surv_fx_ensure re-inits (memset) on a respawn's world switch"
+  },
+  {
+   "kind": "method",
+   "name": "func_147215_a",
+   "sig": "(int,int,int,Block,int)V",
+   "native": "csrc/engine/particles_live.c:particles_live_destroy",
+   "status": "exact",
+   "note": "the 4x4x4 destroy burst"
+  },
+  {
+   "kind": "method",
+   "name": "addBlockHitEffects",
+   "sig": "(int,int,int,int)V",
+   "native": "csrc/engine/particles_live.c:particles_live_hit",
+   "status": "exact",
+   "note": "statement-for-statement, but the three rand.nextDouble positions draw from the locally seeded effect_rand; the position is double arithmetic over (double)0.1F and the Block's double bound fields; the double 0.1 left a particle 1.5e-9 past the face it was spawned from, so it missed that face's collision (particles_live.c particles_live_hit, pfc-hitfx-s7)"
+  },
+  {
+   "kind": "method",
+   "name": "getStatistics",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "the F3 debug screen's text only (Minecraft.debugInfoRenders), behind !Oracle.cleanHud(), true in every oracle and play run"
+  },
+  {
+   "kind": "method",
+   "name": "EffectRenderer$1",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (EffectRenderer.updateEffects and renderParticles, when a particle throws) (lane/covclient)"
+  },
+  {
+   "kind": "method",
+   "name": "EffectRenderer$2",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (EffectRenderer.updateEffects and renderParticles, when a particle throws) (lane/covclient)"
+  },
+  {
+   "kind": "method",
+   "name": "EffectRenderer$3",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (EffectRenderer.updateEffects and renderParticles, when a particle throws) (lane/covclient)"
+  },
+  {
+   "kind": "method",
+   "name": "EffectRenderer$4",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (EffectRenderer.updateEffects and renderParticles, when a particle throws) (lane/covclient)"
+  }
+ ],
+ "missing": [],
+ "notes": "Verified against the four gated particle scenes: particles_dig, particles_tnt, particles_tnt_t90, particles_tnt_t99 (budgets in csrc/tests/render_budget.txt). The dig scene carries only EntityDiggingFX, the TNT scenes only EntityHugeExplodeFX and EntityLargeExplodeFX. lane/particles2: one array in insertion order with a per-FX layer; updateEffects walks it once per layer, which reaches FX added during the pass the way the four ArrayLists do; addEffect drops a layer's oldest past 4000. renderParticles/renderLitParticles use MathHelper's sin table for the billboard basis. lane/idxlast 2026-09-27: the missing entries were stale or closed: RenderGlobal.doSpawnParticle builds every reachable name natively (note, heart, angryVillager, mobSpell, mobSpellAmbient, witchMagic, snowballpoof and slime added here; cloud and footstep have no spawner in 1.7.10, snowshovel, fireworksSpark and wake are switched off); the blockdust and blockcrack flows exist (new_block_fx); the rand is pinned; fx_client and fx_redstone compare the lists field by field.",
+ "path": "oracle/src/client/particle/EffectRenderer.java"
+}

@@ -1,0 +1,83 @@
+{
+ "classes": [
+  "EntityHeartFX"
+ ],
+ "lines": 81,
+ "side": "client",
+ "category": "particles",
+ "role": "The breeding or healing heart: grows over 16 ticks.",
+ "scope": "in_scope",
+ "scope_reason": "In scope like the other particle classes: 'heart' (animals in love and breeding, EntityAnimal.java:129/191/433) and 'angryVillager' (EntityVillager.java:663) build it on the client at the All and Decreased particle settings, each construction spending client draws.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "new_heart",
+    "fx_update",
+    "particles_live_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "render_scale"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/rendertick/fx_client",
+  "csrc/tests/test_rendertick.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  },
+  {
+   "kind": "field",
+   "name": "particleScaleOverTime",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.h:base_scale",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityHeartFX",
+   "sig": "(World,DDDDDD)V",
+   "native": "csrc/engine/particles_live.c:new_heart",
+   "status": "exact",
+   "note": "the 2.0 scale form"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityHeartFX",
+   "sig": "(World,DDDDDD,F)V",
+   "native": "csrc/engine/particles_live.c:new_heart",
+   "status": "exact",
+   "note": "EntityFX(x,y,z,0,0,0), motion x0.01 and +0.1 up, scale 0.75 x 2, sixteen ticks, texture 80; \"angryVillager\" is the same at y + 0.5 with texture 81 and white"
+  },
+  {
+   "kind": "method",
+   "name": "renderParticle",
+   "sig": "(Tessellator,FFFFFF)V",
+   "native": "csrc/engine/raster_particles.c:render_scale",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/particles_live.c:fx_update",
+   "status": "exact",
+   "note": "PLIVE_HEART: x0.86 a tick"
+  }
+ ],
+ "missing": [],
+ "notes": "No behavior is ported. The scene renderer csrc/engine/raster_particles.c draws whatever class names the recorded state dump lists (base quads or icon quads), so a dump containing this class would render, but nothing constructs or ticks it natively. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). fx_client feeds a cow (its client copy's seven hearts, S1A status 18). The angryVillager branch (status 13 needs a villager in a village) is proven only through the shared constructor; its two extra lines (y + 0.5, texture 81) are read from RenderGlobal.doSpawnParticle. lane/idxlast 2026-09-27: proven by the rendertick scene fx_client (seed 1, --particles 0, 143 ticks, 3,923 FX compared field by field against the oracle's dump, test_rendertick); it fails with the class changed (a negative control of 80 mismatches).",
+ "path": "oracle/src/client/particle/EntityHeartFX.java"
+}

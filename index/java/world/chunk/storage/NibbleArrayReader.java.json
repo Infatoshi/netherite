@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/world/chunk/storage/NibbleArrayReader.java",
+  "classes": ["NibbleArrayReader"],
+  "lines": 24,
+  "side": "server",
+  "category": "chunk",
+  "role": "A read-only nibble array in the old McRegion layout (x << 11 | z << 7 | y), used only by ChunkLoader when converting pre-Anvil saves.",
+  "scope": "not_needed",
+  "scope_reason": "Only reached by the McRegion to Anvil save converter (ChunkLoader, AnvilSaveConverter); every world here is created fresh in the Anvil format.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "data", "sig": "byte[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "depthBits", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "depthBitsPlusFour", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "NibbleArrayReader", "sig": "(byte[],int)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "get", "sig": "(int,int,int)I", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": ""
+}

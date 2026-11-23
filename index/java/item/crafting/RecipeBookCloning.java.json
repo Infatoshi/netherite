@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/item/crafting/RecipeBookCloning.java",
+  "classes": ["RecipeBookCloning"],
+  "lines": 116,
+  "side": "common",
+  "category": "crafting",
+  "role": "Clones a written book: one written book plus N writable books gives N+1 written book copies carrying the original's tag and display name.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/crafting.c", "symbols": ["book_matches", "book_result"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c"],
+  "members": [
+    {"kind": "method", "name": "matches", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;Lnet/minecraft/world/World;)Z", "native": "csrc/engine/crafting.c:book_matches", "status": "exact", "note": "one written book (damage 0 or the tag marks it written) and at least one writable one, nothing else"},
+    {"kind": "method", "name": "getCraftingResult", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/crafting.c:book_result", "status": "n/a", "note": "n/a: matches() needs a written book, which only signing a book and quill makes (book_editing = off); no loot, drop or trade holds one"},
+    {"kind": "method", "name": "getRecipeSize", "sig": "()I", "native": "csrc/engine/crafting.c:book_matches", "status": "exact", "note": "the size-9 constant only mattered to the sort, already baked"},
+    {"kind": "method", "name": "getRecipeOutput", "sig": "()Lnet/minecraft/item/ItemStack;", "native": null, "status": "exact", "note": "returns null in Java until a match sets the field; the native answers none"}
+  ],
+  "missing": [],
+  "notes": "book_editing = off only stops editing a book and quill; cloning a written book is deterministic and stays in scope."
+}

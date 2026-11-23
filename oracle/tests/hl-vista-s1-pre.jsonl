@@ -1,0 +1,5 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"tp","x":270.5,"y":104.0,"z":760.5,"yaw":240.5,"pitch":0.0}
+{"n":200,"act":{}}
+{"cmd":"save","name":"hl-vista-s1"}

@@ -1,0 +1,21 @@
+{
+ "path": "oracle/src/entity/INpc.java",
+ "classes": ["INpc"],
+ "lines": 7,
+ "side": "server",
+ "category": "entity",
+ "role": "Marker interface (extends IAnimals) that marks villager-type NPCs; EntityVillager is its only implementor.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/living.h", "symbols": ["VK_VILLAGER"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/persist-village-full-s42",
+  "csrc/tests/test_villagers.c"
+ ],
+ "members": [],
+ "missing": [],
+ "notes": "Marker with no members. The native engine classifies kinds by integer (VK_VILLAGER in living.h's kind enum) rather than by interface; the IAnimals parent is what EntityTracker's addEntityToTracker dispatches the 80/3 row on, and the native tracker's mob default row covers it. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): interface, marker or abstract base; its behavior lives in the subclasses' ports. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

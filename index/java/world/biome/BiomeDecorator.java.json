@@ -1,0 +1,39 @@
+{
+  "path": "oracle/src/world/biome/BiomeDecorator.java",
+  "classes": ["BiomeDecorator"],
+  "lines": 459,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The per-chunk overworld decoration pass: ores, sand/clay/gravel patches, trees, big mushrooms, flowers, grass, dead bushes, lily pads, mushrooms, reeds, pumpkins, cacti and water/lava springs, with counts set per biome.",
+  "scope": "in_scope",
+  "scope_reason": "All worldgen decoration is vanilla (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/decorator.c", "symbols": ["decorator_decorate", "decorator_body", "ore_band", "ore_lapis", "deco", "deco_of", "get_top_solid", "get_height", "spot_x", "spot_z", "fire_stage", "place_tree", "flower_choice", "grass_choice", "bigtree_state"]},
+    {"file": "csrc/engine/decorator.h", "symbols": ["decorator_decorate"]}
+  ],
+  "evidence": ["csrc/tests/test_populate.c", "out/java/populate"],
+  "members": [
+    {"kind": "field", "name": "currentWorld", "sig": "World", "native": "csrc/engine/decorator.c:decorator_body", "status": "exact", "note": "p->world"},
+    {"kind": "field", "name": "randomGenerator", "sig": "Random", "native": "csrc/engine/decorator.c:decorator_body", "status": "exact", "note": "p->rand"},
+    {"kind": "field", "name": "chunk_X", "sig": "int", "native": "csrc/engine/decorator.c:spot_x", "status": "exact"},
+    {"kind": "field", "name": "chunk_Z", "sig": "int", "native": "csrc/engine/decorator.c:spot_z", "status": "exact"},
+    {"kind": "field", "name": "clayGen/sandGen/gravelAsSandGen", "sig": "WorldGenerator", "native": "csrc/engine/decorator.c:decorator_body", "status": "exact", "note": "features_plants_for(\"clay\"/\"sand\")"},
+    {"kind": "field", "name": "dirtGen/gravelGen/coalGen/ironGen/goldGen/redstoneGen/diamondGen/lapisGen", "sig": "WorldGenMinable", "native": "csrc/engine/decorator.c:ore_band", "status": "exact", "note": "block and vein size as arguments; lapis in ore_lapis"},
+    {"kind": "field", "name": "field_150514_p", "sig": "WorldGenFlowers (flower, retargeted per draw)", "native": "csrc/engine/decorator.c:flower_choice", "status": "exact"},
+    {"kind": "field", "name": "mushroomBrownGen/mushroomRedGen", "sig": "WorldGenFlowers", "native": "csrc/engine/decorator.c:decorator_body", "status": "exact", "note": "flowers rows 3 and 4"},
+    {"kind": "field", "name": "bigMushroomGen", "sig": "WorldGenBigMushroom", "native": "csrc/engine/decorator.c:decorator_body", "status": "exact"},
+    {"kind": "field", "name": "reedGen/cactusGen/waterlilyGen", "sig": "WorldGenerator", "native": "csrc/engine/decorator.c:decorator_body", "status": "exact"},
+    {"kind": "field", "name": "waterlilyPerChunk/treesPerChunk/flowersPerChunk/grassPerChunk/deadBushPerChunk/mushroomsPerChunk/reedsPerChunk/cactiPerChunk/sandPerChunk/sandPerChunk2/clayPerChunk/bigMushroomsPerChunk", "sig": "int", "native": "csrc/engine/decorator.c:deco", "status": "exact", "note": "struct deco, per biome in deco_of"},
+    {"kind": "field", "name": "generateLakes", "sig": "boolean", "native": null, "status": "exact", "note": "true for every biome that uses this class, so the springs always run in decorator_body"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "BiomeDecorator", "sig": "()", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "defaults are deco_of's default row"},
+    {"kind": "method", "name": "func_150512_a", "sig": "(World,Random,BiomeGenBase,int,int)V", "native": "csrc/engine/decorator.c:decorator_decorate", "status": "exact", "note": "the 'Already decorating' re-entry guard has no native counterpart (cannot trigger)"},
+    {"kind": "method", "name": "func_150513_a", "sig": "(BiomeGenBase)V", "native": "csrc/engine/decorator.c:decorator_body", "status": "exact", "note": "PopulateProbe.mark hooks map to fire_stage"},
+    {"kind": "method", "name": "genStandardOre1", "sig": "(int,WorldGenerator,int,int)V", "native": "csrc/engine/decorator.c:ore_band", "status": "exact"},
+    {"kind": "method", "name": "genStandardOre2", "sig": "(int,WorldGenerator,int,int)V", "native": "csrc/engine/decorator.c:ore_lapis", "status": "exact", "note": "only the lapis call site"},
+    {"kind": "method", "name": "generateOres", "sig": "()V", "native": "csrc/engine/decorator.c:decorator_body", "status": "exact", "note": "the eight ore_band/ore_lapis calls"}
+  ],
+  "missing": [],
+  "notes": "test_populate compares the decorator's Random state at each PopulateProbe stage marker against the oracle populate dumps. bigtree_state is static mutable state (WorldGenBigTree's carried heightLimit per biome object)."
+}

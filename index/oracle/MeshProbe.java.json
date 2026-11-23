@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/MeshProbe.java",
+ "lines": 761,
+ "role": "Chunk mesh probe: rebuilds every loaded section within a radius exactly as WorldRenderer.updateRenderer does (ChunkCache, RenderBlocks, both passes) but reads the Tessellator's raw vertex ints instead of drawing, so a native renderer is checked vertex by vertex; also writes the atlas and render_items.jsonl.",
+ "kind": "probe",
+ "used_by": [
+  "{\"cmd\":\"run\",\"class\":\"MeshProbe\"} in scripts (e.g. oracle/tests/trade-scene.jsonl)",
+  "csrc/tests/test_meshes.c",
+  "csrc/engine/raster.h, render_blocks.h, raster_entities.c (cite it)",
+  "oracle/harness/netherite/oracle/MeshScene.java, RenderTable.java (reuse it)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Runs on the client thread between frames while Lockstep has the server parked. Output DIR/manifest.json, sections.bin, atlas.json. atlas.json carries \"anim\", RenderStateProbe.animState at the moment the block atlas is read back, so test_rendertick can rebuild the dump."
+}

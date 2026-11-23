@@ -1,0 +1,86 @@
+{
+ "path": "oracle/src/entity/EntityBodyHelper.java",
+ "classes": [
+  "EntityBodyHelper"
+ ],
+ "lines": 70,
+ "side": "server",
+ "category": "ai",
+ "role": "Keeps a living's body (renderYawOffset) behind its head (rotationYawHead) so the model turns smoothly: the moving case snaps the body to the yaw, the standing case eases it and after 10 still ticks widens the allowed lag.",
+ "scope": "in_scope",
+ "scope_reason": "renderYawOffset and rotationYawHead are recorded state on the livings the digests compare.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/ai.c",
+   "symbols": [
+    "body_helper_update",
+    "body_helper_a"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.h",
+   "symbols": [
+    "render_yaw_offset",
+    "rotation_yaw_head"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_hostiles.c",
+  "out/java/snapshots/combat-mobs-s1",
+  "out/java/snapshots/fight-skeleton-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "theLiving",
+   "sig": "EntityLivingBase",
+   "native": null,
+   "status": "n/a",
+   "note": "the native function takes the living directly"
+  },
+  {
+   "kind": "field",
+   "name": "field_75666_b",
+   "sig": "int",
+   "native": "csrc/engine/living.h:render_yaw_offset",
+   "status": "exact",
+   "note": "the still-tick counter, the body struct's counter"
+  },
+  {
+   "kind": "field",
+   "name": "field_75667_c",
+   "sig": "float",
+   "native": "csrc/engine/living.h:render_yaw_offset",
+   "status": "exact",
+   "note": "the last eased head yaw, the body struct's yaw"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityBodyHelper",
+   "sig": "(EntityLivingBase)V",
+   "native": null,
+   "status": "n/a",
+   "note": "constructed lazily inside the living"
+  },
+  {
+   "kind": "method",
+   "name": "func_75664_a",
+   "sig": "()V",
+   "native": "csrc/engine/ai.c:body_helper_update",
+   "status": "exact",
+   "note": "both branches, the 2.5e-7 movement test, the 15-degree reset and the >10-tick easing"
+  },
+  {
+   "kind": "method",
+   "name": "func_75665_a",
+   "sig": "(FFF)F",
+   "native": "csrc/engine/ai.c:body_helper_a",
+   "status": "exact",
+   "note": "the wrap-and-clamp helper"
+  }
+ ],
+ "missing": [],
+ "notes": "Called from living.c's func_110146_f when the AI is enabled (living.c:2288); the values land in the tape rows."
+}

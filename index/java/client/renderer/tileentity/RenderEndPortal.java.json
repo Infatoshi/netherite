@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/RenderEndPortal.java",
+  "classes": ["RenderEndPortal"],
+  "lines": 129,
+  "side": "client",
+  "category": "client_render",
+  "role": "TileEntitySpecialRenderer for TileEntityEndPortal (the end portal block, id 119): draws 16 stacked quad layers with GL texture gen (object-linear S/T/R, eye-linear Q), the end_sky.png base plus end_portal.png, per-layer colours from a fixed Random(31100), and a slow texture-matrix scroll from Minecraft.getSystemTime.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+   {
+    "file": "csrc/engine/raster_tileent.c",
+    "symbols": [
+     "render_end_portal",
+     "eye_plane_y",
+     "portal_triangle",
+     "portal_clip"
+    ]
+   }
+  ],
+  "evidence": ["out/java/rendertick/te_portal_sh", "out/java/rendertick/te_portal_end", "out/java/render/te_portal_sh_side", "out/java/render/te_portal_end_a", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "field_147529_c, field_147526_d", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_tileent.c:render_end_portal", "status": "exact"},
+    {"kind": "field", "name": "field_147527_e", "sig": "Random (static)", "native": "csrc/engine/raster_tileent.c:render_end_portal", "status": "exact", "note": "Random(31100L), reseeded every call: three nextFloat per layer, layer 0's included"},
+    {"kind": "field", "name": "field_147528_b", "sig": "FloatBuffer", "native": null, "status": "n/a", "note": "the planes' FloatBuffer is GL plumbing"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntityEndPortal,D,D,D,F)V", "native": "csrc/engine/raster_tileent.c:render_end_portal", "status": "exact"},
+    {"kind": "method", "name": "func_147525_a", "sig": "(F,F,F,F)FloatBuffer", "native": null, "status": "n/a", "note": "FloatBuffer packing for glTexGen"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntity,D,D,D,F)V", "native": null, "status": "n/a", "note": "bridge overload"}
+  ],
+  "missing": [],
+  "notes": "The sixteen layers as GL runs them: object-linear s, t, r from the quad's own coordinates, the eye-linear q from the plane glTexGen stores through Mesa's inverse of the modelview (the transposed rotation for the camera's angle-preserving matrix), the texture matrix built with Mesa's float arithmetic (the scroll from getSystemTime, which is tick time in agent mode), the projective lookup per pixel, the Tessellator's byte colours, the lightmap at the tile's brightness, fog, then SRC_ALPHA/ONE_MINUS_SRC_ALPHA for end_sky and ONE/ONE for the fifteen star layers in 8-bit arithmetic. ActiveRenderInfo.objectX/Y/Z come from the recording (TileEntityRenderProbe). Scenes: the seed-42 stronghold portal filled by the player's twelve eyes (te_portal_sh, five views at 31 to 49 px) and the End's exit fountain built by EntityDragon.createEnderPortal (te_portal_end, 4 to 34 px); without the pass 13,336 to 130,882 px."
+}

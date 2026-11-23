@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/tileentity/TileEntityDaylightDetector.java",
+  "classes": ["TileEntityDaylightDetector"],
+  "lines": 21,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The daylight sensor's block entity: every 20 ticks it asks the block to recompute its metadata from the sky light and the sun angle.",
+  "scope": "in_scope",
+  "scope_reason": "Daylight sensors can be crafted and placed; the metadata update still runs with redstone off (it is block state, not power delivery).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/tileticks.c", "symbols": ["detector_update"]},
+    {"file": "csrc/engine/tileentity.h", "symbols": ["TE_DAYLIGHT_DETECTOR"]}
+  ],
+  "evidence": ["out/java/tileticks/full2-v2", "csrc/tests/test_tileticks.c", "out/java/snapshots/cov-place-s1"],
+  "members": [
+    {"kind": "method", "name": "updateEntity", "sig": "()V", "native": "csrc/engine/tileticks.c:detector_update", "status": "exact", "note": "includes BlockDaylightDetector.func_149957_e; cov-place-s1 places a sensor and runs 60 ticks of it"}
+  ],
+  "missing": [],
+  "notes": "detector_update reads the celestial angle from a recorded per-tick table (tileticks_set_time); in a whole-server run the caller must supply it."
+}

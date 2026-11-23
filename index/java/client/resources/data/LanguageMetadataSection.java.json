@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/resources/data/LanguageMetadataSection.java",
+  "classes": ["LanguageMetadataSection"],
+  "lines": 19,
+  "side": "client",
+  "category": "client_resources",
+  "role": "The parsed 'language' section of a resource pack's .mcmeta: the Language entries the pack adds.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Resource pack language listing; the game runs en_US from the default assets and the native HUD text renderer has its own fixed strings.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "LanguageMetadataSection", "sig": "(Collection)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getLanguages", "sig": "()Collection", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "languages", "sig": "Collection", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

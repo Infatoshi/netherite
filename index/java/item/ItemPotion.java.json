@@ -1,0 +1,250 @@
+{
+  "path": "oracle/src/item/ItemPotion.java",
+  "classes": [
+    "ItemPotion"
+  ],
+  "lines": 465,
+  "side": "common",
+  "category": "item",
+  "role": "The potion item (id 373): damage-value potion effects through PotionHelper, drinkable potions applied on finish, splash potions thrown as EntityPotion.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/items.h",
+      "symbols": [
+        "ITEMS"
+      ]
+    },
+    {
+      "file": "csrc/engine/potion.c",
+      "symbols": [
+        "potion_get_effects_for_damage"
+      ]
+    },
+    {
+      "file": "csrc/engine/hostiles_witch.c",
+      "symbols": [
+        "witch_attack_entity_with_ranged_attack"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "server_drink_finish",
+        "surv_item_use_duration",
+        "server_air_use"
+      ]
+    },
+    {
+      "file": "csrc/engine/throw.c",
+      "symbols": [
+        "throw_server_use",
+        "throw_client_use"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/use-kinds-s1",
+    "out/java/snapshots/fight-witch-s1",
+    "out/java/snapshots/pot-witch-s1",
+    "csrc/tests/test_hostiles.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "effectCache",
+      "sig": "HashMap",
+      "native": null,
+      "status": "n/a",
+      "note": "a memoization cache; the native table lookup is direct"
+    },
+    {
+      "kind": "field",
+      "name": "field_77835_b",
+      "sig": "Map",
+      "native": null,
+      "status": "n/a",
+      "note": "creative-mode sub-item enumeration"
+    },
+    {
+      "kind": "field",
+      "name": "field_94591_c",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_94590_d",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_94592_ct",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "ItemPotion",
+      "sig": "()V",
+      "native": "csrc/engine/items.h:ITEMS",
+      "status": "exact",
+      "note": "row 373: stack 1, hasSubtypes"
+    },
+    {
+      "kind": "method",
+      "name": "getEffects",
+      "sig": "(Lnet/minecraft/item/ItemStack;)Ljava/util/List;",
+      "native": "csrc/engine/potion.c:potion_get_effects_for_damage",
+      "status": "exact",
+      "note": "The damage-value table (potion.c). The CustomPotionEffects branch needs a tag only commands or creative write (brewing is world.conf brewing = off, loot and witches carry plain damage values)."
+    },
+    {
+      "kind": "method",
+      "name": "getEffects",
+      "sig": "(I)Ljava/util/List;",
+      "native": "csrc/engine/potion.c:potion_get_effects_for_damage",
+      "status": "exact",
+      "note": "The damage-value table (potion.c). The CustomPotionEffects branch needs a tag only commands or creative write (brewing is world.conf brewing = off, loot and witches carry plain damage values)."
+    },
+    {
+      "kind": "method",
+      "name": "onEaten",
+      "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;",
+      "native": "csrc/engine/survival.c:server_drink_finish",
+      "status": "exact",
+      "note": "the stack shrinks, addPotionEffect per PotionHelper effect on the twin, the glass bottle (replacing an empty stack, else added to the inventory), on both sides"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxItemUseDuration",
+      "sig": "(Lnet/minecraft/item/ItemStack;)I",
+      "native": "csrc/engine/survival.c:surv_item_use_duration",
+      "status": "exact",
+      "note": "32, splash potions too (it gates processPlayerBlockPlacement's tail)"
+    },
+    {
+      "kind": "method",
+      "name": "getItemUseAction",
+      "sig": "(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/EnumAction;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "onItemRightClick",
+      "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;",
+      "native": "csrc/engine/throw.c:throw_server_use",
+      "status": "exact",
+      "note": "a splash damage (& 16384) shrinks the stack, draws the itemRand pitch and spawns an EntityPotion holding the shrunk stack; otherwise setItemInUse(32) (survival.c:server_air_use)"
+    },
+    {
+      "kind": "method",
+      "name": "onItemUse",
+      "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z",
+      "native": null,
+      "status": "exact",
+      "note": "returns false unconditionally; the native base item path answers the same"
+    },
+    {
+      "kind": "method",
+      "name": "getIconFromDamage",
+      "sig": "(I)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getIconFromDamageForRenderPass",
+      "sig": "(II)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isSplash",
+      "sig": "(I)Z",
+      "native": "csrc/engine/potion.c:potion_get_effects_for_damage",
+      "status": "exact",
+      "note": "(damage & 16384) inside the effects computation"
+    },
+    {
+      "kind": "method",
+      "name": "getColorFromDamage",
+      "sig": "(I)I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getColorFromItemStack",
+      "sig": "(Lnet/minecraft/item/ItemStack;I)I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "requiresMultipleRenderPasses",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isEffectInstant",
+      "sig": "(I)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "Read only by the tooltip (addInformation) and the creative tabs: client text."
+    },
+    {
+      "kind": "method",
+      "name": "getItemStackDisplayName",
+      "sig": "(Lnet/minecraft/item/ItemStack;)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addInformation",
+      "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Ljava/util/List;Z)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "hasEffect",
+      "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getSubItems",
+      "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "registerIcons",
+      "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_94589_d",
+      "sig": "(Ljava/lang/String;)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "PotionHelper's damage-to-effects math is ported (potion.c). use-kinds-s1 throws a splash poison at the feet, drinks fire resistance and instant health, and throws a splash healing potion. isEffectInstant is only read by the tooltip; the CustomPotionEffects tag is never written in survival (brewing is off). lane/idxblocks: reviewed."
+}

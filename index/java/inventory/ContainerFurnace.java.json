@@ -1,0 +1,140 @@
+{
+ "classes": [
+  "ContainerFurnace"
+ ],
+ "lines": 176,
+ "side": "server",
+ "category": "inventory",
+ "role": "The furnace container: the input, fuel and output slots over TileEntityFurnace, transferStackInSlot, and detectAndSendChanges' cook/burn progress sync.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_init",
+    "transfer_furnace",
+    "furnace_out_on_pickup"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_open_tile",
+    "PK_S2F",
+    "gui_furnace_progress",
+    "gui_can_interact",
+    "PK_S31"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "TE_FURNACE"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileticks.c",
+   "symbols": [
+    "furnace_can_smelt",
+    "furnace_fuel_value"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "furnace_progress"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/te-furnace-s1",
+  "out/java/snapshots/te-charcoal-s1",
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/containers2-s42"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "furnace",
+   "sig": "TileEntityFurnace",
+   "native": "csrc/engine/tileentity.c:TE_FURNACE",
+   "status": "exact",
+   "note": "the furnace's slots and cook/burn state live in the tile entity"
+  },
+  {
+   "kind": "field",
+   "name": "lastCookTime",
+   "sig": "int",
+   "native": "csrc/engine/container.h:furnace_progress",
+   "status": "exact",
+   "note": "the server container's furnace_progress[0..2] are the last values sent"
+  },
+  {
+   "kind": "field",
+   "name": "lastBurnTime",
+   "sig": "int",
+   "native": "csrc/engine/container.h:furnace_progress",
+   "status": "exact",
+   "note": "the server container's furnace_progress[0..2] are the last values sent"
+  },
+  {
+   "kind": "field",
+   "name": "lastItemBurnTime",
+   "sig": "int",
+   "native": "csrc/engine/container.h:furnace_progress",
+   "status": "exact",
+   "note": "the server container's furnace_progress[0..2] are the last values sent"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerFurnace",
+   "sig": "(InventoryPlayer,TileEntityFurnace)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact",
+   "note": "CONTAINER_FURNACE with the 3 furnace slots read back from the tile entity"
+  },
+  {
+   "kind": "method",
+   "name": "addCraftingToCrafters",
+   "sig": "(Lnet/minecraft/inventory/ICrafting;)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact",
+   "note": "the slot S2Fs, the first detectAndSendChanges' S31s for the nonzero fields, then the three S31s"
+  },
+  {
+   "kind": "method",
+   "name": "detectAndSendChanges",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:gui_furnace_progress",
+   "status": "exact",
+   "note": "the slot S2Fs (gui_tile_detect) and an S31 per progress field that moved, every onUpdate and after every click"
+  },
+  {
+   "kind": "method",
+   "name": "updateProgressBar",
+   "sig": "(II)V",
+   "native": "csrc/engine/survival.c:PK_S31",
+   "status": "exact",
+   "note": "the client's S31 writes its container's furnace_progress when the window id matches; the rows' cp.fur pins it"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "TileEntityFurnace.isUseableByPlayer: the same tile and within 8"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:transfer_furnace",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "The smelting itself (fuel values, canSmelt, the cook timer) is tileticks.c's furnace tick, gated by te-furnace-s1 (8 iron ore on coal, output taken with 6 XP, then 4 porkchops on planks; 2,573 rows). The S31 progress bars are gated by containers2-s42's cp.fur (cobblestone smelted with coal, 450 rows with the window open). The native play client's furnace screen draws the client container's S31-written furnace_progress (lane/hudscreens).",
+ "path": "oracle/src/inventory/ContainerFurnace.java"
+}

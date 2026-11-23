@@ -1,0 +1,241 @@
+{
+  "path": "oracle/src/block/BlockDispenser.java",
+  "classes": [
+    "BlockDispenser"
+  ],
+  "lines": 279,
+  "side": "common",
+  "category": "block",
+  "role": "The dispenser: a container block that faces its neighbours, opens a 9-slot window, and dispenses items when powered (with a per-item behavior registry).",
+  "scope": "in_scope",
+  "scope_reason": "In scope: dispensers generate in jungle temples and are craftable; a survival player places one (facing from func_150071_a), opens its window (onBlockActivated ran in containers2-s42) and breaks it (the spill). Only the dispense machine is switched off by redstone = off.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "dispenser_facing",
+        "bwl_on_added",
+        "bwl_on_neighbor",
+        "bwl_on_broken"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "te_kind_of_block",
+        "TE_DISPENSER"
+      ]
+    },
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "act_dispenser_random"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_client_base_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/spill.c",
+      "symbols": [
+        "container_spill",
+        "block_rand",
+        "block_rand_index"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "on_block_placed_by",
+        "func_150071_a",
+        "place_dispenser_seeder"
+      ]
+    },
+    {
+      "file": "csrc/engine/comparator.c",
+      "symbols": [
+        "comparator_override",
+        "comparator_has_override",
+        "comparator_notify_emit"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_registry.c",
+    "csrc/tests/test_tileticks.c",
+    "out/java/snapshots/container-break-s1",
+    "out/java/snapshots/containers2-s42",
+    "out/java/snapshots/rs-mach-s1",
+    "out/java/snapshots/rs-cmp-s1",
+    "out/java/snapshots/rs-brew-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockDispenser",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "Entry 23: hardness 3.5, render type 0."
+    },
+    {
+      "kind": "field",
+      "name": "dispenseBehaviorRegistry",
+      "sig": "RegistryDefaulted",
+      "native": null,
+      "status": "n/a",
+      "note": "Switched off by redstone = off: the dispense runs only from updateTick, which only a powered onNeighborBlockChange schedules, and World.isBlockIndirectlyGettingPowered answers 0 with world.conf redstone = off (World.getIndirectPowerLevelTo, World.java:3585)."
+    },
+    {
+      "kind": "field",
+      "name": "field_149942_b",
+      "sig": "Random (break spill)",
+      "native": "csrc/engine/spill.c:block_rand",
+      "status": "exact",
+      "note": "The Block singleton's own Random (dispenser [BR_DISPENSER] and dropper [BR_DROPPER]): det.nbt records it (BlockRands.java), serverreplay_load sets it, a --from run restores it."
+    },
+    {
+      "kind": "method",
+      "name": "func_149738_a",
+      "sig": "(World)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Switched off by redstone = off: the dispense runs only from updateTick, which only a powered onNeighborBlockChange schedules, and World.isBlockIndirectlyGettingPowered answers 0 with world.conf redstone = off (World.getIndirectPowerLevelTo, World.java:3585)."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockAdded",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_added",
+      "status": "exact",
+      "note": "The facing write routes through blockcb.c:2130."
+    },
+    {
+      "kind": "method",
+      "name": "func_149938_m",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/blockcb.c:dispenser_facing",
+      "status": "exact",
+      "note": "blockcb.c:1323."
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "Atlas icons through the standard renderer."
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Atlas naming only."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIIIIIIFFF)Z",
+      "native": "csrc/engine/activate.c:act_live_block",
+      "status": "exact",
+      "note": "the tile check and func_146102_a (survival.c's gui_open_tile); BlockDropper inherits it"
+    },
+    {
+      "kind": "method",
+      "name": "func_149941_e",
+      "sig": "(World,III)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "Switched off by redstone = off: the dispense runs only from updateTick, which only a powered onNeighborBlockChange schedules, and World.isBlockIndirectlyGettingPowered answers 0 with world.conf redstone = off (World.getIndirectPowerLevelTo, World.java:3585)."
+    },
+    {
+      "kind": "method",
+      "name": "func_149940_a",
+      "sig": "(World,III)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "Switched off by redstone = off: the dispense runs only from updateTick, which only a powered onNeighborBlockChange schedules, and World.isBlockIndirectlyGettingPowered answers 0 with world.conf redstone = off (World.getIndirectPowerLevelTo, World.java:3585)."
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIIBlock)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_neighbor",
+      "status": "exact",
+      "note": "never powered, so only the untriggered branch: a bit 8 comes off (flag 4); onBlockAdded's func_149938_m rewrites the metadata, so nothing leaves the bit set (rs-brew-s1 sets a dispenser at metadata 11)"
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(World,IIIRandom)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Switched off by redstone = off: the dispense runs only from updateTick, which only a powered onNeighborBlockChange schedules, and World.isBlockIndirectlyGettingPowered answers 0 with world.conf redstone = off (World.getIndirectPowerLevelTo, World.java:3585)."
+    },
+    {
+      "kind": "method",
+      "name": "createNewTileEntity",
+      "sig": "(World,I)TileEntity",
+      "native": "csrc/engine/tileentity.c:te_kind_of_block",
+      "status": "exact",
+      "note": "tileentity.c:221 maps 23 to TE_DISPENSER with 9 fresh slots and the TileEntityDispenser Random (activate.c:287 hooks it)."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(World,IIIIEntityLivingBaseItemStack)V",
+      "native": "csrc/engine/place.c:on_block_placed_by",
+      "status": "exact",
+      "note": "BlockPistonBase.func_150071_a's facing (place.c func_150071_a): rs-mach-s1 places dispensers close by against a wall, above and below the eye, and far off at four yaws; the display-name copy needs an anvil-named stack (anvil = off)"
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(World,IIIBlockI)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_broken",
+      "status": "exact",
+      "note": "the spill (spill.c container_spill, the block Random field_149942_b) then World.func_147453_f (comparator.c) before BlockContainer's removal"
+    },
+    {
+      "kind": "method",
+      "name": "func_149939_a",
+      "sig": "(World,IIII)int",
+      "native": null,
+      "status": "n/a",
+      "note": "the dispense position, read only by the dispense behaviours (Bootstrap), which never run with redstone off"
+    },
+    {
+      "kind": "method",
+      "name": "func_149937_b",
+      "sig": "(World,III)I",
+      "native": null,
+      "status": "n/a",
+      "note": "the dispense facing, read only by the dispense behaviours (Bootstrap), which never run with redstone off"
+    },
+    {
+      "kind": "method",
+      "name": "hasComparatorInputOverride",
+      "sig": "()Z",
+      "native": "csrc/engine/comparator.c:comparator_has_override",
+      "status": "exact",
+      "note": "true (rs-cmp-s1)"
+    },
+    {
+      "kind": "method",
+      "name": "getComparatorInputOverride",
+      "sig": "(World,IIII)I",
+      "native": "csrc/engine/comparator.c:comparator_override",
+      "status": "exact",
+      "note": "Container.calcRedstoneFromInventory over the nine slots: rs-cmp-s1 reads a dispenser and a dropper, and takes a stack out of the dispenser through its window"
+    }
+  ],
+  "missing": [],
+  "notes": "The tile entity is present with its NBT (Items, the TE's own Random) and the facing machine runs from chunk writes; only the powered half is dead. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact. A dispenser placed by the player drew its tile entity's Det.newRandom on the probe role (DET_OTHER) instead of the server's and the client's (rs-mach-s1 failed at row 26): place.c now takes the role from the case's Math stream. Dev tile data loads a dispenser's items."
+}

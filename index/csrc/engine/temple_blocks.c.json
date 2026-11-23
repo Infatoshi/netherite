@@ -1,0 +1,26 @@
+{
+ "path": "csrc/engine/temple_blocks.c",
+ "lines": 614,
+ "role": "The block half of the three scattered features: DesertPyramid, JunglePyramid and SwampHut addComponentParts (rooms, TNT trap, chests with the temple loot tables, the jungle's randomized cobblestone shell, dispenser traps, tripwire and redstone wiring, the swamp hut's witch), plus Feature.func_74935_a's ground-level settle.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/ComponentScatteredFeaturePieces.java", "members": ["Feature.func_74935_a", "Feature.field_74936_d", "DesertPyramid.addComponentParts", "DesertPyramid.field_74940_h", "DesertPyramid.itemsToGenerateInTemple", "JunglePyramid.addComponentParts", "JunglePyramid.field_74947_h", "JunglePyramid.field_74948_i", "JunglePyramid.field_74945_j", "JunglePyramid.field_74946_k", "JunglePyramid.junglePyramidsChestContents", "JunglePyramid.junglePyramidsDispenserContents", "JunglePyramid.Stones.selectBlocks", "SwampHut.addComponentParts", "SwampHut.hasWitch"]},
+  {"path": "oracle/src/world/World.java", "members": ["getTopSolidOrLiquidBlock"]},
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["getTopFilledSegment"]},
+  {"path": "oracle/src/block/BlockLever.java", "members": ["func_149819_b"]}
+ ],
+ "structs": [
+  {"name": "TB_* enum", "java": "the Blocks ids the temple pieces write", "fields": []},
+  {"name": "OFF_X / OFF_Z (static const tables)", "java": "Direction.offsetX and offsetZ", "fields": []}
+ ],
+ "entry_points": ["temple_blocks"],
+ "tick_path": true,
+ "gpu": [
+  "line 129-132, function temple_chest: loot_book_build and loot_book_free around each chest (loot.h says the book is a heap-held stack that must be released: allocation during population)",
+  "line 84, function top_solid_or_liquid: strcmp on the material name per column cell",
+  "line 76, function top_solid_or_liquid: world_load_chunk may load or generate a chunk from inside a population step",
+  "line 115, function feature_ground_level: mutates the shared piece (hpos and bounding box) the first step that covers it, so later steps depend on step order, as in Java"
+ ],
+ "tests": ["csrc/tests/test_sblocks.c", "csrc/tests/test_populate.c"],
+ "notes": "Registered as the Temple type's piece_fn in populate.c. The desert pyramid never calls func_74935_a (its base stays at y 60). Redstone, tripwire and dispenser block callbacks live in blockcb.c; world.conf keeps redstone power off. The Java field names DesertPyramid.field_74940_h and JunglePyramid.field_7494x were matched by grep; SwampHut.hasWitch was matched too."
+}

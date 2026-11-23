@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/item/ItemDoor.java",
+  "classes": ["ItemDoor"],
+  "lines": 113,
+  "side": "server",
+  "category": "item",
+  "role": "Places a two-block door on the top face: the facing from the player's yaw + 180, the hinge chosen by the solid neighbours (func_150924_a), and the neighbour notifications.",
+  "scope": "in_scope",
+  "scope_reason": "The door never receives redstone power (world.conf redstone = off), but placement, the hinge rule and the block pair stay vanilla.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_place_item_class"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_door_on_item_use", "door_place_pair", "place_try"]},
+    {"file": "csrc/engine/village_blocks.c", "symbols": ["village_blocks"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/cov-door-s1",
+    "out/java/snapshots/rc-blocks-s1",
+    "csrc/tests/test_place.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "doorMaterial", "sig": "Material", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "rows 324 and 330 carry the wooden and iron doors as separate items"},
+    {"kind": "ctor", "name": "ItemDoor", "sig": "(Material)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact"},
+    {"kind": "method", "name": "onItemUse", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/place.c:item_door_on_item_use", "status": "exact", "note": "top-face-only, canPlayerEdit both cells, canPlaceBlockAt, the yaw facing and the stack decrement"},
+    {"kind": "method", "name": "func_150924_a", "sig": "(World,IIII,Block)V", "native": "csrc/engine/place.c:door_place_pair", "status": "exact", "note": "the hinge vote from the isNormalCube neighbours and the 8-bit upper half; village_blocks.c uses the same static for the village doors"}
+  ],
+  "missing": [],
+  "notes": null
+}

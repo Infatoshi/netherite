@@ -1,0 +1,340 @@
+{
+  "path": "oracle/src/util/DamageSource.java",
+  "classes": [
+    "DamageSource"
+  ],
+  "lines": 263,
+  "side": "server",
+  "category": "combat",
+  "role": "The type of an attack: a damageType string plus flags (unblockable, absolute, hunger cost, fire, projectile, explosion, magic, difficulty-scaled, creative-allowed) and the static well-known sources (inFire, fall, drown, ...).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/living.h",
+      "symbols": [
+        "DMG_GENERIC",
+        "DMG_IN_FIRE",
+        "DMG_ON_FIRE",
+        "DMG_CACTUS",
+        "DMG_FALL",
+        "DMG_DROWN",
+        "DMG_LAVA",
+        "DMG_IN_WALL",
+        "DMG_OUT_OF_WORLD",
+        "DMG_MAGIC",
+        "DMG_WITHER",
+        "DMG_STARVE",
+        "DMG_MOB",
+        "DMG_FIREBALL",
+        "DMG_EXPLOSION",
+        "DMG_THROWN",
+        "damage_attacker",
+        "DMG_ARROW",
+        "DMG_THORNS",
+        "DMG_INDIRECT_MAGIC",
+        "dmg_is_indirect",
+        "dmg_is_projectile",
+        "dmg_is_magic",
+        "DMG_ANVIL"
+      ]
+    },
+    {
+      "file": "csrc/engine/living.c",
+      "symbols": [
+        "dmg_unblockable",
+        "dmg_absolute",
+        "living_dmg_hunger",
+        "living_dmg_absolute",
+        "living_enchantment_modifier_damage",
+        "living_attack_entity_from_attacker"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "SRC_HUNGER",
+        "src_unblockable",
+        "surv_server_damage_by",
+        "armor_modifier_damage"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.h",
+      "symbols": [
+        "SURV_ANVIL"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/surv_lava-s1",
+    "out/java/snapshots/death-starve-s1",
+    "out/java/snapshots/scen-cactus-s1",
+    "out/java/snapshots/surv_drown-s1",
+    "out/java/snapshots/combat-mobs-s1",
+    "csrc/tests/test_explosions.c",
+    "csrc/tests/test_hostiles.c",
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/dmg-sources-s1",
+    "out/java/snapshots/melee-mods-s1",
+    "out/java/snapshots/idx-anvil-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "inFire/onFire/lava/inWall/drown/starve/cactus/fall/outOfWorld/generic/magic/wither",
+      "sig": "DamageSource (static instances)",
+      "native": "csrc/engine/living.h:DMG_GENERIC",
+      "status": "exact",
+      "note": "static instances grouped; each maps to one DMG_* value in living.h's source enum"
+    },
+    {
+      "kind": "field",
+      "name": "anvil",
+      "sig": "DamageSource (static instance)",
+      "native": "csrc/engine/living.h:DMG_ANVIL",
+      "status": "exact",
+      "note": "A landing anvil's hit on livings (the helmet's (int)(amount * 4 + nextFloat() * amount * 2) wear and three quarters, living.c) and on the player (SURV_ANVIL, survival.c); lane/idxblocks, idx-anvil-s1."
+    },
+    {
+      "kind": "field",
+      "name": "fallingBlock",
+      "sig": "DamageSource (static instance)",
+      "native": null,
+      "status": "n/a",
+      "note": "EntityFallingBlock hurts only when field_145809_g is set, which BlockAnvil.func_149829_a alone sets; sand and gravel never hurt, so fallingBlock is never used."
+    },
+    {
+      "kind": "field",
+      "name": "damageType",
+      "sig": "String",
+      "native": null,
+      "status": "n/a",
+      "note": "the string only names death-message translation keys"
+    },
+    {
+      "kind": "field",
+      "name": "isUnblockable/isDamageAllowedInCreativeMode/damageIsAbsolute/hungerDamage/fireDamage/projectile/difficultyScaled/magicDamage/explosion",
+      "sig": "boolean/float (instance flags)",
+      "native": "csrc/engine/living.h:DMG_GENERIC",
+      "status": "exact",
+      "note": "instance flags grouped; the native enum value is the flag set, decoded by dmg_unblockable/dmg_absolute/living_enchantment_modifier_damage"
+    },
+    {
+      "kind": "ctor",
+      "name": "DamageSource",
+      "sig": "(String)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getHungerDamage",
+      "sig": "()float",
+      "native": "csrc/engine/survival.c:SRC_HUNGER",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "canHarmInCreative",
+      "sig": "()boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "Only read against a creative player (capabilities.disableDamage); survival play has none."
+    },
+    {
+      "kind": "method",
+      "name": "isDamageAbsolute",
+      "sig": "()boolean",
+      "native": "csrc/engine/living.c:dmg_absolute",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getSourceOfDamage",
+      "sig": "()Entity",
+      "native": "csrc/engine/living.h:damage_attacker",
+      "status": "exact",
+      "note": "The readers survival reaches: EntitySkeleton.onDeath's arrow test (player_arrow_hit) and the enderman's indirect test (dmg_is_indirect); the attacker argument is getEntity."
+    },
+    {
+      "kind": "method",
+      "name": "getEntity",
+      "sig": "()Entity",
+      "native": "csrc/engine/living.h:damage_attacker",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isProjectile",
+      "sig": "()boolean",
+      "native": "csrc/engine/living.c:living_enchantment_modifier_damage",
+      "status": "exact",
+      "note": "the projectile check lives inline in living_enchantment_modifier_damage (DMG_FIREBALL/DMG_THROWN)"
+    },
+    {
+      "kind": "method",
+      "name": "setProjectile",
+      "sig": "()DamageSource",
+      "native": "csrc/engine/living.h:dmg_is_projectile",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isExplosion",
+      "sig": "()boolean",
+      "native": "csrc/engine/living.c:living_enchantment_modifier_damage",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setExplosion",
+      "sig": "()DamageSource",
+      "native": "csrc/engine/living.h:DMG_EXPLOSION",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isUnblockable",
+      "sig": "()boolean",
+      "native": "csrc/engine/living.c:dmg_unblockable",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setDamageBypassesArmor",
+      "sig": "()DamageSource",
+      "native": "csrc/engine/living.c:dmg_unblockable",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setDamageAllowedInCreativeMode",
+      "sig": "()DamageSource",
+      "native": null,
+      "status": "n/a",
+      "note": "Creative only (see canHarmInCreative)."
+    },
+    {
+      "kind": "method",
+      "name": "setDamageIsAbsolute",
+      "sig": "()DamageSource",
+      "native": "csrc/engine/living.c:dmg_absolute",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setFireDamage",
+      "sig": "()DamageSource",
+      "native": "csrc/engine/living.h:DMG_IN_FIRE",
+      "status": "exact",
+      "note": "The fire kinds are enum values the fire tests list (in fire, on fire, lava, fireball)."
+    },
+    {
+      "kind": "method",
+      "name": "isFireDamage",
+      "sig": "()boolean",
+      "native": "csrc/engine/living.c:living_enchantment_modifier_damage",
+      "status": "exact",
+      "note": "the fire check lives inline (DMG_IN_FIRE/ON_FIRE/LAVA/FIREBALL)"
+    },
+    {
+      "kind": "method",
+      "name": "getDamageType",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setDifficultyScaled",
+      "sig": "()DamageSource",
+      "native": "csrc/engine/survival.c:surv_server_damage_by",
+      "status": "exact",
+      "note": "The scaled kinds are listed where the scaling runs: a mob's melee, thorns and the explosions (surv_server_damage_by)."
+    },
+    {
+      "kind": "method",
+      "name": "isDifficultyScaled",
+      "sig": "()boolean",
+      "native": "csrc/engine/survival.c:surv_server_damage_by",
+      "status": "exact",
+      "note": "the player path scales SURV_MOB, SURV_EXPLOSION and SURV_THORNS; the indirect kinds stay unscaled"
+    },
+    {
+      "kind": "method",
+      "name": "isMagicDamage",
+      "sig": "()boolean",
+      "native": "csrc/engine/living.h:dmg_is_magic",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setMagicDamage",
+      "sig": "()DamageSource",
+      "native": "csrc/engine/living.h:dmg_is_magic",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "causeMobDamage",
+      "sig": "(EntityLivingBase)DamageSource",
+      "native": "csrc/engine/living.c:living_attack_entity_from_attacker",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "causePlayerDamage",
+      "sig": "(EntityPlayer)DamageSource",
+      "native": "csrc/engine/survival.c:surv_server_damage_by",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "causeArrowDamage",
+      "sig": "(EntityArrow,Entity)DamageSource",
+      "native": "csrc/engine/living.h:DMG_ARROW",
+      "status": "exact",
+      "note": "the shooter is the attacker argument (getEntity); an arrow without a shooter passes none, where Java names the arrow itself"
+    },
+    {
+      "kind": "method",
+      "name": "causeFireballDamage",
+      "sig": "(EntityFireball,Entity)DamageSource",
+      "native": "csrc/engine/living.h:DMG_FIREBALL",
+      "status": "exact",
+      "note": "ghast fireballs apply DMG_EXPLOSION and fireballs DMG_FIREBALL (csrc/engine/ghasts.c, csrc/engine/living.c:394)"
+    },
+    {
+      "kind": "method",
+      "name": "causeThrownDamage",
+      "sig": "(Entity,Entity)DamageSource",
+      "native": "csrc/engine/living.h:DMG_THROWN",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "causeIndirectMagicDamage",
+      "sig": "(Entity,Entity)DamageSource",
+      "native": "csrc/engine/living.h:DMG_INDIRECT_MAGIC",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "causeThornsDamage",
+      "sig": "(Entity)DamageSource",
+      "native": "csrc/engine/living.h:DMG_THORNS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setExplosionSource",
+      "sig": "(Explosion)DamageSource",
+      "native": "csrc/engine/env.h:expl_placed_by_player",
+      "status": "exact",
+      "note": "The exploder is the attacker the explosion passes (a creeper, a TNT placer through expl_placed_by_player)."
+    }
+  ],
+  "missing": [],
+  "notes": "The player-side pipeline is survival.c (SURV_* source enum, surv_server_damage_by) and the living-entity pipeline is living.c/living.h (DMG_*); the two enums overlap but are separate tables. Unverified: whether creative-mode damage protection is handled outside this class's flag. lane/idxblocks: DMG_ANVIL and SURV_ANVIL added; the creative flags and fallingBlock are unreachable in survival."
+}

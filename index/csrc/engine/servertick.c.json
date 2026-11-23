@@ -1,0 +1,279 @@
+{
+ "path": "csrc/engine/servertick.c",
+ "lines": 1296,
+ "role": "One WorldServer.tick for one world: the head (updateWeather, the sleep skip, the spawner slot, skylight and the two clocks), tickUpdates over the pending block ticks with the Block.updateTick dispatch (liquids, falling blocks, buttons, fire, portal, torches, the rest through randomtick), func_147456_g's per-chunk mood sound, lightning, ice/snow/rain fill and random block ticks, the VillageSiege night roll, and a recorder of the tick's block writes and constructed entities. Also loads the world scalars and Det state from a snapshot.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "tick",
+    "tickUpdates",
+    "func_147456_g",
+    "areAllPlayersAsleep",
+    "wakeAllPlayers",
+    "resetRainAndThunder"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "tick",
+    "updateWeather",
+    "calculateSkylightSubtracted",
+    "getCelestialAngle",
+    "getRainStrength",
+    "getWeightedThunderStrength",
+    "isRaining",
+    "isThundering",
+    "canLightningStrikeAt",
+    "func_147467_a",
+    "func_147456_g",
+    "getClosestPlayer",
+    "playSoundEffect",
+    "setActivePlayerChunksAndCheckLight",
+    "rand",
+    "updateLCG",
+    "skylightSubtracted",
+    "ambientTickCountdown",
+    "prevRainingStrength",
+    "rainingStrength",
+    "prevThunderingStrength",
+    "thunderingStrength"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldProvider.java",
+   "members": [
+    "calculateCelestialAngle"
+   ]
+  },
+  {
+   "path": "oracle/src/world/storage/WorldInfo.java",
+   "members": [
+    "totalTime",
+    "worldTime",
+    "rainTime",
+    "thunderTime",
+    "raining",
+    "thundering"
+   ]
+  },
+  {
+   "path": "oracle/src/world/NextTickListEntry.java",
+   "members": [
+    "nextTickEntryID"
+   ]
+  },
+  {
+   "path": "oracle/src/village/VillageSiege.java",
+   "members": [
+    "tick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFalling.java",
+   "members": [
+    "updateTick",
+    "func_149830_m",
+    "func_149831_e",
+    "fallInstantly"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDragonEgg.java",
+   "members": [
+    "updateTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockButton.java",
+   "members": [
+    "updateTick",
+    "func_150046_n",
+    "func_150043_b"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockPortal.java",
+   "members": [
+    "updateTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTNT.java",
+   "members": [
+    "func_150114_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": [
+    "EntityItem"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityTNTPrimed.java",
+   "members": [
+    "EntityTNTPrimed"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityFallingBlock.java",
+   "members": [
+    "EntityFallingBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/effect/EntityLightningBolt.java",
+   "members": [
+    "EntityLightningBolt"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "enqueueRelightChecks"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/EmptyChunk.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenBase.java",
+   "members": [
+    "canSpawnLightningBolt"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "servertick (servertick.h)",
+   "java": "one WorldServer's tick state: World.rand, updateLCG, skylightSubtracted, rain/thunder strengths, WorldInfo clocks and weather timers, the doDaylightCycle, doMobSpawning and doFireTick rules, allPlayersSleeping, ambientTickCountdown, difficulty, the parked player's position, the active chunk set, the siege's phase fields, plus the recorder arrays and the replay's callback slots",
+   "fields": [
+    "w",
+    "det",
+    "rand",
+    "update_lcg",
+    "skylight_subtracted",
+    "raining_strength",
+    "prev_raining_strength",
+    "thundering_strength",
+    "prev_thundering_strength",
+    "total_time",
+    "world_time",
+    "daylight_cycle",
+    "rain_time",
+    "thunder_time",
+    "raining",
+    "thundering",
+    "next_tick_entry",
+    "all_players_sleeping",
+    "no_sky",
+    "no_player",
+    "mob_spawning",
+    "ambient_tick_countdown",
+    "difficulty",
+    "fire_rule_off",
+    "player_x",
+    "player_y",
+    "player_z",
+    "active",
+    "nactive",
+    "tick",
+    "writes",
+    "spawns",
+    "on_spawn",
+    "on_spawner",
+    "arrows_in",
+    "on_unload_step",
+    "siege_phase",
+    "on_sleep_check",
+    "on_wake_all"
+   ]
+  },
+  {
+   "name": "st_write (servertick.h)",
+   "java": "one Rows.onBlock record: x, y, z, block id, meta",
+   "fields": [
+    "x",
+    "y",
+    "z",
+    "id",
+    "meta"
+   ]
+  },
+  {
+   "name": "st_spawn (servertick.h)",
+   "java": "an entity the tick constructed (EntityItem, EntityTNTPrimed, EntityFallingBlock, EntityLightningBolt) with its constructor's fields and Det draws",
+   "fields": [
+    "t",
+    "dim",
+    "id",
+    "cls",
+    "weather",
+    "x",
+    "y",
+    "z",
+    "mx",
+    "my",
+    "mz",
+    "yaw",
+    "uuid_msb",
+    "uuid_lsb",
+    "rand_state",
+    "item",
+    "damage",
+    "count",
+    "hover",
+    "bolt_vertex",
+    "bolt_living_time",
+    "tile",
+    "data",
+    "time"
+   ]
+  }
+ ],
+ "entry_points": [
+  "servertick_load",
+  "servertick_update_weather",
+  "servertick_celestial_radians",
+  "servertick_skylight",
+  "servertick_tick_head",
+  "servertick_tick",
+  "servertick_tick_empty",
+  "servertick_clear",
+  "servertick_writes",
+  "servertick_spawns",
+  "servertick_set_ambient",
+  "servertick_set_player",
+  "servertick_set_active",
+  "servertick_load_det",
+  "servertick_wood_button",
+  "servertick_chunk_loop",
+  "servertick_phase"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "function servertick_phase: S1, S2, S1T, S4, S5, S6 or SG alone, the device build's entry beside servertick_chunk_loop (cuda/tick dev.c chunkloop, tick_batch --phases; lane/gputick); S1T comes back to C on the device (its sky angle's cos is glibc's)",
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "function write_push: the tick's write and spawn lists are fixed arrays made with the world (servertick_reserve, ST_MAX_WRITES, ST_MAX_SPAWNS) (lane/gpuarena, L3)",
+  "line 399, function spawn_new: realloc grows the per-tick spawn list inside the tick; line 923 re-reads the element by index because the realloc can move it",
+  "function servertick_set_active: copies into the fixed active array (ST_MAX_ACTIVE) (lane/gpuarena, L3)",
+  "lines 987-1005 and 1028-1034, function servertick_tick: installs and clears process-global hooks (w->on_block, fire_tnt_prime, randomtick rand/det/drop sink, blockcb_env, ticks.c rand and total time); lines 307-313 swap w->on_block around wake_all",
+  "lines 588 and 605, function update_tick: while loop drops a falling block down the column, bounded by y > 0",
+  "lines 882-892, function tick_chunks: world_chunk lookup and possible world_load_chunk (generation and population) inside the tick; the active set order is a recorded HashSet order carried as data",
+  "lines 661-662, function update_tick: fprintf to stderr for the unported portal pigman spawn",
+  "lines 30-56 and 1109-1148, functions scalar_text/nbt_long/st_value_str: malloc and free per NBT scalar read (load time only, not in the tick)",
+  "struct servertick holds function-pointer callbacks and a struct world pointer: a pointer graph the GPU cannot mirror as is",
+  "function servertick_chunk_loop: S6 alone, the device kernel's entry (lane/gpus6, L17): cuda/tick/dev.c's chunkloop runs it per thread block on the engine's own C compiled for nvptx64 (cuda/tick/tick.mk); the callbacks it reaches that the device keeps are cuda/tick/tick.mk S6_CALLBACKS (st_on_block, st_drop_sink, st_tnt_prime, st_block_env_drop, sr_on_spawn), any other one (chunk provision, the plate and portal hooks) flags the run and C redoes it"
+ ],
+ "tests": [
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_lightning.c"
+ ],
+ "notes": "The village siege only makes its midnight nextInt(10) roll; func_75529_b (finding a village) and spawnZombie are not ported. A portal block's zombie pigman spawn roll is drawn but the pigman is not spawned (stderr notice). tick_empty_chunk reproduces the draws func_147456_g makes over ChunkProviderServer.defaultEmptyChunk. The tick's tail (unloadQueuedChunks via the on_unload_step callback, updatePlayerInstances, villages, portal forcer) is driven by serverreplay.c, not here. test_snapshots.c and test_lightning.c reach this file through serverreplay.c; not checked which of their cases exercise which branch. Lane gpuphase (GPU audit L6): servertick_tick runs its phases as functions between PHASE_RUN marks: S1 st_weather_sleep, S2 st_spawner, S1T st_clocks + st_publish, S3 st_unload, S4 tick_updates, S5 tick_player_light, S6 tick_chunks, SG village_siege_tick (off the overworld); servertick_tick_head is S1, S2 and S1T in a row."
+}

@@ -1,0 +1,68 @@
+{
+  "path": "csrc/tests/test_itemuse.c",
+  "lines": 583,
+  "role": "Gate: replays the oracle's ItemUseProbe cases (scene rebuilt by setBlock flag 2, posed player, seeded World.rand) through csrc/engine/itemuse.c and compares the return, held stack, block writes, pending scheduled ticks and World.rand state per case. --cases N (make smoke, probe.h): the first N cases.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/server/management/ItemInWorldManager.java",
+      "members": [
+        "tryUseItem",
+        "activateBlockOrUseItem"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemBucket.java",
+      "members": [
+        "onItemRightClick",
+        "tryPlaceContainedLiquid"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemFlintAndSteel.java",
+      "members": [
+        "onItemUse"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemDye.java",
+      "members": [
+        "onItemUse",
+        "func_150919_a"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemGlassBottle.java",
+      "members": [
+        "onItemRightClick"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemLilyPad.java",
+      "members": [
+        "onItemRightClick"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemFireball.java",
+      "members": [
+        "onItemUse"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemEnderEye.java",
+      "members": [
+        "onItemUse",
+        "onItemRightClick"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/itemuse. Native calls: itemuse_try_use_item, itemuse_activate_block_or_use_item (csrc/engine/itemuse.h), ticks_reset/ticks_set_total_time/ticks_walk, jmath_init, world_*, det_init/det_reset/det_free, probe.h helpers. Reads manifest.json, scenes.bin, cases.bin (115 B), writes.bin (15 B), sched.bin (34 B). The item class list comes from the Item* names ItemUseProbe.java references; which items each scene exercises was not verified. Recordings: out/java/itemuse/seed2-v2, seed42-v2."
+}

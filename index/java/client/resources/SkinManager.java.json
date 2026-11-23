@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/resources/SkinManager.java",
+  "classes": ["SkinManager", "SkinManager.SkinAvailableCallback"],
+  "lines": 162,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Downloads and caches player skins and capes from the Mojang session service onto TextureManager texture names, with a background executor and a 15-second profile-texture cache.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Online skin fetch for the player entity render. The agent client plays offline and the native entity renderer draws the recorded player texture directly; no Mojang session service exists on the path.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_152793_a", "sig": "ResourceLocation", "native": null, "status": "n/a", "note": "static: textures/entity/steve.png, the fallback skin"},
+    {"kind": "field", "name": "field_152794_b", "sig": "ExecutorService", "native": null, "status": "n/a", "note": "static: the download executor"},
+    {"kind": "ctor", "name": "SkinManager", "sig": "(TextureManager,File,MinecraftSessionService)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152792_a", "sig": "(MinecraftProfileTexture,Type)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152789_a", "sig": "(MinecraftProfileTexture,Type,SkinAvailableCallback)ResourceLocation", "native": null, "status": "n/a", "note": "queues a ThreadDownloadImageData for the skin URL"},
+    {"kind": "method", "name": "func_152790_a", "sig": "(GameProfile,SkinAvailableCallback,boolean)V", "native": null, "status": "n/a", "note": "fetches the profile's textures off-thread"},
+    {"kind": "method", "name": "func_152788_a", "sig": "(GameProfile)Map", "native": null, "status": "n/a", "note": "cached profile texture map"},
+    {"kind": "field", "name": "field_152795_c", "sig": "TextureManager", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_152796_d", "sig": "File", "native": null, "status": "n/a", "note": "skin cache directory"},
+    {"kind": "field", "name": "field_152797_e", "sig": "MinecraftSessionService", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_152798_f", "sig": "LoadingCache", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "SkinAvailableCallback.func_152121_a", "sig": "(Type,ResourceLocation)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

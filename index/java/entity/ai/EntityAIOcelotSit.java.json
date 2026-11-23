@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIOcelotSit.java",
+  "classes": ["EntityAIOcelotSit"],
+  "lines": 145,
+  "side": "server",
+  "category": "ai",
+  "role": "A tamed ocelot sits on a nearby chest, lit furnace or unoccupied bed half of a bed block: it searches 16x16 around itself, walks to the best spot and sits for a random 1200-3600-tick stretch.",
+  "scope": "switched_off",
+  "scope_reason": "Only EntityOcelot registers this task (grep over oracle/src), and world.conf forces ocelots = off, so it is never constructed, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_151493_a", "sig": "EntityOcelot", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_151491_b", "sig": "double", "native": null, "status": "n/a", "note": "the sit-walk speed"},
+    {"kind": "field", "name": "field_151492_c", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_151489_d", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_151490_e", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_151487_f", "sig": "int", "native": null, "status": "n/a", "note": "chosen X"},
+    {"kind": "field", "name": "field_151488_g", "sig": "int", "native": null, "status": "n/a", "note": "chosen Y"},
+    {"kind": "field", "name": "field_151494_h", "sig": "int", "native": null, "status": "n/a", "note": "chosen Z"},
+    {"kind": "ctor", "name": "EntityAIOcelotSit", "sig": "(EntityOcelot,double)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151485_f", "sig": "()Z", "native": null, "status": "n/a", "note": "the 16x16 seat search"},
+    {"kind": "method", "name": "func_151486_a", "sig": "(World,int,int,int)Z", "native": null, "status": "n/a", "note": "chest (with an open-lid tile entity), lit furnace, bed head check"}
+  ],
+  "missing": [],
+  "notes": "The double literal 0.006500000134110451D is a widened float; a future port must copy it as printed (AGENTS.md gotcha)."
+}

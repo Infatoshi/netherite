@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/item/ItemSign.java",
+  "classes": ["ItemSign"],
+  "lines": 97,
+  "side": "common",
+  "category": "item",
+  "role": "The sign item (id 323): places a standing or wall sign with the facing metadata and opens the sign editor (editor gated off).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_sign_on_item_use"]}
+  ],
+  "evidence": ["csrc/tests/test_place.c"],
+  "members": [
+    {"kind": "ctor", "name": "ItemSign", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 323: stack 16"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": "csrc/engine/place.c:item_sign_on_item_use", "status": "exact", "note": "side-0 refusal, the solid-material check, the standing/wall choice with the yaw quadrant, and the blank tile entity: the editor open is behind the WorldConf.sign_editing gate in the Java body, so a blank sign is the vanilla-with-switch behavior"}
+  ],
+  "missing": [],
+  "notes": "The sign text editor is switched off (world.conf sign_editing = off); placement is exact."
+}

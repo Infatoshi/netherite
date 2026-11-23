@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/network/play/client/C0BPacketEntityAction.java",
+  "classes": ["C0BPacketEntityAction"],
+  "lines": 70,
+  "side": "client",
+  "category": "network",
+  "role": "Player state actions the server must know: 1/2 sneak on/off, 3 stop sleeping, 4/5 sprint on/off, 6 riding jump.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["client_out"]},
+    {"file": "csrc/engine/player.h", "symbols": ["C0B_SNEAK_ON", "C0B_SNEAK_OFF", "C0B_SPRINT_ON", "C0B_SPRINT_OFF"]},
+    {"file": "csrc/engine/player.c", "symbols": ["cp_send_motion_updates", "server_player_tick"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/walk300-s1",
+    "out/java/snapshots/gen-walk-s42",
+    "csrc/tests/test_move.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149517_a (entity id)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "not carried: client_out c0b[] stores bare action numbers, the target is always the player"},
+    {"kind": "field", "name": "field_149515_b (action)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c0b[] in send order"},
+    {"kind": "field", "name": "field_149516_c (aux data)", "sig": "I", "native": null, "status": "n/a", "note": "only used by the riding action, which never happens in this game"},
+    {"kind": "ctor", "name": "C0BPacketEntityAction", "sig": "(Entity,I,V)V", "native": "csrc/engine/player.c:cp_send_motion_updates", "status": "exact", "note": "sendMotionUpdates queues C0B_SPRINT_ON/OFF and C0B_SNEAK_ON/OFF from the tick's sprint/sneak flips"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/player.c:server_player_tick", "status": "exact", "note": "server_player_tick walks co->c0b[] in arrival order, flipping sneaking and sprinting (sp_set_sprinting) before the C03 is processed"},
+    {"kind": "method", "name": "func_149513_d", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149512_e", "sig": "()I", "native": null, "status": "n/a", "note": "the horse jump power: processEntityAction reads it only for action 6 with an EntityHorse mount, and horses are switched off (world.conf horses = off)"},
+    {"kind": "ctor", "name": "C0BPacketEntityAction", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [
+    "Actions 3 (stop sleeping) and 6 (riding jump) are not modelled: waking is driven by the act and bed flow, and nothing is rideable while world.conf has minecarts and boats off."
+  ],
+  "notes": null
+}

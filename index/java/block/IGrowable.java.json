@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/block/IGrowable.java",
+  "classes": ["IGrowable"],
+  "lines": 31,
+  "side": "common",
+  "category": "block",
+  "role": "The interface ItemDye's bone meal consults: can the block still grow here, should this use be consumed, and grow from this use.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["randomtick_bonemeal_can", "randomtick_bonemeal_chance", "randomtick_bonemeal_grow"]},
+    {"file": "csrc/engine/itemuse.c", "symbols": ["bonemeal"]}
+  ],
+  "evidence": ["csrc/tests/test_itemuse.c"],
+  "members": [
+    {"kind": "method", "name": "func_149851_a", "sig": "(Lnet/minecraft/world/World;IIIZ)Z", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_can", "status": "exact", "note": "the can-grow gate; the isRemote argument is always false server-side and is ignored"},
+    {"kind": "method", "name": "func_149852_a", "sig": "(Lnet/minecraft/world/World;Ljava/util/Random;III)Z", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_chance", "status": "exact", "note": "the consume decision"},
+    {"kind": "method", "name": "func_149853_b", "sig": "(Lnet/minecraft/world/World;Ljava/util/Random;III)V", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_grow", "status": "exact", "note": "the growth body; itemuse.c's bonemeal is the ItemDye.onItemUse caller"}
+  ],
+  "missing": [],
+  "notes": "Implemented by BlockCrops, BlockStem, BlockGrass, BlockSapling, BlockMushroom and BlockTallGrass, each of which carries its own record; the interface's three calls are the dispatch points in randomtick.c."
+}

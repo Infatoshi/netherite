@@ -1,0 +1,234 @@
+{
+ "path": "csrc/engine/item_entity.h",
+ "lines": 347,
+ "role": "The non-living entity pool: one ie_ent record shared by items, XP orbs, arrows, throwables, potions, fireballs, eyes of ender and primed TNT, the per-chunk y-section entity lists, the removal log, and the ie_world pool with its owner callbacks; declares the spawn, adopt, tick, unload and query functions.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": [
+    "age",
+    "delayBeforeCanPickup",
+    "health",
+    "hoverStart",
+    "field_145801_f",
+    "field_145802_g"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityXPOrb.java",
+   "members": [
+    "xpColor",
+    "xpOrbAge",
+    "field_70532_c",
+    "xpOrbHealth",
+    "xpValue",
+    "closestPlayer",
+    "xpTargetColor"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityTNTPrimed.java",
+   "members": [
+    "fuse",
+    "tntPlacedBy"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "entityId",
+    "entityUniqueID",
+    "rand",
+    "ticksExisted",
+    "addedToChunk",
+    "chunkCoordX",
+    "chunkCoordY",
+    "chunkCoordZ",
+    "inWater",
+    "dimension"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "entityLists"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "loadedEntityList",
+    "getCollidingBoundingBoxes",
+    "getEntitiesWithinAABBExcludingEntity"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "ie_ent",
+   "java": "Entity plus EntityItem, EntityXPOrb, EntityArrow, EntityThrowable, EntityPotion, EntityFireball, EntityEnderEye and EntityTNTPrimed fields in one tagged record",
+   "fields": [
+    "e",
+    "spawn_index",
+    "kind",
+    "dimension",
+    "iew",
+    "rand",
+    "entity_id",
+    "uuid_msb",
+    "uuid_lsb",
+    "ticks_existed",
+    "age",
+    "delay",
+    "health",
+    "hover_start",
+    "stack_item",
+    "stack_damage",
+    "stack_count",
+    "stack_tag",
+    "owner_name",
+    "stack_count_link",
+    "xp_color",
+    "xp_target_color",
+    "xp_value",
+    "xp_has_target",
+    "in_ground",
+    "tile_x",
+    "in_tile",
+    "shake",
+    "ticks_in_ground",
+    "ticks_in_air",
+    "arrow_damage",
+    "knockback_strength",
+    "can_be_picked_up",
+    "is_critical",
+    "shooting_entity",
+    "potion_damage",
+    "ticks_alive",
+    "accel_x",
+    "explosion_power",
+    "shooter",
+    "shooter_is_player",
+    "thrower",
+    "eye_target_x",
+    "eye_timer",
+    "eye_drop",
+    "fuse",
+    "tnt_by_player"
+   ]
+  },
+  {
+   "name": "ie_removal",
+   "java": null,
+   "fields": [
+    "tick",
+    "spawn_index",
+    "entity_id",
+    "reason",
+    "health",
+    "fire",
+    "age",
+    "pos_y"
+   ]
+  },
+  {
+   "name": "ie_chunk",
+   "java": "Chunk.entityLists (16 y-section lists, insertion order)",
+   "fields": [
+    "cx",
+    "cz",
+    "used",
+    "n",
+    "ent"
+   ]
+  },
+  {
+   "name": "blast_ent",
+   "java": null,
+   "fields": [
+    "e",
+    "ie",
+    "liver"
+   ]
+  },
+  {
+   "name": "ie_world",
+   "java": "the non-living half of World.loadedEntityList with World.rand and the owner hooks",
+   "fields": [
+    "w",
+    "det",
+    "role",
+    "world_rand",
+    "player",
+    "player_gone",
+    "next_spawn_index",
+    "list",
+    "n",
+    "collide_entities",
+    "other_boxes",
+    "nother",
+    "chunks",
+    "nchunks",
+    "capchunks",
+    "user_data",
+    "on_splash",
+    "on_arrow_hit",
+    "on_fireball_impact",
+    "on_egg_chicken",
+    "query_living",
+    "query_other",
+    "on_other_hit",
+    "get_living_bb",
+    "blast_entities",
+    "on_tnt_explode",
+    "tnt_ctx",
+    "on_pearl_impact",
+    "spawn_item"
+   ]
+  }
+ ],
+ "entry_points": [
+  "ie_init",
+  "ie_free",
+  "ie_spawn_item",
+  "ie_spawn_orb",
+  "ie_spawn_tnt",
+  "ie_added_to_world",
+  "ie_spawn_item_state",
+  "ie_spawn_orb_state",
+  "ie_tick",
+  "ie_material_in_bb",
+  "ie_liquid_height_meta",
+  "ie_water_accelerate",
+  "ie_water_accelerate_box",
+  "ie_tick_one",
+  "ie_unload_chunk",
+  "ie_adopt_item",
+  "ie_adopt_orb",
+  "ie_adopt_tnt",
+  "ie_get_entities_within_aabb",
+  "ie_can_be_collided_with"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 43: ie_ent.iew back pointer to the owning pool",
+  "lines 66-67 and 101: owner_name and thrower string pointers, stack_count_link int pointer",
+  "shooting_entity and shooter are lrefs (living.h); stack_count_link a stack_link; the world's list holds pool slots (lane/gpuarena, L3)",
+  "line 122: ie_chunk holds 16 x 2048 ie_ent pointers per chunk (about 256 KB each)",
+  "ie_world.slot is a fixed array of IE_MAX_ENTITIES (8192) pool slots; ie_list_push stops the program with a message past it",
+  "line 162: ie_world.chunks is a heap array grown by realloc",
+  "lines 166-202: eleven owner callbacks (function pointers) the tick calls into",
+  "line 174 and 189: query_living and blast_entities callbacks return entities in the owner's container order"
+ ],
+ "tests": [
+  "csrc/tests/test_items.c",
+  "csrc/tests/test_explosions.c",
+  "csrc/tests/test_projectiles.c",
+  "csrc/tests/test_eyes.c",
+  "csrc/tests/test_dragon.c",
+  "csrc/tests/test_lightning.c",
+  "csrc/tests/test_spawning.c"
+ ],
+ "notes": "The ie_ent field list above is abridged to the main groups (tile_y, tile_z, in_data, accel_y, accel_z, eye_target_y, eye_target_z, prev_*, last_tick_*, rotation and flag fields are also present). The kind enum covers IE_ITEM to IE_TNT; projectile behaviour lives in projectile.c. The Entity and EntityItem field names are mapped from comments; the owner and thrower fields are EntityItem.field_145801_f/field_145802_g by position, not confirmed by a comment."
+}

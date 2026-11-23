@@ -1,0 +1,3 @@
+# lane/hudfix: the speedrun config with the HUD on, 2026-09-30
+id	found	by	area	field	cause	status	commit	pin	repro
+rlsplit-hudframe	2026-09-30	lane/hudfix (gate)	cuda	px	the block outline (RASTER_CMD_LINE, 12 lines, drawn when the HUD is on, not under F1): the device drew it, as play's live frame does, but raster_obs_render (the C redraw from the frame data that pipe_gate compares against) had no case for it and skipped it; raster_obs_render now draws each recorded line through raster_overlay_line; pipe-gate CONFIG=configs/speedrun.yaml (hud on) MESH=2 DRAW=1: 129,056 rows, 32,288 frames bit-exact against the C redraw and the live C frames	fixed	e70c5006	out/java/snapshots/sr-speedrun-s1	-

@@ -1,0 +1,193 @@
+{
+ "path": "oracle/src/pathfinding/PathFinder.java",
+ "classes": [
+  "PathFinder"
+ ],
+ "lines": 402,
+ "side": "server",
+ "category": "pathfinding",
+ "role": "The A* search itself: the block rules of getVerticalOffset, the safe point walk downs, the 32 option slots and the path build from the predecessor chain.",
+ "scope": "in_scope",
+ "scope_reason": "Mob pathfinding is vanilla behavior the mob AI depends on.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/pathfind.c",
+   "symbols": [
+    "setup",
+    "search",
+    "find_path_options",
+    "safe_point",
+    "open_point",
+    "vertical_offset",
+    "build_path",
+    "start_y",
+    "pf_get_entity_path_to_xyz",
+    "pf_get_path_entity_to_entity",
+    "pf_init",
+    "pf_free"
+   ]
+  },
+  {
+   "file": "csrc/engine/pathfind.h",
+   "symbols": [
+    "pf",
+    "pf_point",
+    "pf_entity"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/paths/pf2-20k",
+  "out/java/paths/pf42-20k",
+  "csrc/tests/test_paths.c",
+  "out/java/snapshots/pen-gates-s1",
+  "out/java/snapshots/chase-edge-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "PathFinder",
+   "sig": "(IBlockAccess,ZZZZ)V",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:setup",
+   "note": "the four flags are set per search in setup(), PathFinder order"
+  },
+  {
+   "kind": "method",
+   "name": "createEntityPathTo",
+   "sig": "(Entity,Entity,F)PathEntity",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:pf_get_path_entity_to_entity",
+   "note": "World.getPathEntityToEntity (World.java:3480) is the caller and is ported with it"
+  },
+  {
+   "kind": "method",
+   "name": "createEntityPathTo",
+   "sig": "(Entity,III,F)PathEntity",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:pf_get_entity_path_to_xyz",
+   "note": "World.getEntityPathToXYZ (World.java:3461) is the caller and is ported with it"
+  },
+  {
+   "kind": "method",
+   "name": "createEntityPathTo",
+   "sig": "(Entity,DDD,F)PathEntity",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:start_y",
+   "note": "the shared setup plus the drowning branch's water surface start"
+  },
+  {
+   "kind": "method",
+   "name": "addToPath",
+   "sig": "(Entity,PathPoint,PathPoint,PathPoint,F)PathEntity",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:search"
+  },
+  {
+   "kind": "method",
+   "name": "findPathOptions",
+   "sig": "(Entity,PathPoint,PathPoint,PathPoint,F)I",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:find_path_options"
+  },
+  {
+   "kind": "method",
+   "name": "getSafePoint",
+   "sig": "(Entity,IIII,PathPoint,I)PathPoint",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:safe_point"
+  },
+  {
+   "kind": "method",
+   "name": "openPoint",
+   "sig": "(III)PathPoint",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:open_point"
+  },
+  {
+   "kind": "method",
+   "name": "getVerticalOffset",
+   "sig": "(Entity,IIII,PathPoint)I",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:vertical_offset"
+  },
+  {
+   "kind": "method",
+   "name": "func_82565_a",
+   "sig": "(Entity,IIII,PathPoint,ZZZ)I",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:vertical_offset",
+   "note": "the static form is the same body"
+  },
+  {
+   "kind": "method",
+   "name": "createEntityPath",
+   "sig": "(PathPoint,PathPoint)PathEntity",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:build_path"
+  },
+  {
+   "kind": "field",
+   "name": "worldMap",
+   "sig": "IBlockAccess",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf",
+   "note": "struct pf holds the world pointer"
+  },
+  {
+   "kind": "field",
+   "name": "path",
+   "sig": "Path",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf",
+   "note": "the heap lives in struct pf"
+  },
+  {
+   "kind": "field",
+   "name": "pointMap",
+   "sig": "IntHashMap",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf",
+   "note": "a flat key table keyed by makeHash"
+  },
+  {
+   "kind": "field",
+   "name": "pathOptions",
+   "sig": "PathPoint[]",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf",
+   "note": "the 32 option slots are ints into the pool"
+  },
+  {
+   "kind": "field",
+   "name": "isWoddenDoorAllowed",
+   "sig": "boolean",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf"
+  },
+  {
+   "kind": "field",
+   "name": "isMovementBlockAllowed",
+   "sig": "boolean",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf"
+  },
+  {
+   "kind": "field",
+   "name": "isPathingInWater",
+   "sig": "boolean",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf"
+  },
+  {
+   "kind": "field",
+   "name": "canEntityDrown",
+   "sig": "boolean",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf"
+  }
+ ],
+ "missing": [],
+ "notes": "The block rules the vertical offset reaches (doors, fence, wall, fence gate, trapdoor, the liquid classes, signs and pressure plates) are tables built once by pf_build_tables (pathfind.c:88). The entity's view is struct pf_entity; Entity.getMaxSafePointTries is read per entity (nav_fill_entity)."
+}

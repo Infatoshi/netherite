@@ -1,0 +1,28 @@
+{
+ "path": "csrc/engine/jfloor.h",
+ "lines": 45,
+ "role": "MathHelper.floor_double and floor_float, the only copies in native, and Java's saturating float-to-int and double-to-int casts under them (NaN 0, out of range the int bounds, the minus one wrapping).",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/util/MathHelper.java",
+   "members": [
+    "floor_double",
+    "floor_float"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "j_f2i",
+  "j_d2i",
+  "mh_floor",
+  "mh_floor_float"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_jmath.c"
+ ],
+ "notes": "jmath.h includes it; particles_live.c includes it alone because render_blocks_int.h declares its own mh_sin. out/java/jmath/jmath-s0 (java JmathProbe) checks it against MathHelper at 3e11, -3e11, NaN, the infinities and the int bounds, and the placement facings built on it."
+}

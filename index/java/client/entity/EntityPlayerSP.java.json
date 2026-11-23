@@ -1,0 +1,479 @@
+{
+  "path": "oracle/src/client/entity/EntityPlayerSP.java",
+  "classes": [
+    "EntityPlayerSP"
+  ],
+  "lines": 662,
+  "side": "client",
+  "category": "player",
+  "role": "The local player on the client: turns MovementInput into motion, runs sprint double-tap and fly toggles, pushes out of blocks, lags the first-person arm, tracks the portal overlay and opens the GUI screens the server asks for.",
+  "scope": "in_scope",
+  "scope_reason": "The client player's tick produces the movement packets the server tick consumes, so it is part of every replay row.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/player.c",
+      "symbols": [
+        "client_player",
+        "client_player_tick",
+        "cp_on_living_update",
+        "cp_living_core",
+        "cp_arm_update",
+        "cp_set_sprinting",
+        "cp_is_sneaking",
+        "push_out_of_blocks",
+        "client_swing_item",
+        "cp_set_in_portal"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "client_set_sp_health",
+        "surv_client_input",
+        "surv_client_pump",
+        "surv_client_portal_close",
+        "client_container_closed",
+        "client_drop_draws",
+        "surv_client_fresh"
+      ]
+    },
+    {
+      "file": "csrc/engine/clientstate.c",
+      "symbols": [
+        "clientstate_portal_tick",
+        "clientstate_set_in_portal",
+        "clientstate_fov_multiplier",
+        "clientstate_set_sp_health"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/replay2-walk-s1",
+    "out/java/snapshots/replay2-sneak-s1",
+    "out/java/snapshots/replay2-jump-s1",
+    "out/java/snapshots/flow-walk-s1",
+    "out/java/snapshots/scen-suffocate-s1",
+    "out/java/snapshots/screens-drag-s1",
+    "csrc/tests/test_snapshots.c",
+    "out/java/rendertick/cs_sprint",
+    "out/java/rendertick/cs_speed",
+    "out/java/rendertick/cs_bow",
+    "out/java/rendertick/cs_portal",
+    "csrc/tests/test_rendertick.c",
+    "out/java/snapshots/idx-portalclose-s1",
+    "out/java/snapshots/idx-portalchest-s1",
+    "out/java/snapshots/te-chest-s1",
+    "out/java/snapshots/containers2-s42",
+    "out/java/snapshots/trade-s1",
+    "out/java/snapshots/nether-trip-s1",
+    "out/java/snapshots/portal-inv-s1",
+    "out/java/snapshots/use-switch-s1",
+    "out/java/snapshots/pfc-rideuse-f208"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "movementInput",
+      "sig": "MovementInput",
+      "native": "csrc/engine/player.c:client_player",
+      "status": "exact",
+      "note": "MovementInputFromOptions.updatePlayerMoveState inlined into cp_on_living_update: in_strafe/in_forward/in_jump/in_sneak on struct client_player"
+    },
+    {
+      "kind": "field",
+      "name": "mc",
+      "sig": "Minecraft",
+      "native": null,
+      "status": "n/a",
+      "note": "the native client_player is its own context"
+    },
+    {
+      "kind": "field",
+      "name": "sprintToggleTimer",
+      "sig": "int",
+      "native": "csrc/engine/player.c:client_player",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "sprintingTicksLeft",
+      "sig": "int",
+      "native": "csrc/engine/player.c:client_player",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "renderArmYaw",
+      "sig": "float",
+      "native": "csrc/engine/player.c:cp_arm_update",
+      "status": "exact",
+      "note": "arm_yaw; render-only"
+    },
+    {
+      "kind": "field",
+      "name": "renderArmPitch",
+      "sig": "float",
+      "native": "csrc/engine/player.c:cp_arm_update",
+      "status": "exact",
+      "note": "arm_pitch; render-only"
+    },
+    {
+      "kind": "field",
+      "name": "prevRenderArmYaw",
+      "sig": "float",
+      "native": "csrc/engine/player.c:cp_arm_update",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "prevRenderArmPitch",
+      "sig": "float",
+      "native": "csrc/engine/player.c:cp_arm_update",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "horseJumpPowerCounter",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "horses are switched off (world.conf horses = off)"
+    },
+    {
+      "kind": "field",
+      "name": "horseJumpPower",
+      "sig": "float",
+      "native": null,
+      "status": "n/a",
+      "note": "horses are switched off"
+    },
+    {
+      "kind": "field",
+      "name": "field_71162_ch/field_71160_ci/field_71161_cj",
+      "sig": "MouseFilter x3",
+      "native": null,
+      "status": "n/a",
+      "note": "smooth-camera filters, unused in agent mode"
+    },
+    {
+      "kind": "field",
+      "name": "timeInPortal",
+      "sig": "float",
+      "native": "csrc/engine/clientstate.c:clientstate_portal_tick",
+      "status": "exact",
+      "note": "struct cs_portal on the client player (player.c cp_on_living_update, set from its own move through e.set_in_portal); test_rendertick steps it row to row on cs_portal (70 ticks in a lit portal, then out), and play.c draws the overlay and the warp from it"
+    },
+    {
+      "kind": "field",
+      "name": "prevTimeInPortal",
+      "sig": "float",
+      "native": "csrc/engine/clientstate.c:clientstate_portal_tick",
+      "status": "exact",
+      "note": "cs_portal.prev"
+    },
+    {
+      "kind": "ctor",
+      "name": "EntityPlayerSP",
+      "sig": "(Minecraft,World,Session,I)",
+      "native": "csrc/engine/player.c:client_player_load",
+      "status": "exact",
+      "note": "a replay starts from the snapshot's loaded player (client_player_load); a respawn or dimension change builds the fresh one (surv_client_fresh: its constructor's Det draws, portal time 0, currentItem 0)"
+    },
+    {
+      "kind": "method",
+      "name": "updateEntityActionState",
+      "sig": "()V",
+      "native": "csrc/engine/player.c:cp_living_core",
+      "status": "exact",
+      "note": "move inputs copied, then cp_arm_update for the arm lag"
+    },
+    {
+      "kind": "method",
+      "name": "onLivingUpdate",
+      "sig": "()V",
+      "native": "csrc/engine/player.c:cp_on_living_update",
+      "status": "exact",
+      "note": "sprint timers, the portal block (a screen that is up closes in a portal: surv_client_portal_close; the trigger sound's draw; the confusion fill), the input update, the using slowdown, sneak ySize, pushOutOfBlocks, the sprint rules and flyToggleTimer. The flying toggle and flying motion need capabilities.allowFlying, which only creative sets (the game is SURVIVAL: Oracle.java:234, and game-mode commands are not_needed per the CommandGameMode record); the horse block needs a horse (world.conf horses = off); the using slowdown is skipped while riding (!isRiding, pfc-rideuse-f208)"
+    },
+    {
+      "kind": "method",
+      "name": "getFOVMultiplier",
+      "sig": "()F",
+      "native": "csrc/engine/clientstate.c:clientstate_fov_multiplier",
+      "status": "exact",
+      "note": "flying, the movementSpeed attribute over walkSpeed and the bow draw squared; test_rendertick checks it at every cs_* row (cs_sprint, cs_speed, cs_bow) and the fovMultiplierTemp each tick used (the tick's own S20 and bow release first)"
+    },
+    {
+      "kind": "method",
+      "name": "closeScreen",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:surv_client_input",
+      "status": "exact",
+      "note": "the close op: EntityClientPlayerMP.closeScreen's C0D, closeScreenNoPacket (the cursor emptied, openContainer the inventory one), then displayGuiScreen(null): GuiContainer.onGuiClosed's client spill (client_container_closed)"
+    },
+    {
+      "kind": "method",
+      "name": "func_146100_a",
+      "sig": "(TileEntity)V",
+      "native": null,
+      "status": "n/a",
+      "note": "sign/command-block editor: sign_editing is off and command blocks are not used"
+    },
+    {
+      "kind": "method",
+      "name": "func_146095_a",
+      "sig": "(CommandBlockLogic)V",
+      "native": null,
+      "status": "n/a",
+      "note": "command block GUI, not used"
+    },
+    {
+      "kind": "method",
+      "name": "displayGUIBook",
+      "sig": "(ItemStack)V",
+      "native": null,
+      "status": "n/a",
+      "note": "book_editing is off"
+    },
+    {
+      "kind": "method",
+      "name": "displayGUIChest",
+      "sig": "(IInventory)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "reached from handleOpenWindow (PK_S2D): the window's container on the client (wb_container), the screen up, setIngameNotInFocus"
+    },
+    {
+      "kind": "method",
+      "name": "func_146093_a",
+      "sig": "(TileEntityHopper)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "the hopper window through PK_S2D (CONTAINER_HOPPER)"
+    },
+    {
+      "kind": "method",
+      "name": "displayGUIHopperMinecart",
+      "sig": "(EntityMinecartHopper)V",
+      "native": null,
+      "status": "n/a",
+      "note": "minecarts are off"
+    },
+    {
+      "kind": "method",
+      "name": "displayGUIHorse",
+      "sig": "(EntityHorse,IInventory)V",
+      "native": null,
+      "status": "n/a",
+      "note": "horses are off"
+    },
+    {
+      "kind": "method",
+      "name": "displayGUIWorkbench",
+      "sig": "(III)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S2D (CONTAINER_WORKBENCH)"
+    },
+    {
+      "kind": "method",
+      "name": "displayGUIEnchantment",
+      "sig": "(IIIString)V",
+      "native": null,
+      "status": "n/a",
+      "note": "enchanting is off"
+    },
+    {
+      "kind": "method",
+      "name": "displayGUIAnvil",
+      "sig": "(III)V",
+      "native": null,
+      "status": "n/a",
+      "note": "anvil is off"
+    },
+    {
+      "kind": "method",
+      "name": "func_146101_a",
+      "sig": "(TileEntityFurnace)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S2D (CONTAINER_FURNACE)"
+    },
+    {
+      "kind": "method",
+      "name": "func_146098_a",
+      "sig": "(TileEntityBrewingStand)V",
+      "native": null,
+      "status": "n/a",
+      "note": "brewing is off"
+    },
+    {
+      "kind": "method",
+      "name": "func_146104_a",
+      "sig": "(TileEntityBeacon)V",
+      "native": null,
+      "status": "n/a",
+      "note": "beacon is off"
+    },
+    {
+      "kind": "method",
+      "name": "func_146102_a",
+      "sig": "(TileEntityDispenser)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S2D (CONTAINER_DISPENSER)"
+    },
+    {
+      "kind": "method",
+      "name": "displayGUIMerchant",
+      "sig": "(IMerchant,String)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S2D (CONTAINER_MERCHANT) with its title; the recipes from the MC|TrList S3F"
+    },
+    {
+      "kind": "method",
+      "name": "onCriticalHit",
+      "sig": "(Entity)V",
+      "native": null,
+      "status": "n/a",
+      "note": "never fires on the client for a mob: EntityLivingBase.attackEntityFrom returns false client-side, so the crit arrives as S0B 4 (particles_live_crit)"
+    },
+    {
+      "kind": "method",
+      "name": "onEnchantmentCritical",
+      "sig": "(Entity)V",
+      "native": null,
+      "status": "n/a",
+      "note": "enchanting is off"
+    },
+    {
+      "kind": "method",
+      "name": "onItemPickup",
+      "sig": "(Entity,I)V",
+      "native": null,
+      "status": "n/a",
+      "note": "never called on the client: EntityItem, EntityXPOrb and EntityArrow call onItemPickup from onCollideWithPlayer behind !worldObj.isClient; the client's pickup effect is NetHandlerPlayClient.handleCollectItem's EntityPickupFX (csrc/play/play.c)"
+    },
+    {
+      "kind": "method",
+      "name": "isSneaking",
+      "sig": "()Z",
+      "native": "csrc/engine/player.c:cp_is_sneaking",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setPlayerSPHealth",
+      "sig": "(F)V",
+      "native": "csrc/engine/survival.c:client_set_sp_health",
+      "status": "exact",
+      "note": "hurt branch mirrored on the S06"
+    },
+    {
+      "kind": "method",
+      "name": "addChatComponentMessage",
+      "sig": "(IChatComponent)V",
+      "native": null,
+      "status": "n/a",
+      "note": "chat display only"
+    },
+    {
+      "kind": "method",
+      "name": "isBlockTranslucent",
+      "sig": "(III)Z",
+      "native": "csrc/engine/player.c:is_normal_cube",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145771_j",
+      "sig": "(DDD)Z",
+      "native": "csrc/engine/player.c:push_out_of_blocks",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setSprinting",
+      "sig": "(Z)V",
+      "native": "csrc/engine/player.c:cp_set_sprinting",
+      "status": "exact",
+      "note": "sprintingTicksLeft set to 600 on sprint"
+    },
+    {
+      "kind": "method",
+      "name": "setXPStats",
+      "sig": "(F,I,I)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S1F sets the client's experience, total and level (the HUD's bar and number read them)"
+    },
+    {
+      "kind": "method",
+      "name": "addChatMessage",
+      "sig": "(IChatComponent)V",
+      "native": null,
+      "status": "n/a",
+      "note": "chat display only"
+    },
+    {
+      "kind": "method",
+      "name": "canCommandSenderUseCommand",
+      "sig": "(I,String)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "commands"
+    },
+    {
+      "kind": "method",
+      "name": "getPlayerCoordinates",
+      "sig": "()ChunkCoordinates",
+      "native": null,
+      "status": "n/a",
+      "note": "commands"
+    },
+    {
+      "kind": "method",
+      "name": "playSound",
+      "sig": "(String,F,F)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client audio"
+    },
+    {
+      "kind": "method",
+      "name": "isClientWorld",
+      "sig": "()Z",
+      "native": "csrc/engine/player.c:cp_living_core",
+      "status": "exact",
+      "note": "hardwired: the native client player never interpolates"
+    },
+    {
+      "kind": "method",
+      "name": "isRidingHorse",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "horses are off"
+    },
+    {
+      "kind": "method",
+      "name": "getHorseJumpPower",
+      "sig": "()F",
+      "native": null,
+      "status": "n/a",
+      "note": "horses are off"
+    },
+    {
+      "kind": "method",
+      "name": "func_110318_g",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "horse jump packet, horses are off"
+    }
+  ],
+  "missing": [],
+  "notes": "The GUI-opening methods are marked partial without a symbol because the native screens are driven from gui_screens.c/container.c by the server's S2D window packets rather than through these calls; this was not traced symbol by symbol. The enableEverythingIsScrewedUpMode branch (demo/spectator camera) is not needed. Evidence is the replay2-* walking/sneak/jump snapshots and flow-walk-s1 (DEVLOG line 1058: 0 field mismatches over 303 ticks) run by csrc/tests/test_snapshots.c. lane/idxclient: the portal block's screen close is ported (surv_client_portal_close: displayGuiScreen(null), not closeScreen, so openContainer and the server's window stay; GuiInventory then opens over inventoryContainer, cp_gui_container). idx-portalclose-s1 (a GuiInventory with a cursor stack and grid items closed by a portal; the client's spill draws are proven by an Unbreaking I pickaxe's client-side rolls: one erand draw short fails at row 47; master's native fails at row 33) and idx-portalchest-s1 (a chest opened in the portal: the screen closes the tick it opens, GuiInventory over the stale window, clicks the server drops)."
+}

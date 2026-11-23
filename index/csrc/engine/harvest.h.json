@@ -1,0 +1,67 @@
+{
+ "path": "csrc/engine/harvest.h",
+ "lines": 70,
+ "role": "Declares the break-speed and harvestability API of harvest.c and the harvest_player struct that carries the player's held item, Efficiency level, Haste and Mining Fatigue amplifiers, ground and water flags into one query.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "getBlockHardness",
+    "getPlayerRelativeBlockHardness"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "canHarvestBlock",
+    "getCurrentPlayerStrVsBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/InventoryPlayer.java",
+   "members": [
+    "func_146023_a",
+    "func_146025_b"
+   ]
+  },
+  {
+   "path": "oracle/src/item/Item.java",
+   "members": [
+    "func_150893_a",
+    "func_150897_b"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "harvest_player",
+   "java": "the EntityPlayer state getCurrentPlayerStrVsBlock reads: inventory.getCurrentItem, EnchantmentHelper.getEfficiencyModifier, the digSpeed and digSlowdown effects, onGround, isInsideOfMaterial(water)",
+   "fields": [
+    "held_item",
+    "held_enchant",
+    "haste",
+    "fatigue",
+    "on_ground",
+    "in_water"
+   ]
+  }
+ ],
+ "entry_points": [
+  "harvest_block_id",
+  "block_hardness",
+  "item_str_vs_block",
+  "item_can_harvest",
+  "inventory_str_vs_block",
+  "can_harvest_block",
+  "player_str_vs_block",
+  "player_relative_block_hardness"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_harvest.c",
+  "csrc/tests/test_harvestdrops.c"
+ ],
+ "notes": "The comment on player_str_vs_block (line 61) says the in-water /5 is not ported; harvest.c line 274 does apply it, so the comment is stale."
+}

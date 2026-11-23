@@ -1,0 +1,124 @@
+{
+  "path": "csrc/engine/raster_things.c",
+  "lines": 710,
+  "role": "The entity renders that are not living models, from a recorded frame's \"ents\" (EntityRenderProbe): arrows, fireballs, RenderSnowball's sprites (snowballs, eggs, pearls, eyes of ender, splash potions, experience bottles), primed TNT with its flash, falling blocks, lightning bolts and Render.renderEntityOnFire; and ItemRenderer.renderItem for held stacks (the extruded sprite, the block model, the glint) and RenderBlocks.renderBlockAsItem, shared with the mob equipment.",
+  "layer": "render",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/entity/RenderArrow.java",
+      "members": [
+        "doRender"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/entity/RenderFireball.java",
+      "members": [
+        "doRender"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/entity/RenderSnowball.java",
+      "members": [
+        "doRender",
+        "func_77026_a"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/entity/RenderTNTPrimed.java",
+      "members": [
+        "doRender"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/entity/RenderFallingBlock.java",
+      "members": [
+        "doRender"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/entity/RenderLightningBolt.java",
+      "members": [
+        "doRender"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/entity/Render.java",
+      "members": [
+        "renderEntityOnFire"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/ItemRenderer.java",
+      "members": [
+        "renderItem"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/RenderBlocks.java",
+      "members": [
+        "renderBlockAsItem",
+        "renderBlockSandFalling"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/RenderGlobal.java",
+      "members": [
+        "renderEntities"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "thing_item",
+      "java": "an ItemStack as ItemRenderer.renderItem and RenderBiped read it (EntityRenderProbe.stack)",
+      "fields": [
+        "id",
+        "meta",
+        "sprite",
+        "b3d",
+        "ib3d",
+        "bpass",
+        "rc",
+        "full3d",
+        "rot",
+        "multi",
+        "bow",
+        "eff",
+        "npass",
+        "pass",
+        "armor",
+        "armor_index",
+        "cloth",
+        "color"
+      ]
+    },
+    {
+      "name": "view",
+      "java": "RenderManager.playerViewY and playerViewX",
+      "fields": [
+        "yaw",
+        "pitch",
+        "pt",
+        "now"
+      ]
+    }
+  ],
+  "entry_points": [
+    "raster_things_scene",
+    "raster_things_live",
+    "thing_render_item",
+    "thing_block_as_item",
+    "thing_fire",
+    "thing_item_parse",
+    "thing_texture"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "file scope: static texture caches (tex_cache, blocks) filled from disk by scene path",
+    "raster_things_scene: reads and parses the frame row from disk per frame"
+  ],
+  "tests": [
+    "csrc/tests/test_render.c"
+  ],
+  "notes": "lane/entrender. Recorded scenes only; the live client does not call it. lane/covframes: block_atlas applies the animation again on every cached use, so the fire overlay (thing_fire) draws the frame's fire sprites, not the ones of the first frame that loaded the atlas (idx-burn-s1 31 1,175 to 18 px)."
+}

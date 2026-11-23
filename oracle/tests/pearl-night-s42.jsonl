@@ -1,0 +1,8 @@
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"give","item":267,"count":1,"meta":0}
+{"cmd":"dev","op":"give","item":274,"count":1,"meta":0}
+{"cmd":"dev","op":"give","item":4,"count":64,"meta":0}
+{"cmd":"dev","op":"give","item":364,"count":16,"meta":0}
+{"cmd":"dev","op":"state","health":20.0,"food":20,"saturation":5.0}
+{"cmd":"dev","op":"time","value":13000}
+{"n":3,"act":{}}

@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/entity/ai/EntityAISwimming.java",
+  "classes": ["EntityAISwimming"],
+  "lines": 35,
+  "side": "server",
+  "category": "ai",
+  "role": "Keeps a mob swimming: while in water (or lava) it jumps on an 80% draw each tick; its constructor also turns on the navigator's canSwim.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_update", "ai_setup_kind"]}
+  ],
+  "evidence": ["out/java/snapshots/mobspawn-final-s1", "out/java/snapshots/cp-mobs-s1", "csrc/tests/test_animals.c"],
+  "members": [
+    {"kind": "field", "name": "theEntity", "sig": "EntityLiving", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living; the constructor's effect is nav.can_swim = 1 in ai_setup_kind"},
+    {"kind": "ctor", "name": "EntityAISwimming", "sig": "(EntityLiving)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_SWIMMING, priority 0, mutex 4, for every kind that has tasks"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_SWIMMING case: isInWater || handleLavaMovement"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "EntityAIBase's default (shouldExecute again), mirrored directly"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "nextFloat() < 0.8F sets the jump helper's isJumping"}
+  ],
+  "missing": [],
+  "notes": "Java has no resetTask; the native ai_reset has no AIC_SWIMMING case either."
+}

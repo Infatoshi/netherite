@@ -1,0 +1,38 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderCreeper.java",
+  "classes": ["RenderCreeper"],
+  "lines": 182,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityCreeper: the creeper model with the flash-white pulse as the fuse runs down, and the charged-creeper armor overlay pass.",
+  "scope": "in_scope",
+  "scope_reason": "Creepers are core gated content (fight-creeper-s1 and the mob scenes).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_creeper", "raster_mobs_draw"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs2a_creeper_f006",
+    "out/java/render/mobs2a_creeper_f011",
+    "out/java/snapshots/fight-creeper-s1",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "armoredCreeperTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "TEX_CREEPER_ARMOR, drawn in the charged overlay pass in raster_mobs_draw (uv scroll 0.01/tick, 50% grey material, additive blend)"},
+    {"kind": "field", "name": "creeperTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "TEX_CREEPER"},
+    {"kind": "field", "name": "creeperModel", "sig": "private ModelBase", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact", "note": "model_creeper builds the creeper geometry, armor variant grows boxes by 2"},
+    {"kind": "ctor", "name": "RenderCreeper", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityCreeper,F)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the flash scale pulse (1 + sin(flash * 100) * flash * 0.01) is in the shared transform's creeper branch in raster_mobs.c"},
+    {"kind": "method", "name": "getColorMultiplier", "sig": "(EntityCreeper,FF)I", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact", "note": "the flash whitening (flash^4 toward white) is in the vertex colour path of raster_mobs.c (the flash/pulse/fourth computation)"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityCreeper,int,F)I", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the charged armor layer: TEX_CREEPER_ARMOR with additive blend, no depth write, uv scroll by age + partialTick"},
+    {"kind": "method", "name": "inheritRenderPass", "sig": "(EntityCreeper,int,F)I", "native": null, "status": "n/a", "note": "hurt-flash inheritance hook; the hurt flash is the shared RendererLivingEntity pass in raster_mobs.c"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityCreeper)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,F)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "getColorMultiplier", "sig": "(EntityLivingBase,FF)I", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,F)I", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "inheritRenderPass", "sig": "(EntityLivingBase,int,F)I", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "The flash intensity itself (getCreeperFlashIntensity, EntityCreeper state) is server-side creeper state the dump carries; the render-side pulse math is verified in raster_mobs.c. fight-creeper-s1 gates the swelling behaviour end to end."
+}

@@ -1,0 +1,66 @@
+{
+  "path": "oracle/src/enchantment/EnchantmentFireAspect.java",
+  "classes": [
+    "EnchantmentFireAspect"
+  ],
+  "lines": 36,
+  "side": "common",
+  "category": "combat",
+  "role": "The fire aspect enchantment: metadata row only; the effect sets a melee target on fire for 4*level seconds.",
+  "scope": "in_scope",
+  "scope_reason": "Enchantments reach the world through loot books and villager trades even with the enchanting table off (world.conf enchanting = off).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/enchants.h",
+      "symbols": [
+        "ENCHANTS"
+      ]
+    },
+    {
+      "file": "csrc/engine/combatench.c",
+      "symbols": [
+        "ench_fire_aspect"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_trades.c",
+    "csrc/tests/test_loot.c",
+    "out/java/trades/seed2",
+    "out/java/snapshots/trade-full-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "EnchantmentFireAspect",
+      "sig": "(II)V",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "row 20: weight 2, weapon, min 10+20*(l-1), max +50, level 2"
+    },
+    {
+      "kind": "method",
+      "name": "getMinEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxLevel",
+      "sig": "()I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "The class carries no effect code. The one ported effect site is the pigman's held-item attack: hostiles_pigman.c reads effect id 20 from the held stack's enchants and calls living_set_fire(target, level*4). The player melee path carries no enchantments on the recorded tapes, so that site is not exercised by an effect-level test; cited evidence covers the row only. The level is read by combatench.c:ench_fire_aspect for the player's and every mob's melee. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

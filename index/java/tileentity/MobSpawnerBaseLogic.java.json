@@ -1,0 +1,259 @@
+{
+  "path": "oracle/src/tileentity/MobSpawnerBaseLogic.java",
+  "classes": [
+    "MobSpawnerBaseLogic",
+    "MobSpawnerBaseLogic$WeightedRandomMinecart"
+  ],
+  "lines": 465,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The mob spawner's logic: player-range gate, spawn delay, up to spawnCount spawn attempts around the block with the nearby-entity cap and getCanSpawnHere, the reset timer, NBT, and the client's spinning mob and flame particles.",
+  "scope": "in_scope",
+  "scope_reason": "Dungeon, fortress (blaze) and stronghold (silverfish) spawners spawn mobs whenever the player is within 16 blocks.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_tile_spawner",
+        "sr_tile_reset",
+        "sr_tile_mob_kind",
+        "sr_tile_construct",
+        "sr_tile_can_spawn",
+        "sr_tile_no_entity_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "te_spawner"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_spawner",
+        "te_load",
+        "te_new"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "spawner_update"
+      ]
+    },
+    {
+      "file": "csrc/engine/features_dungeons.c",
+      "symbols": [
+        "pick_mob_spawner"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_tileent.c",
+      "symbols": [
+        "raster_tileents_spawner_tick",
+        "render_spawner"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/te-spawner-s1",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_populate.c",
+    "out/java/rendertick/te_spawner",
+    "csrc/tests/test_rendertick.c",
+    "out/java/snapshots/struct-spawner-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "spawnDelay",
+      "sig": "int",
+      "native": "csrc/engine/tileentity.h:te_spawner",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "mobID",
+      "sig": "String",
+      "native": "csrc/engine/tileentity.h:te_spawner",
+      "status": "exact",
+      "note": "mob_id, owned string"
+    },
+    {
+      "kind": "field",
+      "name": "minecartToSpawn",
+      "sig": "List",
+      "native": null,
+      "status": "n/a",
+      "note": "SpawnPotentials; never set by worldgen"
+    },
+    {
+      "kind": "field",
+      "name": "randomMinecart",
+      "sig": "WeightedRandomMinecart",
+      "native": null,
+      "status": "n/a",
+      "note": "SpawnData; never set by worldgen"
+    },
+    {
+      "kind": "field",
+      "name": "field_98287_c, field_98284_d",
+      "sig": "double",
+      "native": "csrc/engine/raster_tileent.c:raster_tileents_spawner_tick",
+      "status": "exact",
+      "note": "the client spin, stepped bit for bit against te_spawner and te_dungeon (test_rendertick section 6)"
+    },
+    {
+      "kind": "field",
+      "name": "minSpawnDelay, maxSpawnDelay, spawnCount, maxNearbyEntities, activatingRangeFromPlayer, spawnRange",
+      "sig": "int",
+      "native": "csrc/engine/tileentity.h:te_spawner",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_98291_j",
+      "sig": "Entity",
+      "native": null,
+      "status": "n/a",
+      "note": "client render entity cache"
+    },
+    {
+      "kind": "method",
+      "name": "getEntityNameToSpawn",
+      "sig": "()String",
+      "native": "csrc/engine/serverreplay.c:sr_tile_mob_kind",
+      "status": "exact",
+      "note": "Every mob a vanilla spawner is generated with (dungeon skeleton, zombie and spider, mineshaft cave spider, stronghold silverfish, fortress blaze) is mapped, with eight more; another id needs an NBT edit or a command."
+    },
+    {
+      "kind": "method",
+      "name": "setMobID",
+      "sig": "(String)V",
+      "native": "csrc/engine/features_dungeons.c:pick_mob_spawner",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "canRun",
+      "sig": "()Z",
+      "native": "csrc/engine/serverreplay.c:sr_tile_spawner",
+      "status": "exact",
+      "note": "closest player within range, one player"
+    },
+    {
+      "kind": "method",
+      "name": "updateSpawner",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:spawner_update",
+      "status": "exact",
+      "note": "The server half (te-spawner-s1). The client half's WorldClient.rand floats move only the client world's Random, which the whole-server replay and the playable client do not keep (see TileEntityMobSpawner)."
+    },
+    {
+      "kind": "method",
+      "name": "func_98265_a",
+      "sig": "(Entity)Entity",
+      "native": "csrc/engine/serverreplay.c:sr_tile_spawner",
+      "status": "exact",
+      "note": "onSpawnWithEgg and spawnEntityInWorld; the SpawnData and Riding branch needs a SpawnData tag no generated spawner has."
+    },
+    {
+      "kind": "method",
+      "name": "resetTimer",
+      "sig": "()V",
+      "native": "csrc/engine/serverreplay.c:sr_tile_reset",
+      "status": "exact",
+      "note": "the minecart re-pick is n/a"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "EntityId, Delay and the ranges; SpawnPotentials and SpawnData are never written by generation (only commands)."
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_spawner",
+      "status": "exact",
+      "note": "SpawnData/SpawnPotentials never present"
+    },
+    {
+      "kind": "method",
+      "name": "func_98281_h",
+      "sig": "()Entity",
+      "native": null,
+      "status": "n/a",
+      "note": "client render entity"
+    },
+    {
+      "kind": "method",
+      "name": "setDelayToMin",
+      "sig": "(I)Z",
+      "native": "csrc/play/play.c:tileents_tick",
+      "status": "exact",
+      "note": "A client-world call only: the playable client resets its spinner's delay when the server delay jumps back (play.c:tileents_tick)."
+    },
+    {
+      "kind": "method",
+      "name": "getRandomMinecart",
+      "sig": "()WeightedRandomMinecart",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setRandomMinecart",
+      "sig": "(WeightedRandomMinecart)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_98267_a",
+      "sig": "(I)V",
+      "native": null,
+      "status": "n/a",
+      "note": "The block event to the clients (addBlockEvent): no server state, the client half is setDelayToMin."
+    },
+    {
+      "kind": "method",
+      "name": "getSpawnerWorld, getSpawnerX, getSpawnerY, getSpawnerZ",
+      "sig": "abstract",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact",
+      "note": "x,y,z on the tile entity"
+    },
+    {
+      "kind": "ctor",
+      "name": "WeightedRandomMinecart",
+      "sig": "(NBTTagCompound[,String])",
+      "native": null,
+      "status": "n/a",
+      "note": "minecart spawn entries; never built"
+    },
+    {
+      "kind": "method",
+      "name": "WeightedRandomMinecart.func_98220_a",
+      "sig": "()NBTTagCompound",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "MobSpawnerBaseLogic$WeightedRandomMinecart",
+      "sig": "(NBTTagCompound)",
+      "native": null,
+      "status": "n/a",
+      "note": "n/a: built only by readFromNBT from a SpawnPotentials list or a SpawnData compound; a generated spawner (dungeon, fortress, stronghold) and TileEntityMobSpawner.writeToNBT of one carry neither (getRandomMinecart stays null), so only a command or map-made spawner would"
+    }
+  ],
+  "missing": [],
+  "notes": "The minecart spawn-potentials machinery is reachable only via NBT edits, so n/a. The spawner updates only from tt_env in the whole-server replay; the tile tick probe keeps players out of range. lane/idxblocks: reviewed."
+}

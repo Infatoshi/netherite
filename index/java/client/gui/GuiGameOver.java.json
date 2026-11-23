@@ -1,0 +1,120 @@
+{
+ "path": "oracle/src/client/gui/GuiGameOver.java",
+ "classes": [
+  "GuiGameOver"
+ ],
+ "lines": 135,
+ "side": "client",
+ "category": "client_gui",
+ "role": "The death screen: the red gradient, the 'You died!' and score lines, the Respawn and Title screen buttons, and the respawn action.",
+ "scope": "in_scope",
+ "scope_reason": "The death screen is part of the gated frame and the respawn flow; the native client draws and drives it.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_hud.c",
+   "symbols": [
+    "raster_gui_live",
+    "screen_gradient",
+    "screen_button",
+    "font_shadow"
+   ]
+  },
+  {
+   "file": "csrc/play/play.c",
+   "symbols": [
+    "death_screen_ticks",
+    "gui_respawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/session.c",
+   "symbols": [
+    "game_paused"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/gui_death",
+  "out/java/snapshots/death-drops-s1",
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/idx-deadchest-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_146347_a",
+   "sig": "int",
+   "native": "csrc/play/play.c:death_screen_ticks",
+   "status": "partial",
+   "note": "counted per tick while the screen is open"
+  },
+  {
+   "kind": "field",
+   "name": "field_146346_f",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "initGui",
+   "sig": "()V",
+   "native": "csrc/engine/raster_hud.c:screen_button",
+   "status": "partial",
+   "note": "the two buttons are drawn inline, no button objects"
+  },
+  {
+   "kind": "method",
+   "name": "keyTyped",
+   "sig": "(char,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in vanilla; the native client breaks out on Esc in play.c; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "actionPerformed",
+   "sig": "(GuiButton)V",
+   "native": "csrc/play/play.c:gui_respawn",
+   "status": "partial",
+   "note": "Respawn is the recorded gui respawn op; the Title screen button has no native action"
+  },
+  {
+   "kind": "method",
+   "name": "confirmClicked",
+   "sig": "(boolean,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the world-deletion confirm; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "drawScreen",
+   "sig": "(int,int,float)V",
+   "native": "csrc/engine/raster_hud.c:raster_gui_live",
+   "status": "partial",
+   "note": "the death branch draws the gradient, the two strings and the two buttons"
+  },
+  {
+   "kind": "method",
+   "name": "doesGuiPauseGame",
+   "sig": "()Z",
+   "native": "csrc/engine/session.c:game_paused",
+   "status": "partial",
+   "note": "the death screen does not pause; the native pause flag follows the same rule"
+  },
+  {
+   "kind": "method",
+   "name": "updateScreen",
+   "sig": "()V",
+   "native": "csrc/play/play.c:death_screen_ticks",
+   "status": "partial",
+   "note": "the tick counter that enables the buttons after 20"
+  }
+ ],
+ "missing": [],
+ "notes": "Buttons enable at deathTime >= 20; raster_gui_live draws them from the recorded deathTicks. The oracle's scene is out/java/render/gui_death. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the Title screen button leaves the game, outside the env. Formerly listed as missing: The Title screen button's action (leaving to the main menu) has no native counterpart; only Respawn is wired (the gui respawn op). confirmClicked and the world-deletion confirm are not ported."
+}

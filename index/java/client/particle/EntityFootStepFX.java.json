@@ -1,0 +1,29 @@
+{
+ "classes": [
+  "EntityFootStepFX"
+ ],
+ "lines": 75,
+ "side": "client",
+ "category": "particles",
+ "role": "The footprint decal under a walking player: layer 3, its own texture bind and 200-tick fade.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Unreached: no code in oracle/src spawns the 'footstep' particle in 1.7.10 (RenderGlobal.java:2207 builds it only for that name).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  }
+ ],
+ "missing": [
+  "Nothing native: unported; no gated scene draws footsteps."
+ ],
+ "notes": "No behavior is ported. The scene renderer csrc/engine/raster_particles.c draws whatever class names the recorded state dump lists (base quads or icon quads), so a dump containing this class would render, but nothing constructs or ticks it natively. idxaudit 2026-09-27: scope reason rewritten.",
+ "path": "oracle/src/client/particle/EntityFootStepFX.java"
+}

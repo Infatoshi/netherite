@@ -1,0 +1,68 @@
+{
+  "path": "oracle/src/nbt/NBTSizeTracker.java",
+  "classes": [
+    "NBTSizeTracker"
+  ],
+  "lines": 28,
+  "side": "common",
+  "category": "nbt",
+  "role": "The read-size accountant: each tag read reports its byte cost and a RuntimeException stops a read that would exceed the tracker's limit; the static instance is the unlimited tracker.",
+  "scope": "in_scope",
+  "scope_reason": "Every binary NBT read in the game goes through a tracker; the engine's readers must not accept input the JVM would refuse.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/region.c",
+      "symbols": [
+        "nbt_bin_value"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_152451_a",
+      "sig": "NBTSizeTracker",
+      "native": "csrc/engine/region.c:nbt_bin_value",
+      "status": "exact",
+      "note": "The unlimited tracker: the native region reader simply carries no budget, which is the same behavior."
+    },
+    {
+      "kind": "field",
+      "name": "field_152452_b",
+      "sig": "long",
+      "native": null,
+      "status": "n/a",
+      "note": "The limit field: no native reader carries a budget, including the network tile-entity read path where Java uses 2097152.; not a gap (triage 2026-09-25)"
+    },
+    {
+      "kind": "field",
+      "name": "field_152453_c",
+      "sig": "long",
+      "native": null,
+      "status": "n/a",
+      "note": "The running total; only observable through the throw above.; not a gap (triage 2026-09-25)"
+    },
+    {
+      "kind": "ctor",
+      "name": "NBTSizeTracker",
+      "sig": "(J)V",
+      "native": null,
+      "status": "n/a",
+      "note": "No native counterpart; only the unlimited tracker is used in game-code reads.; not a gap (triage 2026-09-25)"
+    },
+    {
+      "kind": "method",
+      "name": "func_152450_a",
+      "sig": "(J)V",
+      "native": null,
+      "status": "n/a",
+      "note": "The account-and-throw call; the native readers are no-ops, which is exact only for the unlimited tracker.; not a gap (triage 2026-09-25)"
+    }
+  ],
+  "missing": [],
+  "notes": "The unlimited static tracker is what the file and stream readers in game code pass (CompressedStreamTools.read(File) and read(DataInputStream)); the one finite limit in the game is PacketBuffer.readNBTTagCompoundFromBuffer's 2097152-byte tracker on network tile-entity and book reads, and the native readers carry no budget there either, so a too-big network NBT would be accepted where Java throws. Engine-only reads (snapshots, regions) are the proven paths: test_snapshots.c. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the budget only guards network NBT, which native never parses. Formerly listed as missing: The size accounting and the too-big throw (func_152450_a with a finite limit, used by PacketBuffer.readNBTTagCompoundFromBuffer for network tile-entity NBT): no native reader carries a budget."
+}

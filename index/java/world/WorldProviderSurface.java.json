@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/world/WorldProviderSurface.java",
+  "classes": ["WorldProviderSurface"],
+  "lines": 14,
+  "side": "common",
+  "category": "world",
+  "role": "The overworld's WorldProvider: every behavior is WorldProvider's default; it only names the dimension \"Overworld\".",
+  "scope": "in_scope",
+  "scope_reason": "The overworld is the main game world.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.h", "symbols": ["dim", "no_sky"]}
+  ],
+  "evidence": ["out/java/snapshots/world-daynight-s1", "csrc/tests/test_renderstate.c"],
+  "members": [
+    {"kind": "method", "name": "getDimensionName", "sig": "()String", "native": null, "status": "n/a", "note": "A display string (debug screen, logs); no game state depends on it."}
+  ],
+  "missing": [],
+  "notes": "The overworld is struct world with dim 0 and no_sky 0; the inherited WorldProvider behaviors (celestial angle, fog colour, light table, spawn checks) are indexed under oracle/src/world/WorldProvider.java."
+}

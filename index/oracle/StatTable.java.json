@@ -1,0 +1,9 @@
+{
+ "path": "oracle/harness/netherite/oracle/StatTable.java",
+ "lines": 127,
+ "role": "Generator: writes the StatList registry (per-id stat arrays after replaceAllSimilarBlocks, general stats, achievements with parents, the egg entities, BiomeGenBase.field_150597_n) as csrc/engine/stats_table.h.",
+ "kind": "util",
+ "used_by": ["make -C oracle stats-h (oracle/Makefile) -> csrc/engine/stats_table.h"],
+ "vanilla_hooks": [],
+ "notes": "stats_table.h is generated; do not edit it by hand."
+}

@@ -1,0 +1,44 @@
+{
+ "path": "csrc/engine/raster_overlay.c",
+ "lines": 228,
+ "role": "Draws the targeted block's selection outline (RenderGlobal.drawSelectionBox: the box grown by 0.002, 12 two-pixel lines darkening the frame to 60%) and the block-breaking crack overlay (RenderGlobal.drawBlockDamageTexture: the block re-meshed with the destroy_stage_N icon and blended 2*src*dst) over a finished frame. Both passes are fogged as renderWorld leaves GL_FOG on (the line toward the fog colour at alpha 0.4, the crack texel before its blend): a selection or crack under water or lava fades into the fog.",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/RenderGlobal.java",
+   "members": [
+    "drawSelectionBox",
+    "drawOutlinedBoundingBox",
+    "drawBlockDamageTexture"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "point",
+   "java": null,
+   "fields": [
+    "x",
+    "y",
+    "z",
+    "w",
+    "u",
+    "v",
+    "f"
+   ]
+  }
+ ],
+ "entry_points": [
+  "raster_overlay_draw",
+  "raster_overlay_line"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 173, function crack: linear strcmp search of the atlas name table for destroy_stage_N on every call"
+ ],
+ "tests": [
+  "csrc/tests/raster.c",
+  "csrc/tests/test_render.c"
+ ],
+ "notes": "Called from raster.c. Uses rb_mesh_override_block from the block mesher and raster_texture_sample for the mipmapped crack texel. Line rasterization approximates GL wide lines (diamond-exit endpoint rule, width two)."
+}

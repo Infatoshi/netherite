@@ -1,0 +1,1258 @@
+{
+ "path": "oracle/src/server/MinecraftServer.java",
+ "classes": [
+  "MinecraftServer"
+ ],
+ "lines": 1283,
+ "side": "server",
+ "category": "server",
+ "role": "The abstract server base: the run loop, the per-tick driver over the three worlds, the config manager and network system wiring, and the server-property state. The integrated server in the oracle subclasses it and the lockstep replaces its wall-clock loop.",
+ "scope": "in_scope",
+ "scope_reason": "The integrated server is the game's server; the oracle pins its loop (Lockstep.server, one tick per client tick) and the native replay reproduces the same tick sequence. Nothing in world.conf switches any of it. Deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain); status response and wall-clock scaffolding are outside the tick (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "serverreplay_tick",
+    "serverreplay_load",
+    "serverreplay_enter",
+    "serverreplay_queue_packets",
+    "serverreplay_pause_save"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "servertick_tick",
+    "servertick_tick_head",
+    "servertick_update_weather"
+   ]
+  },
+  {
+   "file": "csrc/engine/chunkload.c",
+   "symbols": [
+    "cl_spawn_area",
+    "cl_save_marks"
+   ]
+  },
+  {
+   "file": "csrc/engine/seedworld.c",
+   "symbols": [
+    "seedworld_build"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_world_setup",
+    "surv_stats_flush"
+   ]
+  },
+  {
+   "file": "csrc/engine/session.c",
+   "symbols": [
+    "session_row"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/diff-switch-s1",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_chunkload.c",
+  "out/java/snapshots/cg-smoke-s1",
+  "out/java/snapshots/world-daynight-s1",
+  "out/java/snapshots/world-storm-s1",
+  "out/java/snapshots/nether-trip-s1",
+  "out/java/snapshots/idx-clientview-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_152367_a",
+   "sig": "static File usercache.json",
+   "native": null,
+   "status": "n/a",
+   "note": "the profile cache's file, invisible to the tape"
+  },
+  {
+   "kind": "field",
+   "name": "mcServer",
+   "sig": "static MinecraftServer",
+   "native": null,
+   "status": "n/a",
+   "note": "the singleton accessor's target"
+  },
+  {
+   "kind": "field",
+   "name": "anvilConverterForAnvilFile",
+   "sig": "ISaveFormat",
+   "native": null,
+   "status": "n/a",
+   "note": "the map converter; fresh worlds only"
+  },
+  {
+   "kind": "field",
+   "name": "anvilFile",
+   "sig": "File",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "tickables",
+   "sig": "List of IUpdatePlayerListBox",
+   "native": null,
+   "status": "n/a",
+   "note": "always empty (no server GUI)"
+  },
+  {
+   "kind": "field",
+   "name": "commandManager",
+   "sig": "ICommandManager",
+   "native": null,
+   "status": "n/a",
+   "note": "commands are off"
+  },
+  {
+   "kind": "field",
+   "name": "theProfiler",
+   "sig": "Profiler",
+   "native": null,
+   "status": "n/a",
+   "note": "instrumentation only"
+  },
+  {
+   "kind": "field",
+   "name": "field_147144_o",
+   "sig": "NetworkSystem",
+   "native": "csrc/engine/serverreplay.c:serverreplay_queue_packets",
+   "status": "exact",
+   "note": "the network tick's delivery: the s2c queue"
+  },
+  {
+   "kind": "field",
+   "name": "field_147147_p",
+   "sig": "ServerStatusResponse",
+   "native": null,
+   "status": "n/a",
+   "note": "the status ping response; no status queries"
+  },
+  {
+   "kind": "field",
+   "name": "field_147146_q",
+   "sig": "Random (Det.newRandom)",
+   "native": null,
+   "status": "n/a",
+   "note": "the status response's player sample shuffle, never run (no server list ping); its construction's seeder draw lies before every snapshot"
+  },
+  {
+   "kind": "field",
+   "name": "serverPort",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "worldServers",
+   "sig": "WorldServer[3]",
+   "native": "csrc/engine/serverreplay.h:struct serverreplay",
+   "status": "exact",
+   "note": "the three dimension worlds the replay carries (sr_dim_ws)"
+  },
+  {
+   "kind": "field",
+   "name": "serverConfigManager",
+   "sig": "ServerConfigurationManager",
+   "native": "csrc/engine/serverreplay.h:struct serverreplay",
+   "status": "exact",
+   "note": "see the ServerConfigurationManager record"
+  },
+  {
+   "kind": "field",
+   "name": "serverRunning",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "loop control"
+  },
+  {
+   "kind": "field",
+   "name": "serverStopped",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "tickCounter",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_stats_flush",
+   "status": "exact",
+   "note": "the server tick counter reaches the native engine as the stats flush's server_tick argument (survival.h:247 names MinecraftServer.getTickCounter)"
+  },
+  {
+   "kind": "field",
+   "name": "serverProxy",
+   "sig": "Proxy",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "currentTask",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "the spawn-area progress log only"
+  },
+  {
+   "kind": "field",
+   "name": "percentDone",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "onlineMode",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "true from startServer; affects auth only"
+  },
+  {
+   "kind": "field",
+   "name": "canSpawnAnimals",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "spawn flags the local server sets true"
+  },
+  {
+   "kind": "field",
+   "name": "canSpawnNPCs",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "pvpEnabled",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "single player"
+  },
+  {
+   "kind": "field",
+   "name": "allowFlight",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "motd",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "buildLimit",
+   "sig": "int (256)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_143008_E",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "the tick-time warning counter"
+  },
+  {
+   "kind": "field",
+   "name": "tickTimeArray",
+   "sig": "long[100]",
+   "native": null,
+   "status": "n/a",
+   "note": "nanoTime instrumentation"
+  },
+  {
+   "kind": "field",
+   "name": "timeOfLastDimensionTick",
+   "sig": "long[3][100]",
+   "native": null,
+   "status": "n/a",
+   "note": "nanoTime instrumentation"
+  },
+  {
+   "kind": "field",
+   "name": "serverKeyPair",
+   "sig": "KeyPair",
+   "native": null,
+   "status": "n/a",
+   "note": "online auth only"
+  },
+  {
+   "kind": "field",
+   "name": "serverOwner",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "the host player's name, carried by the tape"
+  },
+  {
+   "kind": "field",
+   "name": "folderName",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "worldName",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "enableBonusChest",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "false in the oracle"
+  },
+  {
+   "kind": "field",
+   "name": "worldIsBeingDeleted",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147141_M",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "the broadcast-title (MC|Brand companion) string, empty"
+  },
+  {
+   "kind": "field",
+   "name": "serverIsRunning",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "timeOfLastWarning",
+   "sig": "long",
+   "native": null,
+   "status": "n/a",
+   "note": "the can't-keep-up warning"
+  },
+  {
+   "kind": "field",
+   "name": "userMessage",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "startProfiling",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "isGamemodeForced",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_152364_T",
+   "sig": "YggdrasilAuthenticationService",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147143_S",
+   "sig": "MinecraftSessionService",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147142_T",
+   "sig": "long",
+   "native": null,
+   "status": "n/a",
+   "note": "the 5-second status refresh gate"
+  },
+  {
+   "kind": "field",
+   "name": "field_152365_W",
+   "sig": "GameProfileRepository",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_152366_X",
+   "sig": "PlayerProfileCache",
+   "native": null,
+   "status": "n/a",
+   "note": "see the PlayerProfileCache record"
+  },
+  {
+   "kind": "ctor",
+   "name": "MinecraftServer",
+   "sig": "(File,Proxy)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact",
+   "note": "the constructed server as the oracle's snapshot holds it"
+  },
+  {
+   "kind": "method",
+   "name": "startServer",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "abstract; IntegratedServer implements it"
+  },
+  {
+   "kind": "method",
+   "name": "convertMapIfNeeded",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a",
+   "note": "old-map conversion, never triggered"
+  },
+  {
+   "kind": "method",
+   "name": "setUserMessage",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getUserMessage",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "loadAllWorlds",
+   "sig": "(String,String,long,WorldType,String)V",
+   "native": "csrc/engine/seedworld.c:seedworld_build",
+   "status": "n/a",
+   "note": "IntegratedServer.loadAllWorlds overrides it without calling super; the base runs only on a DedicatedServer, which the client never starts (the integrated server's worlds: seedworld.c:seedworld_build)"
+  },
+  {
+   "kind": "method",
+   "name": "initialWorldChunkLoad",
+   "sig": "()V",
+   "native": "csrc/engine/chunkload.c:cl_spawn_area",
+   "status": "exact",
+   "note": "the 625-chunk spawn area: populate.c:289 and chunkload.h:69 both name it; seedworld.c step 3 too"
+  },
+  {
+   "kind": "method",
+   "name": "canStructuresSpawn",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false for the integrated server"
+  },
+  {
+   "kind": "method",
+   "name": "getGameType",
+   "sig": "()WorldSettings.GameType",
+   "native": null,
+   "status": "n/a",
+   "note": "abstract; from the world settings"
+  },
+  {
+   "kind": "method",
+   "name": "func_147135_j",
+   "sig": "()EnumDifficulty",
+   "native": "csrc/engine/survival.c:surv_world_setup",
+   "status": "exact",
+   "note": "the difficulty reaches the native engine through surv_world_setup's argument"
+  },
+  {
+   "kind": "method",
+   "name": "isHardcore",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "func_110455_j",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "the op permission level, 4"
+  },
+  {
+   "kind": "method",
+   "name": "func_152363_m",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "canStructureBePlaced check, false"
+  },
+  {
+   "kind": "method",
+   "name": "outputPercentRemaining",
+   "sig": "(String,I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "a log line"
+  },
+  {
+   "kind": "method",
+   "name": "clearCurrentTask",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "saveAllWorlds",
+   "sig": "(Z)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_save_marks",
+   "status": "exact",
+   "note": "the 900-tick save's unload marks (cl_save_marks) and the pause save (serverreplay_pause_save); the bytes are the oracle's (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "stopServer",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "shutdown ordering, harness work"
+  },
+  {
+   "kind": "method",
+   "name": "isServerRunning",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "initiateShutdown",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "run",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_tick",
+   "status": "exact",
+   "note": "the oracle replaces the wall-clock loop with the lockstep (run()'s first branch, Lockstep.serverAwait per tick); the native replay runs the same one-tick-per-row sequence through serverreplay_tick"
+  },
+  {
+   "kind": "method",
+   "name": "func_147138_a",
+   "sig": "(ServerStatusResponse)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the server-icon.png base64 load"
+  },
+  {
+   "kind": "method",
+   "name": "getDataDirectory",
+   "sig": "()File",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "finalTick",
+   "sig": "(CrashReport)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "systemExitNow",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in vanilla"
+  },
+  {
+   "kind": "method",
+   "name": "tick",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_tick",
+   "status": "exact",
+   "note": "the per-tick driver: the 900-tick autosave (cl_save_marks), the 5-second status refresh (never observed, no status queries) and the tallying are harness work; the levels part is updateTimeLightAndEntities"
+  },
+  {
+   "kind": "method",
+   "name": "updateTimeLightAndEntities",
+   "sig": "()V",
+   "native": "csrc/engine/servertick.c:servertick_tick",
+   "status": "exact",
+   "note": "WorldServer.tick + updateEntities per dimension is servertick.c's tick (test_servertick.c compares it field for field); the tracker pass is serverreplay.c's entity pass, networkTick is the s2c queue, the tickables loop is empty, sendPlayerInfoToAllPlayers is the only unported piece"
+  },
+  {
+   "kind": "method",
+   "name": "getAllowNether",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true"
+  },
+  {
+   "kind": "method",
+   "name": "startServerThread",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the server thread; the lockstep owns scheduling"
+  },
+  {
+   "kind": "method",
+   "name": "getFile",
+   "sig": "(String)File",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "logWarning",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "worldServerForDimension",
+   "sig": "(I)WorldServer",
+   "native": "csrc/engine/serverreplay.c:serverreplay_enter",
+   "status": "exact",
+   "note": "the -1/0/1 index into the replay's three worlds (sr_dim_world)"
+  },
+  {
+   "kind": "method",
+   "name": "getMinecraftVersion",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "'1.7.10'"
+  },
+  {
+   "kind": "method",
+   "name": "getCurrentPlayerCount",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "one player"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxPlayers",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "8"
+  },
+  {
+   "kind": "method",
+   "name": "getAllUsernames",
+   "sig": "()String[]",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152357_F",
+   "sig": "()GameProfile[]",
+   "native": null,
+   "status": "n/a",
+   "note": "the status sample"
+  },
+  {
+   "kind": "method",
+   "name": "getServerModName",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "'vanilla', sent as MC|Brand"
+  },
+  {
+   "kind": "method",
+   "name": "addServerInfoToCrashReport",
+   "sig": "(CrashReport)CrashReport",
+   "native": null,
+   "status": "n/a",
+   "note": "crash decoration"
+  },
+  {
+   "kind": "method",
+   "name": "getPossibleCompletions",
+   "sig": "(ICommandSender,String)List",
+   "native": null,
+   "status": "n/a",
+   "note": "tab completion; commands are off"
+  },
+  {
+   "kind": "method",
+   "name": "getServer",
+   "sig": "()MinecraftServer",
+   "native": null,
+   "status": "n/a",
+   "note": "static accessor"
+  },
+  {
+   "kind": "method",
+   "name": "getCommandSenderName",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "'Server'"
+  },
+  {
+   "kind": "method",
+   "name": "addChatMessage",
+   "sig": "(IChatComponent)V",
+   "native": null,
+   "status": "n/a",
+   "note": "a log line"
+  },
+  {
+   "kind": "method",
+   "name": "canCommandSenderUseCommand",
+   "sig": "(I,String)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true, and no commands run"
+  },
+  {
+   "kind": "method",
+   "name": "getCommandManager",
+   "sig": "()ICommandManager",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getKeyPair",
+   "sig": "()KeyPair",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getServerOwner",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setServerOwner",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isSinglePlayer",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true; gates the host's game-type grant"
+  },
+  {
+   "kind": "method",
+   "name": "getFolderName",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setFolderName",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setWorldName",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldName",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setKeyPair",
+   "sig": "(KeyPair)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147139_a",
+   "sig": "(EnumDifficulty)V",
+   "native": "csrc/engine/survival.c:surv_world_setup",
+   "status": "exact",
+   "note": "the difficulty per world (the dev difficulty op sets every world) and setAllowedSpawnTypes(difficulty != PEACEFUL, true) through spawning.c:spawner_set_spawn_types at load (serverreplay.c) and in the dev op (dev.c:dev_apply); hardcore is not supported"
+  },
+  {
+   "kind": "method",
+   "name": "allowSpawnMonsters",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true"
+  },
+  {
+   "kind": "method",
+   "name": "canCreateBonusChest",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getActiveAnvilConverter",
+   "sig": "()ISaveFormat",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "deleteWorldAndStopServer",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "demo mode only"
+  },
+  {
+   "kind": "method",
+   "name": "func_147133_T",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "the empty broadcast-title string"
+  },
+  {
+   "kind": "method",
+   "name": "isDedicatedServer",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "abstract; false"
+  },
+  {
+   "kind": "method",
+   "name": "isServerInOnlineMode",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true, affects auth only"
+  },
+  {
+   "kind": "method",
+   "name": "setOnlineMode",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getCanSpawnAnimals",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setCanSpawnAnimals",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getCanSpawnNPCs",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setCanSpawnNPCs",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isPVPEnabled",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setAllowPvp",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isFlightAllowed",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setAllowFlight",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isCommandBlockEnabled",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true, and no command blocks run"
+  },
+  {
+   "kind": "method",
+   "name": "getMOTD",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setMOTD",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getBuildLimit",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "256"
+  },
+  {
+   "kind": "method",
+   "name": "setBuildLimit",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getConfigurationManager",
+   "sig": "()ServerConfigurationManager",
+   "native": null,
+   "status": "n/a",
+   "note": "accessor"
+  },
+  {
+   "kind": "method",
+   "name": "func_152361_a",
+   "sig": "(ServerConfigurationManager)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setGameType",
+   "sig": "(WorldSettings.GameType)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the per-world game-type write; survival only"
+  },
+  {
+   "kind": "method",
+   "name": "func_147137_ag",
+   "sig": "()NetworkSystem",
+   "native": null,
+   "status": "n/a",
+   "note": "accessor"
+  },
+  {
+   "kind": "method",
+   "name": "serverIsInRunLoop",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getGuiEnabled",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "getTickCounter",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:surv_stats_flush",
+   "status": "exact",
+   "note": "survival.h:247 names it as the stats flush's tick source"
+  },
+  {
+   "kind": "method",
+   "name": "enableProfiling",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerCoordinates",
+   "sig": "()ChunkCoordinates",
+   "native": null,
+   "status": "n/a",
+   "note": "0,0,0 for the command sender"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityWorld",
+   "sig": "()World",
+   "native": null,
+   "status": "n/a",
+   "note": "worldServers[0] for the command sender"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawnProtectionSize",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:surv_server_fresh",
+   "status": "exact",
+   "note": "16; the respawn fuzz uses it through the fresh player's spawn placement (survival.c:2092's spawn-protection fuzz comment)"
+  },
+  {
+   "kind": "method",
+   "name": "isBlockProtected",
+   "sig": "(World,IIIIEntityPlayer)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false, spawn protection needs more than one player"
+  },
+  {
+   "kind": "method",
+   "name": "getForceGamemode",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getServerProxy",
+   "sig": "()Proxy",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getSystemTimeMillis",
+   "sig": "()J",
+   "native": null,
+   "status": "n/a",
+   "note": "System.currentTimeMillis; the GPU contract forbids wall clocks and the oracle's lockstep removes the loop's use of it"
+  },
+  {
+   "kind": "method",
+   "name": "func_143007_ar",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_143006_e",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_145748_c_",
+   "sig": "()IChatComponent",
+   "native": null,
+   "status": "n/a",
+   "note": "the 'Server' display component"
+  },
+  {
+   "kind": "method",
+   "name": "func_147136_ar",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true, the_ANvil converter flush flag"
+  },
+  {
+   "kind": "method",
+   "name": "func_147130_as",
+   "sig": "()MinecraftSessionService",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152359_aw",
+   "sig": "()GameProfileRepository",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152358_ax",
+   "sig": "()PlayerProfileCache",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147134_at",
+   "sig": "()ServerStatusResponse",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147132_au",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "resets the status refresh timer at login"
+  },
+  {
+   "kind": "ctor",
+   "name": "MinecraftServer$3",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MinecraftServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "MinecraftServer$3.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MinecraftServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "MinecraftServer$4",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MinecraftServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "MinecraftServer$4.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MinecraftServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "MinecraftServer$5",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MinecraftServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "MinecraftServer$5.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in MinecraftServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "MinecraftServer$1.displayProgressMessage",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the IProgressUpdate MinecraftServer.convertMapIfNeeded hands AnvilSaveConverter.convertMapFormat; that converter calls only setLoadingProgress (run in 443 recordings), never this"
+  },
+  {
+   "kind": "method",
+   "name": "MinecraftServer$1.resetProgressAndMessage",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the IProgressUpdate MinecraftServer.convertMapIfNeeded hands AnvilSaveConverter.convertMapFormat; that converter calls only setLoadingProgress (run in 443 recordings), never this"
+  },
+  {
+   "kind": "method",
+   "name": "MinecraftServer$1.func_146586_a",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the IProgressUpdate MinecraftServer.convertMapIfNeeded hands AnvilSaveConverter.convertMapFormat; that converter calls only setLoadingProgress (run in 443 recordings), never this"
+  },
+  {
+   "kind": "method",
+   "name": "MinecraftServer$1.resetProgresAndWorkingMessage",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the IProgressUpdate MinecraftServer.convertMapIfNeeded hands AnvilSaveConverter.convertMapFormat; that converter calls only setLoadingProgress (run in 443 recordings), never this"
+  },
+  {
+   "kind": "method",
+   "name": "MinecraftServer$2.run",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_tick",
+   "status": "exact",
+   "note": "runs in every recording (startServerThread's thread; its one statement calls MinecraftServer.run, whose only caller it is and which the coverage shows run in all of them); JaCoCo cannot mark it because its only probe sits at the return, which the server thread never reaches before the oracle halts the JVM"
+  }
+ ],
+ "missing": [],
+ "notes": "The tick loop's game content is proven per tick by test_servertick.c against the oracle's ServerTickProbe recordings (out/java/servertick/s1, s42): every WorldServer.tick write row, spawn row and scalar. world-daynight-s1 and world-storm-s1 cover the weather and daylight timers tick() drives; nether-trip-s1 covers worldServerForDimension's other two worlds. The abstract getters are n/a because the integrated server's answers are constants the replay carries (difficulty through surv_world_setup, game type survival, structures off). Closed by lane/idxworld: updateTimeLightAndEntities' S03 to each world's players every 20th getTickCounter (the overworld's time before its tick; after it for a Nether or End player) is ported (session.c session_row) and held at every frame by idx-clientview-s1's client clock. The status response (field_147147_p's refresh, the player sample's field_147146_q shuffle, the icon) answers a server list ping, which a single-player world never gets; the wall-clock loop scaffolding (getSystemTimeMillis, tickTimeArray, the can't-keep-up warning) is what the lockstep replaces; sendPlayerInfoToAllPlayers' S38 feeds the tab list, which the single-player client never shows (GuiPlayerTabOverlay needs a remote server or a second player). The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings). Closed by lane/idxworld: updateTimeLightAndEntities' S03 to each world's players every 20th getTickCounter (the overworld's time before its tick; after it for a Nether or End player) is ported (session.c session_row) and held at every frame by idx-clientview-s1's client clock. The status response (field_147147_p's refresh, the player sample's field_147146_q shuffle, the icon) answers a server list ping, which a single-player world never gets; the wall-clock loop scaffolding (getSystemTimeMillis, tickTimeArray, the can't-keep-up warning) is what the lockstep replaces; sendPlayerInfoToAllPlayers' S38 feeds the tab list, which the single-player client never shows (GuiPlayerTabOverlay needs a remote server or a second player). The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

@@ -1,0 +1,66 @@
+{
+ "path": "oracle/src/client/model/ModelMagmaCube.java",
+ "classes": [
+  "ModelMagmaCube"
+ ],
+ "lines": 72,
+ "side": "client",
+ "category": "client_model",
+ "role": "The magma cube's model: the core cube plus eight shell slices that squash with the entity's squish factor.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_magma_cube",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/clientframes/cov-zoo-s1",
+  "out/java/render/mobs2b_magma_cube_f006",
+  "out/java/render/mobs2b_magma_cube_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_78109_a",
+   "sig": "ModelRenderer[]",
+   "native": "csrc/engine/raster_mobs.c:model_magma_cube",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_78108_b",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_magma_cube",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelMagmaCube",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_magma_cube",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setLivingAnimations",
+   "sig": "(EntityLivingBase,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_magma_cube",
+   "status": "exact",
+   "note": "the squish factor is interpolated into mob_render_input.squish by play.c"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:draw_model",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

@@ -1,0 +1,22 @@
+{
+ "path": "csrc/engine/hostiles_skeleton.c",
+ "lines": 295,
+ "role": "The EntitySkeleton kind on the task AI: attributes and constructor, setSkeletonType (wither size and fire immunity), setCombatTask switching between the arrow-attack and attack-on-collide tasks, onSpawnWithEgg (Nether wither skeleton with stone sword, else armour, bow and enchantments, then canPickUpLoot), daylight burning and helmet wear, melee with the wither effect, the ranged arrow with Power, Punch and Flame, arrow/coal and bone drops, and the SkeletonType NBT key.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntitySkeleton.java", "members": ["EntitySkeleton", "applyEntityAttributes", "setSkeletonType", "getSkeletonType", "setCombatTask", "onSpawnWithEgg", "addRandomArmor", "onLivingUpdate", "attackEntityAsMob", "attackEntityWithRangedAttack", "dropFewItems", "writeEntityToNBT", "aiArrowAttack", "aiAttackOnCollide"]},
+  {"path": "oracle/src/entity/EntityLiving.java", "members": ["addRandomArmor", "enchantEquipment"]},
+  {"path": "oracle/src/entity/ai/EntityAIArrowAttack.java", "members": ["EntityAIArrowAttack"]},
+  {"path": "oracle/src/entity/ai/EntityAIAttackOnCollide.java", "members": ["EntityAIAttackOnCollide"]}
+ ],
+ "structs": [],
+ "entry_points": ["skeleton_construct", "skeleton_set_type", "skeleton_set_combat_task", "skeleton_on_spawn_with_egg", "skeleton_on_living_update", "skeleton_attack_entity_as_mob", "skeleton_attack_entity_with_ranged_attack", "skeleton_drop_few_items", "skeleton_write_kind_nbt"],
+ "tick_path": true,
+ "gpu": [
+  "line 209, function skeleton_attack_entity_with_ranged_attack: an_spawn_arrow heap-allocates the arrow entity inside the tick and returns a pointer",
+  "lines 248, 256 and 263, function skeleton_drop_few_items: an_spawn_item heap allocation per drop",
+  "lines 40-48, function skeleton_set_combat_task: removes and re-adds AI tasks, mutating the task list order at runtime"
+ ],
+ "tests": ["csrc/tests/test_hostiles.c", "csrc/tests/test_fortress_spawn.c"],
+ "notes": "Not found in this file: dropRareDrop (the wither skeleton skull), onDeath's snipeSkeleton achievement, the Halloween pumpkin helmet in onSpawnWithEgg (a Calendar read; spawning.c has its own halloween calendar fields), updateRidden's yaw copy for spider jockeys, and getYOffset. Possible divergences seen while reading, not tested: skeleton_attack_entity_as_mob passes DMG_GENERIC where EntityMob.attackEntityAsMob uses DamageSource.causeMobDamage (zombie and blaze use DMG_MOB); the helmet wear draws nextInt(2) for any helmet, while Java only draws when isItemStackDamageable (a pumpkin helmet would skip the draw). Difficulty is hardcoded Normal (diff_id 2) in the arrow inaccuracy and damage. Evidence recordings: out/java/hostiles sk-2, sk-42 and the fight-skeleton-s1 snapshot."
+}

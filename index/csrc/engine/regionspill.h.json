@@ -1,0 +1,50 @@
+{
+ "path": "csrc/engine/regionspill.h",
+ "lines": 132,
+ "role": "Declares the region stores' spill file (regionspill.c): the per-environment state (struct region_spill in env.h), the chunk records, the blob file and the extra-bytes stream with its NBT codec.",
+ "layer": "io",
+ "java": [],
+ "structs": [
+  {
+   "name": "region_spill",
+   "java": null,
+   "fields": [
+    "mode",
+    "dir",
+    "fd1",
+    "end",
+    "live",
+    "dims",
+    "fd2"
+   ]
+  },
+  {
+   "name": "rspill_out",
+   "java": null,
+   "fields": [
+    "p",
+    "n",
+    "cap"
+   ]
+  }
+ ],
+ "entry_points": [
+  "rspill_flag",
+  "rspill_has",
+  "rspill_ok",
+  "rspill_put",
+  "rspill_take",
+  "rspill_blob_put",
+  "rspill_blob_get",
+  "rspill_adopt",
+  "rspill_close",
+  "rspill_nbt_out",
+  "rspill_nbt_in"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "lane/envmem."
+}

@@ -1,0 +1,44 @@
+{
+ "path": "csrc/engine/hostiles_pigman.h",
+ "lines": 21,
+ "role": "Declares the EntityPigZombie kind functions of hostiles_pigman.c that hostiles.c, ai.c, living.c and the replay code call.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntityPigZombie.java",
+   "members": [
+    "EntityPigZombie",
+    "addRandomArmor",
+    "onUpdate",
+    "attackEntityFrom",
+    "dropFewItems",
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "updateEntityActionState"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "pigman_construct",
+  "pigman_add_random_armor",
+  "pigman_pre_on_update",
+  "pigman_on_living_update",
+  "pigman_update_entity_action_state",
+  "pigman_attack_entity_from",
+  "pigman_drop_few_items",
+  "pigman_write_kind_nbt",
+  "pigman_write_extra"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_lightning.c"
+ ],
+ "notes": "PIGMAN_EXTRA_BYTES (32) is defined in hostiles.h."
+}

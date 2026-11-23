@@ -1,0 +1,32 @@
+# The training simulator at 64x64: the device ray cast at FP32, one tick a step, render distance 4, and the
+# fidelity shortcuts a raw task trains with (no mob spawning, no random ticks, no weather). Host geometry left to
+# the pool (workers, streams, group, batch, depth 0: chosen from the machine), so the file runs on any host.
+description: 64x64 device ray cast, FP32, one tick a step, spawning/random ticks/weather off (train speed)
+world:
+  render_distance: 4
+client:
+  observation: 64x64
+  camera: raycast
+  cast_precision: 32
+  ticks_per_step: 1
+engine:
+  tick: host
+  raycast: device
+  device_mesh: 0
+  device_generation: off
+  device_light: off
+  render: none
+fidelity:
+  spawning: off
+  random_ticks: off
+  weather: off
+performance:
+  workers: 0
+  streams: 0
+  group: 0
+  batch: 0
+  depth: 0
+  layout: doms
+  pin: 0
+  place: none
+  tune: off

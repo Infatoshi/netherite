@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/block/BlockMushroom.java",
+  "classes": ["BlockMushroom"],
+  "lines": 142,
+  "side": "common",
+  "category": "block",
+  "role": "The small mushrooms: spread on a 1-in-25 tick with the crowd and walk checks, stay on mycelium or lit suitable ground, and bonemeal grows a giant mushroom.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["rt_mushroom", "bush_floor_ok", "mushroom_bonemeal", "RT_BROWN_MUSHROOM", "RT_RED_MUSHROOM"]},
+    {"file": "csrc/engine/features_lakes.c", "symbols": ["feature_bigmushroom"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/plant-mushroom-s1",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_feature.c",
+    "out/java/snapshots/world-crops-s1",
+    "out/java/snapshots/cov-blkgrow-s1",
+    "out/java/snapshots/cov-blkplace-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockMushroom", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "rows 39 and 40: tick_randomly 1, the 0.4-wide box"},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:rt_mushroom", "status": "exact", "note": "the 1-in-25 roll, the 9x3x9 crowd count, the four-step walk with the three draws each"},
+    {"kind": "method", "name": "canPlaceBlockAt", "sig": "(World,III)Z", "native": "csrc/engine/randomtick.c:bush_floor_ok", "status": "exact", "note": "the stay check at placement; cov-blkplace-s1 and cov-blkgrow-s1 plant on mycelium"},
+    {"kind": "method", "name": "func_149854_a", "sig": "(Lnet/minecraft/block/Block;)Z", "native": "csrc/engine/randomtick.c:bush_floor_ok", "status": "partial", "note": "the func_149730_j floor test folded into the bush check"},
+    {"kind": "method", "name": "canBlockStay", "sig": "(World,III)Z", "native": "csrc/engine/randomtick.c:bush_floor_ok", "status": "exact", "note": "the mycelium / podzol-dirt / light-13 rules"},
+    {"kind": "method", "name": "func_149884_c", "sig": "(World,IIIRandom)Z", "native": "csrc/engine/randomtick.c:mushroom_bonemeal", "status": "exact", "note": "the clear, the giant generate by colour, the restore on failure"},
+    {"kind": "method", "name": "func_149851_a", "sig": "(World,IIIZ)Z", "native": "csrc/engine/randomtick.c:mushroom_bonemeal", "status": "exact", "note": "always true"},
+    {"kind": "method", "name": "func_149852_a", "sig": "(World,IIII)Z", "native": "csrc/engine/randomtick.c:mushroom_bonemeal", "status": "exact", "note": "nextFloat() < 0.4"},
+    {"kind": "method", "name": "func_149853_b", "sig": "(World,IIII)V", "native": "csrc/engine/randomtick.c:mushroom_bonemeal", "status": "exact", "note": "calls func_149884_c"}
+  ],
+  "missing": [],
+  "notes": "The mushroom spread runs through the random tick lane (rt_mushroom) and the bonemeal through itemuse.c's IGrowable dispatch (mushroom_bonemeal), which calls feature_bigmushroom for the giant form."
+}

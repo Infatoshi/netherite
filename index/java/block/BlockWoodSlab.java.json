@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/block/BlockWoodSlab.java",
+  "classes": ["BlockWoodSlab"],
+  "lines": 68,
+  "side": "common",
+  "category": "block",
+  "role": "Wooden slabs (ids 125 double and 126 single) in six wood types; the shared half/double behavior lives in BlockSlab, this class adds the drop and pick-block item mapping and the planks texture.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["create_stacked_block"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["table_icon"]}
+  ],
+  "evidence": ["csrc/tests/test_place.c", "csrc/tests/test_harvestdrops.c", "out/java/harvestdrops/s2", "out/java/rendertick/mv_variants", "out/java/render/mv_variants_sl", "out/java/render/mv_variants_pl", "out/java/render/mv_variants_pn", "csrc/tests/test_render.c", "csrc/tests/render_budget.txt", "out/java/snapshots/cov-blkbreak-s1", "out/java/clientframes/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150005_b", "sig": "static final String[]", "native": null, "status": "n/a", "note": "unlocalized subtype names, client text"},
+    {"kind": "ctor", "name": "BlockWoodSlab", "sig": "(Z)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "ids 125 and 126: Material.wood rows; the double form is opaque and full-height in the table"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks.c:table_icon", "status": "exact", "note": "Table-driven: RenderTable reads getIcon(side, meta) for every meta off the live block."},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 125/126: the wooden_slab item, damage meta & 7"},
+    {"kind": "method", "name": "createStackedBlock", "sig": "(I)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/harvestdrops.c:create_stacked_block", "status": "exact", "note": "create_stacked_block's slab cases: two of the single slab, meta & 7, for the half and the double id; test_harvestdrops breaks every block id at metas 0..15 with silk-touch tools."},
+    {"kind": "method", "name": "func_150002_b", "sig": "(I)Ljava/lang/String;", "native": null, "status": "n/a", "note": "unlocalized subtype names, client text"},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V", "native": null, "status": "n/a", "note": "empty in vanilla"}
+  ],
+  "missing": [],
+  "notes": "The half-height placement, collision and drop-count behavior is BlockSlab's (see its record). Pinned by lane/meshvar's mesh scene (out/java/rendertick/mv_variants, 13 views mv_variants_*, each within its budget with no pxdiff cluster; the scene's sections match the oracle's sections.bin vertex for vertex): metas 0..5 bottom and 8..13 top, the double slab at 0..5."
+}

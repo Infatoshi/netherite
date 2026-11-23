@@ -1,0 +1,34 @@
+{
+ "path": "csrc/engine/features.h",
+ "lines": 102,
+ "role": "Declares the population-feature table type (the native half of the oracle's FeatureProbe FEATURES table), the lookup features_for, and every WorldGenerator port's entry: minable veins, the tree family, the plants group, dungeons, plus the tree write-flag and WorldGenBigTree state switches.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenerator.java", "members": ["generate", "func_150516_a", "doBlockNotify"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenMinable.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenBigTree.java", "members": ["generate", "heightLimit", "leafDistanceLimit", "setScale"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenTaiga1.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenTaiga2.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenMegaPineTree.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenMegaJungle.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenSavannaTree.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenCanopyTree.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenTrees.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenForest.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenSwamp.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenShrub.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenDungeons.java", "members": ["generate"]},
+  {"path": "oracle/src/block/BlockSapling.java", "members": ["func_149878_d"]}
+ ],
+ "structs": [
+  {"name": "feature", "java": "one row of oracle/harness/netherite/oracle/FeatureProbe.java's FEATURES table wrapping a WorldGenerator", "fields": ["name", "config", "y0", "y1", "margin", "block", "count", "generate"]}
+ ],
+ "entry_points": ["features_for", "feature_minable", "feature_minable_target", "features_tree_notify", "features_tree_write", "features_bigtree_reset", "features_bigtree_scaled", "features_sapling_jungle", "feature_forest", "features_trees_for", "feature_bigtree_state_set", "feature_bigtree_state_get", "feature_bigtree", "feature_taiga1", "feature_taiga2", "feature_megapine", "feature_megapine_grow", "feature_megajungle", "feature_savanna", "feature_canopy", "features_trees_small_for", "feature_trees", "feature_jungle_tree", "feature_swamp", "feature_shrub", "features_plants_for", "feature_dungeons"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 27, struct feature: generate is a function pointer (dispatch by table)"
+ ],
+ "tests": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "feature_forest is declared twice (lines 59 and 92), harmless. Runs inside the tick through chunk population and through sapling growth (randomtick.c). The lakes, springs and nether groups have their own headers."
+}

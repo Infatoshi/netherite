@@ -1,0 +1,31 @@
+{
+  "path": "oracle/harness/netherite/oracle/Oracle.java",
+  "lines": 1151,
+  "role": "The harness's central entry point: every patched vanilla hook lands here. Holds the mode (OFF, PLAY, AGENT), seed, tape/script/replay/frames paths and pins; drives startup, the tape header, ticksThisFrame (lockstep pairing), pre/post tick, input capture and injection, GUI ops, render gating, replay setup (including run-class dispatch by reflection) and shutdown. --chat (showChat, cleanHudChat) and the tape header's chat and toasts flags; a mutating setup's packets are settled before the next tick in the recording and its replay. --save-at-end DIR (make replay SAVEEND=dir): after a replay's last row, the script save's Save and Quit into DIR, so a played session's end is the next session's checkpoint (csrc/play/session.sh). --frame-pt X draws agent frames at partial tick X and --frame-pts A,B draws each marked tick once per partial tick (renderAgain, f_T.pNNN.png), --tooltips draws GuiIngame's held-item name (cleanHudTooltip): the frame judge's goldens (lane/framesweep).",
+  "kind": "harness",
+  "used_by": [
+    "oracle/Makefile (every run target, via Main)",
+    "every probe and devop class (dispatched by its {\"cmd\":\"run\",\"class\":...})",
+    "csrc/engine/player.c, player.h, survival.c (cite it in comments)",
+    "csrc/play/session.sh (make replay SAVEEND=, the multi-sitting chain)"
+  ],
+  "vanilla_hooks": [
+    "oracle/src/client/Minecraft.java",
+    "oracle/src/client/gui/GuiIngame.java",
+    "oracle/src/client/gui/GuiWinGame.java",
+    "oracle/src/client/gui/achievement/GuiAchievement.java",
+    "oracle/src/client/entity/EntityClientPlayerMP.java",
+    "oracle/src/client/renderer/RenderGlobal.java",
+    "oracle/src/client/renderer/EntityRenderer.java",
+    "oracle/src/client/settings/KeyBinding.java",
+    "oracle/src/client/multiplayer/PlayerControllerMP.java",
+    "oracle/src/client/multiplayer/ChunkProviderClient.java",
+    "oracle/src/client/audio/SoundManager.java",
+    "oracle/src/entity/Entity.java",
+    "oracle/src/network/NetworkManager.java",
+    "oracle/src/server/MinecraftServer.java",
+    "oracle/src/world/World.java",
+    "oracle/src/world/storage/ThreadedFileIOBase.java"
+  ],
+  "notes": "vanilla_hooks from a word grep for Oracle in oracle/src; each file references netherite.oracle.Oracle (call sites not individually listed). launch is launchWorld (save, checkpoint, spawn pruning, Det.reset), attach (command source, tape) and startServer, so a pool can prelaunch a world and attach a run later; in a pool JVM finish returns (Pool.jobDone) and postTick skips the rest of the tick's harness work (poolUnwind; it threw a MinecraftError until lane/poolleak, which Minecraft.run answered with a shutdown), finish reports a job once when Rows.close finds a divergence inside it (finished), and commands() hands the frame to Pool.cycle between runs. preTick calls RenderStateProbe.tickStart (the client Math.random state at each tick's start, for er.cm0). --snap-at T,T,... with --snap-dir DIR writes a Snapshot (with the save overlay) at the head of each listed tick of a replay, where a script's Snapshot command runs (snapshotHere; the any-tick sweep). lane/keyframes: a --snap-at snapshot is written in blob form (\"blobs\": SNAPDIR/blobs); --detail-from T turns on --detail --enbt rows at tick T (detailHere) and --until T ends a replay at the head of tick T (ORACLE REPLAY UNTIL), both for csrc/tests/diverge.sh. lane/snapdet: the calendar pin, CALENDAR_MILLIS (2026-09-22 12:00 UTC) through calendarMillis() and calendar(), which World.theCalendar and World.getCurrentDate read while the oracle runs, so a recording made on another day has the same date (the manifest's calMonth and calDay). saveClockMillis() is the save clock pin (level.dat LastPlayed, session.lock, region timestamps; lane/rerecaudit); snapPlain (--snap-plain) writes --snap-at snapshots in the single-snapshot form. lane/oracletick: commands() serializes the held row and settles the chunk writer only before a command that may change the server or read its save (readOnly: a step and GoldBot's per-tick run do neither); a script's step reply (no reader: Control.out is null) no longer flushes the held row, whose digests are then computed beside the next tick; --tick-profile's laps (Prof) sit in ticksThisFrame and postTick. lane/agentscreens: the step command refuses an agent act Act.parseAgent rejects (ORACLE REFUSE, an error reply, the script goes on without a tick); a replay row Act.parseTape rejects ends the run (rc 4). onShutdown writes no coverage data in a pool member (a retiring member's SIGTERM once overwrote its last job's file, lane/covcache). launchWait: Minecraft.launchIntegratedServer's wait for the server's run loop polls every 5 ms in agent mode instead of vanilla's 200 (nothing drawn: the loading screen's clock is the tick's), and there a pool prelaunch gives way to a job for another world (Pool.launchWait; lane/replaylat)."
+}

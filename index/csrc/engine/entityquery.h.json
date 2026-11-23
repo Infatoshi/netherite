@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/entityquery.h",
+ "lines": 18,
+ "role": "Declares entityquery_in_box, the native World.getEntitiesWithinAABBExcludingEntity over an ie_world's chunk-section entity lists, walking chunks cx outer, cz inner and sections in insertion order as Chunk does.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/World.java", "members": ["getEntitiesWithinAABBExcludingEntity"]},
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["getEntitiesWithinAABBForEntity"]}
+ ],
+ "structs": [],
+ "entry_points": ["entityquery_in_box"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [],
+ "notes": "Header only; the body is csrc/engine/entityquery.c. Callers seen: explosion.c and projectile.c. The iteration order is carried by the per-section list insertion order (container-order dependence lives in entityquery.c and item_entity.c, not here). No native test includes this header directly; it is exercised through test_explosions.c via explosion.c (not verified further)."
+}

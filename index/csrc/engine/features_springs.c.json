@@ -1,0 +1,95 @@
+{
+ "path": "csrc/engine/features_springs.c",
+ "lines": 855,
+ "role": "WorldGenLiquids (the rock-pocket water and lava spring) and the liquid flow it runs: BlockDynamicLiquid.updateTick with its depth, side-source, flow-cost search and pour paths, the lava-water fizz, and BlockStaticLiquid.updateTick's lava fire spread. Used by population and by the server's scheduled block updates.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenLiquids.java",
+   "members": [
+    "WorldGenLiquids",
+    "generate",
+    "field_150521_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDynamicLiquid.java",
+   "members": [
+    "updateTick",
+    "func_149811_n",
+    "func_149810_a",
+    "func_149807_p",
+    "func_149809_q",
+    "func_149812_c",
+    "func_149808_o",
+    "func_149813_h",
+    "field_149815_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockStaticLiquid.java",
+   "members": [
+    "updateTick",
+    "isFlammable"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLiquid.java",
+   "members": [
+    "func_149804_e",
+    "func_149799_m",
+    "func_149738_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "isAirBlock",
+    "scheduledUpdatesAreImmediate"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "SPRINGS",
+   "java": "the springs lane's rows of FeatureProbe.FEATURES (springwater, springlava)",
+   "fields": [
+    "name",
+    "config",
+    "y0",
+    "y1",
+    "margin",
+    "block",
+    "count",
+    "generate"
+   ]
+  },
+  {
+   "name": "flow_dir / cost_array",
+   "java": "BlockDynamicLiquid's per-instance scratch arrays that func_149808_o fills (one per liquid material, as there is one block instance per liquid)",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "features_springs_for",
+  "liquid_update_tick",
+  "liquid_static_update_tick",
+  "springs_bwl_step"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 445-447, function feature_spring: toggles the global ticks_set_immediate flag",
+  "function flow_cost: an explicit stack of four frames (depth 1 to 4), no recursion",
+  "liquid_update_tick and liquid_static_update_tick are worklist entry points; liquid_step and static_step run BlockDynamicLiquid and BlockStaticLiquid.updateTick as frames, the immediate cascade on the worklist (deepest 895 frames, make -C csrc worklist-depth)",
+  "function best_directions_fast (lane/popfeat): func_149808_o over the loaded chunks' cells when every chunk within 5 is loaded: fcf_diamond classifies the 61 cells within 5 into a 121-byte grid, fast_cost searches breadth first (two 32-state layers and a 121-byte seen set on the stack); SP_CLASS, built before main with the material indices"
+ ],
+ "tests": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_fallhang.c",
+  "csrc/tests/test_ticks.c",
+  "csrc/tests/test_tileticks.c"
+ ],
+ "notes": "Lava spreads 2 outside the Nether and 1 in it (dim -1). The fizz and the water-branch block drop are delegated to randomtick.c (randomtick_fizz, randomtick_drop). test_ticks.c and test_tileticks.c are listed because they drive scheduled liquid ticks through ticks.c; not verified line by line. The header comment on liquid_static_update_tick says BlockFire.onBlockAdded is not ported; fire.c may since have covered it (not verified). func_149808_o's search (best_directions): when every chunk within 5 of the flowing block is loaded it runs best_directions_fast, reading the chunks' bands directly and searching breadth first (exact: the reads have no effect, and each side's value is its least depth); otherwise the Java-order walk over fc_memo, which keeps the reads that can load a chunk in Java's order (lane/popfeat)."
+}

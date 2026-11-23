@@ -1,0 +1,14 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"death"}
+{"n":1,"act":{}}
+{"cmd":"dev","op":"gamerule","name":"keepInventory","value":"true"}
+{"n":1,"act":{}}
+{"cmd":"run","class":"MobFree","radius":16}
+{"cmd":"run","class":"Snapshot"}
+{"n":80,"act":{}}
+{"n":1,"act":{"dlook":[180,0]}}
+{"n":8,"act":{"hold":["forward"]}}
+{"n":40,"act":{}}
+{"n":25,"act":{}}
+{"n":1,"act":{"gui":[["respawn"]]}}
+{"n":60,"act":{}}

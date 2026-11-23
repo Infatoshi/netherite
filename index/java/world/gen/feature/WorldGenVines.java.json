@@ -1,0 +1,53 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenVines.java",
+ "classes": [
+  "WorldGenVines"
+ ],
+ "lines": 39,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Jungle vines: climbs one column from y to 127, placing a vine on the first side that supports it, re-picking the column on solid blocks.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_plants.c",
+   "symbols": [
+    "feature_vines"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "jungle_post"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-vines-2",
+  "out/java/probes/fe-vines-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_plants.c:feature_vines",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

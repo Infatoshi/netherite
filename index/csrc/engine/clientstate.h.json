@@ -1,0 +1,56 @@
+{
+  "path": "csrc/engine/clientstate.h",
+  "lines": 171,
+  "role": "The client view-state API (clientstate.c): the FOV inputs and attribute, the portal timer, the hurt fields and the damage context, the client bolts and lastLightningBolt, in runTick's order.",
+  "layer": "client",
+  "java": [
+    {
+      "path": "oracle/src/client/entity/EntityPlayerSP.java",
+      "members": [
+        "timeInPortal",
+        "prevTimeInPortal"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "hurtTime",
+        "maxHurtTime",
+        "hurtResistantTime",
+        "attackedAtYaw",
+        "limbSwingAmount"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/effect/EntityLightningBolt.java",
+      "members": [
+        "lightningState",
+        "boltLivingTime",
+        "boltVertex"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "cs_weather",
+      "java": "WorldClient.lastLightningBolt and weatherEffects",
+      "fields": [
+        "last_bolt",
+        "n",
+        "b"
+      ]
+    }
+  ],
+  "entry_points": [
+    "clientstate_fov_multiplier",
+    "clientstate_portal_tick",
+    "clientstate_health_update",
+    "clientstate_bolt_spawn",
+    "clientstate_weather_tick"
+  ],
+  "tick_path": true,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_rendertick.c"
+  ]
+}

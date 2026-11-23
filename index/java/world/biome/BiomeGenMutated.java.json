@@ -1,0 +1,160 @@
+{
+ "path": "oracle/src/world/biome/BiomeGenMutated.java",
+ "classes": [
+  "BiomeGenMutated"
+ ],
+ "lines": 93,
+ "side": "common",
+ "category": "worldgen",
+ "role": "The generic 'M' variant (id + 128) of a base biome: copies the base's blocks, climate and spawn lists, raises its height, and delegates decoration, surface, tree choice, colours and class to the base object.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld biome variants; all worldgen is vanilla (SPEC Decisions).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/biomes.h",
+   "symbols": [
+    "BIOMES",
+    "SURF_MUTATED",
+    "biome_def"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "base_of",
+    "delegates_to_base",
+    "slot_of",
+    "deco_of",
+    "decorator_decorate"
+   ]
+  },
+  {
+   "file": "csrc/engine/surface.c",
+   "symbols": [
+    "column"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "biome_color"
+   ]
+  },
+  {
+   "file": "csrc/engine/layers.c",
+   "symbols": [
+    "same"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_worldgen.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_meshes.c",
+  "out/java/chunks/junglem-123456789",
+  "out/java/chunks/spruce-123456789",
+  "out/java/populate",
+  "out/java/clientframes/cov-foliage-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150611_aD",
+   "sig": "BiomeGenBase (base)",
+   "native": "csrc/engine/biomes.h:biome_def",
+   "status": "exact",
+   "note": "the base column of BIOMES; decorator.c base_of"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a",
+   "note": "obfuscation id"
+  },
+  {
+   "kind": "ctor",
+   "name": "BiomeGenMutated",
+   "sig": "(int,BiomeGenBase)",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "height +0.1/+0.2 and copied climate are generated into BIOMES from the live objects; the copied spawn lists are spawning_list_for's (130's empty creature list, 134's slime row), checked for every id by test_biome_spawn.c against BiomeSpawnProbe"
+  },
+  {
+   "kind": "method",
+   "name": "decorate",
+   "sig": "(World,Random,int,int)V",
+   "native": "csrc/engine/decorator.c:decorator_decorate",
+   "status": "exact",
+   "note": "base decorator counts via deco_of(base_of(id)) run on the mutated object"
+  },
+  {
+   "kind": "method",
+   "name": "func_150573_a",
+   "sig": "(World,Random,Block[],byte[],int,int,double)V",
+   "native": "csrc/engine/surface.c:column",
+   "status": "exact",
+   "note": "SURF_MUTATED recurses into the base, temperature included"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawningChance",
+   "sig": "()F",
+   "native": "csrc/engine/seedworld.c:SW_SPAWNING_CHANCE",
+   "status": "exact",
+   "note": "every base returns 0.1"
+  },
+  {
+   "kind": "method",
+   "name": "func_150567_a",
+   "sig": "(Random)WorldGenAbstractTree",
+   "native": "csrc/engine/decorator.c:delegates_to_base",
+   "status": "exact",
+   "note": "the base's tree kind and the base's big-tree state slot (slot_of)"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeFoliageColor",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:biome_color",
+   "status": "exact",
+   "note": "RB_KIND_MUTATED recurses with (x, y, y), keeping the vanilla z-for-y slip; cov-foliage-s1: Swamp M grass, vines and leaves"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeGrassColor",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:biome_color",
+   "status": "exact",
+   "note": "same recursion; cov-foliage-s1: Swamp M grass, vines and leaves"
+  },
+  {
+   "kind": "method",
+   "name": "func_150562_l",
+   "sig": "()Class",
+   "native": "csrc/engine/biomes.h:biome_class",
+   "status": "exact",
+   "note": "cls column reports the base's class"
+  },
+  {
+   "kind": "method",
+   "name": "func_150569_a",
+   "sig": "(BiomeGenBase)Z",
+   "native": "csrc/engine/layers.c:same",
+   "status": "n/a",
+   "note": "its only caller, GenLayer.func_151616_a, takes its first biome from GenLayerHills' and GenLayerBiomeEdge's parent output, where no id is 128 or above (mutated ids are first made in GenLayerHills itself), so it is never a BiomeGenMutated"
+  },
+  {
+   "kind": "method",
+   "name": "func_150561_m",
+   "sig": "()TempCategory",
+   "native": "csrc/engine/biomes.h:temp_category",
+   "status": "n/a",
+   "note": "its only callers are GenLayerBiomeEdge.java:148-149 on the parent layer's ids, where no id is 128 or above, so never on a BiomeGenMutated"
+  }
+ ],
+ "missing": [],
+ "notes": "Colour evidence is the mesh gate (test_meshes); whether a mutated-biome column appears in the mesh recordings was not checked. Closed by lane/idxworld (verification): the mutated biomes' terrain, decoration and colours are held by the chunk dumps of seeds whose regions hold them (out/java/chunks/junglem-123456789, spruce-123456789) and by test_populate; their spawn lists, the parent's copies, by test_biome_spawn."
+}

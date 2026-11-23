@@ -1,0 +1,145 @@
+{
+ "classes": [
+  "InventoryCraftResult"
+ ],
+ "lines": 120,
+ "side": "common",
+ "category": "crafting",
+ "role": "The one-slot crafting result inventory; decrStackSize hands back the whole stack and empties the slot, and the result is recomputed from the grid after every change.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "inv_set",
+    "inv_decr",
+    "inv_take",
+    "matrix_changed"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "result"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/pickaxe-complete-s1",
+  "out/java/snapshots/cat-recipes-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "stackResult",
+   "sig": "ItemStack[]",
+   "native": "csrc/engine/container.h:result",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSizeInventory",
+   "sig": "()I",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "n/a",
+   "note": "n/a: nothing reads the craft result this way: the containers close over their grids, Slot.getSlotStackLimit is reached only past isItemValid (SlotCrafting refuses every stack), and no comparator or hopper faces a result"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlot",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.h:container_slot",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryName",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInventoryNameLocalized",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(II)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_decr",
+   "status": "exact",
+   "note": "the INV_RESULT branch: the whole stack, count ignored"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlotOnClosing",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_take",
+   "status": "n/a",
+   "note": "n/a: nothing reads the craft result this way: the containers close over their grids, Slot.getSlotStackLimit is reached only past isItemValid (SlotCrafting refuses every stack), and no comparator or hopper faces a result"
+  },
+  {
+   "kind": "method",
+   "name": "setInventorySlotContents",
+   "sig": "(ILnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact",
+   "note": "no limit clamp, as in Java"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryStackLimit",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:result",
+   "status": "n/a",
+   "note": "n/a: nothing reads the craft result this way: the containers close over their grids, Slot.getSlotStackLimit is reached only past isItemValid (SlotCrafting refuses every stack), and no comparator or hopper faces a result"
+  },
+  {
+   "kind": "method",
+   "name": "onInventoryChanged",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "isUseableByPlayer",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "returns true unconditionally"
+  },
+  {
+   "kind": "method",
+   "name": "openInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "closeInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValidForSlot",
+   "sig": "(ILnet/minecraft/item/ItemStack;)Z",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/inventory/InventoryCraftResult.java"
+}

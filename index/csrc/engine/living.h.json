@@ -1,0 +1,418 @@
+{
+ "path": "csrc/engine/living.h",
+ "lines": 1031,
+ "role": "The shared living-entity header: the kind enum for every mob, damage source families, attribute records, the AI task, navigator, look/move/jump/body helper and senses records, the struct living that carries every kind's state, the entity list and per-chunk section structs (an_world), and the prototypes of living.c plus the per-kind files (hostiles*.c, villagers.c, animals.c, ai.c, blaze).",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "dimension",
+    "ridingEntity",
+    "riddenByEntity",
+    "rotationYaw",
+    "rotationPitch",
+    "ticksExisted",
+    "isDead",
+    "addedToChunk",
+    "chunkCoordX",
+    "chunkCoordY",
+    "chunkCoordZ",
+    "timeUntilPortal",
+    "inWater"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "attributeMap",
+    "activePotionsMap",
+    "deathTime",
+    "hurtTime",
+    "attackTime",
+    "maxHurtTime",
+    "maxHurtResistantTime",
+    "hurtResistantTime",
+    "recentlyHit",
+    "lastDamage",
+    "prevHealth",
+    "attackedAtYaw",
+    "entityAge",
+    "limbSwing",
+    "limbSwingAmount",
+    "swingProgress",
+    "cameraPitch",
+    "rotationYawHead",
+    "renderYawOffset",
+    "jumpTicks",
+    "isJumping",
+    "moveStrafing",
+    "moveForward",
+    "randomYawVelocity",
+    "landMovementFactor",
+    "field_110154_aX",
+    "field_70764_aw"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "livingSoundTime",
+    "tasks",
+    "targetTasks",
+    "lookHelper",
+    "moveHelper",
+    "jumpHelper",
+    "bodyHelper",
+    "navigator",
+    "senses",
+    "attackTarget",
+    "equipmentDropChances",
+    "canPickUpLoot",
+    "persistenceRequired",
+    "defaultPitch",
+    "numTicksToChaseTarget",
+    "currentTarget"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "entityToAttack",
+    "hasAttacked",
+    "fleeingTick",
+    "homePosition",
+    "maximumHomeDistance"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityAgeable.java",
+   "members": [
+    "field_98056_d",
+    "field_98057_e"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAITasks.java",
+   "members": [
+    "taskEntries",
+    "executingTaskEntries",
+    "tickCount",
+    "tickRate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/attributes/ModifiableAttributeInstance.java",
+   "members": [
+    "baseValue",
+    "cachedValue",
+    "needsUpdate",
+    "mapByOperation"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/attributes/AttributeModifier.java",
+   "members": [
+    "amount",
+    "operation",
+    "name",
+    "id",
+    "isSaved"
+   ]
+  },
+  {
+   "path": "oracle/src/pathfinding/PathEntity.java",
+   "members": [
+    "points",
+    "currentPathIndex",
+    "pathLength"
+   ]
+  },
+  {
+   "path": "oracle/src/pathfinding/PathNavigate.java",
+   "members": [
+    "theEntity",
+    "currentPath",
+    "speed",
+    "totalTicks",
+    "ticksAtLastPos",
+    "noSunPathfind",
+    "avoidsWater",
+    "canSwim",
+    "canPassOpenWoodenDoors",
+    "canPassClosedWoodenDoors"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntitySenses.java",
+   "members": [
+    "seenEntities",
+    "unseenEntities"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "entityLists"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "attr_mod",
+   "java": "AttributeModifier: amount, operation, name, id (UUID), isSaved, plus a held-item flag",
+   "fields": [
+    "amount",
+    "operation",
+    "name",
+    "uuid_msb",
+    "uuid_lsb",
+    "saved",
+    "from_item"
+   ]
+  },
+  {
+   "name": "attr_instance",
+   "java": "ModifiableAttributeInstance: baseValue, cachedValue, needsUpdate, the modifiers (fixed 8)",
+   "fields": [
+    "which",
+    "registered",
+    "base",
+    "cached",
+    "needs_update",
+    "nmods",
+    "mods"
+   ]
+  },
+  {
+   "name": "attr_map",
+   "java": "BaseAttributeMap (fixed slots in registration order)",
+   "fields": [
+    "a"
+   ]
+  },
+  {
+   "name": "ai_task",
+   "java": "the union of every EntityAIBase subclass's fields, selected by cls",
+   "fields": [
+    "cls",
+    "mutex",
+    "target",
+    "path",
+    "x",
+    "y",
+    "z",
+    "speed",
+    "visited_doors",
+    "front_door",
+    "village_ptr"
+   ]
+  },
+  {
+   "name": "ai_tasks",
+   "java": "EntityAITasks: taskEntries and executingTaskEntries (fixed 24), tickCount",
+   "fields": [
+    "tick_count",
+    "n",
+    "entries",
+    "executing",
+    "nexec"
+   ]
+  },
+  {
+   "name": "path_ent",
+   "java": "PathEntity: points (fixed 512), currentPathIndex, pathLength",
+   "fields": [
+    "length",
+    "index",
+    "pts",
+    "n_points"
+   ]
+  },
+  {
+   "name": "path_nav",
+   "java": "PathNavigate",
+   "fields": [
+    "ent",
+    "avoids_water",
+    "can_swim",
+    "can_pass_open_doors",
+    "can_pass_closed_doors",
+    "no_sun_pathfind",
+    "speed",
+    "total_ticks",
+    "ticks_at_last_pos",
+    "lx",
+    "ly",
+    "lz",
+    "path",
+    "finder",
+    "out",
+    "out_cap"
+   ]
+  },
+  {
+   "name": "look_helper, move_helper, jump_helper, body_helper",
+   "java": "EntityLookHelper, EntityMoveHelper, EntityJumpHelper, EntityBodyHelper",
+   "fields": [
+    "ent"
+   ]
+  },
+  {
+   "name": "senses",
+   "java": "EntitySenses: seenEntities, unseenEntities (fixed 64 each)",
+   "fields": [
+    "ent",
+    "seen",
+    "nseen",
+    "unseen",
+    "nunseen"
+   ]
+  },
+  {
+   "name": "equip_slot",
+   "java": "an equipment ItemStack: id, damage, count and its tag (itemtag.h)",
+   "fields": [
+    "id",
+    "damage",
+    "count",
+    "tag",
+    "count_link"
+   ]
+  },
+  {
+   "name": "living",
+   "java": "Entity, EntityLivingBase, EntityLiving, EntityCreature, EntityAgeable, EntityAnimal and every kind subclass's fields (villager, golem, slime, player food, squid, bat, chicken, zombie, pigman, skeleton, witch, blaze, ghast, creeper, enderman, spider) in one record",
+   "fields": [
+    "e",
+    "world",
+    "an",
+    "kind",
+    "entity_id",
+    "rand",
+    "uuid_msb",
+    "uuid_lsb",
+    "health",
+    "attrs",
+    "potions",
+    "tasks",
+    "target_tasks",
+    "nav",
+    "senses",
+    "attack_target",
+    "entity_to_attack",
+    "growing_age",
+    "in_love",
+    "equip",
+    "riding_entity",
+    "ridden_by_entity",
+    "player_inv",
+    "on_living_update",
+    "write_kind_nbt",
+    "kind_tick",
+    "kind_fall"
+   ]
+  },
+  {
+   "name": "an_ent",
+   "java": "one World.loadedEntityList entry (living or item-world entity)",
+   "fields": [
+    "is_living",
+    "used",
+    "spawn_index",
+    "liv",
+    "ie"
+   ]
+  },
+  {
+   "name": "an_chunk",
+   "java": "Chunk.entityLists: 16 y sections of entity pointers (fixed 2048 each)",
+   "fields": [
+    "cx",
+    "cz",
+    "n",
+    "ent"
+   ]
+  },
+  {
+   "name": "an_world",
+   "java": "World.loadedEntityList plus the chunk sections, skylightSubtracted, the player list stand-in and the replay hooks",
+   "fields": [
+    "w",
+    "det",
+    "iew",
+    "list",
+    "n",
+    "chunks",
+    "nchunks",
+    "capchunks",
+    "skylight",
+    "dimension",
+    "world_time",
+    "player",
+    "village_collection",
+    "village_siege",
+    "constructor_hook",
+    "on_remove_cb",
+    "collide_extra"
+   ]
+  }
+ ],
+ "entry_points": [
+  "attrs_init",
+  "attrs_get",
+  "attrs_value",
+  "attrs_set_base",
+  "attrs_apply",
+  "attrs_remove",
+  "attrs_remove_all",
+  "an_init",
+  "an_free",
+  "an_add",
+  "an_remove",
+  "an_chunk_add",
+  "an_chunk_remove",
+  "an_entities_within_aabb",
+  "an_entities_excluding",
+  "an_tick",
+  "an_tick_one",
+  "an_update_one",
+  "an_chunk_membership",
+  "an_chunk_find",
+  "an_add_living",
+  "an_spawn_living",
+  "an_spawn_item",
+  "an_spawn_orb",
+  "an_spawn_arrow",
+  "an_spawn_potion",
+  "living_init",
+  "living_update_entity",
+  "living_attack_entity_from",
+  "living_on_living_update",
+  "living_move_entity_with_heading",
+  "living_write_nbt",
+  "living_nbt_hash",
+  "an_write_state"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "struct living: a 4,216-byte hot record (was 23,440; 6,512 before lane/entmem named attribute modifiers by id) with every kind's fields; the AI task lists and door list (living_ai), the villager's trades (living_villager) and the probe player's inventory (living_player) are pools of their own, a slot taken when first reached (ai_part, villager_part, player_part); senses are one per env (env.h senses); references to other livings are lrefs; l->world, l->an and player_sp stay addresses of containers (lane/gpuarena, L3; lane/entmem)",
+  "struct ai_task: 120 bytes, the shared fields then each class's own in an anonymous union (lane/entmem); target, mate, golem and child are lrefs, the front door a door-pool slot + 1, the village an index + 1 in its collection, the paths pathrefs (lane/gpuarena, L3)",
+  "line 191-194, struct path_nav: pointers to a path, the path finder and a heap int buffer",
+  "struct an_world: the list holds an_ent pool slots; the chunk table comes from the arena slab (lane/gpuarena, L3)",
+  "struct an_chunk: 16 sec_list slot-index lists in the arena slab (lane/gpuarena, L3)",
+  "lines 536-561, struct an_world: several replay and probe callbacks as function pointers",
+  "line 544, struct an_world: jrand *shuf_rand pointer to an external Random"
+ ],
+ "tests": [
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_lightning.c",
+  "csrc/tests/test_slimes.c",
+  "csrc/tests/test_villagers.c",
+  "csrc/tests/test_projectiles.c",
+  "csrc/tests/test_potions.c",
+  "csrc/tests/test_spawning.c"
+ ],
+ "notes": "Several prototypes are declared twice (living_init, living_set_size, living_is_movement_blocked, living_dmg_unblockable), harmless. The kind enum values double as class selectors for queries (living_kind_in_class). Fixed capacities: AI_MAX_ENTRIES 24, ATTR_MAX_MODS 8, AN_MAX_ENTITIES 4096 (an_list_push stops loudly past it). Java field names in the struct mirrors were matched by grep against the Java files, not by reading every access."
+}

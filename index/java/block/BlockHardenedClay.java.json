@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/block/BlockHardenedClay.java",
+  "classes": ["BlockHardenedClay"],
+  "lines": 21,
+  "side": "common",
+  "category": "block",
+  "role": "Hardened clay: an inert rock-material terrain block.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/harvest.c", "symbols": ["block_hardness"]}
+  ],
+  "evidence": [
+    "out/java/chunks",
+    "csrc/tests/test_worldgen.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockHardenedClay", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 172: the rock material, hardness 1.25"},
+    {"kind": "method", "name": "getMapColor", "sig": "(I)Lnet/minecraft/block/material/MapColor;", "native": null, "status": "n/a", "note": "maps are off (world.conf maps = off)"}
+  ],
+  "missing": [],
+  "notes": "A pure terrain block: the generated table row plus the generic dig/harvest paths cover everything. Mesa terrain places it (decorator.c), verified by the worldgen probes."
+}

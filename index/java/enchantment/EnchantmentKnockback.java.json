@@ -1,0 +1,76 @@
+{
+ "path": "oracle/src/enchantment/EnchantmentKnockback.java",
+ "classes": [
+  "EnchantmentKnockback"
+ ],
+ "lines": 36,
+ "side": "server",
+ "category": "combat",
+ "role": "The Knockback enchantment (effect id 19, weapon type): level windows and max level in the shared registry.",
+ "scope": "in_scope",
+ "scope_reason": "The enchanting table is a plain block (world.conf enchanting=off), but the enchantment registry itself is kept: loot books and mob equipment carry enchantments (DEVLOG 2026-09-25, 'Kept: enchantment data and effects').",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/enchants.h",
+   "symbols": [
+    "ENCHANTS",
+    "struct enchantment_def"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "map_enchantment_data"
+   ]
+  },
+  {
+   "file": "csrc/engine/combatench.c",
+   "symbols": [
+    "ench_knockback"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_loot.c",
+  "out/java/loot/seed2",
+  "csrc/tests/test_trades.c",
+  "out/java/trades/seed2"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EnchantmentKnockback",
+   "sig": "(int,int)V",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "setName('knockback') is the row's name field"
+  },
+  {
+   "kind": "method",
+   "name": "getMinEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row min_enchantability {5,25}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_enchantability {61,71}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxLevel",
+   "sig": "()I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_level 2"
+  }
+ ],
+ "missing": [],
+ "notes": "The effect the enchantment applies is read by the mob attack path: hostiles_pigman.c:attack_entity_as_mob reads effect 19 off the pigman's held gear; the player attack path (combat.c) does not read a held item's knockback level. The level is read by combatench.c:ench_knockback for the player's and every mob's melee."
+}

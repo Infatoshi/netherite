@@ -1,0 +1,50 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderDragon.java",
+  "classes": ["RenderDragon"],
+  "lines": 311,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders the ender dragon: the ModelDragon parts (head, jaw, spine, body, wings, legs) with the hurt tint, the dying explosion, the eyes overlay, the healing beam to the end crystals and the ender crystal's own model and beam.",
+  "scope": "in_scope",
+  "scope_reason": "The End fight is in scope (SPEC: the End is vanilla) and the dragon scenes gate its pixels.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["dragon_draw", "dragon_draw_model", "dragon_beam", "crystal_draw", "raster_mobs_draw"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs2b_dragon_f036",
+    "out/java/render/mobs2b_dragon_f041",
+    "out/java/render/mobs2b_dragon_hurt_f006",
+    "out/java/render/mobs2b_dragon_death_f006",
+    "out/java/render/mobs2b_dragon_death_f041",
+    "out/java/render/mobs2b_beam_f011",
+    "out/java/render/mobs2b_crystal_f006",
+    "out/java/snapshots/end-dragon-s1",
+    "csrc/tests/test_render.c",
+    "out/java/render/hud_boss_f016"
+  ],
+  "members": [
+    {"kind": "field", "name": "enderDragonExplodingTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:dragon_draw", "status": "exact", "note": "TEX_DRAGON_EXPLODING, bound during the death animation"},
+    {"kind": "field", "name": "enderDragonCrystalBeamTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:dragon_beam", "status": "exact", "note": "TEX_ENDCRYSTAL_BEAM for the healing beam"},
+    {"kind": "field", "name": "enderDragonEyesTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:dragon_draw", "status": "exact", "note": "TEX_DRAGON_EYES overlay"},
+    {"kind": "field", "name": "enderDragonTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:dragon_draw_model", "status": "exact", "note": "TEX_DRAGON"},
+    {"kind": "field", "name": "modelDragon", "sig": "protected ModelDragon", "native": "csrc/engine/raster_mobs.c:dragon_draw_model", "status": "exact", "note": "the ModelDragon boxes are the DR_* tables in raster_mobs.c (head, jaw, spine, body, wings, wingtips, legs, feet) and updateRotations is ported above dragon_draw_model"},
+    {"kind": "ctor", "name": "RenderDragon", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityDragon,FFF)V", "native": "csrc/engine/raster_mobs.c:dragon_draw_model", "status": "exact", "note": "the dragon's own orientation (no death roll-over, pitch applied) is folded into the model matrix the dragon path builds; the comment at the matrix construction names rotateCorpse"},
+    {"kind": "method", "name": "renderModel", "sig": "(EntityDragon,FFFFFF)V", "native": "csrc/engine/raster_mobs.c:dragon_draw_model", "status": "exact", "note": "the dragon's own pass loop: base model, hurt pass at GL_EQUAL 50% red, dying swap to dragon_exploding; the comment block above dragon_draw names 'RenderDragon.renderModel, RendererLivingEntity's pass loop'"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityDragon,DDD FF)V", "native": "csrc/engine/raster_mobs.c:dragon_draw", "status": "exact", "note": "dragon_draw is the whole doRender: translation to the entity plus 2 in y, the model, eyes, then the beam and shadow; the healing-beam comment names doRender"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityDragon)ResourceLocation", "native": "csrc/engine/raster_mobs.c:dragon_draw", "status": "exact", "note": "dragon vs dragon_exploding selection by death phase"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityDragon,F)V", "native": "csrc/engine/raster_mobs.c:dragon_beam", "status": "exact", "note": "the healing beam to each crystal; the beam's 200-tick explosion Random(432L) comment names renderEquippedItems"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityDragon,int,F)I", "native": "csrc/engine/raster_mobs.c:dragon_draw_model", "status": "exact", "note": "the eyes layer (additive, no depth write) and the death-phase explosion layer"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,F)I", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,F)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityLivingBase,FFF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "renderModel", "sig": "(EntityLivingBase,FFFFFF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "The ender crystal render (shouldRenderPass's second pass in vanilla draws the crystal through RenderEnderCrystal; the native side is crystal_draw and the endcrystal textures) is gated by mobs2b_crystal_f006/f046 and the dragon tests (out/java/dragon/, csrc/tests/test_dragon.c covers the fight simulation). The dragon's death animation scales the model down and explodes; mobs2b_dragon_death_* gates it. doRender's BossStatus.setBossStatus is raster_mobs_draw's raster_hud_boss_set call (lane/hudscreens). lane/clientents: renderModel's red hurt pass keeps the lightmap (only unit 0's texture is off: overlay_lightmap); the live client draws the client's EntityDragon copy (pickobj.c) with its own lastTickPos, animTime and hurt clock (csrc/play/clientents.c)."
+}

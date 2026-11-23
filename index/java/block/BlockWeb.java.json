@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/block/BlockWeb.java",
+  "classes": ["BlockWeb"],
+  "lines": 63,
+  "side": "common",
+  "category": "block",
+  "role": "The cobweb (id 30): no collision box, an entity that walks into it is caught (Entity.setInWeb), breaks to string, silk-harvestable.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS", "MATERIALS"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_pool_box", "collide_entity_effect"]},
+    {"file": "csrc/engine/entity.c", "symbols": ["entity_set_in_web"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["can_silk_harvest"]},
+    {"file": "csrc/engine/harvest.c", "symbols": ["block_hardness", "item_can_harvest"]}
+  ],
+  "evidence": ["out/java/snapshots/phys-fallstop-s1", "csrc/tests/test_move.c", "out/java/snapshots/cov-blkmisc-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockWeb", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 30: Material.field_151569_G row (the blocksMovement-false cloth material), hardness 4.0, render_type 1"},
+    {"kind": "method", "name": "onEntityCollidedWithBlock", "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/Entity;)V", "native": "csrc/engine/collide.c:collide_entity_effect", "status": "exact", "note": "case 30 returns COLLIDE_EFFECT_WEB; entity.c's entity_set_in_web is the protected setter"},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;", "native": "csrc/engine/collide.c:collide_pool_box", "status": "exact", "note": "case 30: null"},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "render_type 1 (cross render), in the table"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 30: string"},
+    {"kind": "method", "name": "canSilkHarvest", "sig": "()Z", "native": "csrc/engine/harvestdrops.c:can_silk_harvest", "status": "exact", "note": "web is in the override list at harvestdrops.c:412"}
+  ],
+  "missing": [],
+  "notes": "test_move.c checks is_in_web on the entity across movement frames, which exercises the collide effect and the setter."
+}

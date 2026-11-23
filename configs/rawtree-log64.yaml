@@ -1,0 +1,72 @@
+# rawtree-log64.yaml (lane/rawtree): configs/rawpix64.yaml's task (the raw keys, the potential shaping, the winner's PPO)
+# for a log (block 17) from a seed's spawn as it is: no dev setup, an empty inventory, the bare hand. The starts are
+# rawstarts --logs libraries (the seed set's own spawn snapshots); episode_seconds 20: a log 8 to 16 blocks away is
+# about 4 s of walking and 3 s of punching by hand (hardness 2), so 20 s leaves the search and the pickup about twice
+# what the straight path needs.
+#   make -C csrc/runtime rawtree TR_TASK=log
+sim:
+  world:
+    seed: 1
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    cast_precision: 32
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: device
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: out/java/try/seedset-d989661987/s1
+    worlds: 256
+    groups: 4
+    episode_seconds: 20
+  fidelity:
+    spawning: off
+    random_ticks: off
+    weather: off
+  performance:
+    workers: 30
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: doms
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: none
+    picks: off
+  task:
+    item: 17
+    keys: forward+back+left+right+jump+mine
+    win: 1
+    death: -0.5
+    look: 0.3
+    crack: 0.05
+    dist: 0.1
+    shaping: potential
+  starts:
+    library: out/runtime/rawtree/logs-view
+    curriculum: off
+    pin: on
+  ppo:
+    lr: 1e-3
+    ent: 0.01
+    clip: 0.2
+    gamma: 0.99
+    lam: 0.95
+    epochs: 4
+    mb: 2048
+    horizon: 8
+  net:
+    kind: small
+  run:
+    log_every: 1

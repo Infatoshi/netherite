@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/network/play/server/S00PacketKeepAlive.java",
+  "classes": ["S00PacketKeepAlive"],
+  "lines": 60,
+  "side": "server",
+  "category": "network",
+  "role": "The server's keepalive ping, sent every 40 network ticks with a random-ish id; the client's reply measures latency.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149136_a (id)", "sig": "I", "native": null, "status": "missing"},
+    {"kind": "ctor", "name": "S00PacketKeepAlive", "sig": "(I)V", "native": null, "status": "missing"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayClient)V", "native": null, "status": "missing", "note": "handleKeepAlive just echoes a C00 back; no client state"},
+    {"kind": "method", "name": "hasPriority", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149134_c", "sig": "()I", "native": null, "status": "missing"}
+  ],
+  "missing": [
+    "The keepalive ping itself is unmodelled (it changes no game state). Its pacing counter is: NetHandlerPlayServer.networkTickCount is player.h's network_tick_count, seeded from the snapshot's \"net\" compound, and its % 20 branch re-sends the last position as an S08 while the player has not moved (player.c:1438)."
+  ],
+  "notes": "The % 20 S08 correction is a different vanilla mechanism from the 40-tick ping; both read the same counter, and only the S08 correction is observable in tapes."
+}

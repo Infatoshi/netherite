@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/item/ItemTool.java",
+  "classes": ["ItemTool"],
+  "lines": 106,
+  "side": "common",
+  "category": "item",
+  "role": "Base of the pickaxe, axe and spade: tool material, efficiency on a per-class block set, 2 wear per hit and 1 per hard block broken, enchantability from the material.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "TOOL_MATERIALS"]},
+    {"file": "csrc/engine/harvest.c", "symbols": ["item_str_vs_block"]},
+    {"file": "csrc/engine/combat.c", "symbols": ["combat_server_attack"]},
+    {"file": "csrc/engine/dig.c", "symbols": ["item_on_block_destroyed"]},
+    {"file": "csrc/engine/enchant.c", "symbols": ["item_enchantability"]}
+  ],
+  "evidence": ["csrc/tests/test_harvest.c", "csrc/tests/test_dig.c", "out/java/snapshots/pickaxe-complete-s1", "out/java/snapshots/cov-containers-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150914_c", "sig": "Set", "native": null, "status": "n/a", "note": "the per-class set lives in harvest.c's pickaxe_set/axe_set/spade_set switches"},
+    {"kind": "field", "name": "efficiencyOnProperMaterial", "sig": "float", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "the efficiency column"},
+    {"kind": "field", "name": "damageVsEntity", "sig": "float", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "the damage column"},
+    {"kind": "field", "name": "toolMaterial", "sig": "Item.ToolMaterial", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "the tool_material index"},
+    {"kind": "ctor", "name": "ItemTool", "sig": "(FLnet/minecraft/item/Item$ToolMaterial;Ljava/util/Set;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact"},
+    {"kind": "method", "name": "func_150893_a", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/block/Block;)F", "native": "csrc/engine/harvest.c:item_str_vs_block", "status": "exact", "note": "the efficiency when the block is in the class's set, else 1.0; the three subclasses' material overrides come first in the same function"},
+    {"kind": "method", "name": "hitEntity", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/entity/EntityLivingBase;)Z", "native": "csrc/engine/combat.c:combat_server_attack", "status": "exact", "note": "the wear block: tool kind takes 2 per landed hit"},
+    {"kind": "method", "name": "onBlockDestroyed", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/block/Block;IIILnet/minecraft/entity/EntityLivingBase;)Z", "native": "csrc/engine/dig.c:item_on_block_destroyed", "status": "exact", "note": "1 damage when the block hardness is not 0"},
+    {"kind": "method", "name": "isFull3D", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150913_i", "sig": "()Lnet/minecraft/item/Item$ToolMaterial;", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "the tool_material index"},
+    {"kind": "method", "name": "getItemEnchantability", "sig": "()I", "native": "csrc/engine/enchant.c:item_enchantability", "status": "exact", "note": "the material's enchantability"},
+    {"kind": "method", "name": "getToolMaterialName", "sig": "()Ljava/lang/String;", "native": "csrc/engine/items.h:TOOL_MATERIALS", "status": "exact", "note": "TileEntityFurnace.getItemBurnTime's wooden tool (200): cov-containers-s1 burns a wooden pickaxe"},
+    {"kind": "method", "name": "getIsRepairable", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemStack;)Z", "native": null, "status": "n/a", "note": "the anvil repair query; the crafting-grid repair path is ported in crafting.c:repair_result"},
+    {"kind": "method", "name": "getItemAttributeModifiers", "sig": "()Lcom/google/common/collect/Multimap;", "native": "csrc/engine/combat.c:combat_server_attack", "status": "partial", "note": "the attack reads the held item's damage field; no NBT AttributeModifiers or multimap"}
+  ],
+  "missing": [],
+  "notes": null
+}

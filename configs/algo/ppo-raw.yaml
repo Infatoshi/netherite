@@ -1,0 +1,14 @@
+# PPO on raw keyboard and mouse from 64x64 pixels with the legal scalars (the overnight hill climb's best actor
+# build: the minGRU, the hotbar head, the fused stem), the privileged critic of width 128, no macros.
+description: PPO, raw inputs, 64x64 recurrent actor (s1.ls.hb.hs.dk.r1.m4.b.f.sb), privileged critic 128
+variant: s1.ls.hb.hs.dk.r1.m4.b.f.sb
+critic: 128
+macros: none
+net:
+  kind: small
+ppo:
+  lr: 3e-4
+  ent: 0.01
+  clip: 0.2
+  gamma: 0.99
+  lam: 0.95

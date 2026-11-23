@@ -1,0 +1,41 @@
+{
+ "path": "csrc/engine/trace.c",
+ "lines": 86,
+ "role": "Debug tracepoints matching the Java oracle's netherite.oracle.Trace: appends 'label v1 v2 ...' lines with doubles and floats as raw hex bits, so trace_diff can name the first step where native and Java part.",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/harness/netherite/oracle/Trace.java",
+   "members": [
+    "t"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "trace_open",
+  "trace_close",
+  "trace"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 15-28, function mkdir_parent: filesystem writes (mkdir) from trace_open",
+  "lines 52-86, function trace: file I/O from inside the tick when a trace is open (a no-op otherwise)"
+ ],
+ "tests": [
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_explosions.c",
+  "csrc/tests/test_slimes.c",
+  "csrc/tests/test_worldgen.c",
+  "csrc/tests/test_villagers.c",
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_potions.c",
+  "csrc/tests/test_ghasts.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/trace_diff.c"
+ ],
+ "notes": "Not a port of vanilla code: it mirrors the harness file oracle/harness/netherite/oracle/Trace.java. trace() is called from many tick files (animals, entity, living, hostiles, ai, spawning, explosion, servertick and others) but only writes when trace_open has been called. Tests listed are those that include trace.h; trace_diff.c compares the two outputs."
+}

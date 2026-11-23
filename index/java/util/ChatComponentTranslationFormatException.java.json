@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/util/ChatComponentTranslationFormatException.java",
+  "classes": ["ChatComponentTranslationFormatException"],
+  "lines": 21,
+  "side": "common",
+  "category": "util",
+  "role": "The IllegalArgumentException ChatComponentTranslation throws when its format string or placeholder index is malformed.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Only thrown while building chat text; chat is client presentation the native engine does not draw (csrc/engine/raster_hud.c).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "ChatComponentTranslationFormatException", "sig": "(ChatComponentTranslation,String)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ChatComponentTranslationFormatException", "sig": "(ChatComponentTranslation,int)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ChatComponentTranslationFormatException", "sig": "(ChatComponentTranslation,Throwable)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Not ported."
+}

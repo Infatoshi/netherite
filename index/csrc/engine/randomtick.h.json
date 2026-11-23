@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/randomtick.h",
+ "lines": 113,
+ "role": "Declares the random block tick dispatch (Block.updateTick by id), the published tick environment (World.rand, Det streams, drop sink, skylightSubtracted) the block callbacks read, the drop and fizz draw helpers, and the IGrowable bonemeal calls.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/block/Block.java", "members": ["updateTick", "dropBlockAsItemWithChance", "dropBlockAsItem_do", "field_149783_u"]},
+  {"path": "oracle/src/block/BlockLiquid.java", "members": ["func_149799_m"]},
+  {"path": "oracle/src/block/IGrowable.java", "members": ["func_149851_a", "func_149852_a", "func_149853_b"]},
+  {"path": "oracle/src/item/ItemDye.java", "members": ["func_150919_a"]},
+  {"path": "oracle/src/world/World.java", "members": ["skylightSubtracted", "getBlockLightValue_do"]}
+ ],
+ "structs": [
+  {"name": "randomtick_env", "java": null, "fields": ["wr", "det", "role", "sink", "sink_ctx"]}
+ ],
+ "entry_points": ["rt_light_diffuse", "randomtick_set_skylight", "randomtick_tick_rand", "randomtick_tick_rand_stream", "randomtick_tick_det", "randomtick_tick_drop_sink", "randomtick_tick_save", "randomtick_tick_load", "randomtick_drop", "randomtick_callback_drop", "randomtick_callback_fizz", "randomtick_fizz", "randomtick_update_tick", "randomtick_is_igrowable", "randomtick_bonemeal_can", "randomtick_bonemeal_chance", "randomtick_bonemeal_grow"],
+ "tick_path": true,
+ "gpu": [
+  "lines 35-65: the API publishes per-tick state through setters into file-scope globals (World.rand pointer, Det state, drop sink function pointer and context), saved and restored for nested passes via struct randomtick_env"
+ ],
+ "tests": ["csrc/tests/test_ticks.c", "csrc/tests/test_fallhang.c", "csrc/tests/test_populate.c", "csrc/tests/test_spawning.c"],
+ "notes": "randomtick_env mirrors no Java class: it bundles the globals randomtick.c publishes so a chunk populated mid-tick can set and restore them."
+}

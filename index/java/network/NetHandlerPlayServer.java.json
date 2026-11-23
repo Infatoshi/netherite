@@ -1,0 +1,483 @@
+{
+  "path": "oracle/src/network/NetHandlerPlayServer.java",
+  "classes": [
+    "NetHandlerPlayServer",
+    "NetHandlerPlayServer.SwitchEnumState"
+  ],
+  "lines": 1386,
+  "side": "server",
+  "category": "network",
+  "role": "The server's play-state packet handler: validates and applies every client message (movement, digging, placement, use-entity, container clicks, held item, respawn) and sends the server's replies. The server half of the native tick is built from its ports.",
+  "scope": "in_scope",
+  "scope_reason": "Every interaction lane (movement, dig, place, item use, containers, combat, respawn) is this class's logic; the native server tick ports it handler by handler.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/player.c",
+      "symbols": [
+        "sp_process_player",
+        "server_player_tick",
+        "server_player_process_confirms"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "process_c07",
+        "process_c08",
+        "process_c02_interact",
+        "surv_server_tick_start",
+        "surv_server_click",
+        "surv_server_close_screen",
+        "s2c_add"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_set_player_location",
+        "serverreplay_respawn_conquered"
+      ]
+    },
+    {
+      "file": "csrc/engine/combat.c",
+      "symbols": [
+        "combat_server_attack"
+      ]
+    },
+    {
+      "file": "csrc/engine/container.c",
+      "symbols": [
+        "container_slot_click",
+        "container_merchant_set_recipe_index"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_move.c",
+    "csrc/tests/test_dig.c",
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_containers.c",
+    "out/java/snapshots/flow-walk-s1",
+    "out/java/snapshots/cg-combat-pig-s1",
+    "out/java/snapshots/cat-clicks-s1",
+    "out/java/snapshots/cpred-mobplace-s1",
+    "out/java/snapshots/end-tnt-s42",
+    "out/java/snapshots/bed-wake-s1",
+    "out/java/snapshots/bed-ride-s1",
+    "out/java/snapshots/idx-chattype-s1",
+    "out/java/snapshots/idx-chatsleep-s1",
+    "out/java/snapshots/tools-break-s1",
+    "out/java/snapshots/pfc-fireflush-g13",
+    "out/java/snapshots/pfc-ridechunk-g23"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "netManager",
+      "sig": "NetworkManager",
+      "native": null,
+      "status": "n/a",
+      "note": "The channel; the native tick hands messages directly."
+    },
+    {
+      "kind": "field",
+      "name": "serverController",
+      "sig": "MinecraftServer",
+      "native": null,
+      "status": "n/a",
+      "note": "Back-reference; the native serverreplay struct fills this role."
+    },
+    {
+      "kind": "field",
+      "name": "playerEntity",
+      "sig": "EntityPlayerMP",
+      "native": "csrc/engine/player.h:server_player",
+      "status": "exact",
+      "note": "The native server player struct; the handler's state folds into it."
+    },
+    {
+      "kind": "field",
+      "name": "networkTickCount",
+      "sig": "int",
+      "native": "csrc/engine/player.c:sp_process_player",
+      "status": "exact",
+      "note": "Ported as the server player's network_tick_count, driving the hasMoved-false correction every 20 ticks."
+    },
+    {
+      "kind": "field",
+      "name": "floatingTickCount",
+      "sig": "int",
+      "native": "csrc/engine/player.c:sp_process_player",
+      "status": "exact",
+      "note": "The fly-kick counter, incremented and reset in the ported processPlayer; the kick itself is not ported (see below)."
+    },
+    {
+      "kind": "field",
+      "name": "field_147366_g",
+      "sig": "boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "The recently-updated flag onNetworkTick clears; keep-alive scheduling is absent in-process."
+    },
+    {
+      "kind": "field",
+      "name": "field_147378_h",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "The keep-alive token; no keep-alives are sent in-process."
+    },
+    {
+      "kind": "field",
+      "name": "field_147379_i",
+      "sig": "long",
+      "native": null,
+      "status": "n/a",
+      "note": "The keep-alive send time (wall clock by design, absent from the native engine)."
+    },
+    {
+      "kind": "field",
+      "name": "field_147376_j",
+      "sig": "Random",
+      "native": null,
+      "status": "n/a",
+      "note": "A static Random the determinize pass pinned to the Det stream './net/minecraft/network/NetHandlerPlayServer.java:field_147376_j'; it is declared but never drawn from in this file, so no native stream exists for it."
+    },
+    {
+      "kind": "field",
+      "name": "field_147377_k",
+      "sig": "long",
+      "native": null,
+      "status": "n/a",
+      "note": "The last keep-alive tick."
+    },
+    {
+      "kind": "field",
+      "name": "chatSpamThresholdCount",
+      "sig": "int",
+      "native": "csrc/engine/chatcmd.c:chatcmd_network_tick",
+      "status": "exact",
+      "note": "+20 a message, -1 a network tick; over 200 is the kick (disconnect.spam), which stops the native session as not modelled"
+    },
+    {
+      "kind": "field",
+      "name": "field_147375_m",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "Creative drop throttle; creative mode is never used."
+    },
+    {
+      "kind": "field",
+      "name": "field_147372_n",
+      "sig": "IntHashMap",
+      "native": null,
+      "status": "n/a",
+      "note": "The mismatched-transaction bookkeeping (window id to short) that resyncs a desynced container.; not a gap (triage 2026-09-25)"
+    },
+    {
+      "kind": "field",
+      "name": "lastPosX",
+      "sig": "double",
+      "native": "csrc/engine/player.c:sp_process_player",
+      "status": "exact",
+      "note": "The handler's runtime position bookkeeping (with lastPosY and lastPosZ), including the hasMoved-false join case spelled out in the player.c comment."
+    },
+    {
+      "kind": "field",
+      "name": "lastPosY",
+      "sig": "double",
+      "native": "csrc/engine/player.c:sp_process_player",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "lastPosZ",
+      "sig": "double",
+      "native": "csrc/engine/player.c:sp_process_player",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "hasMoved",
+      "sig": "boolean",
+      "native": "csrc/engine/player.c:sp_process_player",
+      "status": "exact",
+      "note": "Set false by setPlayerLocation, restored by the stationary-C03 check."
+    },
+    {
+      "kind": "ctor",
+      "name": "NetHandlerPlayServer",
+      "sig": "(LMinecraftServer;LNetworkManager;LEntityPlayerMP;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Links handler, channel and player; the native server player is built directly from the snapshot."
+    },
+    {
+      "kind": "method",
+      "name": "onNetworkTick",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:surv_server_tick_start",
+      "status": "partial",
+      "note": "The network tick counter and per-tick decrements are ported; the keep-alive send, the chat-spam decrement and the idle kick have no in-process counterpart."
+    },
+    {
+      "kind": "method",
+      "name": "func_147362_b",
+      "sig": "()LNetworkManager;",
+      "native": null,
+      "status": "n/a",
+      "note": "Getter for the channel."
+    },
+    {
+      "kind": "method",
+      "name": "kickPlayerFromServer",
+      "sig": "(Ljava/lang/String;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "The disconnect path (illegal stance, illegal position, floating, moved-too-quickly on a remote server): the counters are ported, the kick and its S40 are not; the recorded tapes never trigger them and a kick would end the session.; not a gap (triage 2026-09-25)"
+    },
+    {
+      "kind": "method",
+      "name": "processInput",
+      "sig": "(LC0CPacketInput;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Sets the riding entity-action state; the native client applies input effects to MovementInput directly and riding is off the spawn lists (world.conf horses, minecarts, boats)."
+    },
+    {
+      "kind": "method",
+      "name": "processPlayer",
+      "sig": "(LC03PacketPlayer;)V",
+      "native": "csrc/engine/player.c:sp_process_player",
+      "status": "exact",
+      "note": "The moved case: onUpdateEntity, the 3.2E7 and stance checks, the moved-too-quickly window, the 0.0625 collision probes, jump-on-descent, moveEntity, the moved-wrongly resync, the float counter and handleFalling; the riding and sleeping branches are unreachable in the recorded game.; serverUpdateMountedMovingPlayer runs after each packet that passed hasMoved, so a teleport's confirming C06 loads the chunks before the row's C03 (player.c:sp_manager_move, persist-hanging-full-s1 row 107); the riding branch moves the player manager before its updateEntity, whose chunk sends start the tracker watching what stands in them in the same network tick (player.c, pfc-ridechunk-g23)"
+    },
+    {
+      "kind": "method",
+      "name": "setPlayerLocation",
+      "sig": "(DFFDFF)V",
+      "native": "csrc/engine/serverreplay.c:sr_set_player_location",
+      "status": "exact",
+      "note": "hasMoved off, lastPos set, setPositionAndRotation, the S08; also used by the portal and sleep paths (sleep.c cites it)."
+    },
+    {
+      "kind": "method",
+      "name": "processPlayerDigging",
+      "sig": "(LC07PacketPlayerDigging;)V",
+      "native": "csrc/engine/survival.c:process_c07",
+      "status": "exact",
+      "note": "Statuses 0, 1, 2 through the dig path with the reach and build-limit checks; 3 and 4 are the drops, 5 stops using the item."
+    },
+    {
+      "kind": "method",
+      "name": "processPlayerBlockPlacement",
+      "sig": "(LC08PacketPlayerBlockPlacement;)V",
+      "native": "csrc/engine/survival.c:process_c08",
+      "status": "exact",
+      "note": "The 255 in-air use-item form, the build-limit chat, activateBlockOrUseItem, the two S23 block-change echoes and the held-slot resync with its S2F. The tail (surv_server_c08) runs when getMaxItemUseDuration is 0 (surv_item_use_duration: a sword's is 72000), for the in-air form too: detectAndSendChanges under isChangingQuantityOnly, then the S2F compare against the stack the C08 carried (the client_pkt's stack), which after a refused placement differs from the server's mirror. The row's packets are handled in arrival order (surv_server_tick_start drains client_out's ordered list; lane/inputorder). The in-air form returns before its tail when the hand is empty (surv_server_c08), as after a C02 that used the stack up."
+    },
+    {
+      "kind": "method",
+      "name": "onDisconnect",
+      "sig": "(LIChatComponent;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Logout cleanup and the singleplayer shutdown; the native session ends by tape length or quit without a logout."
+    },
+    {
+      "kind": "method",
+      "name": "sendPacket",
+      "sig": "(LPacket;)V",
+      "native": "csrc/engine/survival.c:s2c_add",
+      "status": "partial",
+      "note": "The chat-visibility filters are unreachable (no chat); the send itself is a struct push on the tick's s2c list."
+    },
+    {
+      "kind": "method",
+      "name": "processHeldItemChange",
+      "sig": "(LC09PacketHeldItemChange;)V",
+      "native": "csrc/engine/survival.c:surv_server_tick_start",
+      "status": "exact",
+      "note": "Range-checked hotbar slot set."
+    },
+    {
+      "kind": "method",
+      "name": "processChatMessage",
+      "sig": "(LC01PacketChatMessage;)V",
+      "native": "csrc/engine/chatcmd.c:chatcmd_message",
+      "status": "exact",
+      "note": "normalizeSpace, a command or chat.type.text to every player; the illegal-character kick is unreachable (GuiTextField lets none in); chatVisibility HIDDEN is not the oracle's option"
+    },
+    {
+      "kind": "method",
+      "name": "handleSlashCommand",
+      "sig": "(Ljava/lang/String;)V",
+      "native": "csrc/engine/chatcmd.c:execute",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "processAnimation",
+      "sig": "(LC0APacketAnimation;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Broadcasts the swing to other players; there are none, and the attack path carries its own swing effects."
+    },
+    {
+      "kind": "method",
+      "name": "processEntityAction",
+      "sig": "(LC0BPacketEntityAction;)V",
+      "native": "csrc/engine/player.c:server_player_tick",
+      "status": "exact",
+      "note": "Sneak on/off and sprint on/off applied in the pump's C0B loop (sp_set_sprinting); wake-up and the horse actions are unreachable."
+    },
+    {
+      "kind": "method",
+      "name": "processUseEntity",
+      "sig": "(LC02PacketUseEntity;)V",
+      "native": "csrc/engine/survival.c:process_c02_interact",
+      "status": "exact",
+      "note": "INTERACT through interactWith with the reach checks (process_c02_interact); ATTACK through combat_server_attack (csrc/engine/combat.c), including the invalid-target kick's target check."
+    },
+    {
+      "kind": "method",
+      "name": "processClientStatus",
+      "sig": "(LC16PacketClientStatus;)V",
+      "native": "csrc/engine/survival.c:surv_server_tick_start",
+      "status": "exact",
+      "note": "Respawn (both the normal and the End-conquered form, the latter via serverreplay_respawn_conquered), the stats screen request and the open-inventory achievement."
+    },
+    {
+      "kind": "method",
+      "name": "processCloseWindow",
+      "sig": "(LC0DPacketCloseWindow;)V",
+      "native": "csrc/engine/survival.c:surv_server_close_screen",
+      "status": "exact",
+      "note": "closeContainer's server half: onContainerClosed for the window type, cursor spills, players_using, openContainer reset."
+    },
+    {
+      "kind": "method",
+      "name": "processClickWindow",
+      "sig": "(LC0EPacketClickWindow;)V",
+      "native": "csrc/engine/survival.c:surv_server_click",
+      "status": "exact",
+      "note": "Window and presence checks, slotClick through container_slot_click, the result compared with the stack the client's own click returned (client_out click_ret): equal, detectAndSendChanges under isChangingQuantityOnly (the mirror moves, no S2F; survival.c surv_server_tick_start), else the refusal, the rest of the row refused and sendContainerAndContentsToPlayer (click_resend)."
+    },
+    {
+      "kind": "method",
+      "name": "processEnchantItem",
+      "sig": "(LC11PacketEnchantItem;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Enchanting is switched off (world.conf enchanting = off); the container is a plain block."
+    },
+    {
+      "kind": "method",
+      "name": "processCreativeInventoryAction",
+      "sig": "(LC10PacketCreativeInventoryAction;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Creative mode only; the agent and the recorded sessions are survival."
+    },
+    {
+      "kind": "method",
+      "name": "processConfirmTransaction",
+      "sig": "(LC0FPacketConfirmTransaction;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Unlocks a container desynced by a mismatched click; the native containers never desync, so the bookkeeping (field_147372_n, setPlayerIsPresent) is absent.; not a gap (triage 2026-09-25)"
+    },
+    {
+      "kind": "method",
+      "name": "processUpdateSign",
+      "sig": "(LC12PacketUpdateSign;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Sign editing is switched off (world.conf sign_editing = off): signs are placed blank."
+    },
+    {
+      "kind": "method",
+      "name": "processKeepAlive",
+      "sig": "(LC00PacketKeepAlive;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Ping statistics; no keep-alives in-process, and the ping value is wall-clock by design."
+    },
+    {
+      "kind": "method",
+      "name": "func_147363_d",
+      "sig": "()J",
+      "native": null,
+      "status": "n/a",
+      "note": "System.nanoTime read; the native engine has no wall clock (SPEC)."
+    },
+    {
+      "kind": "method",
+      "name": "processPlayerAbilities",
+      "sig": "(LC13PacketPlayerAbilities;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Flying toggle; allowFlying is false in survival and creative is never used."
+    },
+    {
+      "kind": "method",
+      "name": "processTabComplete",
+      "sig": "(LC14PacketTabComplete;)V",
+      "native": "csrc/engine/chatcmd.c:chatcmd_tab",
+      "status": "exact",
+      "note": "MinecraftServer.getPossibleCompletions: the command names, a command's own completions (a registry's names, give's items and the like, stop the session as not modelled), the player's name"
+    },
+    {
+      "kind": "method",
+      "name": "processClientSettings",
+      "sig": "(LC15PacketClientSettings;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Client options sync; the native client has fixed pinned options."
+    },
+    {
+      "kind": "method",
+      "name": "processVanilla250Packet",
+      "sig": "(LC17PacketCustomPayload;)V",
+      "native": "csrc/engine/container.c:container_merchant_set_recipe_index",
+      "status": "partial",
+      "note": "MC|TrSel (villager trade selection, in scope and ported) has a native counterpart; MC|BEdit and MC|BSign (books, off), MC|AdvCdm (command blocks), MC|Beacon (beacon, off) and MC|ItemName (the dev host, off) have none.; the row's MC|TrSel reaches the server since lane/villagetrade (client_out.has_trsel)"
+    },
+    {
+      "kind": "method",
+      "name": "onConnectionStateTransition",
+      "sig": "(LEnumConnectionState;LEnumConnectionState;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "PLAY-only validation; no protocol states natively."
+    },
+    {
+      "kind": "method",
+      "name": "NetHandlerPlayServer$1.operationComplete",
+      "sig": "(Future)V",
+      "native": null,
+      "status": "n/a",
+      "note": "kickPlayerFromServer's listener, run once the S40 disconnect is sent. The kicks: CommandBanPlayer, CommandBanIp, CommandServerKick (chat commands, not agent input), the idle timeout (MinecraftServer.func_143007_ar is 0), Illegal stance and Illegal position (processPlayer; the vanilla client's C03 never trips them), flying (IntegratedServer sets setAllowFlight(true)), chat characters and spam (no chat), an invalid attack target (the client's getMouseOver never picks an item, orb or arrow: canBeCollidedWith is false), the hardcore death (not this world), another login, and ServerConfigurationManager.removeAllPlayers when the integrated server stops after Save and Quit, which is after every row of a session"
+    },
+    {
+      "kind": "method",
+      "name": "NetHandlerPlayServer$2.call",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "sendPacket's crash-report section; a crash-report section, built only while a ReportedException is being thrown; no recording crashes"
+    },
+    {
+      "kind": "ctor",
+      "name": "SwitchEnumState",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "the compiler's switch map for C16PacketClientStatus.EnumState in processClientStatus: only its static initializer runs; the class is never instantiated"
+    }
+  ],
+  "missing": [],
+  "notes": "The nested SwitchEnumState is the C16 enum-state switch table. The ports cited are the ones the file names in comments (player.c, survival.c, serverreplay.c); the packet kinds they consume are the tape's struct messages, so the handler behavior is gated by every movement, dig, place, container and combat tape listed in evidence. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): kicks and transaction rollbacks never happen in a lockstep session. Formerly listed as missing: kickPlayerFromServer and its disconnect flow (S40PacketDisconnect, disableAutoRead): the trigger counters are ported but the kick is not, and no recording reaches it. The container-desync resync (processConfirmTransaction with field_147372_n and setPlayerIsPresent): absent because native containers never desync. Since lane/endreturn (2026-09-27): the row's C06 acknowledgements of the S08s its client pump handled are processed before its C16, C07, C08 and C02 (updateController pumps before the screens and the input), so a use right after a teleport finds hasMoved true (player.c server_player_process_confirms from survival.c surv_server_tick_start); end-tnt-s42 row 121."
+}

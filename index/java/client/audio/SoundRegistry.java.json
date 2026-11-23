@@ -1,0 +1,49 @@
+{
+ "path": "oracle/src/client/audio/SoundRegistry.java",
+ "classes": [
+  "SoundRegistry"
+ ],
+ "lines": 30,
+ "side": "client",
+ "category": "client_audio",
+ "role": "Registry of sound events keyed by ResourceLocation.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148764_a",
+   "sig": "Map",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "createUnderlyingMap",
+   "sig": "()Map",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148762_a",
+   "sig": "(SoundEventAccessorComposite)V",
+   "native": null,
+   "status": "n/a",
+   "note": "register"
+  },
+  {
+   "kind": "method",
+   "name": "func_148763_c",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "clear"
+  }
+ ],
+ "missing": [],
+ "notes": "Resource registry only."
+}

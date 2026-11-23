@@ -1,0 +1,121 @@
+{
+ "path": "csrc/engine/gui_input.c",
+ "lines": 449,
+ "role": "The container screens' input as GuiContainer handles it: the playable client's raw mouse and key events, queued between ticks, run through ports of mouseClicked, mouseClickMove, mouseMovedOrUp and keyTyped inside the client tick's gui phase (GuiScreen.handleInput's order: every mouse event, then every key), each window click appended to the row's act and predicted on the client at once; the hover is the last drawn frame's, the modifier keys the poll's that delivered the tick's events (after them), the clock the tick's; a close key ends the run and the keys after it go through the closed screen's keyTyped (gui_input_closed: another close, a hotbar swap or Q's drop on the old window's slot, predicted on the inventory container).",
+ "layer": "client",
+ "java": [
+  {
+   "path": "oracle/src/client/gui/inventory/GuiContainer.java",
+   "members": [
+    "mouseClicked",
+    "mouseClickMove",
+    "mouseMovedOrUp",
+    "keyTyped",
+    "func_146983_a",
+    "func_146984_a",
+    "func_146975_c",
+    "field_147006_u",
+    "field_147008_s",
+    "field_147007_t",
+    "field_146987_F",
+    "field_146988_G",
+    "field_146995_H",
+    "field_146997_J",
+    "field_146998_K",
+    "field_146992_L",
+    "field_146993_M",
+    "field_146994_N"
+   ]
+  },
+  {
+   "path": "oracle/src/client/gui/GuiScreen.java",
+   "members": [
+    "handleInput",
+    "handleMouseInput",
+    "handleKeyboardInput",
+    "isShiftKeyDown",
+    "isCtrlKeyDown",
+    "eventButton",
+    "lastMouseEvent"
+   ]
+  },
+  {
+   "path": "oracle/src/client/gui/GuiMerchant.java",
+   "members": [
+    "actionPerformed",
+    "updateScreen"
+   ]
+  },
+  {
+   "path": "oracle/src/inventory/Container.java",
+   "members": [
+    "func_94534_d"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "gui_input",
+   "java": "GuiScreen's eventButton and lastMouseEvent, GuiContainer's drag, double-click and shift-click fields, the queued LWJGL events and the last frame's pointer, the modifiers after the queued events, the keys a closed screen still takes",
+   "fields": [
+    "ev",
+    "n",
+    "cur_x",
+    "cur_y",
+    "cur_shift",
+    "cur_ctrl",
+    "frame_x",
+    "frame_y",
+    "event_button",
+    "last_mouse_event",
+    "dragging",
+    "drag_button",
+    "drag_mode",
+    "drag",
+    "ndrag",
+    "ignore_release",
+    "last_slot",
+    "last_time",
+    "last_button",
+    "double_click",
+    "shift_have",
+    "shift_stack",
+    "screen",
+    "screen_window",
+    "after_keys",
+    "nafter",
+    "after_window",
+    "after_hovered",
+    "after_own",
+    "after_has"
+   ]
+  },
+  {
+   "name": "gui_event",
+   "java": "one LWJGL Mouse or Keyboard event",
+   "fields": [
+    "kind",
+    "x",
+    "y",
+    "button",
+    "key"
+   ]
+  }
+ ],
+ "entry_points": [
+  "gui_input_reset",
+  "gui_input_push",
+  "gui_input_modifier",
+  "gui_input_frame",
+  "gui_input_layout",
+  "gui_input_run",
+  "gui_input_drag",
+  "gui_input_closed"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/gui_judge.sh"
+ ],
+ "notes": "The state is the playable client's (play.c's gin), reached through act.gui_in; a tape's act has none, so replays and the RL path never run it. Judged against Java's own GuiContainer over the same raw events by csrc/tests/gui_judge.sh on out/java/guijudge/{inv,wb,furnace,chest}-s1 (the oracle's RawGui.java feeds the events to LWJGL's queues)."
+}

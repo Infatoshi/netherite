@@ -1,0 +1,24 @@
+{
+ "path": "oracle/src/entity/IProjectile.java",
+ "classes": ["IProjectile"],
+ "lines": 9,
+ "side": "common",
+ "category": "entity",
+ "role": "Interface for thrown entities: setThrowableHeading points a throwable (snowball, egg, ender pearl, potion, exp bottle) at a direction with speed and inaccuracy.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/projectile.c", "symbols": ["proj_throwable_heading", "proj_arrow_heading"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/throw-items-s1",
+  "out/java/snapshots/throw-bow-s1",
+  "csrc/tests/test_projectiles.c"
+ ],
+ "members": [
+  {"kind": "method", "name": "setThrowableHeading", "sig": "(DDDFF)V", "native": "csrc/engine/projectile.c:proj_throwable_heading", "status": "exact", "note": "the sqrt normalisation, the inaccuracy spread and the motion scale; proj_arrow_heading is EntityArrow.setArrowHeading's twin"}
+ ],
+ "missing": [],
+ "notes": "Every throwable constructor path in projectile.c routes through proj_throwable_heading (egg, snowball, potion via hostiles_witch.c, exp bottle)."
+}

@@ -1,0 +1,33 @@
+# gold-fast.yaml: gold.yaml's world and checkpoints at the fastest fidelity and the measured placement
+# (GOAL.md 2026-10-15). A key left out keeps config.yaml's value. The fidelity section and engine.render,
+# engine.tick and the performance section are the runtime's alone (csrc/engine/fidelity.h, worldconf.h): the
+# oracle refuses this file, and the gates refuse a fidelity that is not vanilla (no recording checks it).
+#   pipe_bench --config configs/gold-fast.yaml                  (starts at spawn)
+#   pipe_bench --config configs/gold-fast.yaml --fid spawning=on  (one switch back to vanilla)
+world:
+  seed: 42
+engine:
+  device_mesh: 1           # sections meshed on the device: 2.1x host meshing's env-steps/s at N 64
+  device_generation: off   # no gain at spawn (generation is not the limiter there)
+  device_light: off        # the device's light engine is 3.7x slower an env-step today
+  render: device           # device, or none (no frames: the tick alone, or client.camera semantic)
+  tick: host               # the server and client ticks on the CPU (device: not implemented, SPEC.md "Placement")
+pipeline:
+  kind: gold
+  start: spawn
+fidelity:
+  spawning: off            # no natural spawns (the doMobSpawning rule false): the start's mobs live on
+  spawn_types: monster,creature,ambient,water   # the spawner's categories, with spawning on
+  mobs: all                # all, none, or EntityList names joined by + (Pig+Cow): the others set dead
+  random_ticks: off        # no random block ticks (crops, grass, leaves, fire, ice melt)
+  weather: off             # the start's weather stays: no updateWeather, lightning, ice or snow
+performance:
+  workers: 0               # tick workers (0: one a physical core)
+  streams: 0               # render streams (0: the pipeline's rule)
+  group: 0                 # envs a group (0: N / streams)
+  batch: 0                 # frames a render waits for (0: 1)
+  depth: 0                 # observation buffers an env (0: 2)
+  layout: pipe             # pipe (the pipeline's), given (pin and place below), doms (by L3), any
+  pin: 0                   # with layout given: 0 any worker, 1 env i on worker i mod workers, 2 its cache domain
+  place: none              # with layout given: none, cores, siblings, spread, domain, doms
+  tune: off                # pipe_bench: the startup sweep over streams and batch first, the best kept

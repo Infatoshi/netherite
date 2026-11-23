@@ -1,0 +1,69 @@
+{
+ "path": "csrc/engine/riding.h",
+ "lines": 80,
+ "role": "Declares the pig-riding entry points (riding.c) and the client rider update player.c implements.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/ai/EntityAIControlledByPlayer.java",
+   "members": [
+    "shouldExecute",
+    "updateTask",
+    "boostSpeed",
+    "isControlledByPlayer",
+    "func_151498_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityPig.java",
+   "members": [
+    "canBeSteered",
+    "interact",
+    "fall",
+    "getAIControlledByPlayer"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSaddle.java",
+   "members": [
+    "itemInteractionForEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemCarrotOnAStick.java",
+   "members": [
+    "onItemRightClick"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "mountEntity",
+    "updateRidden",
+    "addMountedMovementStat",
+    "getYOffset",
+    "onLivingUpdate (the riding pickup box)"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": [
+    "mountEntity",
+    "setEntityActionState",
+    "setPositionAndUpdate"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "ride_ai_update",
+  "ride_server_update_entity",
+  "ride_client_update_ridden"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Header only."
+}

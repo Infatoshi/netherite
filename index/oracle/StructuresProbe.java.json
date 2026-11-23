@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/StructuresProbe.java",
+ "lines": 489,
+ "role": "Structure start probe: offers every chunk of a region to fresh mineshaft, stronghold, temple and village generators (dim 0) or MapGenNetherBridge (dim -1) with private empty structure data and writes every start (type, chunk, piece tree with bounding boxes) to starts.jsonl; also hosts the shared canonical NBT-to-JSON canon() many probes use.",
+ "kind": "probe",
+ "used_by": [
+  "Oracle.java control kind \"structures\" ({\"kind\":\"structures\",...})",
+  "csrc/tests/test_structures.c (starts.jsonl)",
+  "csrc/engine/nbtjson.h (parses its canonical NBT JSON)",
+  "oracle/harness/netherite/oracle/Snapshot.java, Rows.java, AnimalProbe.java, SlimeProbe.java and about 20 other probes (StructuresProbe.canon)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Block placement is not part of this probe (StructureBlocksProbe covers mineshaft blocks). No oracle/src hook."
+}

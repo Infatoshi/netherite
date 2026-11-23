@@ -1,0 +1,42 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIAttackOnCollide.java",
+ "classes": ["EntityAIAttackOnCollide"],
+ "lines": 150,
+ "side": "server",
+ "category": "ai",
+ "role": "Melee chase goal: path to the attack target, swing and attackEntityAsMob when within reach, with the re-path cooldown, the 0.05 re-path roll and the long-memory home-distance branch.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/ai.c", "symbols": ["ai_add_task_attack_on_collide", "ai_tasks_update", "nav_try_move_to_entity", "look_set_position_with_entity", "senses_can_see"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/fight-zombie-s1",
+  "out/java/snapshots/fight-spider-s1",
+  "out/java/snapshots/fight-slime-s1",
+  "csrc/tests/test_hostiles.c"
+ ],
+ "members": [
+  {"kind": "field", "name": "worldObj", "sig": "World", "native": null, "status": "n/a"},
+  {"kind": "field", "name": "attacker", "sig": "EntityCreature", "native": null, "status": "n/a", "note": "the owning struct living"},
+  {"kind": "field", "name": "attackTick", "sig": "int", "native": "csrc/engine/living.h:attack_tick", "status": "exact"},
+  {"kind": "field", "name": "speedTowardsTarget", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.speed"},
+  {"kind": "field", "name": "longMemory", "sig": "boolean", "native": "csrc/engine/living.h:long_memory", "status": "exact"},
+  {"kind": "field", "name": "entityPathEntity", "sig": "PathEntity", "native": "csrc/engine/living.h:ai_task", "status": "n/a", "note": "the navigator's path field"},
+  {"kind": "field", "name": "classTarget", "sig": "Class", "native": null, "status": "n/a", "note": "unused by the registered kinds (null class ctor)"},
+  {"kind": "field", "name": "field_75445_i", "sig": "int", "native": "csrc/engine/living.h:collide_cooldown", "status": "exact"},
+  {"kind": "field", "name": "field_151497_i", "sig": "double", "native": "csrc/engine/living.h:collide_px", "status": "exact"},
+  {"kind": "field", "name": "field_151495_j", "sig": "double", "native": "csrc/engine/living.h:collide_py", "status": "exact"},
+  {"kind": "field", "name": "field_151496_k", "sig": "double", "native": "csrc/engine/living.h:collide_pz", "status": "exact"},
+  {"kind": "ctor", "name": "EntityAIAttackOnCollide", "sig": "(EntityCreatureClassDZ)V", "native": "csrc/engine/ai.c:ai_add_task_attack_on_collide", "status": "exact"},
+  {"kind": "ctor", "name": "EntityAIAttackOnCollide", "sig": "(EntityCreatureDZ)V", "native": "csrc/engine/ai.c:ai_add_task_attack_on_collide", "status": "exact"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:1251: live target and a path"},
+  {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "longMemory's isWithinHomeDistance or the navigator's noPath"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "setPath with the speed and the cooldown reset"},
+  {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "clearPathEntity"},
+  {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:2474: look, reach, the re-path block with the 1024/256 cooldown bumps and the attackEntityAsMob dispatch"}
+ ],
+ "missing": [],
+ "notes": "attackEntityAsMob dispatches per kind in ai.c:2499 (the creeper's true-returning override, the skeleton's and the zombie/EntityMob body)."
+}

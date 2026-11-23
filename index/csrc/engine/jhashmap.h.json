@@ -1,0 +1,50 @@
+{
+ "path": "csrc/engine/jhashmap.h",
+ "lines": 43,
+ "role": "The JDK 8 HashMap order emulation for a Long-keyed map (MapGenStructure.structureMap): tail-append put, the resize that splits each chain into low and high halves in chain order, and bucket-ascending iteration. The ChunkPosition-keyed set the explosion used is jorder.c's computed order now (lane/gpuorder, L4).",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/structure/MapGenStructure.java",
+   "members": [
+    "structureMap"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "jhm64_node",
+   "java": "java.util.HashMap.Node for a Long key (JDK class)",
+   "fields": [
+    "next",
+    "key",
+    "value"
+   ]
+  },
+  {
+   "name": "jhm64",
+   "java": "java.util.HashMap<Long,...> table, MapGenStructure.structureMap",
+   "fields": [
+    "table",
+    "cap",
+    "n"
+   ]
+  }
+ ],
+ "entry_points": [
+  "jhm64_init",
+  "jhm64_free",
+  "jhm64_put",
+  "jhm64_size",
+  "jhm64_contains",
+  "jhm64_order"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "jhm64_init and jhm64_put: calloc of the table and malloc of one node per new key; chains of heap pointers. It serves worldgen's structure map (populate.c, populate_nether.c), outside L4's list; the explosion's ChunkPosition set moved to jorder.c (lane/gpuorder, L4)"
+ ],
+ "tests": [
+  "csrc/tests/test_populate.c"
+ ],
+ "notes": "The iter and iter_n fields of struct jhm are initialised and freed but never filled by jhashmap.c. Users: explosion.c (jhm), populate.c, populate_nether.c and serverreplay.c (jhm64)."
+}

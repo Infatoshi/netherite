@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/item/ItemSnow.java",
+  "classes": ["ItemSnow"],
+  "lines": 51,
+  "side": "common",
+  "category": "item",
+  "role": "ItemBlockWithMetadata for the snow layer (id 78): stacks one more layer onto an existing snow layer cell (metadata 0..6 to 1..7), else the ItemBlock path.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_snow_on_item_use"]}
+  ],
+  "evidence": ["csrc/tests/test_place.c", "out/java/snapshots/scen-snow-farmland-s1", "out/java/snapshots/cov-place-s1"],
+  "members": [
+    {"kind": "ctor", "name": "ItemSnow", "sig": "(Lnet/minecraft/block/Block;Lnet/minecraft/block/Block;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 78"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": "csrc/engine/place.c:item_snow_on_item_use", "status": "exact", "note": "cov-place-s1: a layer on stone (the super path), then two uses stacking it"}
+  ],
+  "missing": [],
+  "notes": null
+}

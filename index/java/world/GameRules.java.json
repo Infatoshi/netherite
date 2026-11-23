@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/world/GameRules.java",
+  "classes": ["GameRules", "GameRules.Value"],
+  "lines": 163,
+  "side": "server",
+  "category": "world",
+  "role": "The world's named game rules (doFireTick, mobGriefing, keepInventory, doMobSpawning, doMobLoot, doTileDrops, commandBlockOutput, naturalRegeneration, doDaylightCycle) as string values in a TreeMap, saved to level.dat.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/serverreplay.c", "symbols": []},
+    {"file": "csrc/engine/servertick.h", "symbols": ["daylight_cycle", "mob_spawning", "fire_rule_off"]},
+    {"file": "csrc/engine/survival.h", "symbols": ["keep_inventory"]},
+    {"file": "csrc/engine/dev.c", "symbols": []}
+  ],
+  "evidence": ["out/java/snapshots/death-keepinv-s1", "out/java/snapshots/world-daynight-s1", "csrc/tests/test_snapshots.c"],
+  "members": [
+    {"kind": "field", "name": "theGameRules", "sig": "TreeMap<String,Value>", "native": null, "status": "partial", "note": "no map; each consulted rule is a separate int read from the snapshot's GameRules NBT"},
+    {"kind": "ctor", "name": "GameRules", "sig": "()", "native": null, "status": "partial", "note": "defaults are assumed in code comments (mobGriefing, doMobLoot, naturalRegeneration true)"},
+    {"kind": "method", "name": "addGameRule", "sig": "(String,String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setOrCreateGameRule", "sig": "(String,String)V", "native": null, "status": "partial", "note": "dev.c's gamerule op handles doDaylightCycle and keepInventory only"},
+    {"kind": "method", "name": "getGameRuleStringValue", "sig": "(String)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getGameRuleBooleanValue", "sig": "(String)Z", "native": "csrc/engine/servertick.h:fire_rule_off", "status": "partial", "note": "doFireTick, doMobSpawning, keepInventory, doDaylightCycle are read; mobGriefing, doMobLoot, doTileDrops, naturalRegeneration are hard-wired to their defaults"},
+    {"kind": "method", "name": "writeGameRulesToNBT", "sig": "()NBTTagCompound", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "readGameRulesFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "partial", "note": "serverreplay.c reads doFireTick, doMobSpawning, keepInventory from the snapshot worldinfo"},
+    {"kind": "method", "name": "getRules", "sig": "()[String", "native": null, "status": "n/a", "note": "command tab completion"},
+    {"kind": "method", "name": "hasRule", "sig": "(String)Z", "native": null, "status": "n/a", "note": "/gamerule command"},
+    {"kind": "field", "name": "Value.valueString/valueBoolean/valueInteger/valueDouble", "sig": "String/boolean/int/double", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Value.setValue", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Value.getGameRuleStringValue", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Value.getGameRuleBooleanValue", "sig": "()Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Whether servertick.c reads doDaylightCycle from the snapshot (vs only via dev.c) I did not confirm. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): only default rule values and the two dev-op rules are reachable (no commands); writing them is the deferred save side. Formerly listed as missing: mobGriefing, doMobLoot, doTileDrops and naturalRegeneration are fixed at true in native; a world with any of them false would diverge. Game rules are not written back to NBT natively (writeGameRulesToNBT)."
+}

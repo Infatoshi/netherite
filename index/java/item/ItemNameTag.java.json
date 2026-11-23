@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/item/ItemNameTag.java",
+  "classes": [
+    "ItemNameTag"
+  ],
+  "lines": 39,
+  "side": "common",
+  "category": "item",
+  "role": "The name tag (id 421): renames a living entity to the stack's display name on right click on it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["name_tag_interact"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/use-kinds-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemNameTag", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 421: stack 64"},
+    {"kind": "method", "name": "itemInteractionForEntity", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/entity/EntityLivingBase;)Z", "native": "csrc/engine/survival.c:name_tag_interact", "status": "exact", "note": "a tag without display.Name answers false; otherwise setCustomNameTag and func_110163_bv on the server's living, the stack shrinks on both sides and interactWith destroys the empty stack"}
+  ],
+  "missing": [],
+  "notes": "Every tag a chest or trade hands out is unnamed (the anvil is off), so in survival the tag does nothing; the dev slot op's \"name\" gives a named one. use-kinds-s1 names a cow, walks 50 blocks away for 650 ticks (no despawn roll: the persistence skips rand.nextInt(800)), on to 128 blocks until its chunk unloads, and back (CustomName and PersistenceRequired come back from the region store)."
+}

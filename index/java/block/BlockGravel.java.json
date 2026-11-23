@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/block/BlockGravel.java",
+  "classes": ["BlockGravel"],
+  "lines": 20,
+  "side": "common",
+  "category": "block",
+  "role": "Gravel: a BlockFalling that drops itself or, at fortune up to 3, flint on a nextInt(10 - fortune*3) roll.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["falling_can_fall", "falling_spawn", "update_tick"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/world-falling-s1",
+    "csrc/tests/test_harvestdrops.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockGravel", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 13, BlockFalling's constructor"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 13: the fortune clamp to 3, the flint nextInt inside the roll gate"}
+  ],
+  "missing": [],
+  "notes": "The falling behaviour is BlockFalling's (see that record); world-falling-s1 exercises gravel columns. The drop roll is verified by the harvestdrops probe."
+}

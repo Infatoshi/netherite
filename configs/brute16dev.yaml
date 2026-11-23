@@ -1,0 +1,65 @@
+# brute16dev.yaml: brute16.yaml with the observation cast on the GPU (engine.raycast device, lane/rcdev): the native
+# trainer's gate config for the device cast (csrc/runtime/train/loop.mk NTCONF_DEV). Kept as it was in
+# ~/.cache/netherite-native until lane/polish (2026-11-01) moved it here.
+#   out/runtime/train/ntloop --run configs/brute16dev.yaml [--hours H]
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 16x16
+  engine:
+    device_mesh: 0
+    raycast: device            # out/demo's copy: the observation cast on the GPU (lane/rcdev)
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: spawn               # seed 42's spawn (configs/checkpoints.tsv); other seeds: policy.starts.seeds
+    worlds: 512                # the trainer's envs (fastppo --n)
+    groups: 4                  # --groups
+    episode_seconds: 180       # --seconds
+  fidelity:
+    spawning: off
+    spawn_types: monster,creature,ambient,water
+    mobs: all
+    random_ticks: off
+    weather: off
+  performance:
+    workers: 30                # 30 of the dev host's 32 hardware threads; 2 for the trainer's (fastppo --threads)
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: any
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: base,iron,table-anywhere   # the mine lock, crafting with the iron plans, surfacing, looting
+    picks: off                 # on: the craft macro's recipes are a masked head the policy picks (lane/picks)
+  starts:
+    seeds: 42                  # N, A-B or A,B,...: another seed's start captured once by the oracle (lane/seeds)
+    archive: ms                # a start saved at each milestone gained (lane/msstarts, lane/srng, lane/evict)
+    archive_items: wooden_pickaxe+stone_pickaxe+furnace+iron_ingot+iron_pickaxe+bucket+flint_and_steel+obsidian+diamond_pickaxe
+    archive_pool: 16
+    archive_share: 0.4
+  ppo:
+    lr: 3e-4
+    ent: 0.003                 # 0.01 kept the policy wide and it never committed past the wooden pickaxe (lane/rounds)
+    clip: 0.2
+    gamma: 0.998
+    lam: 0.95
+    epochs: 3
+    mb: 8192
+    horizon: 64
+  net:
+    kind: small                # 0.46M parameters on the 32x32 cast
+  run:
+    hours: 2
+    log_every: 60

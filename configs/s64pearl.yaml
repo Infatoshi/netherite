@@ -1,0 +1,72 @@
+# s64pearl.yaml: the ender pearl step (lane/pearl, 2026-11-01): configs/s64boot.yaml's sim and policy from a night start
+# with a kit, natural spawning on for the endermen (monsters only: the smallest set that has them, BiomeGenBase's
+# monster list), the pearl macro on (vecenv.h NWRL_VEC_PEARL) with the food macro (eating) and the fight lock.
+#   the start: oracle/tests/pearl-night-s42.jsonl recorded on the oracle (seed 42's spawn, gold-g1-s42's bot, then an
+#   iron sword, a stone pickaxe, 64 cobblestone, 16 steak, full health and food, the time 12600: night 400 steps in)
+#     make -C oracle script SEED=42 DEV=1 SCRIPT=tests/pearl-night-s42.jsonl TAPE=../out/java/snapshots/pearl-night-s42/tape.jsonl
+#   the case (no GPU's policy: vec_bench's random one, the macro alone at night):
+#     out/runtime/pearl_check --config configs/s64pearl.yaml --start out/java/snapshots/pearl-night-s42 --dev --n 32 --seed 1
+#   the frozen model from it (the dev start: ntloop --dev):
+#     out/runtime/train/s1/ntloop --run configs/s64pearl.yaml --dev --init ~/.cache/netherite-native/models/s64-it42.ntw \
+#       --score --ns 256 --minutes 7.33
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64         # net.h's s1 variant (NT_SIDE 64, NT_STEM 1): make -C csrc/runtime train-loop-v NT_V=s1
+  engine:
+    device_mesh: 1
+    raycast: device
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: pearl-night-s42     # out/java/snapshots/pearl-night-s42 (a dev start: the kit given, the time 12600)
+    worlds: 256
+    groups: 4
+    episode_seconds: 440       # 8,800 steps: dusk, then one night (13000 to 21400)
+  fidelity:
+    spawning: on               # the endermen's
+    spawn_types: monster
+    mobs: all
+    random_ticks: off
+    weather: off
+  performance:
+    workers: 30
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: doms
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: recipe,strip,food,pearl
+    picks: off
+  reward:                      # s64boot's (the pareto recipe's)
+    log_cap: 8
+    values: 4/1.0,61/8
+    caps: 4/8,15/8,265/8,263/8
+    ms_weights: stone_pickaxe/10,furnace/5,iron_ingot/10,iron_pickaxe/10,bucket/5,flint_and_steel/5,diamond_pickaxe/10,obsidian/5,blaze_rod/10
+    nether: 20
+  ppo:
+    lr: 5e-6
+    ent: 0.01
+    clip: 0.2
+    gamma: 0.998
+    lam: 0.95
+    epochs: 3
+    mb: 8192
+    horizon: 128
+  net:
+    kind: small
+  run:
+    hours: 0.5
+    log_every: 60

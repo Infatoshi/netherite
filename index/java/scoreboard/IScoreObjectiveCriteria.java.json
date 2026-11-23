@@ -1,0 +1,73 @@
+{
+ "path": "oracle/src/scoreboard/IScoreObjectiveCriteria.java",
+ "classes": [
+  "IScoreObjectiveCriteria"
+ ],
+ "lines": 21,
+ "side": "common",
+ "category": "other",
+ "role": "The criteria interface and its singleton registry (dummy, deathCount, playerKillCount, totalKillCount, health) the scoreboard's objectives point at.",
+ "scope": "not_needed",
+ "scope_reason": "No objective is ever created in this game (/scoreboard is not used, vanilla creates none), so the registry stays empty and the interface's methods never run.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_96643_a",
+   "sig": "java.util.Map (static registry)",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_96641_b",
+   "sig": "IScoreObjectiveCriteria (static, dummy)",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "deathCount",
+   "sig": "IScoreObjectiveCriteria (static)",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "playerKillCount",
+   "sig": "IScoreObjectiveCriteria (static)",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "totalKillCount",
+   "sig": "IScoreObjectiveCriteria (static)",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "health",
+   "sig": "IScoreObjectiveCriteria (static, ScoreHealthCriteria)",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_96636_a",
+   "sig": "()String",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_96635_a",
+   "sig": "(java.util.List)I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isReadOnly",
+   "sig": "()Z",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "EntityPlayer.addToPlayerScore (EntityPlayer.java:745) looks totalKillCount objectives up and gets an empty collection with no objectives; the death screen's Score line reads EntityPlayer.score, a plain field, not this registry."
+}

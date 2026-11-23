@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/renderer/OpenGlCapsChecker.java",
+  "classes": ["OpenGlCapsChecker"],
+  "lines": 16,
+  "side": "client",
+  "category": "client_render",
+  "role": "One static check: whether the GL context supports ARB_occlusion_query, which RenderGlobal uses to decide whether to run its occlusion culling pass.",
+  "scope": "client_cosmetic",
+  "scope_reason": "GL capability probing for the occlusion-query culling pass; the C engine culls with its own frustum code and never issues occlusion queries (the GL call stream is not reproduced).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "checkARBOcclusion", "sig": "()Z", "native": null, "status": "n/a", "note": "RenderGlobal.java:238 is the only caller"}
+  ],
+  "missing": [],
+  "notes": null
+}

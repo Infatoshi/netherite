@@ -1,0 +1,16 @@
+{
+  "path": "oracle/src/client/resources/data/IMetadataSection.java",
+  "classes": ["IMetadataSection"],
+  "lines": 5,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Marker interface for a parsed .mcmeta metadata section (animation, font, language, pack, texture).",
+  "scope": "client_cosmetic",
+  "scope_reason": "Resource pack metadata typing; the native engine never parses asset metadata.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [],
+  "missing": [],
+  "notes": null
+}

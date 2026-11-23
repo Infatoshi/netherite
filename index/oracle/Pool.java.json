@@ -1,0 +1,18 @@
+{
+  "path": "oracle/harness/netherite/oracle/Pool.java",
+  "lines": 927,
+  "role": "The warm pool member (--pool DIR): an agent JVM that serves make script and make replay runs over a local TCP port, one after another, each byte-identical to a fresh JVM. At the pristine point (onStartGame) it initializes every compiled class (BiomeGenBase first, as WorldConf.pruneSpawns would), watches for class initializers that draw from Det, takes the Rewind snapshot and records the argument statics and the LWJGL mouse. Per run: argument parse over the pristine argument statics (Main.configurePool), refusal of anything it cannot run exactly (another harness, play/serve/trace/probe runs, startup options), per-run options through GameSettings.loadOptions, then Oracle.launch; between runs: server stop without a save, client world drop, packet quiescence, Control/RowHash quiescence, GL textures the run made deleted, Rewind.restore, animated sprites re-uploaded, PoolMouse.restore. After a run it prelaunches the same key (seed, world, start, dev, options) so a matching next run only attaches its script and tape. A job that arrives while a prelaunch waits for its server (Oracle.launchWait, the client's launch poll) is read at once: one for another world (sameWorld: the world-shaping flags, a world.conf by its text, a replay header's world fields) ends the prelaunch there (GiveWay, teardown with levelSaving, no save), one for the same world waits for it. Between jobs, once the garbage since the last collection is a third of the old generation, a full collection (collect: the DiagnosticCommand's heap histogram, which -XX:+DisableExplicitGC does not stop), so a member's RSS stays near 1.5 GB instead of growing to --pool-max-mb (lane/replaylat).",
+  "kind": "harness",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Oracle.java (onStartGame, commands, finish, postTick)",
+    "oracle/harness/netherite/oracle/Main.java (--pool, configurePool)",
+    "oracle/harness/netherite/oracle/JoinScreen.java (joinDrawn)",
+    "oracle/tests/pool.sh (the client)",
+    "oracle/tests/pool-proof.sh (the byte-identity proof)",
+    "oracle/Makefile (pool-start, pool-stop, script and replay)",
+    "oracle/harness/netherite/oracle/Snapshot.java (absentSplit)",
+    "oracle/tests/poolauto.sh (the shared pool: members started on demand, keyed by harness)"
+  ],
+  "vanilla_hooks": [],
+  "notes": "No vanilla edit: the pool reuses the existing hooks. The one class initializer that draws after a fresh run's Det.reset is GuiScreen's (a RenderItem Random), repeated by JoinScreen. Negative control: --pool-skip-reset (a field that is not rewound, or the whole rewind). --pool-max-mb N (default 2500, POOLARGS): after each job the member reads its VmRSS (/proc/self/status), prints it on the job's rc line, and past N ends (retire: port and pid files removed, then halt) so its callers start fresh JVMs. Shared pool (oracle/tests/poolauto.sh, lane/autopool): members under $HOME/dev/nw/oraclepool/HARNESS-ENV, started on demand by make script and make replay, each with PoolAgent; absentSplit leaves a split out of det.nbt as a fresh JVM would. Coverage members (lane/covcache): with JaCoCo's agent and CovInit installed, init keeps the start's execution data (Coverage.startup) and records the forced initializers (CovInit.begin/end), and covReset clears the probes and touches after init and after each clean; Coverage and CovInit are not rewind roots."
+}

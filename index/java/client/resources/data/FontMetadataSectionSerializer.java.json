@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/client/resources/data/FontMetadataSectionSerializer.java",
+  "classes": ["FontMetadataSectionSerializer"],
+  "lines": 84,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Gson deserializer for the 'font' .mcmeta section: a characters object with a default and 256 per-character width/spacing/left entries, range-validated.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Parses font metadata JSON the native renderer never reads; its font metrics come from the dumped assets.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "deserialize", "sig": "(JsonElement,Type,JsonDeserializationContext)FontMetadataSection", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSectionName", "sig": "()String", "native": null, "status": "n/a", "note": "\"font\""}
+  ],
+  "missing": [],
+  "notes": null
+}

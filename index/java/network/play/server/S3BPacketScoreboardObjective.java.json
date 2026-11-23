@@ -1,0 +1,64 @@
+{
+ "path": "oracle/src/network/play/server/S3BPacketScoreboardObjective.java",
+ "classes": [
+  "S3BPacketScoreboardObjective"
+ ],
+ "lines": 70,
+ "side": "common",
+ "category": "network",
+ "role": "Create, update or remove a scoreboard objective on the client.",
+ "scope": "not_needed",
+ "scope_reason": "Vanilla creates no scoreboard objectives or teams and commands are not used, so the server's scoreboard stays empty and none of these packets is ever sent.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S3BPacketScoreboardObjective",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "S3BPacketScoreboardObjective",
+   "sig": "(...)V",
+   "status": "n/a",
+   "note": "the payload constructors"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static)",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Sent only by ServerScoreboard when an objective is added, changed or removed (ServerScoreboard.java:118, 173, 217) and in the login batch (ServerConfigurationManager.java:208); no objective is ever created in this game, so the oracle never sends it."
+}

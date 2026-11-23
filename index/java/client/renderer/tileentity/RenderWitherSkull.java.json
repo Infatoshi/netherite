@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/RenderWitherSkull.java",
+  "classes": ["RenderWitherSkull"],
+  "lines": 85,
+  "side": "client",
+  "category": "client_render",
+  "role": "Entity renderer for EntityWitherSkull: draws ModelSkeletonHead with yaw/pitch interpolation and the invulnerable (blue) or normal wither texture.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf wither = off: the wither is never built, so no EntityWitherSkull is ever spawned; csrc/engine has no wither-skull entity either.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "invulnerableWitherTextures, witherTextures", "sig": "ResourceLocation (static)", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "skeletonHeadModel", "sig": "ModelSkeletonHead", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_82400_a", "sig": "(F,F,F)F", "native": null, "status": "n/a", "note": "yaw delta wrap"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityWitherSkull,D,D,D,F,F)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityWitherSkull)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,D,D,D,F,F)V", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "Wither-skeleton skulls (the block) still exist and are covered by TileEntitySkullRenderer's record; only the projectile entity this file renders is switched off."
+}

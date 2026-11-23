@@ -1,0 +1,26 @@
+{
+ "path": "csrc/engine/activate.h",
+ "lines": 214,
+ "role": "Declares the block-activation machine: the ActivateProbe case records (act_case, act_out, act_ent, act_events), the case environment act_env, and the live right-click interface (act_live_env, act_live_result) that survival.c and dig.c call.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/server/management/ItemInWorldManager.java", "members": ["activateBlockOrUseItem"]},
+  {"path": "oracle/src/tileentity/TileEntityChest.java", "members": ["closeInventory"]},
+  {"path": "oracle/src/block/BlockDragonEgg.java", "members": ["func_150019_m"]},
+  {"path": "oracle/harness/netherite/oracle/ActivateProbe.java", "members": []}
+ ],
+ "structs": [
+  {"name": "act_case", "java": "ActivateProbe cases.bin record", "fields": ["kind", "x", "y", "z", "half", "side", "vx", "vy", "vz", "yaw", "px", "py", "pz", "sneak", "day", "food_level", "food_sat", "inv_full", "meta", "bed_dir", "foot_occ", "head_occ", "pot_full", "pot_item", "pot_data", "jmeta", "jdisc", "note_pitch", "chest_blocked", "held_item", "held_damage", "held_count", "opseed", "dummy_sleeping"]},
+  {"name": "act_out", "java": "ActivateProbe caseout record", "fields": ["ret", "chat", "gui", "stat_use", "held_item", "held_damage", "held_count", "food_level", "food_sat", "food_exh", "sleeping", "px", "py", "pz", "chest_num", "chest_pair_num", "pot_item", "pot_data", "note_pitch", "disc_item", "disc_count", "cmp_out", "wr_state", "math_state", "seeder_state", "next_id", "tick_entry", "n_new_ticks"]},
+  {"name": "act_ent", "java": "ActivateProbe ents.bin row (an EntityItem)", "fields": ["item", "damage", "count", "entity_id", "x", "y", "z", "mx", "my", "mz", "yaw"]},
+  {"name": "act_events", "java": "WorldServer block event list for one case (fixed 64)", "fields": ["v", "n"]},
+  {"name": "act_env", "java": "the case's EntityPlayerMP, FoodStats, world Random and open container", "fields": ["w", "det", "wr", "pos_x", "pos_y", "pos_z", "player", "chat", "open_gui", "ents", "nents", "events", "iew", "on_write"]},
+  {"name": "act_live_env", "java": "the live C08 packet's server context", "fields": ["wr", "det", "iew", "food_level", "food_sat", "held_item", "held_damage", "held_count", "inv_item", "inv_damage", "inv_count", "add_slot", "add_item", "add_damage", "add_count"]},
+  {"name": "act_live_result", "java": null, "fields": ["activated", "gui", "x", "y", "z", "ux", "uz", "px", "pz"]}
+ ],
+ "entry_points": ["act_init", "act_case_begin", "act_run", "act_case_end", "act_live_block", "act_live_chest_close", "act_live_dragon_egg"],
+ "tick_path": true,
+ "gpu": ["line 143, struct act_env: fixed ACT_MAX_ENTS (512) array of act_ent inline in the env (fixed capacity, fine), but also function pointers at lines 153-156 and a struct world pointer"],
+ "tests": ["csrc/tests/test_activate.c"],
+ "notes": "The ACT_* kind enum is the oracle's kind byte."
+}

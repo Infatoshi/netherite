@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/DetProbe.java",
+ "lines": 381,
+ "role": "Reference for the native determinism layer: drives the live Det through its own entry points step by step with the thread bound to each role, recording role dispatch, reset(seed) states, a StrictMath log/sqrt table and every step's result; output steps.txt.gz, start.txt, end.txt, reset-*.txt, math.txt, dispatch.txt.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=DetProbe",
+  "csrc/tests/test_det.c",
+  "csrc/tests/test_animals.c, test_hostiles.c, test_items.c, test_potions.c, test_fallhang.c (read the DetProbe snapshot format)",
+  "oracle/harness/netherite/oracle/AnimalProbe.java, PlaceProbe.java, EntityProbe.java, ExplosionProbe.java, GhastProbe.java, HostileProbe.java, SlimeProbe.java"
+ ],
+ "vanilla_hooks": []
+}

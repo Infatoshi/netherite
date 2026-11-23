@@ -1,0 +1,29 @@
+{
+ "path": "csrc/engine/hostiles_silverfish.c",
+ "lines": 513,
+ "role": "The EntitySilverfish kind on the old (non-task) AI: attributes and constructor, EntityMob's living tick, EntityCreature.updateEntityActionState with the silverfish's stone-preferring wander weight and 8-block player search, the 1.2-block melee, the ally summon that breaks monster-egg blocks within 5/10/10 into new silverfish, the hide-in-block step that turns stone, cobblestone or stone brick into a monster egg and removes the entity, the hurt hook that arms the summon, and the silverfish tail of the hostile state record.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntitySilverfish.java", "members": ["EntitySilverfish", "applyEntityAttributes", "findPlayerToAttack", "attackEntityFrom", "attackEntity", "updateEntityActionState", "getBlockPathWeight", "canTriggerWalking", "allySummonCooldown"]},
+  {"path": "oracle/src/entity/EntityCreature.java", "members": ["updateEntityActionState", "updateWanderPath", "field_110181_i", "fleeingTick", "hasAttacked", "entityToAttack", "pathToEntity"]},
+  {"path": "oracle/src/entity/EntityLiving.java", "members": ["updateEntityActionState", "getVerticalFaceSpeed"]},
+  {"path": "oracle/src/entity/monster/EntityMob.java", "members": ["onLivingUpdate", "attackEntityAsMob"]},
+  {"path": "oracle/src/block/BlockSilverfish.java", "members": ["func_150197_b", "func_150195_a"]}
+ ],
+ "structs": [
+  {"name": "fleeing_speed_bonus_modifier", "java": "EntityCreature.field_110181_i", "fields": ["name", "amount", "operation", "uuid_msb", "uuid_lsb", "saved"]},
+  {"name": "vec3", "java": "Vec3", "fields": ["x", "y", "z"]}
+ ],
+ "entry_points": ["silverfish_construct", "silverfish_on_living_update", "silverfish_update_entity_action_state", "silverfish_hurt", "silverfish_write_extra"],
+ "tick_path": true,
+ "gpu": [
+  "line 34 and 40, function silverfish_spawn_from_egg: calloc of the new living and its an_ent inside the tick",
+  "line 43, function silverfish_spawn_from_egg: an->next_spawn_index is shared mutable counter state across the arena",
+  "line 153, function silverfish_clear_path: free() of the heap path; ai_creature_path_to_entity/xyz allocate new ones (lines 201, 314, 336)",
+  "line 360, function silverfish_update_entity_action_state: while loop advancing the path index, bounded by the path length",
+  "lines 426-435, function silverfish_update_entity_action_state: nested 11x21x21 block scan with world_set_block writes to the shared world",
+  "line 455, function silverfish_update_entity_action_state: world_set_block from inside a mob's tick"
+ ],
+ "tests": ["csrc/tests/test_hostiles.c"],
+ "notes": "EntitySilverfish has no item drops, so there is no drop function. The Java member names (allySummonCooldown, the BlockSilverfish func_ names for the hide and egg-meta helpers) were not checked against the Java files; the egg meta mapping is inline at lines 452-454. The summon's spawn uses an_add rather than an_chunk_add; not verified that the list order matches Java's spawnEntityInWorld in every case. Evidence recordings: out/java/hostiles s-2, s-42, silverfish-final-2, silverfish-final-42 and the fight-silverfish-s1 snapshot."
+}

@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/network/play/client/C10PacketCreativeInventoryAction.java",
+  "classes": ["C10PacketCreativeInventoryAction"],
+  "lines": 61,
+  "side": "client",
+  "category": "network",
+  "role": "The creative inventory's set-slot: the client tells the server to place a stack in a creative slot (or clear it).",
+  "scope": "not_needed",
+  "scope_reason": "The game runs survival; the native port has no creative mode (survival.c's keyBindInventory branch notes the C16 OPEN_INVENTORY_ACHIEVEMENT is skipped when the game is creative) and no tape ever reaches a creative screen, so the packet is never built.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149629_a (slot)", "sig": "I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149628_b (stack)", "sig": "ItemStack", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "C10PacketCreativeInventoryAction", "sig": "(IItemStack)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149627_c", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149625_d", "sig": "()ItemStack", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

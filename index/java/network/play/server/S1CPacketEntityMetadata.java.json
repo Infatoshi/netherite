@@ -1,0 +1,121 @@
+{
+ "path": "oracle/src/network/play/server/S1CPacketEntityMetadata.java",
+ "classes": [
+  "S1CPacketEntityMetadata"
+ ],
+ "lines": 70,
+ "side": "server",
+ "category": "network",
+ "role": "A DataWatcher metadata update for one entity; for the player's own entity it carries the health field (16) the health HUD reads.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_client_pump",
+    "client_set_sp_health"
+   ]
+  },
+  {
+   "file": "csrc/engine/dev.c",
+   "symbols": [
+    "dev_apply"
+   ]
+  },
+  {
+   "file": "csrc/engine/throw.c",
+   "symbols": [
+    "pearl_impact"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/throw-items-s1",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149379_a",
+   "sig": "int",
+   "status": "partial",
+   "note": "entity id, rides s2c_pkt.i0"
+  },
+  {
+   "kind": "field",
+   "name": "field_149378_b",
+   "sig": "List",
+   "status": "partial",
+   "note": "the metadata entries; only the health field rides s2c_pkt.f0"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,DataWatcher,boolean)V",
+   "status": "partial",
+   "native": "csrc/engine/dev.c:dev_apply",
+   "note": "the dev prequeue and throw.c:pearl_impact build the health-metadata form only"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "partial",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "PK_S1C case: client_set_sp_health from the health field"
+  },
+  {
+   "kind": "method",
+   "name": "func_149376_c",
+   "sig": "()Ljava/util/List;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149375_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "In the live flow the player's health reaches the client through S06; the PK_S1C case exists so the dev-prequeued metadata form applies the same way. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the renderer reads server metadata (by design). Formerly listed as missing: Other entities' metadata updates (creeper swell state, sheep sheared, witch flags, the mob byte fields) have no client half; only the player's own health metadata is applied."
+}

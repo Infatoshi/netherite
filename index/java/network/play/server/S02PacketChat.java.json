@@ -1,0 +1,141 @@
+{
+  "path": "oracle/src/network/play/server/S02PacketChat.java",
+  "classes": [
+    "S02PacketChat"
+  ],
+  "lines": 76,
+  "side": "server",
+  "category": "network",
+  "role": "A chat line to display: the IChatComponent and whether it goes to the chat or system bar.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcomp.c",
+      "symbols": [
+        "chat_s02_send",
+        "chat_s02_json",
+        "chat_json",
+        "chat_parts",
+        "chat_s02_check"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.h",
+      "symbols": [
+        "PK_S02"
+      ]
+    },
+    {
+      "file": "csrc/engine/chatmsg.c",
+      "symbols": [
+        "chatmsg_bed",
+        "chatmsg_achievement",
+        "chatmsg_build_too_high",
+        "chatmsg_death"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/chat-achieve-s1",
+    "out/java/snapshots/chat-bed-refuse-s1",
+    "out/java/snapshots/chat-deaths-s1",
+    "out/java/snapshots/chat-deaths2-s1",
+    "out/java/snapshots/chat-build-s1",
+    "out/java/snapshots/chat-climbfall-s1",
+    "out/java/snapshots/chat-edge-knock-s1",
+    "out/java/snapshots/chat-idx-blast-s1",
+    "out/java/snapshots/chat-fight-witch-s1",
+    "out/java/snapshots/chat-fight-enderman-s1",
+    "out/java/snapshots/chat-death-drown-s1",
+    "out/java/snapshots/chat-death-lava-s1",
+    "out/java/snapshots/chat-death-starve-s1",
+    "out/java/snapshots/chat-act2-s1",
+    "out/java/snapshots/chat-surv2-bed-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_148919_a (message)",
+      "sig": "IChatComponent",
+      "native": "csrc/engine/chatcomp.c:chat_s02_send",
+      "status": "exact",
+      "note": "the component's JSON and its iterated parts in the packet's side part"
+    },
+    {
+      "kind": "field",
+      "name": "field_148918_b (type)",
+      "sig": "Z",
+      "native": null,
+      "status": "n/a",
+      "note": "neither written on the wire (writePacketData sends the component alone) nor read by NetHandlerPlayClient.handleChat"
+    },
+    {
+      "kind": "ctor",
+      "name": "S02PacketChat",
+      "sig": "(IChatComponent,Z)V",
+      "native": "csrc/engine/chatcomp.c:chat_s02_send",
+      "status": "exact",
+      "note": "EntityPlayerMP.addChatComponentMessage (the bed, build.tooHigh) and ServerConfigurationManager.func_148539_a (the death message, the achievement)"
+    },
+    {
+      "kind": "method",
+      "name": "readPacketData",
+      "sig": "(PacketBuffer)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the integrated server's local channel passes packets as objects (NetworkManager.provideLocalClient adds no codec)"
+    },
+    {
+      "kind": "method",
+      "name": "writePacketData",
+      "sig": "(PacketBuffer)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the byte codec: the local channel passes the packet object (NetworkManager.provideLocalClient adds no codec). The JSON it would write is IChatComponent.Serializer's, which Rows.s02 runs on every S02 and csrc/engine/chatcomp.c chat_json matches"
+    },
+    {
+      "kind": "method",
+      "name": "processPacket",
+      "sig": "(INetHandlerPlayClient)V",
+      "native": null,
+      "status": "n/a",
+      "note": "handleChat's only effect is GuiNewChat.func_146227_a (printChatMessage), the live client's chat list: GuiNewChat's record and the pixel lane's item N-02; the packet reaches the client's queue (s2c_in) for it"
+    },
+    {
+      "kind": "method",
+      "name": "func_148915_c",
+      "sig": "()IChatComponent",
+      "native": "csrc/engine/chatcomp.c:chat_s02_json",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_148916_d",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "never read"
+    },
+    {
+      "kind": "method",
+      "name": "serialize",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "logging only"
+    },
+    {
+      "kind": "ctor",
+      "name": "S02PacketChat",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"
+    }
+  ],
+  "missing": [],
+  "notes": "Every S02 the server sends is compared per row: the oracle's rows carry each tick's S02s (Rows.s02: the IChatComponent.Serializer JSON and GuiNewChat's iterated parts) and test_snapshots and play --check compare csrc/engine/chatcomp.c chat_s02_check against the queue (lane/idxchat, DEVLOG 2026-09-27). The senders: BlockBed.onBlockActivated (tile.bed.occupied, noSleep, notSafe: csrc/engine/sleep.c), EntityPlayerMP.onDeath (csrc/engine/survival.c surv_server_death), StatisticsFile.func_150873_a (surv_add_stat), NetHandlerPlayServer.processPlayerBlockPlacement (build.tooHigh: surv_server_use_packet). The join and leave lines fall outside every row (before the snapshot, after the session). chat.cannotSend and typed chat need C01PacketChatMessage (not_needed). idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit).",
+  "scope_reason": "In scope: its handler prints the line into GuiNewChat (NetHandlerPlayClient.handleChat), which is in scope: the HUD draws chat lines for 200 ticks and the recorded frames judge them (test_hudscreens). Achievement, death, bed and join messages all arrive this way."
+}

@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/item/ItemFishingRod.java",
+  "classes": ["ItemFishingRod"],
+  "lines": 93,
+  "side": "server",
+  "category": "item",
+  "role": "The fishing rod: right click casts or reels an EntityFishHook, damaging the rod by the reel amount; it is also enchantable (Lure/Luck of the Sea) for trades.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf fishing = off: 'fishing rods do nothing'. ItemFishingRod.onItemRightClick begins with the WorldConf.fishing hook and returns the stack, in the oracle as well.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "max_damage"]},
+    {"file": "csrc/engine/enchant.c", "symbols": ["can_enchant_item", "item_enchantability"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_trades.c",
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/iu-off-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "theIcon", "sig": "IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "ctor", "name": "ItemFishingRod", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "n/a", "note": "row 346: max damage 64, max stack 1"},
+    {"kind": "method", "name": "isFull3D", "sig": "()Z", "native": null, "status": "n/a", "note": "client render"},
+    {"kind": "method", "name": "shouldRotateAroundWhenRendering", "sig": "()Z", "native": null, "status": "n/a", "note": "client render"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": null, "status": "n/a", "note": "the WorldConf.fishing hook refuses; EntityFishHook is not ported"},
+    {"kind": "method", "name": "registerIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client icons"},
+    {"kind": "method", "name": "func_94597_g", "sig": "()IIcon", "native": null, "status": "n/a", "note": "client render"},
+    {"kind": "method", "name": "isItemTool", "sig": "(ItemStack)Z", "native": null, "status": "n/a", "note": "super's behaviour, gates nothing modelled"},
+    {"kind": "method", "name": "getItemEnchantability", "sig": "()I", "native": "csrc/engine/enchant.c:can_enchant_item", "status": "exact", "note": "enchant.c special-cases ItemFishingRod as the fishing-rod enchantment type, so the librarian's enchanted-rod trades stay correct"}
+  ],
+  "missing": [],
+  "notes": "lane/itemuse: iu-off-s1 uses it with world.conf's switch off (used on the ground and in the air: nothing happens)."
+}

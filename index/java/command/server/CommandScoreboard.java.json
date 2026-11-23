@@ -1,0 +1,186 @@
+{
+  "path": "oracle/src/command/server/CommandScoreboard.java",
+  "classes": [
+    "CommandScoreboard"
+  ],
+  "lines": 933,
+  "side": "server",
+  "category": "commands",
+  "role": "The /scoreboard command: the whole subcommand tree for objectives, players, teams and display slots against the server Scoreboard.",
+  "scope": "not_needed",
+  "scope_reason": "Never reached: the agent and RL paths have no chat or command input (SPEC input: look, gui ops, held keys; no command source), and the native engine has no command dispatcher. world.conf does not list commands.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,[Ljava/lang/String;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147192_d",
+      "sig": "()Lnet/minecraft/scoreboard/Scoreboard;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147189_a",
+      "sig": "(Ljava/lang/String;Z)Lnet/minecraft/scoreboard/ScoreObjective;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147183_a",
+      "sig": "(Ljava/lang/String;)Lnet/minecraft/scoreboard/ScorePlayerTeam;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147193_c",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147185_d",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147200_e",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147194_f",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147186_g",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147190_h",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147199_i",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147188_j",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147191_h",
+      "sig": "(ICommandSender,Ljava/lang/String;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147196_d",
+      "sig": "(ICommandSender)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147198_k",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147195_l",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147197_m",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147187_n",
+      "sig": "(ICommandSender,[Ljava/lang/String;,I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,[Ljava/lang/String;)Ljava/util/List;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147184_a",
+      "sig": "(Z)Ljava/util/List;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isUsernameIndex",
+      "sig": "([Ljava/lang/String;I)Z",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": []
+}

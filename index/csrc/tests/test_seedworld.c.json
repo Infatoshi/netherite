@@ -1,0 +1,67 @@
+{
+ "path": "csrc/tests/test_seedworld.c",
+ "lines": 639,
+ "role": "Gate: native seedworld_build/seedworld_build_dim against SpawnDump recordings (out/java/seedworld/<name>/): spawn point, loaded chunk set and order, chunk bytes, biomes, light, tile entities, pending ticks, worldgen-spawned entities, Det streams and world scalars after MinecraftServer.initialWorldChunkLoad; has --negative=fuzz and --negative=earlypop self-checks.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/server/MinecraftServer.java",
+   "members": [
+    "initialWorldChunkLoad"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderServer.java",
+   "members": [
+    "loadedChunks",
+    "loadChunk"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "createSpawnPosition"
+   ]
+  },
+  {
+   "path": "oracle/src/world/NextTickListEntry.java",
+   "members": [
+    "nextTickEntryID"
+   ]
+  },
+  {
+   "path": "oracle/src/world/storage/DerivedWorldInfo.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderHell.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderEnd.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/SpawnDump.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/SpawnDumpDim.java",
+   "members": []
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 58: static dir",
+  "line 62-63: static tick_base and compared_* counters",
+  "line 117, dup_line: malloc"
+ ],
+ "tests": [
+  "csrc/tests/test_seedworld.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Exercises seedworld.c, snapshot.c, det.c, ticks.c, tileentity.c, populate_nether.c. Recordings: out/java/seedworld/{seed1,seed2,seed7,seed42,seed2024,seed123456789,seed2-nether,seed2-end,seed42-nether,seed42-end}. The CLIENT Det seeder is deliberately not compared. WorldServer.createSpawnPosition member name assumed from vanilla, not re-read."
+}

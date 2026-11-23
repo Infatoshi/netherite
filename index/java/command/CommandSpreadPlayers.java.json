@@ -1,0 +1,167 @@
+{
+  "path": "oracle/src/command/CommandSpreadPlayers.java",
+  "classes": [
+    "CommandSpreadPlayers",
+    "CommandSpreadPlayers.Position"
+  ],
+  "lines": 400,
+  "side": "server",
+  "category": "commands",
+  "role": "The /spreadplayers command: scatters players or teams randomly across a box, then relaxes the points apart with a 10000-iteration repulsion loop before teleporting.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_110669_a",
+      "sig": "(ICommandSender,List,Position,double,double,World,boolean)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_110667_a",
+      "sig": "(List)int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_110668_a",
+      "sig": "(Position,double,World,Random,double,double,double,double,Position[],boolean)int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_110671_a",
+      "sig": "(List,World,Position[],boolean)double",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_110670_a",
+      "sig": "(Random,int,double,double,double,double)Position[]",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "Position.field_111101_a",
+      "sig": "double",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "Position.field_111100_b",
+      "sig": "double",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "Position",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "Position",
+      "sig": "(double,double)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Position.func_111099_a",
+      "sig": "(Position)double",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Position.func_111095_a",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Position.func_111096_b",
+      "sig": "()float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Position.func_111094_b",
+      "sig": "(Position)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Position.func_111093_a",
+      "sig": "(double,double,double,double)boolean",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Position.func_111092_a",
+      "sig": "(World)int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Position.func_111098_b",
+      "sig": "(World)boolean",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Position.func_111097_a",
+      "sig": "(Random,double,double,double,double)V",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "Line 106 draws its Random from netherite.oracle.Det.newRandom(): one of the determinize hook edits, so a run of the command would draw from the det streams rather than wall-clock Random. Never exercised. Static __OBFID constants are grouped out per the brief."
+}

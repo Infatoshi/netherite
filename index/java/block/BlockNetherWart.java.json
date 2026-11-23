@@ -1,0 +1,40 @@
+{
+  "path": "oracle/src/block/BlockNetherWart.java",
+  "classes": ["BlockNetherWart"],
+  "lines": 106,
+  "side": "common",
+  "category": "block",
+  "role": "The nether wart: a soul-sand plant that ages 0 to 3 on a 1-in-10 tick and drops 2 to 4 warts at full age.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["rt_netherwart", "bush_floor_ok", "bush_tick", "RT_NETHER_WART", "crop_drop"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_add_boxes"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/pickblock.c", "symbols": ["pick_block_item"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/nether-trip-s1",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/cov-blkbreak-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149883_a", "sig": "IIcon[]", "native": null, "status": "n/a", "note": "client stage textures"},
+    {"kind": "ctor", "name": "BlockNetherWart", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 115: tick_randomly 1, the 0.5-wide 0.25-tall box"},
+    {"kind": "method", "name": "func_149854_a", "sig": "(Lnet/minecraft/block/Block;)Z", "native": "csrc/engine/randomtick.c:bush_floor_ok", "status": "exact", "note": "the soul-sand floor test"},
+    {"kind": "method", "name": "canBlockStay", "sig": "(World,III)Z", "native": "csrc/engine/randomtick.c:bush_floor_ok", "status": "exact", "note": "the same test"},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:rt_netherwart", "status": "exact", "note": "the age increment on the 1-in-10 roll, then the bush tick"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a", "note": "client texture selection"},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "render_type 6, the crops cross"},
+    {"kind": "method", "name": "dropBlockAsItemWithChance", "sig": "(World,IIIIFI)V", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 115: the age-3 count and the fortune add; a pop spawns through randomtick.c:crop_drop"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_break", "status": "n/a", "note": "BlockNetherWart overrides dropBlockAsItemWithChance, dropping wart itself without getItemDropped"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "n/a", "note": "BlockNetherWart overrides dropBlockAsItemWithChance, dropping wart itself without quantityDropped"},
+    {"kind": "method", "name": "getItem", "sig": "(World,III)Lnet/minecraft/item/Item;", "native": "csrc/engine/pickblock.c:block_get_item", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client texture registration"}
+  ],
+  "missing": [],
+  "notes": "The warts grow and stay in the nether recordings (nether-trip-s1); the age tick and the bush floor check are the tileticks census lanes."
+}

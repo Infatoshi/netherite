@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/client/gui/ScaledResolution.java",
+  "classes": ["ScaledResolution"],
+  "lines": 68,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The GUI scale math: from the real framebuffer size and gameSettings.guiScale it derives the scaled GUI width/height every 2D screen and the HUD draw with.",
+  "scope": "in_scope",
+  "scope_reason": "The container screens, the death screen, the pause screen and the HUD are pixel-gated against the oracle (out/java/render scenes), so the scale derivation is part of the renderer's contract.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/gui_screens.c", "symbols": ["gui_screen_layout"]}
+  ],
+  "evidence": [
+    "out/java/render/gui_inventory",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "scaledWidth", "sig": "int", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "struct gui_screen_layout.sw, ceiling of width/scale"},
+    {"kind": "field", "name": "scaledHeight", "sig": "int", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "struct gui_screen_layout.sh"},
+    {"kind": "field", "name": "scaledWidthD", "sig": "double", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "not stored natively; only the ceiling survives"},
+    {"kind": "field", "name": "scaledHeightD", "sig": "double", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "same"},
+    {"kind": "field", "name": "scaleFactor", "sig": "int", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "struct gui_screen_layout.scale, same >=320x240 loop"},
+    {"kind": "ctor", "name": "ScaledResolution", "sig": "(Minecraft,int,int)V", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "the scale loop and the ceil divisions are ported; the func_152349_b (unicode) even-scale adjustment is not"},
+    {"kind": "method", "name": "getScaledWidth", "sig": "()I", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "layout.sw"},
+    {"kind": "method", "name": "getScaledHeight", "sig": "()I", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "layout.sh"},
+    {"kind": "method", "name": "getScaledWidth_double", "sig": "()D", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "not kept natively"},
+    {"kind": "method", "name": "getScaledHeight_double", "sig": "()D", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "not kept natively"},
+    {"kind": "method", "name": "getScaleFactor", "sig": "()I", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "layout.scale"}
+  ],
+  "missing": [],
+  "notes": "gui_screen_layout's loop `while (scale < gui_scale && width/(scale+1) >= 320 && height/(scale+1) >= 240)` matches the Java loop; verified by reading both, not by a targeted test. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the unicode-font branch is off in the pinned options. Formerly listed as missing: The constructor's func_152349_b branch (unicode font: drop one scale step when the factor is odd and not 1) has no native counterpart; gui_screen_layout runs the plain loop only. The guiScale=0 means 1000 default is the caller's job natively."
+}

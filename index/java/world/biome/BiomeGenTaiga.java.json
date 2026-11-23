@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenTaiga.java",
+  "classes": ["BiomeGenTaiga"],
+  "lines": 119,
+  "side": "common",
+  "category": "worldgen",
+  "role": "Taiga, Cold Taiga and Mega (Spruce) Taiga biomes (5, 19, 30-33, 133, 158, 160, 161): spruce and mega pine tree choice, fern-heavy grass, mossy boulders and seven large fern patches before the decorator, and a podzol/coarse-dirt surface on the mega types.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions). The wolf spawn row is switched off (world.conf wolves = off).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of", "place_tree", "TR_TAIGA", "grass_choice", "taiga_pre", "place_block_blob", "shape_of"]},
+    {"file": "csrc/engine/surface.c", "symbols": ["column", "SURF_TAIGA"]},
+    {"file": "csrc/engine/features_trees.c", "symbols": ["feature_taiga1", "feature_megapine"]},
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_populate.c", "out/java/chunks/spruce-123456789", "out/java/populate", "out/java/snapshots/cov-megataiga-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150639_aC", "sig": "static WorldGenTaiga1", "native": "csrc/engine/features_trees.c:feature_taiga1", "status": "exact"},
+    {"kind": "field", "name": "field_150640_aD", "sig": "static WorldGenTaiga2", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "feature_taiga2"},
+    {"kind": "field", "name": "field_150641_aE", "sig": "static WorldGenMegaPineTree(false,false)", "native": "csrc/engine/features_trees.c:feature_megapine", "status": "exact"},
+    {"kind": "field", "name": "field_150642_aF", "sig": "static WorldGenMegaPineTree(false,true)", "native": "csrc/engine/features_trees.c:feature_megapine", "status": "exact", "note": "count argument 1"},
+    {"kind": "field", "name": "field_150643_aG", "sig": "static WorldGenBlockBlob(mossy_cobblestone,0)", "native": "csrc/engine/decorator.c:place_block_blob", "status": "exact"},
+    {"kind": "field", "name": "field_150644_aH", "sig": "int (0, 1 mega, 2 mega spruce)", "native": "csrc/engine/biomes.h:BIOMES", "status": "exact", "note": "p1 column; decorator.c shape_of mega"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenTaiga", "sig": "(int,int)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "wolf row off by world.conf"},
+    {"kind": "method", "name": "func_150567_a", "sig": "(Random)WorldGenAbstractTree", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "TR_TAIGA"},
+    {"kind": "method", "name": "getRandomWorldGenForGrass", "sig": "(Random)WorldGenerator", "native": "csrc/engine/decorator.c:grass_choice", "status": "exact"},
+    {"kind": "method", "name": "decorate", "sig": "(World,Random,int,int)V", "native": "csrc/engine/decorator.c:taiga_pre", "status": "exact"},
+    {"kind": "method", "name": "func_150573_a", "sig": "(World,Random,Block[],byte[],int,int,double)V", "native": "csrc/engine/surface.c:column", "status": "exact", "note": "SURF_TAIGA"},
+    {"kind": "method", "name": "func_150566_k", "sig": "()BiomeGenBase", "native": "csrc/engine/biomes.h:BIOMES", "status": "exact", "note": "160 Mega Spruce Taiga; 161 aliases 160 (object_id)"}
+  ],
+  "missing": [],
+  "notes": ""
+}

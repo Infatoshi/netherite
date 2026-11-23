@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/lzpack.c",
+ "lines": 304,
+ "role": "The byte codec of the bytes that never leave the process (lane/spillfast): an LZ77 in LZ4's block form, greedy over a 4,096-entry table of five-byte hashes, for a parked chunk's sections (chunk_pack), a spill record's struct and extra bytes and a spilled blob (regionspill.c). Replaced zlib's deflate at level 1: 3.9 against 19.5 user instructions a byte to compress, 3.0 against 7.8 to decompress, at a ratio of 6.5 against 10.5.",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "lzp_compress",
+  "lzp_decompress"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "function lzp_decompress: runs inside the tick at a chunk's load (chunk_unpack_blob, rspill_take); allocates nothing, the output buffer carries LZP_SLACK bytes of room; read-only static tables only"
+ ],
+ "tests": [
+  "csrc/tests/lzpack_check.c"
+ ],
+ "notes": "Ports no oracle/src file. The format is private to one build: every blob is read back by the process that wrote it (the region cache's images are keyed by the build hash). Little-endian hosts only."
+}

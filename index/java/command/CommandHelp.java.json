@@ -1,0 +1,78 @@
+{
+  "path": "oracle/src/command/CommandHelp.java",
+  "classes": [
+    "CommandHelp"
+  ],
+  "lines": 106,
+  "side": "server",
+  "category": "commands",
+  "role": "The /help command: lists the commands the sender may use, seven per page.",
+  "scope": "in_scope",
+  "scope_reason": "In scope since lane/idxclient: the chat takes typed input (GuiChat, the live client's T and slash), so a player types commands; the integrated server without cheats answers each (only tell, me, help and seed are allowed) and its tab completion reads the command map (csrc/engine/chatcmd.c).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcmd.c",
+      "symbols": [
+        "cmd_help"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/idx-chattype-s1",
+    "out/java/snapshots/idx-chatsleep-s1"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": "csrc/engine/chatcmd.c:CMD",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": "csrc/engine/chatcmd.c:can_use",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": "csrc/engine/chatcmd.c:CMD",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandAliases",
+      "sig": "()List",
+      "native": "csrc/engine/chatcmd.c:KEYS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": "csrc/engine/chatcmd.c:cmd_help",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getSortedPossibleCommands",
+      "sig": "(ICommandSender)List",
+      "native": "csrc/engine/chatcmd.c:cmd_help",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCommands",
+      "sig": "()Map",
+      "native": "csrc/engine/chatcmd.c:cmd_lookup",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: /help and /? with no page, a page, a bad page (too big, too small, not a number), a command's name (its usage in red). idx-chattype-s1."
+}

@@ -1,0 +1,83 @@
+{
+  "path": "oracle/src/network/Packet.java",
+  "classes": [
+    "Packet"
+  ],
+  "lines": 94,
+  "side": "common",
+  "category": "network",
+  "role": "The abstract packet: id-to-class instantiation for decode, blob read/write helpers, and the encode/decode/process contract every packet implements.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "generatePacket",
+      "sig": "(LBiMap;I)LPacket;",
+      "native": null,
+      "status": "n/a",
+      "note": "Byte-stream decode; the native tick passes message structs (player.h's struct c03, struct client_out) with no id lookup."
+    },
+    {
+      "kind": "method",
+      "name": "writeBlob",
+      "sig": "(LByteBuf;[B)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Length-prefixed byte-array encoding."
+    },
+    {
+      "kind": "method",
+      "name": "readBlob",
+      "sig": "(LByteBuf;)[B",
+      "native": null,
+      "status": "n/a",
+      "note": "Length-prefixed byte-array decoding."
+    },
+    {
+      "kind": "method",
+      "name": "readPacketData",
+      "sig": "(LPacketBuffer;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Abstract; implemented per packet subclass."
+    },
+    {
+      "kind": "method",
+      "name": "writePacketData",
+      "sig": "(LPacketBuffer;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Abstract; implemented per packet subclass. The one place the format matters natively is the S12 velocity encode, reproduced in survival.c's s12_axis."
+    },
+    {
+      "kind": "method",
+      "name": "processPacket",
+      "sig": "(LINetHandler;)V",
+      "native": "csrc/engine/player.c:server_player_tick",
+      "status": "partial",
+      "note": "Dispatch to the handler; the native pump (server_player_tick and surv_server_tick_start) applies the same messages in the same order without a Packet object."
+    },
+    {
+      "kind": "method",
+      "name": "hasPriority",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "Only disconnect, login and keep-alive packets override it; none is sent in-process."
+    },
+    {
+      "kind": "method",
+      "name": "serialize",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "Debug logging text."
+    }
+  ],
+  "missing": [],
+  "notes": "The wire format is deliberately not ported: SPEC's native tick design says 'Messages are structs, not bytes'. What is ported is each handler's behavior, under NetHandlerPlayServer's record."
+}

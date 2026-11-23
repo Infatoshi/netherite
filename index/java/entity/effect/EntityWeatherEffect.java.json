@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/entity/effect/EntityWeatherEffect.java",
+  "classes": ["EntityWeatherEffect"],
+  "lines": 14,
+  "side": "common",
+  "category": "entity",
+  "role": "Abstract marker base for weather entities (its only vanilla subclass is EntityLightningBolt); it adds nothing but a constructor that calls super(World), and marks the entity as living in World.weatherEffects rather than the loaded entity list.",
+  "scope": "not_needed",
+  "scope_reason": "Interface, marker or abstract base; its behavior lives in the subclasses' ports (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/lightning.h", "symbols": ["struct lightning_bolt"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_lightning.c",
+    "out/java/lightning/light2"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "EntityWeatherEffect", "sig": "(Lnet/minecraft/world/World;)V", "native": null, "status": "missing", "note": "A plain super(World) call with no added behavior. The native engine never models the class: the concrete subclass is folded straight into struct lightning_bolt (lightning.h's comment notes it belongs to World.weatherEffects, not loadedEntityList), and the generic Entity base init has no EntityWeatherEffect-specific symbol."},
+    {"kind": "field", "name": "__OBFID", "sig": "String", "native": null, "status": "n/a", "note": "Compiler-injected obfuscation constant (groups the file's static constants)."}
+  ],
+  "missing": [
+    "EntityWeatherEffect itself has no native counterpart: the port represents the concept only as the World.weatherEffects bolt list (struct lightning_bolt *bolts in csrc/engine/serverreplay.h), not as a shared weather-effect base."
+  ],
+  "notes": "No behavior of its own to port, so not_ported is a formality: the subclass (EntityLightningBolt) is ported and test-proven in csrc/engine/lightning.c. The cited evidence exercises the concrete subclass, whose construction passes through this base constructor. No other vanilla subclass exists: grep over oracle/src found only EntityLightningBolt extending EntityWeatherEffect."
+}

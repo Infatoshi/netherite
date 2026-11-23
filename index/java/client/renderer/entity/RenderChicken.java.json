@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderChicken.java",
+  "classes": ["RenderChicken"],
+  "lines": 98,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityChicken: the chicken model whose wing angle comes from handleRotationFloat's (sin(wingPos) + 1) * wingSpread interpolation.",
+  "scope": "in_scope",
+  "scope_reason": "Chickens are in the gated animal spawn lists and the mob scenes compare their pixels.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_chicken", "raster_mobs_draw"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs_chicken_f006",
+    "out/java/render/mobs_chicken_f011",
+    "out/java/render/mobs_chicken_f016",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "chickenTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "TEX_CHICKEN in the texture table"},
+    {"kind": "ctor", "name": "RenderChicken", "sig": "(ModelBase,F)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityChicken,DDD FF)V", "native": "csrc/engine/raster_mobs.c:model_chicken", "status": "exact", "note": "model_chicken builds head, body, legs and wings; the wing angle arrives as the dump's wing field (e->wing)"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityChicken)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "handleRotationFloat", "sig": "(EntityChicken,F)F", "native": null, "status": "partial", "note": "the (sin(wingPos) + 1) * wingSpread formula runs on the oracle side and is recorded as the wing field the native consumes; the C code does not recompute it"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "handleRotationFloat", "sig": "(EntityLivingBase,F)F", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "handleRotationFloat's arithmetic lives in the oracle dump (frames.jsonl wing) rather than in C; the render scenes still gate the resulting pixels exactly. This follows the render pipeline's recorded-scene contract: the pose inputs are state the frame reads, not per-frame RNG."
+}

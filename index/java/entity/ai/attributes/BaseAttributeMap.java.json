@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/entity/ai/attributes/BaseAttributeMap.java",
+  "classes": ["BaseAttributeMap"],
+  "lines": 71,
+  "side": "server",
+  "category": "ai",
+  "role": "Abstract registry mapping attribute definitions to their instances per entity; subclasses pick registration and name lookup behavior.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.c", "symbols": ["attrs_init", "attrs_get", "attrs_remove", "attrs_value"]},
+    {"file": "csrc/engine/living.h", "symbols": ["attr_map"]},
+    {"file": "csrc/engine/potion.c", "symbols": ["potion_apply_attributes"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/auditfix-attr-s1",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_lightning.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "attributes", "sig": "Map (IAttribute to IAttributeInstance)", "native": "csrc/engine/living.h:attr_map", "status": "partial", "note": "a fixed struct attr_instance a[ATTR_COUNT] array indexed by enum, not a HashMap keyed by IAttribute"},
+    {"kind": "field", "name": "attributesByName", "sig": "Map (String to IAttributeInstance, LowerStringMap)", "native": "csrc/engine/living.h:attr_map", "status": "partial", "note": "no persistent by-name map; name strings appear only in the NBT read path"},
+    {"kind": "method", "name": "getAttributeInstance", "sig": "(IAttribute)IAttributeInstance", "native": "csrc/engine/living.c:attrs_get", "status": "exact", "note": "lookup by enum index instead of object identity"},
+    {"kind": "method", "name": "getAttributeInstanceByName", "sig": "(String)IAttributeInstance", "native": "csrc/engine/serverreplay.c:cp_restore_living", "status": "partial", "note": "exists only in the NBT load path: cp_restore_living matches the Attributes tag's Name strings against the ATTR_NAME table (entity_nbt.c player_attributes does the same for the player); no general by-name lookup"},
+    {"kind": "method", "name": "registerAttribute", "sig": "(IAttribute)IAttributeInstance (abstract)", "native": "csrc/engine/living.c:attrs_init", "status": "partial", "note": "the fixed six attributes are registered once at attrs_init; no runtime registration"},
+    {"kind": "method", "name": "getAllAttributes", "sig": "()Collection", "native": "csrc/engine/living.c:living_write_nbt", "status": "partial", "note": "no collection; the only consumer that walks every instance is the Attributes NBT write, which loops ATTR_COUNT entries"},
+    {"kind": "method", "name": "addAttributeInstance", "sig": "(ModifiableAttributeInstance)V", "native": null, "status": "n/a", "note": "watchable-instance registration for client sync; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "removeAttributeModifiers", "sig": "(Multimap)V", "native": "csrc/engine/living.c:attrs_remove", "status": "partial", "note": "only the potion path removes then re-applies modifiers (potion.c potion_apply_attributes); the equipment Multimap path survives as the attr_mod from_item flag that attr_instance_nbt excludes"},
+    {"kind": "method", "name": "applyAttributeModifiers", "sig": "(Multimap)V", "native": "csrc/engine/potion.c:potion_apply_attributes", "status": "partial", "note": "apply and remove by fixed UUID/name per potion id, not via a Multimap of item-provided modifiers"}
+  ],
+  "missing": [],
+  "notes": "The whole map is folded into struct attr_map inside struct living (living.h:299). I did not verify EntityLivingBase's equipment-changed applyAttributeModifiers path beyond the from_item flag comment in living.h. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: addAttributeInstance and the watched-instance set it feeds have no native counterpart: no client attribute sync exists. a general getAttributeInstanceByName facility does not exist; name-based matching happens only inside the NBT load functions."
+}

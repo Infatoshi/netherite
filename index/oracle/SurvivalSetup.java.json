@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/SurvivalSetup.java",
+ "lines": 512,
+ "role": "Dev-mode survival scene setup (presets food, eat, starve, fall20, fall12, drown, suffocate, lava, cactus, drop, death; the death preset's bare option skips its dirt and XP grant): clears non-player entities, turns spawning and weather off, builds a stone arena over spawn and the preset's hazard, and pins both players' survival state so a following Snapshot carries it; reports the hazard cells for the scripts.",
+ "kind": "devop",
+ "used_by": [
+  "{\"cmd\":\"run\",\"class\":\"SurvivalSetup\",\"preset\":...} in 19 oracle/tests scripts (oracle/tests/surv_drown.jsonl, surv_lava.jsonl, surv_fall20.jsonl, death-drown-s1.jsonl, ...)",
+  "Oracle.java replay setup (declares MUTATES, so replays re-run it)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Refuses to run outside --dev agent mode. No oracle/src hook. The native side consumes it only indirectly through the Snapshot taken after it (csrc/tests/test_snapshots.c)."
+}

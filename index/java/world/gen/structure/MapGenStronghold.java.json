@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/world/gen/structure/MapGenStronghold.java",
+  "classes": ["MapGenStronghold", "MapGenStronghold.Start"],
+  "lines": 189,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The stronghold generator: three ring positions drawn once from new Random(worldSeed) and nudged to a biome with positive min height, a start only at those chunks, rebuilt until it contains a portal room; also the coordinate list eyes of ender fall back to.",
+  "scope": "in_scope",
+  "scope_reason": "Strongholds are vanilla worldgen and on (SPEC Decisions).",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/stronghold.c", "symbols": ["structure_stronghold", "stronghold_begin", "stronghold_can_spawn", "stronghold_make_start", "find_biome_position", "stronghold_nearest_impl", "stronghold_note_chunk", "sh_coords", "SH_DISTANCE", "SH_SPREAD", "SH_COUNT"]}],
+  "evidence": ["csrc/tests/test_structures.c", "csrc/tests/test_sblocks.c", "csrc/tests/test_eyes.c", "out/java/structures/s2", "out/java/structures/s42", "out/java/structures/shs-1-1", "out/java/structures/s2-sh1", "out/java/sblocks/sh-2a", "out/java/sblocks/sh-42a", "out/java/eyes/eye2", "out/java/eyes/eye42"],
+  "members": [
+    {"kind": "field", "name": "field_151546_e", "sig": "List<BiomeGenBase> (minHeight > 0)", "native": "csrc/engine/stronghold.c:find_biome_position", "status": "exact", "note": "The list is the BIOMES[id].root > 0 test inside find_biome_position."},
+    {"kind": "field", "name": "ranBiomeCheck", "sig": "boolean", "native": "csrc/engine/stronghold.c:sh_coords_ready", "status": "exact"},
+    {"kind": "field", "name": "structureCoords", "sig": "ChunkCoordIntPair[3]", "native": "csrc/engine/stronghold.c:sh_coords", "status": "exact"},
+    {"kind": "field", "name": "field_82671_h", "sig": "double (distance 32)", "native": "csrc/engine/stronghold.c:SH_DISTANCE", "status": "exact"},
+    {"kind": "field", "name": "field_82672_i", "sig": "int (spread 3)", "native": "csrc/engine/stronghold.c:SH_SPREAD", "status": "exact"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "MapGenStronghold", "sig": "()V", "native": "csrc/engine/stronghold.c:structure_stronghold", "status": "exact"},
+    {"kind": "ctor", "name": "MapGenStronghold", "sig": "(Map)V", "native": null, "status": "n/a", "note": "Option-map constructor for superflat presets only."},
+    {"kind": "method", "name": "func_143025_a", "sig": "()String", "native": "csrc/engine/stronghold.c:structure_stronghold", "status": "exact", "note": "The name \"Stronghold\"."},
+    {"kind": "method", "name": "canSpawnStructureAtCoords", "sig": "(int,int)Z", "native": "csrc/engine/stronghold.c:stronghold_can_spawn", "status": "exact", "note": "The first-call ring computation is stronghold_begin."},
+    {"kind": "method", "name": "getCoordList", "sig": "()List", "native": "csrc/engine/stronghold.c:stronghold_nearest_impl", "status": "exact", "note": "The ring fallback at y 64 inside the nearest search."},
+    {"kind": "method", "name": "getStructureStart", "sig": "(int,int)StructureStart", "native": "csrc/engine/stronghold.c:stronghold_make_start", "status": "exact", "note": "Includes the retry loop until a portal room exists."},
+    {"kind": "ctor", "name": "Start", "sig": "()V", "native": null, "status": "n/a", "note": "NBT-load constructor."},
+    {"kind": "ctor", "name": "Start", "sig": "(World,Random,int,int)V", "native": "csrc/engine/stronghold.c:stronghold_make_start", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "Java uses StrictMath.cos/sin for the ring; stronghold.c uses libm cos/sin. They agree on every recorded seed (s2, s42, shs-*), but this is not proven for all angles and is a GPU-port hazard too. stronghold.c keeps the ring and a biome box cache in static mutable state (sh_coords, sh_layers, sh_box) with a malloc in gen_box. Gate not re-run for this record."
+}

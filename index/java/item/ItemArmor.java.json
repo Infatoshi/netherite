@@ -1,0 +1,221 @@
+{
+ "path": "oracle/src/item/ItemArmor.java",
+ "classes": [
+  "ItemArmor",
+  "ItemArmor.ArmorMaterial"
+ ],
+ "lines": 323,
+ "side": "common",
+ "category": "item",
+ "role": "Armor pieces: the armor type, damage reduction, render index and ArmorMaterial (durability, per-slot reduction, enchantability, repair item), the equip-on-right-click, the leather colour NBT and the dispenser behavior that armors a nearby entity.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/items.h",
+   "symbols": [
+    "ITEMS",
+    "armor_type",
+    "damage_reduce"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_total_armor"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_client_armor_value",
+    "damage_armor"
+   ]
+  },
+  {
+   "file": "csrc/engine/crafting.c",
+   "symbols": [
+    "dye_matches",
+    "dye_result"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "item_enchantability",
+    "can_enchant_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "SLOT_ARMOR"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/surv2-block-armor-s1",
+  "out/java/snapshots/cat-wear-s1",
+  "csrc/tests/test_items.c",
+  "out/java/snapshots/details-blocks-s1",
+  "out/java/snapshots/item-tags-s1",
+  "out/java/snapshots/pf-armor-g29"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "statics: maxDamageArray, CLOTH_OVERLAY_NAMES, EMPTY_SLOT_NAMES, dispenserBehavior",
+   "sig": "int[] / String[] / IBehaviorDispenseItem",
+   "native": "csrc/engine/items.h:max_damage",
+   "status": "exact",
+   "note": "maxDamageArray and the material table are the generated ITEMS rows; the overlay and slot names are client icons; the dispenser behaviour needs a powered dispenser (world.conf redstone = off)."
+  },
+  {
+   "kind": "field",
+   "name": "armorType, damageReduceAmount, renderIndex, material, overlayIcon, emptySlotIcon",
+   "sig": "int / ItemArmor.ArmorMaterial / IIcon",
+   "native": "csrc/engine/items.h:armor_type",
+   "status": "exact",
+   "note": "armor_type and damage_reduce are ITEMS fields; renderIndex and the icons are the armour renderer's (raster_mobs.c) and the slot backgrounds'."
+  },
+  {
+   "kind": "ctor",
+   "name": "ItemArmor",
+   "sig": "(ArmorMaterial,I,I)V",
+   "native": "csrc/engine/items.h:ITEMS",
+   "status": "exact",
+   "note": "the generated rows carry durability (maxDamageArray * factor) and damageReduceAmount per slot"
+  },
+  {
+   "kind": "method",
+   "name": "getColorFromItemStack",
+   "sig": "(ItemStack,I)I",
+   "native": null,
+   "status": "n/a",
+   "note": "client colour; leather dyeing's NBT colour is kept in crafting.c only as the recipe result"
+  },
+  {
+   "kind": "method",
+   "name": "requiresMultipleRenderPasses",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "client render (leather overlay)"
+  },
+  {
+   "kind": "method",
+   "name": "getItemEnchantability",
+   "sig": "()I",
+   "native": "csrc/engine/enchant.c:item_enchantability",
+   "status": "exact",
+   "note": "the five armor sets' enchantability is listed per item id in enchant.c"
+  },
+  {
+   "kind": "method",
+   "name": "getArmorMaterial",
+   "sig": "()ItemArmor.ArmorMaterial",
+   "native": "csrc/engine/items.h:ITEMS",
+   "status": "exact",
+   "note": "Only the per-item rows read it (enchantability, repair, leather dye); no material object is needed."
+  },
+  {
+   "kind": "method",
+   "name": "hasColor",
+   "sig": "(ItemStack)Z",
+   "native": "csrc/engine/itemtag.c:itag_has_color",
+   "status": "exact",
+   "note": "display.color on the stack tag"
+  },
+  {
+   "kind": "method",
+   "name": "getColor",
+   "sig": "(ItemStack)I",
+   "native": "csrc/engine/itemtag.c:itag_color",
+   "status": "exact",
+   "note": "color on the live stack."
+  },
+  {
+   "kind": "method",
+   "name": "getIconFromDamageForRenderPass",
+   "sig": "(II)IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "method",
+   "name": "removeColor",
+   "sig": "(ItemStack)V",
+   "native": "csrc/engine/itemtag.c:itag_remove_color",
+   "status": "exact",
+   "note": "the cauldron wash (survival.c) keeps the display compound"
+  },
+  {
+   "kind": "method",
+   "name": "func_82813_b",
+   "sig": "(ItemStack,I)V",
+   "native": "csrc/engine/itemtag.c:itag_set_color",
+   "status": "exact",
+   "note": "the dye recipe (crafting.c:armor_set_color) and dev stacks"
+  },
+  {
+   "kind": "method",
+   "name": "getIsRepairable",
+   "sig": "(ItemStack,ItemStack)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "anvil switched off (world.conf anvil)"
+  },
+  {
+   "kind": "method",
+   "name": "registerIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client icons"
+  },
+  {
+   "kind": "method",
+   "name": "onItemRightClick",
+   "sig": "(ItemStack,World,EntityPlayer)ItemStack",
+   "native": "csrc/engine/survival.c:armor_right_click",
+   "status": "exact",
+   "note": "The piece goes on an empty armour slot on both sides (armor_right_click, lane/playfuzz); pf-armor-g29 replays it."
+  },
+  {
+   "kind": "method",
+   "name": "func_94602_b",
+   "sig": "(I)IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client GUI icon"
+  },
+  {
+   "kind": "field",
+   "name": "ArmorMaterial enum: CLOTH, CHAIN, IRON, GOLD, DIAMOND with getDurability, getDamageReductionAmount, getEnchantability, func_151685_b",
+   "sig": "enum",
+   "native": "csrc/engine/items.h:damage_reduce",
+   "status": "exact",
+   "note": "folded into the generated per-item rows (durability and reduction) and enchant.c's enchantability table"
+  },
+  {
+   "kind": "method",
+   "name": "ItemArmor$ArmorMaterial.func_151685_b",
+   "sig": "()Lnet/minecraft/item/Item;",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the repair item: only getIsRepairable asks, and only ContainerRepair calls that (anvil = off)"
+  },
+  {
+   "kind": "method",
+   "name": "ItemArmor$1.dispenseStack",
+   "sig": "(IBlockSource,ItemStack)ItemStack",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the dispenser behavior for armor; no dispenser fires (redstone = off)"
+  }
+ ],
+ "missing": [],
+ "notes": "surv2-block-armor-s1 gates a worn iron chestplate reducing a zombie hit and the helmet breaking at t123 (damage_armor); cat-wear-s1 covers wearing. lane/idxblocks: the dispenser auto-equip is the redstone switch; the right-click equip is pf-armor-g29."
+}

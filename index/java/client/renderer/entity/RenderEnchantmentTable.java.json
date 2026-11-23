@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderEnchantmentTable.java",
+  "classes": ["RenderEnchantmentTable"],
+  "lines": 75,
+  "side": "client",
+  "category": "client_render",
+  "role": "Tile entity renderer for the enchanting table: the floating, bobbing book (ModelBook) above the table, opening and turning pages as the table's tile entity state animates.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: TileEntityRendererDispatcher maps TileEntityEnchantmentTable to this renderer (TileEntityRendererDispatcher.java:52), so every placed enchanting table draws its floating, opening book from the tile entity's animation fields; world.conf enchanting = off does not stop the tile entity or this renderer.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_tileent.c", "symbols": ["render_enchant_table", "raster_tileents_draw"]},
+    {"file": "csrc/play/play.c", "symbols": ["cbook_update", "tileents_tick", "draw_tileents"]}
+  ],
+  "evidence": ["out/java/clientframes/idx-book-s1"],
+  "members": [
+    {"kind": "field", "name": "field_147540_b", "sig": "static ResourceLocation", "native": "csrc/engine/raster_tileent.c:tex_files", "status": "exact"},
+    {"kind": "field", "name": "field_147541_c", "sig": "ModelBook", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntityEnchantmentTable,DDD F)V", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntity,DDD F)V", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: render_enchant_table is renderTileEntityAt whole: the table-centre translate, the bob on field_145926_a + pt, the turn interpolated the short way, the 80 degree tilt, the flip fractions through truncateDoubleToInt's floor ((int)(d + 1024) - 1024: a C cast truncates toward zero and posed the loose pages wrong on negative flips) and the interpolated spread; the book texture is csrc/assets/te/enchanting_table_book.rgba. Its inputs are the client's own TileEntityEnchantmentTable (play.c cbook_update, updateEntity on the client's split stream of field_145923_r, the client player as the reader), made when the table's block reaches the client world and first updated on the next row: an S21 chunk carries no tile entity and the client's is made by the chunk rebuild's lookup (Chunk.func_150806_e) in the next frame, so the oracle recording renders every tick (EVERY=1). idx-book-s1 matches the oracle's TileEntityRenderProbe book fields bit for bit at every tick and its 7 ticks' frames are within 14 to 59 px."
+}

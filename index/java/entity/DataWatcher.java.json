@@ -1,0 +1,307 @@
+{
+ "path": "oracle/src/entity/DataWatcher.java",
+ "classes": [
+  "DataWatcher",
+  "DataWatcher.WatchableObject"
+ ],
+ "lines": 451,
+ "side": "common",
+ "category": "entity",
+ "role": "The per-entity watched-value map: the server-side store behind the 0..31 data ids (flags byte, air, health, age, mob colour, fuse), the dirty tracking, and the packet serialization the client's entity metadata updates ride on.",
+ "scope": "in_scope",
+ "scope_reason": "Watched values drive server state (flags, air, health, age) and the NBT digests the tape rows compare.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/living.h",
+   "symbols": [
+    "flags0",
+    "air"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "set_flag",
+    "living_set_growing_age"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_write_nbt"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_hostiles.c",
+  "out/java/snapshots/combat-mobs-s1",
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/fight-skeleton-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_151511_a",
+   "sig": "Entity",
+   "native": null,
+   "status": "n/a",
+   "note": "the owning entity; native watchers live as plain struct fields on the entity"
+  },
+  {
+   "kind": "field",
+   "name": "isBlank",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "bookkeeping for the packet path"
+  },
+  {
+   "kind": "field",
+   "name": "dataTypes",
+   "sig": "static HashMap",
+   "native": null,
+   "status": "n/a",
+   "note": "the class-to-type-id table is compiled into the per-field handling"
+  },
+  {
+   "kind": "field",
+   "name": "watchedObjects",
+   "sig": "Map",
+   "native": null,
+   "status": "partial",
+   "note": "not a map: each watched id is a named struct field (living.h flags0 = id 0, air = 1, health = 6, growing_age = 12, data_watcher_16, slime_size, the creeper fuse bytes, the spider climb flag, the ghast charge)"
+  },
+  {
+   "kind": "field",
+   "name": "objectChanged",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "the client-visible dirty flag; the native server tick pushes whole state, not deltas"
+  },
+  {
+   "kind": "field",
+   "name": "lock",
+   "sig": "ReadWriteLock",
+   "native": null,
+   "status": "n/a",
+   "note": "thread safety the lockstep tick does not need"
+  },
+  {
+   "kind": "ctor",
+   "name": "DataWatcher",
+   "sig": "(Entity)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addObject",
+   "sig": "(int,Object)V",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "partial",
+   "note": "the entityInit adds are hardcoded (living.c:4304 adds ids 0 and 1, then each kind's entityInit adds its own)"
+  },
+  {
+   "kind": "method",
+   "name": "addObjectByDataType",
+   "sig": "(int,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getWatchableObjectByte",
+   "sig": "(int)B",
+   "native": "csrc/engine/living.h:flags0",
+   "status": "exact",
+   "note": "id 0 reads flags0"
+  },
+  {
+   "kind": "method",
+   "name": "getWatchableObjectShort",
+   "sig": "(int)S",
+   "native": "csrc/engine/living.h:air",
+   "status": "exact",
+   "note": "id 1 reads air"
+  },
+  {
+   "kind": "method",
+   "name": "getWatchableObjectInt",
+   "sig": "(int)I",
+   "native": "csrc/engine/living.c:living_set_growing_age",
+   "status": "exact",
+   "note": "id 12 reads growing_age"
+  },
+  {
+   "kind": "method",
+   "name": "getWatchableObjectFloat",
+   "sig": "(int)F",
+   "native": null,
+   "status": "n/a",
+   "note": "no ported entity watches a float id"
+  },
+  {
+   "kind": "method",
+   "name": "getWatchableObjectString",
+   "sig": "(int)Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "no ported entity watches a string id"
+  },
+  {
+   "kind": "method",
+   "name": "getWatchableObjectItemStack",
+   "sig": "(int)ItemStack",
+   "native": null,
+   "status": "n/a",
+   "note": "no ported entity watches an ItemStack id"
+  },
+  {
+   "kind": "method",
+   "name": "getWatchedObject",
+   "sig": "(int)WatchableObject",
+   "native": null,
+   "status": "n/a",
+   "note": "private lookup"
+  },
+  {
+   "kind": "method",
+   "name": "updateObject",
+   "sig": "(int,Object)V",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "partial",
+   "note": "writes go straight to the struct field the id maps to; the Entity.func_145781_i callback (the client-side data-changed hook) is not reproduced server-side"
+  },
+  {
+   "kind": "method",
+   "name": "setObjectWatched",
+   "sig": "(int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "hasChanges",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writeWatchedListToPacketBuffer",
+   "sig": "(List,PacketBuffer)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the metadata packet wire format; the native replay carries entity state in tape rows and snapshots, not packets; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getChanged",
+   "sig": "()Ljava/util/List;",
+   "native": null,
+   "status": "n/a",
+   "note": "the per-tick delta list the packet path consumes"
+  },
+  {
+   "kind": "method",
+   "name": "func_151509_a",
+   "sig": "(PacketBuffer)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the full-metadata write, same wire format; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getAllWatched",
+   "sig": "()Ljava/util/List;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writeWatchableObjectToPacketBuffer",
+   "sig": "(PacketBuffer,WatchableObject)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the per-object type/id encoding; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "readWatchedListFromPacketBuffer",
+   "sig": "(PacketBuffer)Ljava/util/List;",
+   "native": null,
+   "status": "n/a",
+   "note": "the client-side decode; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "updateWatchedObjectsFromList",
+   "sig": "(List)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the client-side apply; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getIsBlank",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_111144_e",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "clears the dirty flag"
+  },
+  {
+   "kind": "method",
+   "name": "WatchableObject.getDataValueId",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "nested class accessors; the values live in named struct fields"
+  },
+  {
+   "kind": "method",
+   "name": "WatchableObject.setObject",
+   "sig": "(Object)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "WatchableObject.getObject",
+   "sig": "()Ljava/lang/Object;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "WatchableObject.getObjectType",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "WatchableObject.isWatched",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "WatchableObject.setWatched",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "The tape's d.ents digest exercises every watched value through each kind's writeEntityToNBT, so the state half is gated even though the wire half is absent. id 16's meaning differs per kind (pig saddle, sheep colour, spider climb, creeper state, ghast charge, slime size) and each keeps its own field or bit. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes). Formerly listed as missing: The packet wire format (writeWatchedListToPacketBuffer, func_151509_a, writeWatchableObjectToPacketBuffer, readWatchedListFromPacketBuffer, updateWatchedObjectsFromList): the native replay never serializes entity metadata packets."
+}

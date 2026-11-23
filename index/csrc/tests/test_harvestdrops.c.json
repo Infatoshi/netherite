@@ -1,0 +1,57 @@
+{
+  "path": "csrc/tests/test_harvestdrops.c",
+  "lines": 580,
+  "role": "Gate: replays the oracle's HarvestDropsProbe breaks (3x3x3 context, held stack, world Random seed) through csrc/engine/harvestdrops.c and compares the context after, the held stack, exhaustion, three stat counters and every dropped entity's stack, position, motion and yaw. --cases N (make smoke): the first N cases.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/block/Block.java",
+      "members": [
+        "harvestBlock",
+        "dropBlockAsItemWithChance",
+        "dropBlockAsItem_do",
+        "onBlockDestroyedByPlayer"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayer.java",
+      "members": [
+        "canHarvestBlock",
+        "addExhaustion",
+        "addStat"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityItem.java",
+      "members": [
+        "<init>"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "mismatches",
+      "java": null,
+      "fields": [
+        "mismatch counters and first-failure report"
+      ]
+    },
+    {
+      "name": "rec_ent",
+      "java": "one recorded dropped entity (EntityItem stack, position, motion, yaw)",
+      "fields": [
+        "stack",
+        "pos",
+        "motion",
+        "yaw"
+      ]
+    }
+  ],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/harvestdrops. Native calls: harvestdrops_break (csrc/engine/harvestdrops.c), can_harvest_block, jr_seed/jr_double for the shared Math.random stream (resynchronised after each case by four nextDouble per recorded entity), nbt_parse/nbt_render. world_draws is not compared (drops.c takes the dropBlockAsItem call as a seed). Per-block overrides exercised by the probe include BlockDeadBush, BlockDoublePlant, BlockIce, BlockLeaves, BlockTallGrass, BlockSnow, BlockVine, BlockTripWire (from HarvestDropsProbe.java). Oracle side: oracle/harness/netherite/oracle/HarvestDropsProbe.java. Recordings: out/java/harvestdrops/s2, s42. rec_ent field names summarised, not copied."
+}

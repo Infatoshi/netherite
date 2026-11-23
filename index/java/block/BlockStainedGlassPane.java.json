@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/block/BlockStainedGlassPane.java",
+  "classes": ["BlockStainedGlassPane"],
+  "lines": 81,
+  "side": "common",
+  "category": "block",
+  "role": "Stained glass pane (id 160): the thin BlockPane in 16 dye colors, connects to neighbors like the plain pane, drops nothing, rendered on the alpha pass.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_add_boxes", "pane_connects"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["can_silk_harvest"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["should_side_be_rendered"]},
+    {"file": "csrc/engine/render_blocks3.c", "symbols": ["rb3_pane_top", "rb3_render_stained_glass_pane"]}
+  ],
+  "evidence": ["out/java/rendertick/mv_glass", "out/java/render/mv_glass_gl", "out/java/render/mv_glass_gp", "csrc/tests/test_render.c", "csrc/tests/render_budget.txt", "out/java/clientframes/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150106_a", "sig": "static final IIcon[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_150105_b", "sig": "static final IIcon[]", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "BlockStainedGlassPane", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 160: BlockPane-shaped static properties in the table"},
+    {"kind": "method", "name": "func_149735_b", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks3.c:rb3_render_stained_glass_pane", "status": "exact", "note": "The side icon: getIcon(side, meta) is func_149735_b(side, ~meta & 15), which the table holds per meta; rb3_render_stained_glass_pane reads it through icon_from_side_meta."},
+    {"kind": "method", "name": "func_150104_b", "sig": "(I)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks3.c:rb3_render_stained_glass_pane", "status": "exact", "note": "The pane-top icon field_150105_b[~meta & 15]: rb3_pane_top names glass_pane_top_<colour> from the same colour as the side icon, one per meta, used by rb3_render_stained_glass_pane; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks3.c:rb3_render_stained_glass_pane", "status": "exact", "note": "Table-driven per meta (RenderTable); all 16 colours in mv_glass (a pane drawn with its neighbour's colour measures 1,112 px over 25 against 87)."},
+    {"kind": "method", "name": "damageDropped", "sig": "(I)I", "native": null, "status": "n/a", "note": "Unreachable: the pane drops nothing; silk touch goes through createStackedBlock."},
+    {"kind": "method", "name": "func_150103_c", "sig": "(I)I", "native": null, "status": "n/a", "note": "meta & 15 for icon names only"},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getRenderBlockPass", "sig": "()I", "native": "csrc/engine/render_blocks.c:rb_mesh_section", "status": "exact", "note": "Pass 1 from the table's renderProps; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V", "native": "csrc/engine/render_blocks3.c:rb3_pane_top", "status": "exact", "note": "The side icons are table entries; rb3_pane_top builds the 16 pane-top names; both resolve through the recorded atlas."}
+  ],
+  "missing": [],
+  "notes": "Inherits BlockPane. out/java/rendertick/mv_glass: all 16 colours, panes of different colours touching each other, a plain pane, glass, stained glass and stone; a cross, an L with glass in its corner, a two-high run and lone panes. drops.c case 160 is the no-drop; collide.c's pane_connects names the stained pane class."
+}

@@ -1,0 +1,369 @@
+{
+ "path": "oracle/src/block/BlockRailBase.java",
+ "classes": [
+  "BlockRailBase",
+  "BlockRailBase.Rail"
+ ],
+ "lines": 643,
+ "side": "common",
+ "category": "block",
+ "role": "Abstract rail: the flat or sloped track shape that each rail recomputes from its neighbours when placed or changed (BlockRailBase.Rail), the support rule that pops a rail off, and the breakBlock notifications.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "rail",
+    "is_rail_pos",
+    "rail_set_conns",
+    "rail_init",
+    "rail_at",
+    "rail_conn_refresh",
+    "rail_has_conn_xz",
+    "rail_neighbour_count",
+    "rail_wants",
+    "rail_join",
+    "rail_can_reach",
+    "rail_refresh",
+    "rail_refresh_at",
+    "rail_on_neighbor",
+    "place_rail_on_added",
+    "place_rail_on_neighbor",
+    "can_place_block_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "rail_adjacency",
+    "rail_init",
+    "rail_pick",
+    "rail_connects",
+    "rail_link_at",
+    "rail_refresh",
+    "rail_takes",
+    "rail_linked_takes",
+    "rail_toward",
+    "rail_shape",
+    "rail_support_holds",
+    "rail_side_count",
+    "rail_reshape",
+    "rail_on_added",
+    "rail_neighbor",
+    "is_rail_block",
+    "is_rail_powered_form",
+    "rail_is_at",
+    "bwl_on_broken"
+   ]
+  },
+  {
+   "file": "csrc/engine/world.c",
+   "symbols": [
+    "block_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks2.c",
+   "symbols": [
+    "rb2_render_rail"
+   ]
+  },
+  {
+   "file": "csrc/engine/collide.c",
+   "symbols": [
+    "collide_add_boxes"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "block_bounds",
+    "raytrace_collision"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/place/big2",
+  "out/java/place/big42",
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_structures.c",
+  "out/java/structures/s2",
+  "out/java/raypick/rp-1",
+  "csrc/tests/test_raypick.c",
+  "out/java/snapshots/cov-blkplace-s1",
+  "out/java/snapshots/cov-blkpower-s1",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150053_a",
+   "sig": "boolean",
+   "native": "csrc/engine/blockcb.c:is_rail_powered_form",
+   "status": "exact",
+   "note": "the powered-form flag (golden, detector, activator)"
+  },
+  {
+   "kind": "method",
+   "name": "func_150049_b_",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/blockcb.c:rail_is_at",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150051_a",
+   "sig": "(Block)Z",
+   "native": "csrc/engine/blockcb.c:is_rail_block",
+   "status": "exact",
+   "note": "class-name test"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRailBase",
+   "sig": "(Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 27, 28, 66, 157: circuits, bounds 0..0.125"
+  },
+  {
+   "kind": "method",
+   "name": "func_150050_e",
+   "sig": "()Z",
+   "native": "csrc/engine/blockcb.c:is_rail_powered_form",
+   "status": "exact",
+   "note": "render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(World,III)AxisAlignedBB",
+   "native": "csrc/engine/collide.c:collide_add_boxes",
+   "status": "exact",
+   "note": "no box"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "collisionRayTrace",
+   "sig": "(World,IIIVec3,Vec3)MovingObjectPosition",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsBasedOnState",
+   "sig": "(IBlockAccess,III)V",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/render_blocks2.c:rb2_render_rail",
+   "status": "exact",
+   "note": "9"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Random)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "default 1"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockAt",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/place.c:can_place_block_at",
+   "status": "exact",
+   "note": "solid top below"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:rail_on_added",
+   "status": "exact",
+   "note": "func_150052_a(place=true), then the powered forms' neighbour check; place.c place_rail_on_added is the placement-probe copy"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:rail_neighbor",
+   "status": "exact",
+   "note": "support tests by slope, drop, then func_150048_a"
+  },
+  {
+   "kind": "method",
+   "name": "func_150048_a",
+   "sig": "(World,IIIIIBlock)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in the base"
+  },
+  {
+   "kind": "method",
+   "name": "func_150052_a",
+   "sig": "(World,IIIZ)V",
+   "native": "csrc/engine/blockcb.c:rail_reshape",
+   "status": "exact",
+   "note": "Rail(...).func_150655_a(powered, place); powered is always false with redstone off"
+  },
+  {
+   "kind": "method",
+   "name": "getMobilityFlag",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "n/a",
+   "note": "piston push rule; pistons never move"
+  },
+  {
+   "kind": "method",
+   "name": "breakBlock",
+   "sig": "(World,IIIBlockI)V",
+   "native": "csrc/engine/blockcb.c:bwl_on_broken",
+   "status": "exact",
+   "note": "slope notifies above; powered forms notify self and below; called from world.c block_break"
+  },
+  {
+   "kind": "ctor",
+   "name": "Rail",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:rail_init",
+   "status": "exact",
+   "note": "meta with bit 8 masked for the powered forms"
+  },
+  {
+   "kind": "field",
+   "name": "Rail fields",
+   "sig": "World, x, y, z, powered flag, List<ChunkPosition> connections",
+   "native": "csrc/engine/blockcb.c:rail",
+   "status": "exact",
+   "note": "fixed two-slot connection array instead of an ArrayList"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150648_a",
+   "sig": "(I)V",
+   "native": "csrc/engine/blockcb.c:rail_adjacency",
+   "status": "exact",
+   "note": "the ten-shape connection table"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150651_b",
+   "sig": "()V",
+   "native": "csrc/engine/blockcb.c:rail_refresh",
+   "status": "exact",
+   "note": "retarget or drop each connection"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150646_a",
+   "sig": "(III)Z",
+   "native": "csrc/engine/blockcb.c:rail_is_at",
+   "status": "exact",
+   "note": "at y, y+1 or y-1"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150654_a",
+   "sig": "(ChunkPosition)Rail",
+   "native": "csrc/engine/blockcb.c:rail_pick",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150653_a",
+   "sig": "(Rail)Z",
+   "native": "csrc/engine/blockcb.c:rail_connects",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150652_b",
+   "sig": "(III)Z",
+   "native": "csrc/engine/blockcb.c:rail_link_at",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150650_a",
+   "sig": "()I",
+   "native": "csrc/engine/blockcb.c:rail_side_count",
+   "status": "exact",
+   "note": "used by BlockRail's re-curve"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150649_b",
+   "sig": "(Rail)Z",
+   "native": "csrc/engine/blockcb.c:rail_takes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150645_c",
+   "sig": "(Rail)V",
+   "native": "csrc/engine/blockcb.c:rail_toward",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150647_c",
+   "sig": "(III)Z",
+   "native": "csrc/engine/blockcb.c:rail_linked_takes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Rail.func_150655_a",
+   "sig": "(ZZ)V",
+   "native": "csrc/engine/blockcb.c:rail_shape",
+   "status": "exact",
+   "note": "the shape pick, the power-dependent curve order, the write and the neighbour re-joins"
+  },
+  {
+   "kind": "method",
+   "name": "func_150646_a",
+   "sig": "(III)Z",
+   "native": "csrc/engine/blockcb.c:rail_link_at",
+   "status": "exact",
+   "note": "a linked position test while rails connect (cov-blkpower-s1 builds a T)"
+  },
+  {
+   "kind": "method",
+   "name": "func_150650_a",
+   "sig": "()I",
+   "native": "csrc/engine/blockcb.c:rail_side_count",
+   "status": "exact",
+   "note": "the adjacent rail count BlockRail.func_150048_a tests against 3 when a power provider changes beside a junction (cov-blkpower-s1)"
+  }
+ ],
+ "missing": [],
+ "notes": "Two rail-shape machines exist: place.c (struct rail, rail_refresh) for the placement path and blockcb.c (struct rail, rail_shape) for onBlockAdded/neighbour callbacks; they should be merged before the GPU port. Rails generate in mineshaft corridors (mineshaft_blocks.c) and are placeable; minecarts themselves are off (world.conf minecarts = off)."
+}

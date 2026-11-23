@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/entity/ai/RandomPositionGenerator.java",
+  "classes": ["RandomPositionGenerator"],
+  "lines": 109,
+  "side": "server",
+  "category": "ai",
+  "role": "Picks wander/panic/shelter destinations: draws 10 random candidates in an xz/y range, drops candidates against a direction vector, keeps home-radius candidates only, and returns the one with the best block-path weight.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["random_target_block", "random_target", "random_target_towards", "random_target_away_from"]}
+  ],
+  "evidence": ["out/java/snapshots/mobspawn-final-s1", "out/java/snapshots/rc-animals-s1", "csrc/tests/test_animals.c", "csrc/tests/test_paths.c", "out/java/snapshots/villager-flee-s42", "out/java/snapshots/golem-fight-s42"],
+  "members": [
+    {"kind": "field", "name": "staticVector", "sig": "static Vec3", "native": null, "status": "n/a", "note": "a shared static cache; the native code passes the direction as arguments instead, which also removes the Java threading hazard"},
+    {"kind": "method", "name": "findRandomTarget", "sig": "(EntityCreature,int,int)Vec3", "native": "csrc/engine/ai.c:random_target", "status": "exact", "note": "no direction vector; used by wander, panic and play"},
+    {"kind": "method", "name": "findRandomTargetBlockTowards", "sig": "(EntityCreature,int,int,Vec3)Vec3", "native": "csrc/engine/ai.c:random_target_towards", "status": "exact", "note": "the dot-product >= 0 direction filter; used by moveIndoors, moveThroughVillage, moveTowardsRestriction and moveTowardsTarget"},
+    {"kind": "method", "name": "findRandomTargetBlockAwayFrom", "sig": "(EntityCreature,int,int,Vec3)Vec3", "native": "csrc/engine/ai.c:random_target_away_from", "status": "exact", "note": "the vector from the avoided entity to the creature, into random_target_block"},
+    {"kind": "method", "name": "findRandomTargetBlock", "sig": "(EntityCreature,int,int,Vec3)Vec3", "native": "csrc/engine/ai.c:random_target_block", "status": "exact", "note": "the 10-candidate scan: the home-radius guard, the per-candidate RNG draws in Java's order, and the blockPathWeight pick (animals use animal_get_block_path_weight, hostiles the 0.5 - brightness light weight)"},
+    {"kind": "ctor", "name": "RandomPositionGenerator", "sig": "()V", "native": null, "status": "n/a", "note": "n/a: a static-only class; nothing in oracle/src constructs it (no new RandomPositionGenerator())"}
+  ],
+  "missing": [],
+  "notes": "The blockPathWeight dispatch in random_target_block covers the animal kinds and the zombie-through-spider, witch and pigman light weight; the squid, bat, ghast, blaze, slime and enderman kinds fall through with weight 0.0, which matches the Java defaults only where those kinds never call the generator."
+}

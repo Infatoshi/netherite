@@ -1,0 +1,59 @@
+{
+ "path": "csrc/tests/test_servertick.c",
+ "lines": 762,
+ "role": "Gate: WorldServer.tick through servertick_tick (csrc/engine/servertick.c) against ServerTickProbe recordings (out/java/servertick/<name>/): per tick the block write rows, spawned entities (item, falling block, lightning), world scalars (rand, updateLCG, clocks, weather, skylightSubtracted, ambientTickCountdown), the pending tick set and Det SERVER digests; stops at the first divergence.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "tick",
+    "func_147456_g",
+    "updateWeather",
+    "tickUpdates"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateWeather",
+    "calculateSkylightSubtracted"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityFallingBlock.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/effect/EntityLightningBolt.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/ServerTickProbe.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/Snapshot.java",
+   "members": []
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 39-40: static fails, path",
+  "line 180-188: static rows/wbytes/slines buffers",
+  "line 196, dup_line: malloc",
+  "line 319, main: realloc"
+ ],
+ "tests": [
+  "csrc/tests/test_servertick.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Exercises servertick.c, snapshot.c, ticks.c, det.c, tape.c. Java member names grepped in WorldServer.java and World.java (func_147456_g is the block tick and ambiance pass)."
+}

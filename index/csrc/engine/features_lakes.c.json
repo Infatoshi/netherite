@@ -1,0 +1,31 @@
+{
+ "path": "csrc/engine/features_lakes.c",
+ "lines": 670,
+ "role": "The lakes lane's population features ported literally: WorldGenLakes (water and lava, with grass/mycelium restore, lava stone rim and ice freeze), WorldGenBigMushroom (brown, red, or colour drawn), WorldGenDesertWells, WorldGenIceSpike and WorldGenIcePath, plus the shared biome lookup and temperature-with-height helper.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenLakes.java", "members": ["WorldGenLakes", "generate", "field_150556_a"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenBigMushroom.java", "members": ["WorldGenBigMushroom", "generate", "mushroomType"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenDesertWells.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenIceSpike.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenIcePath.java", "members": ["WorldGenIcePath", "generate", "field_150555_a", "field_150554_b"]},
+  {"path": "oracle/src/world/World.java", "members": ["getBiomeGenForCoords", "isBlockFreezable", "canBlockFreeze", "isAirBlock"]},
+  {"path": "oracle/src/world/biome/BiomeGenBase.java", "members": ["getFloatTemperature", "field_150605_ac"]},
+  {"path": "oracle/src/util/MathHelper.java", "members": ["ceiling_float_int", "abs_int"]}
+ ],
+ "structs": [
+  {"name": "LAKES", "java": "the lakes lane's rows of FeatureProbe.FEATURES (waterlake, lavalake, bigmushroom x3, desertwell, icespike, icepath)", "fields": ["name", "config", "y0", "y1", "margin", "block", "count", "generate"]},
+  {"name": "TEMP_NOISE", "java": "BiomeGenBase.field_150605_ac, NoiseGeneratorPerlin(new Random(1234L), 1)", "fields": []}
+ ],
+ "entry_points": ["features_lakes_for", "biome_at", "biome_temperature"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 165, function feature_lake: while loop down the column bounded by y > 5",
+  "lines 415, 473, 575: while loops down the column bounded by y > 2 (desert well, ice spike, ice path)",
+  "lines 537-562, function feature_icespike: for(;;) column fill bounded by var11 > 50",
+  "line 171, function feature_lake: 2 KB stack mask array"
+ ],
+ "tests": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "Each feature's per-feature-probe row matches the rows the lakes lane appended to oracle/harness/netherite/oracle/FeatureProbe.java. The BigMushroom constructor's notify flag is ignored (writes use flag 2) with the claim that nothing observes it. Surface rows carry a zero y band; the probe takes y from the height map."
+}

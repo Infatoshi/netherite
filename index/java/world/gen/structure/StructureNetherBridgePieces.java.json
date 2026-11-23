@@ -1,0 +1,762 @@
+{
+ "path": "oracle/src/world/gen/structure/StructureNetherBridgePieces.java",
+ "classes": [
+  "StructureNetherBridgePieces",
+  "StructureNetherBridgePieces.Corridor",
+  "StructureNetherBridgePieces.Corridor2",
+  "StructureNetherBridgePieces.Corridor3",
+  "StructureNetherBridgePieces.Corridor4",
+  "StructureNetherBridgePieces.Corridor5",
+  "StructureNetherBridgePieces.Crossing",
+  "StructureNetherBridgePieces.Crossing2",
+  "StructureNetherBridgePieces.Crossing3",
+  "StructureNetherBridgePieces.End",
+  "StructureNetherBridgePieces.Entrance",
+  "StructureNetherBridgePieces.NetherStalkRoom",
+  "StructureNetherBridgePieces.Piece",
+  "StructureNetherBridgePieces.PieceWeight",
+  "StructureNetherBridgePieces.Stairs",
+  "StructureNetherBridgePieces.Start",
+  "StructureNetherBridgePieces.Straight",
+  "StructureNetherBridgePieces.Throne"
+ ],
+ "lines": 1429,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The Nether fortress pieces: the weighted picker that grows a fortress from its start crossing, each piece's box and children (buildComponent), each piece's blocks, chests, blaze spawners, lava and nether wart (addComponentParts), and their NBT.",
+ "scope": "in_scope",
+ "scope_reason": "SPEC Decisions: all worldgen is vanilla, the Nether included; fortresses also set the Nether spawn lists (blazes, wither skeletons).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/fortress.c",
+   "symbols": [
+    "structure_fortress",
+    "fortress_build_component",
+    "fortress_create",
+    "fortress_end",
+    "get_next_component",
+    "fortress_next",
+    "next_normal",
+    "next_x",
+    "next_z",
+    "weight_total",
+    "weight_has_room",
+    "primary_weights",
+    "secondary_weights",
+    "ids",
+    "shapes",
+    "fortress_make_start"
+   ]
+  },
+  {
+   "file": "csrc/engine/fortress_blocks.c",
+   "symbols": [
+    "fortress_blocks",
+    "crossing3_parts",
+    "straight_parts",
+    "corridor_parts",
+    "corridor2_parts",
+    "corridor3_parts",
+    "corridor4_parts",
+    "corridor5_parts",
+    "crossing_parts",
+    "crossing2_parts",
+    "stairs_parts",
+    "throne_parts",
+    "end_parts",
+    "entrance_parts",
+    "nether_stalk_parts",
+    "corridor_chest"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure.c",
+   "symbols": [
+    "piece_nbt",
+    "piece_build_component"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure.h",
+   "symbols": [
+    "fortress_kind",
+    "fortress_weight"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/structures/nf-2",
+  "out/java/structures/nf-42",
+  "out/java/sblocks/fo-s2a",
+  "out/java/sblocks/fo-s42a",
+  "out/java/populate/hell2",
+  "out/java/populate/hell42",
+  "out/java/fortress_spawn/fs-2",
+  "out/java/snapshots/nether-trip-s1",
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_fortress_spawn.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "primaryComponents, secondaryComponents",
+   "sig": "static PieceWeight[] (6 and 7 entries)",
+   "native": "csrc/engine/fortress.c:primary_weights",
+   "status": "exact",
+   "note": "secondary_weights beside it; each start copies them into its own store."
+  },
+  {
+   "kind": "method",
+   "name": "func_143049_a",
+   "sig": "()V (registers the piece ids)",
+   "native": "csrc/engine/fortress.c:ids",
+   "status": "exact",
+   "note": "Registry names NeBCr, NeBEF, ... as each piece's NBT id."
+  },
+  {
+   "kind": "method",
+   "name": "createNextComponentRandom",
+   "sig": "(PieceWeight,List,Random,int,int,int,int,int)Piece",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "The class switch is the kind argument; each createValidComponent is the shape table plus fortress_create."
+  },
+  {
+   "kind": "field",
+   "name": "Corridor.field_111021_b",
+   "sig": "boolean (chest placed)",
+   "native": "csrc/engine/structure.h:chest",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Corridor",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Draws the chest flag nextInt(3)==0 after the box test."
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads Chest from saved NBT; native never loads piece NBT.; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Corridor",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:corridor_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Corridor2.field_111020_b",
+   "sig": "boolean (chest placed)",
+   "native": "csrc/engine/structure.h:chest",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Corridor2",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Draws the chest flag nextInt(3)==0 after the box test."
+  },
+  {
+   "kind": "method",
+   "name": "Corridor2.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads Chest from saved NBT; native never loads piece NBT.; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor2.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor2.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor2.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Corridor2",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Corridor2.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:corridor2_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Corridor3",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor3.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor3.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Corridor3",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Corridor3.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:corridor3_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Corridor4",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor4.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor4.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Corridor4",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Corridor4.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:corridor4_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Corridor5",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor5.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor5.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Corridor5",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Corridor5.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:corridor5_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Crossing",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Crossing",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Crossing.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:crossing_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Crossing2",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing2.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing2.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Crossing2",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Crossing2.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:crossing2_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Crossing3",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing3.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing3.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Crossing3",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Crossing3.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:crossing3_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Entrance",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Entrance.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Entrance.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Entrance",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Entrance.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:entrance_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "NetherStalkRoom",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "NetherStalkRoom.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "NetherStalkRoom.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)NetherStalkRoom",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "NetherStalkRoom.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:nether_stalk_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Stairs",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stairs.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stairs.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Stairs",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Stairs.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:stairs_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Straight",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Straight.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/fortress.c:fortress_build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Straight.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Straight",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Shape from the shapes table; refused below y 11 or on overlap."
+  },
+  {
+   "kind": "method",
+   "name": "Straight.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:straight_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Crossing3",
+   "sig": "(Random,int,int) (the start's own constructor)",
+   "native": "csrc/engine/fortress.c:fortress_make_start",
+   "status": "exact",
+   "note": "coordBaseMode draw then the fixed 19x19 box at y 64..73."
+  },
+  {
+   "kind": "field",
+   "name": "End.fillSeed",
+   "sig": "int",
+   "native": "csrc/engine/structure.h:fill_seed",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "End",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "Draws fillSeed = nextInt() after the box test."
+  },
+  {
+   "kind": "method",
+   "name": "End.func_74971_a",
+   "sig": "(List,Random,int,int,int,int,int)End",
+   "native": "csrc/engine/fortress.c:fortress_end",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "End.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads Seed from saved NBT; native never loads piece NBT.; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "End.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "End.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:end_parts",
+   "status": "exact",
+   "note": "Fills draw from a Random seeded with fillSeed."
+  },
+  {
+   "kind": "field",
+   "name": "Throne.hasSpawner",
+   "sig": "boolean",
+   "native": "csrc/engine/structure.h:has_spawner",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Throne",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Throne.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads Mob from saved NBT; native never loads piece NBT.; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "Throne.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Throne.createValidComponent",
+   "sig": "(List,Random,int,int,int,int,int)Throne",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Throne.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress_blocks.c:throne_parts",
+   "status": "exact",
+   "note": "Places the blaze spawner once."
+  },
+  {
+   "kind": "ctor",
+   "name": "Piece",
+   "sig": "() / (int)",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Piece.func_143011_b / Piece.func_143012_a",
+   "sig": "(NBTTagCompound)V (empty base bodies)",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact",
+   "note": "Empty in the base; the writer is exact, the reader has no native counterpart."
+  },
+  {
+   "kind": "method",
+   "name": "Piece.getTotalWeight",
+   "sig": "(List)I",
+   "native": "csrc/engine/fortress.c:weight_total",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Piece.getNextComponent",
+   "sig": "(Start,List,List,Random,int,int,int,int,int)Piece",
+   "native": "csrc/engine/fortress.c:get_next_component",
+   "status": "exact",
+   "note": "The weighted pick, at most five tries, then a dead end."
+  },
+  {
+   "kind": "method",
+   "name": "Piece.getNextComponent",
+   "sig": "(Start,List,Random,int,int,int,int,int,boolean)StructureComponent",
+   "native": "csrc/engine/fortress.c:fortress_next",
+   "status": "exact",
+   "note": "The 112-block reach check and the pending queue add."
+  },
+  {
+   "kind": "method",
+   "name": "Piece.getNextComponentNormal",
+   "sig": "(Start,List,Random,int,int,boolean)StructureComponent",
+   "native": "csrc/engine/fortress.c:next_normal",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Piece.getNextComponentX",
+   "sig": "(Start,List,Random,int,int,boolean)StructureComponent",
+   "native": "csrc/engine/fortress.c:next_x",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Piece.getNextComponentZ",
+   "sig": "(Start,List,Random,int,int,boolean)StructureComponent",
+   "native": "csrc/engine/fortress.c:next_z",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Piece.isAboveGround",
+   "sig": "(StructureBoundingBox)Z",
+   "native": "csrc/engine/fortress.c:fortress_create",
+   "status": "exact",
+   "note": "The minY > 10 test inline."
+  },
+  {
+   "kind": "field",
+   "name": "PieceWeight.weightClass, field_78826_b, field_78827_c, field_78824_d, field_78825_e",
+   "sig": "Class, int weight, int spawned, int limit, boolean repeat",
+   "native": "csrc/engine/structure.h:fortress_weight",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "PieceWeight",
+   "sig": "(Class,int,int,boolean) / (Class,int,int)",
+   "native": "csrc/engine/fortress.c:primary_weights",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PieceWeight.func_78822_a",
+   "sig": "(int)Z",
+   "native": "csrc/engine/fortress.c:weight_has_room",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PieceWeight.func_78823_a",
+   "sig": "()Z",
+   "native": "csrc/engine/fortress.c:weight_has_room",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Start.theNetherBridgePieceWeight",
+   "sig": "PieceWeight",
+   "native": "csrc/engine/structure.h:last",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Start.primaryWeights, Start.secondaryWeights",
+   "sig": "List<PieceWeight>",
+   "native": "csrc/engine/structure.h:primary",
+   "status": "exact",
+   "note": "Per-start pointer arrays into the piece's own store copy."
+  },
+  {
+   "kind": "field",
+   "name": "Start.field_74967_d",
+   "sig": "ArrayList (pending pieces)",
+   "native": "csrc/engine/structure.h:pending",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Start",
+   "sig": "() / (Random,int,int)",
+   "native": "csrc/engine/fortress.c:fortress_make_start",
+   "status": "exact",
+   "note": "Copies both weight tables with counters reset."
+  },
+  {
+   "kind": "method",
+   "name": "Start.func_143011_b / Start.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "partial",
+   "note": "Only the super calls; the writer is covered, the reader is not ported."
+  },
+  {
+   "kind": "ctor",
+   "name": "StructureNetherBridgePieces",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a class of static members only: nothing in oracle/src constructs it (no `new StructureNetherBridgePieces`), so its implicit constructor never runs"
+  }
+ ],
+ "missing": [],
+ "notes": "Piece construction (fortress.c) and blocks (fortress_blocks.c) are ported class by class with Java's draw order in comments; the piece tree is checked against oracle start dumps (test_structures on out/java/structures/nf-*) and the block writes against StructureBlocksProbe dumps (fo-s2a, fo-s42a). I did not run the tests or read each evidence manifest. The pending-queue drain and setRandomHeight(48,70) live in MapGenNetherBridge.Start (another file) and are ported in fortress_make_start. GPU note: pieces are calloc'd per piece and joined by pointers (struct start, pending list). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the chest and spawner flags are read only while populating the chunk holding the target block, which already ran before any save; a rebuilt piece cannot re-place them. Formerly listed as missing: Reading a piece's saved NBT (func_143011_b: Chest, Seed, Mob) has no native counterpart; native rebuilds fortress starts from the seed, so a chest or spawner flag already set in a saved world is not restored from disk."
+}

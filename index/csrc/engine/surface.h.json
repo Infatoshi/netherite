@@ -1,0 +1,47 @@
+{
+ "path": "csrc/engine/surface.h",
+ "lines": 34,
+ "role": "Declares the surface pass (surface.c): struct surface, the biome objects' carried state, and surface_init and surface_pass.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "func_147422_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenMesa.java",
+   "members": [
+    "field_150621_aC",
+    "field_150625_aG",
+    "field_150623_aE",
+    "field_150624_aF"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "struct surface",
+   "java": "BiomeGenBase.topBlock per biome object and BiomeGenMesa's band and noise fields",
+   "fields": [
+    "top",
+    "bands",
+    "band_shift",
+    "spire",
+    "spire_cap"
+   ]
+  }
+ ],
+ "entry_points": [
+  "surface_init",
+  "surface_pass",
+  "surface_tops_merge"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_worldgen.c"
+ ],
+ "notes": "Header only; struct surface is flat fixed-size state."
+}

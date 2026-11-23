@@ -1,0 +1,38 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenForest.java",
+  "classes": ["BiomeGenForest", "BiomeGenForest$1 (anonymous BiomeGenMutated, Roofed Forest M)", "BiomeGenForest$2 (anonymous BiomeGenMutated, Birch Forest M)"],
+  "lines": 228,
+  "side": "common",
+  "category": "worldgen",
+  "role": "Forest (4), ForestHills (18), Birch Forest (27, 28), Roofed Forest (29) and Flower Forest (132): tree choice by forest type, the roofed forest's 4x4 canopy/mushroom patch, a double-plant sweep before the decorator, the flower forest's noise flower choice and the roofed forest's darkened grass colour.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions). The wolf spawn row is switched off (world.conf wolves = off).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of", "choice_of", "place_tree", "TR_FOREST", "TR_MUTBIRCH", "flower_choice", "forest_patch_pre", "forest_flower_loop", "shape_of", "delegates_to_base"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["biome_color"]},
+    {"file": "csrc/engine/render_blocks.h", "symbols": ["RB_KIND_ROOFED"]},
+    {"file": "csrc/engine/features_trees_small.c", "symbols": ["feature_forest"]},
+    {"file": "csrc/engine/features_trees.c", "symbols": ["feature_canopy"]},
+    {"file": "csrc/engine/randomtick.c", "symbols": ["flower_pick"]}
+  ],
+  "evidence": ["csrc/tests/test_populate.c", "csrc/tests/test_meshes.c", "out/java/populate", "out/java/snapshots/bonemeal-ff-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150632_aF", "sig": "int (forest type 0-3)", "native": "csrc/engine/decorator.c:shape_of", "status": "exact", "note": "bshape.aF and the choice_of type"},
+    {"kind": "field", "name": "field_150629_aC", "sig": "static WorldGenForest (vined birch)", "native": "csrc/engine/features_trees_small.c:feature_forest", "status": "exact", "note": "count argument 1"},
+    {"kind": "field", "name": "field_150630_aD", "sig": "static WorldGenForest (birch)", "native": "csrc/engine/features_trees_small.c:feature_forest", "status": "exact"},
+    {"kind": "field", "name": "field_150631_aE", "sig": "static WorldGenCanopyTree", "native": "csrc/engine/features_trees.c:feature_canopy", "status": "exact"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id (all three classes)"},
+    {"kind": "ctor", "name": "BiomeGenForest", "sig": "(int,int)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "counts per type; climate in BIOMES; wolf row off by world.conf"},
+    {"kind": "method", "name": "func_150557_a", "sig": "(int,boolean)BiomeGenBase", "native": null, "status": "n/a", "note": "map colour only (color, field_150609_ah); no native use found"},
+    {"kind": "method", "name": "func_150567_a", "sig": "(Random)WorldGenAbstractTree", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "TR_FOREST with type"},
+    {"kind": "method", "name": "func_150572_a", "sig": "(Random,int,int,int)String", "native": "csrc/engine/decorator.c:flower_choice", "status": "exact", "note": "case 132, /48 noise; bone meal on grass: randomtick.c:flower_pick"},
+    {"kind": "method", "name": "decorate", "sig": "(World,Random,int,int)V", "native": "csrc/engine/decorator.c:forest_flower_loop", "status": "exact", "note": "forest_patch_pre for type 3, then the double-plant sweep"},
+    {"kind": "method", "name": "getBiomeGrassColor", "sig": "(int,int,int)I", "native": "csrc/engine/render_blocks.c:biome_color", "status": "exact", "note": "RB_KIND_ROOFED"},
+    {"kind": "method", "name": "func_150566_k", "sig": "()BiomeGenBase", "native": "csrc/engine/decorator.c:delegates_to_base", "status": "exact", "note": "132 Flower Forest; 157 runs the base's decorate (shape_of case 157); 155/156 pick nextBoolean between the two birch generators (TR_MUTBIRCH)"},
+    {"kind": "method", "name": "$1.decorate", "sig": "(World,Random,int,int)V", "native": "csrc/engine/decorator.c:shape_of", "status": "exact", "note": "157 shares the roofed forest's shape"},
+    {"kind": "method", "name": "$2.func_150567_a", "sig": "(Random)WorldGenAbstractTree", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "TR_MUTBIRCH"}
+  ],
+  "missing": [],
+  "notes": "Wolves are a world.conf switch, so the wolf row is n/a."
+}

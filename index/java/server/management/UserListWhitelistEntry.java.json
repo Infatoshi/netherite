@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/server/management/UserListWhitelistEntry.java",
+  "classes": ["UserListWhitelistEntry"],
+  "lines": 54,
+  "side": "server",
+  "category": "server",
+  "role": "One whitelist.json entry: a GameProfile serialized with uuid and name.",
+  "scope": "not_needed",
+  "scope_reason": "Only built by UserListWhitelist and ServerConfigurationManager.func_152601_d; the whitelist is never enabled in the oracle.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "UserListWhitelistEntry", "sig": "(GameProfile)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "UserListWhitelistEntry", "sig": "(JsonObject)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152641_a", "sig": "(JsonObject)V", "native": null, "status": "n/a", "note": "write uuid and name"},
+    {"kind": "method", "name": "func_152646_b", "sig": "(JsonObject)GameProfile", "native": null, "status": "n/a", "note": "read uuid and name"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

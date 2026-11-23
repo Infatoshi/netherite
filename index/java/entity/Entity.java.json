@@ -1,0 +1,1705 @@
+{
+ "path": "oracle/src/entity/Entity.java",
+ "classes": [
+  "Entity",
+  "Entity.EnumEntitySize",
+  "Entity.SwitchEnumEntitySize"
+ ],
+ "lines": 2608,
+ "side": "common",
+ "category": "entity",
+ "role": "The base entity: position/motion/bounding-box state, moveEntity's collision sweep, the base tick (fire, water, lava, portal), NBT round-trip, riding, dimension travel, and the watched flags.",
+ "scope": "in_scope",
+ "scope_reason": "Every entity's state and movement flow through these fields and moveEntity; the tape digests gate them.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/entity.c",
+   "symbols": [
+    "entity_init",
+    "entity_set_size",
+    "entity_set_position",
+    "entity_set_in_web",
+    "entity_move",
+    "entity_move_ex",
+    "entity_is_wet"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity.h",
+   "symbols": [
+    "struct entity"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity_nbt.c",
+   "symbols": [
+    "ent_nbt_base"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_base_entity_update",
+    "living_set_fire",
+    "living_fall_state",
+    "living_apply_entity_collision",
+    "living_set_dead",
+    "living_write_nbt",
+    "living_kind_name",
+    "living_update_entity"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "portal_transfer_entity",
+    "sr_living_portal_travel",
+    "sr_ie_portal_travel",
+    "sr_travel_place",
+    "sr_ie_copy"
+   ]
+  },
+  {
+   "file": "csrc/engine/item_entity.c",
+   "symbols": [
+    "ie_spawn_item",
+    "push_out_of_blocks"
+   ]
+  },
+  {
+   "file": "csrc/engine/snapshot_entities.c",
+   "symbols": [
+    "sr_living_from_nbt",
+    "sr_living_copy_nbt"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/phys-sneakedge-s1",
+  "csrc/tests/test_move.c",
+  "out/java/moves/mv-2",
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/walk300-s1",
+  "out/java/snapshots/nether-trip-s1",
+  "csrc/tests/test_dragon.c",
+  "out/java/snapshots/portal-mobs-s42",
+  "out/java/snapshots/portal-pigspawn-s1",
+  "out/java/snapshots/endportal-ents-s1",
+  "out/java/snapshots/portal-foreign-s1",
+  "out/java/snapshots/end-exit-mob-s1",
+  "out/java/snapshots/portal-proj-s1",
+  "out/java/snapshots/arrow-endportal-s1",
+  "out/java/snapshots/pfc-portalpig-s3",
+  "out/java/snapshots/pfc-dimload-g7",
+  "out/java/snapshots/pfc-portalghost-s3",
+  "out/java/snapshots/pfc-fallportal-f365",
+  "out/java/snapshots/pfc-arrowportal-s18"
+ ],
+ "missing": [],
+ "notes": "Entity.java is the base of everything with an id; the record cites the shared core in entity.c and the living-side ports in living.c. The move gate is test_move.c against the oracle's Move.java probe (out/java/moves). Player-specific and item-specific halves of the base tick live in survival.c and item_entity.c and are indexed under those files. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): updateRidden runs (living.c:2739, update_ridden set in serverreplay.c) and the network fields are client plumbing; record is wrong on riding. Formerly listed as missing: setPositionAndRotation2 (the teleport-ack reposition with the stuck-box lift) has no counterpart; the portal transfer repositions directly. The network tracking fields (serverPosX/Y/Z), the render culling fields and EnumEntitySize.multiplyBy32AndRound: never reached server-side.",
+ "members": [
+  {
+   "kind": "field",
+   "name": "nextEntityID",
+   "sig": "static int",
+   "native": "csrc/engine/det.c:det_next_entity_id",
+   "status": "exact",
+   "note": "per-role ID ranges (the oracle's Det.nextEntityId); never a shared counter"
+  },
+  {
+   "kind": "field",
+   "name": "field_145783_c",
+   "sig": "int",
+   "native": "csrc/engine/living.h:entity_id",
+   "status": "exact",
+   "note": "the entity id, stamped by the same Det range"
+  },
+  {
+   "kind": "field",
+   "name": "renderDistanceWeight",
+   "sig": "double",
+   "native": null,
+   "status": "n/a",
+   "note": "render culling only"
+  },
+  {
+   "kind": "field",
+   "name": "preventEntitySpawning",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:prevent_entity_spawning",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "riddenByEntity",
+   "sig": "Entity",
+   "native": "csrc/engine/living.h:riding_entity",
+   "status": "partial",
+   "note": "the riding graph is one direction (a living's vehicle); the reverse pointer is implicit in the vehicle's mount record"
+  },
+  {
+   "kind": "field",
+   "name": "ridingEntity",
+   "sig": "Entity",
+   "native": "csrc/engine/living.h:riding_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "forceSpawn",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "spawn-in unloaded-chunk guard; the native spawner drives placement itself"
+  },
+  {
+   "kind": "field",
+   "name": "worldObj",
+   "sig": "World",
+   "native": "csrc/engine/entity.h:world",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevPosX",
+   "sig": "double",
+   "native": "csrc/engine/entity.h:prev_pos_x",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevPosY",
+   "sig": "double",
+   "native": "csrc/engine/entity.h:prev_pos_y",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevPosZ",
+   "sig": "double",
+   "native": "csrc/engine/entity.h:prev_pos_z",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "posX",
+   "sig": "double",
+   "native": "csrc/engine/entity.h:pos_x",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "posY",
+   "sig": "double",
+   "native": "csrc/engine/entity.h:pos_y",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "posZ",
+   "sig": "double",
+   "native": "csrc/engine/entity.h:pos_z",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "motionX",
+   "sig": "double",
+   "native": "csrc/engine/entity.h:motion_x",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "motionY",
+   "sig": "double",
+   "native": "csrc/engine/entity.h:motion_y",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "motionZ",
+   "sig": "double",
+   "native": "csrc/engine/entity.h:motion_z",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rotationYaw",
+   "sig": "float",
+   "native": "csrc/engine/living.h:rotation_yaw",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rotationPitch",
+   "sig": "float",
+   "native": "csrc/engine/living.h:rotation_pitch",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevRotationYaw",
+   "sig": "float",
+   "native": "csrc/engine/living.h:prev_rotation_yaw",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevRotationPitch",
+   "sig": "float",
+   "native": "csrc/engine/living.h:prev_rotation_pitch",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "boundingBox",
+   "sig": "AxisAlignedBB",
+   "native": "csrc/engine/entity.h:bounding_box",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "onGround",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:on_ground",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "isCollidedHorizontally",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:is_collided_horizontally",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "isCollidedVertically",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:is_collided_vertically",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "isCollided",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:is_collided",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "velocityChanged",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:velocity_changed",
+   "status": "exact",
+   "note": "setBeenAttacked sets it; the velocity-changed server-to-client push is a packet the replay does not send"
+  },
+  {
+   "kind": "field",
+   "name": "isInWeb",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:is_in_web",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_70135_K",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:field_70135_K",
+   "status": "exact",
+   "note": "the constructor's true; moveEntity's zero-the-motion-when-blocked gate"
+  },
+  {
+   "kind": "field",
+   "name": "isDead",
+   "sig": "boolean",
+   "native": "csrc/engine/living.h:is_dead",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "yOffset",
+   "sig": "float",
+   "native": "csrc/engine/entity.h:y_offset",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "width",
+   "sig": "float",
+   "native": "csrc/engine/entity.h:width",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "height",
+   "sig": "float",
+   "native": "csrc/engine/entity.h:height",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevDistanceWalkedModified",
+   "sig": "float",
+   "native": "csrc/engine/living.h:prev_distance_walked_modified",
+   "status": "exact",
+   "note": "carried on the living struct; the plain-entity probe keeps it too"
+  },
+  {
+   "kind": "field",
+   "name": "distanceWalkedModified",
+   "sig": "float",
+   "native": "csrc/engine/entity.h:distance_walked_modified",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "distanceWalkedOnStepModified",
+   "sig": "float",
+   "native": "csrc/engine/entity.h:distance_walked_on_step_modified",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "fallDistance",
+   "sig": "float",
+   "native": "csrc/engine/entity.h:fall_distance",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "nextStepDistance",
+   "sig": "int",
+   "native": "csrc/engine/entity.h:next_step_distance",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "lastTickPosX",
+   "sig": "double",
+   "native": null,
+   "status": "n/a",
+   "note": "render interpolation only"
+  },
+  {
+   "kind": "field",
+   "name": "lastTickPosY",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "lastTickPosZ",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "ySize",
+   "sig": "float",
+   "native": "csrc/engine/entity.h:y_size",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "stepHeight",
+   "sig": "float",
+   "native": "csrc/engine/entity.h:step_height",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "noClip",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:no_clip",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "entityCollisionReduction",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "only EntityLivingBase's 0.5 matters and the collision push lives per kind"
+  },
+  {
+   "kind": "field",
+   "name": "rand",
+   "sig": "Random",
+   "native": "csrc/engine/living.h:rand",
+   "status": "exact",
+   "note": "one Det Random per entity (Det.newRandom), carried in the living's jrand"
+  },
+  {
+   "kind": "field",
+   "name": "ticksExisted",
+   "sig": "int",
+   "native": "csrc/engine/living.h:ticks_existed",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "fireResistance",
+   "sig": "int",
+   "native": "csrc/engine/entity.h:fire_resistance",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "fire",
+   "sig": "int",
+   "native": "csrc/engine/entity.h:fire",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "inWater",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:in_water",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "hurtResistantTime",
+   "sig": "int",
+   "native": "csrc/engine/living.h:hurt_resistant_time",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "firstUpdate",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:first_update",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "isImmuneToFire",
+   "sig": "boolean",
+   "native": "csrc/engine/living.h:immune_to_fire",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "dataWatcher",
+   "sig": "DataWatcher",
+   "native": null,
+   "status": "n/a",
+   "note": "see the DataWatcher record: watched ids are named struct fields"
+  },
+  {
+   "kind": "field",
+   "name": "entityRiderPitchDelta",
+   "sig": "double",
+   "native": null,
+   "status": "n/a",
+   "note": "ridden render smoothing"
+  },
+  {
+   "kind": "field",
+   "name": "entityRiderYawDelta",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "addedToChunk",
+   "sig": "boolean",
+   "native": "csrc/engine/entity.h:chunk_stamp",
+   "status": "partial",
+   "note": "the chunk list membership is carried as the Chunk.addEntity stamp, not the flag"
+  },
+  {
+   "kind": "field",
+   "name": "chunkCoordX",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "chunk bookkeeping folded into the chunk stamp"
+  },
+  {
+   "kind": "field",
+   "name": "chunkCoordY",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "chunkCoordZ",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "serverPosX",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "network tracking for players"
+  },
+  {
+   "kind": "field",
+   "name": "serverPosY",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "serverPosZ",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "ignoreFrustumCheck",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "field",
+   "name": "isAirBorne",
+   "sig": "boolean",
+   "native": "csrc/engine/living.h:is_air_borne",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "timeUntilPortal",
+   "sig": "int",
+   "native": "csrc/engine/living.h:time_until_portal",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "inPortal",
+   "sig": "boolean",
+   "native": "csrc/engine/living.h:in_portal",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "portalCounter",
+   "sig": "int",
+   "native": "csrc/engine/living.h:portal_counter",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "dimension",
+   "sig": "int",
+   "native": "csrc/engine/living.h:dimension",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "teleportDirection",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "set by setInPortal's Direction lookup; the native portal transfer repositions directly"
+  },
+  {
+   "kind": "field",
+   "name": "invulnerable",
+   "sig": "boolean",
+   "native": "csrc/engine/living.h:invulnerable",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "entityUniqueID",
+   "sig": "UUID",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_base",
+   "status": "exact",
+   "note": "UUIDMost/UUIDLeast in the canonical NBT; fresh UUIDs come from the Det uuid stream"
+  },
+  {
+   "kind": "field",
+   "name": "myEntitySize",
+   "sig": "Entity.EnumEntitySize",
+   "native": null,
+   "status": "n/a",
+   "note": "only the network position sync reads it; see EnumEntitySize below"
+  },
+  {
+   "kind": "ctor",
+   "name": "Entity",
+   "sig": "(World)V",
+   "native": "csrc/engine/entity.c:entity_init",
+   "status": "exact",
+   "note": "the field defaults plus the two DataWatcher adds (living.c:4304) and the per-kind entityInit; the Det id, Random and UUID draws are in the per-role streams"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityId",
+   "sig": "()I",
+   "native": "csrc/engine/living.h:entity_id",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setEntityId",
+   "sig": "(int)V",
+   "native": "csrc/engine/living.h:entity_id",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_init",
+   "status": "partial",
+   "note": "the base adds (ids 0 and 1) are in living_init; each kind's own adds live in its construct function"
+  },
+  {
+   "kind": "method",
+   "name": "getDataWatcher",
+   "sig": "()DataWatcher",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "equals",
+   "sig": "(Object)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "identity by id; native comparisons compare ids directly"
+  },
+  {
+   "kind": "method",
+   "name": "hashCode",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "preparePlayerToSpawn",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_client_base_tick",
+   "status": "partial",
+   "note": "the spawn push-up is folded into the client player's join path (survival.c:3900); the position is immediately replaced by the S08"
+  },
+  {
+   "kind": "method",
+   "name": "setDead",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_set_dead",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setSize",
+   "sig": "(FF)V",
+   "native": "csrc/engine/entity.c:entity_set_size",
+   "status": "exact",
+   "note": "including the grow-push moveEntity call and the EnumEntitySize classification"
+  },
+  {
+   "kind": "method",
+   "name": "setRotation",
+   "sig": "(FF)V",
+   "native": null,
+   "status": "n/a",
+   "note": "folded into the setters that carry yaw/pitch"
+  },
+  {
+   "kind": "method",
+   "name": "setPosition",
+   "sig": "(DDD)V",
+   "native": "csrc/engine/entity.c:entity_set_position",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setAngles",
+   "sig": "(FF)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client look input; the replay applies look effects instead"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_base_entity_update",
+   "status": "exact",
+   "note": "Entity.onUpdate is only onEntityUpdate; livings run it inside living_base_entity_update"
+  },
+  {
+   "kind": "method",
+   "name": "onEntityUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_base_entity_update",
+   "status": "exact",
+   "note": "prev fields, the portal countdown and travel, the fire tick with the onFire damage every 20, handleWaterMovement, the lava setOnFireFromLava, the y<-64 kill, flag 0; the item and player halves are item_entity.c and survival.c; the portal counter runs for the player (serverreplay.c sr_player_entity_update: a rider's counter stands still, ride-portal-s1), livings (living_base_entity_update) and items and projectiles (item_entity.c base_update)"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxInPortalTime",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "0 in the base; the player's 80 lives in the player portal path"
+  },
+  {
+   "kind": "method",
+   "name": "setOnFireFromLava",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_base_entity_update",
+   "status": "exact",
+   "note": "lava damage 4 then setFire(15) (living.c:1505)"
+  },
+  {
+   "kind": "method",
+   "name": "setFire",
+   "sig": "(int)V",
+   "native": "csrc/engine/living.c:living_set_fire",
+   "status": "exact",
+   "note": "seconds*20, raise only; the EnchantmentProtection reduction is 0 over the ported wearers"
+  },
+  {
+   "kind": "method",
+   "name": "extinguish",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_base_entity_update",
+   "status": "exact",
+   "note": "fire = 0 at the wet/burn-out sites (living.c:1009, 1520, 1560)"
+  },
+  {
+   "kind": "method",
+   "name": "kill",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_base_entity_update",
+   "status": "exact",
+   "note": "the y < -64 branch sets dead"
+  },
+  {
+   "kind": "method",
+   "name": "isOffsetPositionInLiquid",
+   "sig": "(DDD)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "folded into the move paths' collide checks"
+  },
+  {
+   "kind": "method",
+   "name": "moveEntity",
+   "sig": "(DDD)V",
+   "native": "csrc/engine/entity.c:entity_move",
+   "status": "exact",
+   "note": "the whole body: the sneak clamp, the three-axis box sweep, step height, the collided flags, updateFallState, the walked-distance block, the fire block and the fizz; entity_move_ex adds the player-only sneak and fall-state virtuals; the in-water step's swim sound and the fizz draw through the swim_sound and fizz callbacks (the server player's: survival.c sp_swim_sound, sp_fizz)"
+  },
+  {
+   "kind": "method",
+   "name": "getSwimSound",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "audio; the rand draws the sound makes are in entity.c's swim_sound callback"
+  },
+  {
+   "kind": "method",
+   "name": "func_145775_I",
+   "sig": "()V",
+   "native": "csrc/engine/entity.c:entity_move",
+   "status": "exact",
+   "note": "the per-cell onEntityCollidedWithBlock loop over the box (entity.c:403)"
+  },
+  {
+   "kind": "method",
+   "name": "func_145780_a",
+   "sig": "(IIILBlock)V",
+   "native": null,
+   "status": "n/a",
+   "note": "step sound only"
+  },
+  {
+   "kind": "method",
+   "name": "playSound",
+   "sig": "(Ljava/lang/String;FF)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client audio; the rand draws it makes are carried by the fizz/swim callbacks in entity.h"
+  },
+  {
+   "kind": "method",
+   "name": "canTriggerWalking",
+   "sig": "()Z",
+   "native": "csrc/engine/entity.h:can_trigger_walking",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateFallState",
+   "sig": "(DZ)V",
+   "native": "csrc/engine/living.c:living_fall_state",
+   "status": "exact",
+   "note": "the virtual: Entity's body in entity_move_ex's fall_state slot, EntityLivingBase's override in living_fall_state, EntityFlying's empty body pinned at living.c:2233"
+  },
+  {
+   "kind": "method",
+   "name": "getBoundingBox",
+   "sig": "()AxisAlignedBB",
+   "native": null,
+   "status": "n/a",
+   "note": "returns null"
+  },
+  {
+   "kind": "method",
+   "name": "dealFireDamage",
+   "sig": "(int)V",
+   "native": "csrc/engine/entity.c:entity_move",
+   "status": "exact",
+   "note": "the in-fire block's attack_from callback (ENTITY_SRC_IN_FIRE)"
+  },
+  {
+   "kind": "method",
+   "name": "isImmuneToFire",
+   "sig": "()Z",
+   "native": "csrc/engine/living.h:immune_to_fire",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "fall",
+   "sig": "(F)V",
+   "native": "csrc/engine/living.c:living_fall",
+   "status": "exact",
+   "note": "the ridden fall chain and the per-kind kind_fall overrides"
+  },
+  {
+   "kind": "method",
+   "name": "isWet",
+   "sig": "()Z",
+   "native": "csrc/engine/entity.c:entity_is_wet",
+   "status": "exact",
+   "note": "inWater or the two canLightningStrikeAt cells (rain is off, so inWater in practice)"
+  },
+  {
+   "kind": "method",
+   "name": "isInWater",
+   "sig": "()Z",
+   "native": "csrc/engine/entity.h:in_water",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "handleWaterMovement",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:handle_water_movement",
+   "status": "exact",
+   "note": "the material acceleration, the splash rand draws on entry, fallDistance reset, fire 0; the item and player halves in item_entity.c and survival.c:1636; the server player's is player.c:sp_handle_water_movement (the entry splash on its own Random, which a thrown stack reads: lane/playfuzz)"
+  },
+  {
+   "kind": "method",
+   "name": "getSplashSound",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "audio"
+  },
+  {
+   "kind": "method",
+   "name": "isInsideOfMaterial",
+   "sig": "(Material)Z",
+   "native": "csrc/engine/living.c:is_entity_inside_opaque_block",
+   "status": "partial",
+   "note": "the eye-height liquid test for water breathing lives in the water-mob air pass (living.c:1613); the generic helper is folded into the per-kind callers"
+  },
+  {
+   "kind": "method",
+   "name": "getEyeHeight",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a",
+   "note": "0.0F in the base; per-kind values live with the kinds"
+  },
+  {
+   "kind": "method",
+   "name": "handleLavaMovement",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:living_base_entity_update",
+   "status": "exact",
+   "note": "the expanded-box lava material test (living.c:1093's ie_material_in_bb)"
+  },
+  {
+   "kind": "method",
+   "name": "moveFlying",
+   "sig": "(FFF)V",
+   "native": "csrc/engine/living.c:living_move_flying",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBrightnessForRender",
+   "sig": "(F)I",
+   "native": null,
+   "status": "n/a",
+   "note": "client render; the entity rasterizers read the world light directly"
+  },
+  {
+   "kind": "method",
+   "name": "getBrightness",
+   "sig": "(F)F",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "method",
+   "name": "setWorld",
+   "sig": "(World)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the native entity holds one world pointer set at construction and dimension travel rebuilds the entity"
+  },
+  {
+   "kind": "method",
+   "name": "setPositionAndRotation",
+   "sig": "(DDDFF)V",
+   "native": null,
+   "status": "n/a",
+   "note": "folded into the snapshot-load and portal-transfer setters"
+  },
+  {
+   "kind": "method",
+   "name": "setLocationAndAngles",
+   "sig": "(DDDFF)V",
+   "native": null,
+   "status": "n/a",
+   "note": "same"
+  },
+  {
+   "kind": "method",
+   "name": "getDistanceToEntity",
+   "sig": "(Entity)F",
+   "native": "csrc/engine/hostiles_enderman.c:get_distance_to_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getDistanceSq",
+   "sig": "(DDD)D",
+   "native": null,
+   "status": "n/a",
+   "note": "inlined at the call sites"
+  },
+  {
+   "kind": "method",
+   "name": "getDistance",
+   "sig": "(DDD)D",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDistanceSqToEntity",
+   "sig": "(Entity)D",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onCollideWithPlayer",
+   "sig": "(EntityPlayer)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the base is empty; the item's override is the pickup path in item_entity.c"
+  },
+  {
+   "kind": "method",
+   "name": "applyEntityCollision",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/living.c:living_apply_entity_collision",
+   "status": "exact",
+   "note": "the abs_max push, the 0.05 scale, the collision reduction and addVelocity both ways (living.c:1164); EntityLivingBase.collideWithNearbyEntities drives it"
+  },
+  {
+   "kind": "method",
+   "name": "addVelocity",
+   "sig": "(DDD)V",
+   "native": "csrc/engine/living.c:living_add_velocity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setBeenAttacked",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_set_been_attacked",
+   "status": "exact",
+   "note": "sets velocityChanged"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(DamageSource,F)Z",
+   "native": "csrc/engine/living.c:living_damage_entity",
+   "status": "exact",
+   "note": "the base body is the invulnerable check plus setBeenAttacked; the living damage pipeline (living.c:1345) is EntityLivingBase's override; for the item-world pool (a primed TNT in fire, a projectile on a cactus) it is item_entity.c ie_attack_from, which takes health only from items and orbs (tnt-fire-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "canBeCollidedWith",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "per-kind flags"
+  },
+  {
+   "kind": "method",
+   "name": "canBePushed",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "per-kind flags"
+  },
+  {
+   "kind": "method",
+   "name": "addToPlayerScore",
+   "sig": "(Entity,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty"
+  },
+  {
+   "kind": "method",
+   "name": "isInRangeToRender3d",
+   "sig": "(DDD)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "method",
+   "name": "isInRangeToRenderDist",
+   "sig": "(D)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "method",
+   "name": "writeMountToNBT",
+   "sig": "(NBTTagCompound)Z",
+   "native": "csrc/engine/living.c:living_write_nbt",
+   "status": "exact",
+   "note": "the ridden entity's NBT rides in the vehicle's Riding tag (living.c:3746)"
+  },
+  {
+   "kind": "method",
+   "name": "writeToNBTOptional",
+   "sig": "(NBTTagCompound)Z",
+   "native": "csrc/engine/living.c:living_write_nbt",
+   "status": "partial",
+   "note": "the native writes every entity's NBT for digests and snapshots unconditionally; the ridden-skip rule is folded into the save path"
+  },
+  {
+   "kind": "method",
+   "name": "writeToNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_base",
+   "status": "exact",
+   "note": "Pos/Motion/Rotation/FallDistance/Fire/Air/OnGround/Dimension/Invulnerable/PortalCooldown/UUIDMost/UUIDLeast in Java's insertion order, then the kind's writeEntityToNBT and the Riding tag"
+  },
+  {
+   "kind": "method",
+   "name": "readFromNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/snapshot_entities.c:sr_living_from_nbt",
+   "status": "exact",
+   "note": "the motion clamp, Pos/Rotation/FallDistance/Fire/Air/OnGround/Dimension/Invulnerable/PortalCooldown/UUID, setPosition, the kind's readEntityFromNBT and shouldSetPosAfterLoading; every dimension's chunk reload takes this path (sr_restore_saved_entities); reloaded arrows, throwables and fireballs read PortalCooldown too (serverreplay.c sr_arrow_adopt, snapshot_entities.c sr_throwable_from_nbt and sr_fireball_from_nbt; portal-proj-s1); a mob a region reload brings back keeps its saved Dimension (serverreplay.c sr_checkpoint_living, pfc-dimload-g7)"
+  },
+  {
+   "kind": "method",
+   "name": "shouldSetPosAfterLoading",
+   "sig": "()Z",
+   "native": "csrc/engine/snapshot_entities.c:sr_living_from_nbt",
+   "status": "exact",
+   "note": "true in the base; the hanging kinds return false and fallhang keeps that"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityString",
+   "sig": "()Ljava/lang/String;",
+   "native": "csrc/engine/living.c:living_kind_name",
+   "status": "exact",
+   "note": "the EntityList name per kind"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "abstract; per kind"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "abstract; per kind"
+  },
+  {
+   "kind": "method",
+   "name": "onChunkLoad",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty"
+  },
+  {
+   "kind": "method",
+   "name": "newDoubleNBTList",
+   "sig": "([D)NBTTagList",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_base",
+   "status": "exact",
+   "note": "folded into the Pos/Motion list builders"
+  },
+  {
+   "kind": "method",
+   "name": "newFloatNBTList",
+   "sig": "([F)NBTTagList",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_base",
+   "status": "exact",
+   "note": "folded into the Rotation list builder"
+  },
+  {
+   "kind": "method",
+   "name": "getShadowSize",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "method",
+   "name": "func_145779_a",
+   "sig": "(Item,I)EntityItem",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "entityDropItem with offset 0"
+  },
+  {
+   "kind": "method",
+   "name": "func_145778_a",
+   "sig": "(Item,IF)EntityItem",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "entityDropItem",
+   "sig": "(ItemStack,F)EntityItem",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "the EntityItem(World,x,y+height,z,stack) constructor with delayBeforeCanPickup 10, spawned into the world"
+  },
+  {
+   "kind": "method",
+   "name": "isEntityAlive",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:living_is_alive",
+   "status": "exact",
+   "note": "!isDead at the Entity level; the living version also checks health > 0"
+  },
+  {
+   "kind": "method",
+   "name": "isEntityInsideOpaqueBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:is_entity_inside_opaque_block",
+   "status": "exact",
+   "note": "the eight-corner normal-cube scan (living.c:1040)"
+  },
+  {
+   "kind": "method",
+   "name": "interactFirst",
+   "sig": "(EntityPlayer)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false in the base"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBox",
+   "sig": "(Entity)AxisAlignedBB",
+   "native": null,
+   "status": "n/a",
+   "note": "null in the base"
+  },
+  {
+   "kind": "method",
+   "name": "updateRidden",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_update_entity",
+   "status": "exact",
+   "note": "living_update_entity's update_ridden branch (living.c:2738-2771): the dead-vehicle unlink, the zeroed motion, the tick, then the rider reposition; entityRiderYawDelta/PitchDelta are computed in vanilla but nothing reads them. serverreplay.c sets update_ridden for the whole-server replay; only the spider probe's own tick skips it"
+  },
+  {
+   "kind": "method",
+   "name": "updateRiderPosition",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_update_entity",
+   "status": "exact",
+   "note": "the mounted reposition (height * 0.75 plus the rider's y offset, and the chicken's override) inside living_update_entity"
+  },
+  {
+   "kind": "method",
+   "name": "getYOffset",
+   "sig": "()D",
+   "native": null,
+   "status": "n/a",
+   "note": "0.0 in the base"
+  },
+  {
+   "kind": "method",
+   "name": "getMountedYOffset",
+   "sig": "()D",
+   "native": null,
+   "status": "n/a",
+   "note": "folded into the mount sites"
+  },
+  {
+   "kind": "method",
+   "name": "mountEntity",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/living.c:living_mount",
+   "status": "exact",
+   "note": "the vehicle/rider link; the dismount relocation is in the same path"
+  },
+  {
+   "kind": "method",
+   "name": "setPositionAndRotation2",
+   "sig": "(DDDFFI)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the server's teleport-ack reposition with the stuck-box lift; the native portal transfer repositions directly; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBorderSize",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a",
+   "note": "0.1 in the base"
+  },
+  {
+   "kind": "method",
+   "name": "getLookVec",
+   "sig": "()Vec3",
+   "native": null,
+   "status": "n/a",
+   "note": "null in the base; the player's override lives with the player"
+  },
+  {
+   "kind": "method",
+   "name": "setInPortal",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_set_in_portal_cb",
+   "status": "exact",
+   "note": "livings; item_entity.c's ie_set_in_portal for items and projectiles, portal.c's portal_entity_set_in_portal for the player"
+  },
+  {
+   "kind": "method",
+   "name": "getPortalCooldown",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "300 in the base; per-kind overrides live with the kinds"
+  },
+  {
+   "kind": "method",
+   "name": "setVelocity",
+   "sig": "(DDD)V",
+   "native": null,
+   "status": "n/a",
+   "note": "folded"
+  },
+  {
+   "kind": "method",
+   "name": "handleHealthUpdate",
+   "sig": "(B)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client packet"
+  },
+  {
+   "kind": "method",
+   "name": "performHurtAnimation",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "client packet"
+  },
+  {
+   "kind": "method",
+   "name": "getLastActiveItems",
+   "sig": "()ItemStack[]",
+   "native": "csrc/engine/living.h:equip",
+   "status": "exact",
+   "note": "the five equip slots"
+  },
+  {
+   "kind": "method",
+   "name": "setCurrentItemOrArmor",
+   "sig": "(int,ItemStack)V",
+   "native": "csrc/engine/living.h:equip",
+   "status": "n/a",
+   "note": "n/a: Entity's empty body: EntityLiving and EntityPlayer override it, and its one non-living caller, the client's S04, comes only for an EntityLivingBase (EntityTrackerEntry sends equipment for livings)"
+  },
+  {
+   "kind": "method",
+   "name": "isBurning",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:living_is_burning",
+   "status": "exact",
+   "note": "the server half (fire > 0); the blaze's dataWatcher-16 override is in the same function"
+  },
+  {
+   "kind": "method",
+   "name": "isRiding",
+   "sig": "()Z",
+   "native": "csrc/engine/living.h:riding_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isSneaking",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "exact",
+   "note": "flag 1 of the dataWatcher-0 byte"
+  },
+  {
+   "kind": "method",
+   "name": "setSneaking",
+   "sig": "(Z)V",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isSprinting",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "exact",
+   "note": "flag 3"
+  },
+  {
+   "kind": "method",
+   "name": "setSprinting",
+   "sig": "(Z)V",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isInvisible",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "exact",
+   "note": "flag 5; nothing sets it in the ported scenarios"
+  },
+  {
+   "kind": "method",
+   "name": "isInvisibleToPlayer",
+   "sig": "(EntityPlayer)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "method",
+   "name": "setInvisible",
+   "sig": "(Z)V",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isEating",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "flag 4 is never set in the ported scenarios"
+  },
+  {
+   "kind": "method",
+   "name": "setEating",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getFlag",
+   "sig": "(int)Z",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "exact",
+   "note": "flags0 (dataWatcher 0)"
+  },
+  {
+   "kind": "method",
+   "name": "setFlag",
+   "sig": "(int,Z)V",
+   "native": "csrc/engine/living.c:set_flag",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getAir",
+   "sig": "()I",
+   "native": "csrc/engine/living.h:air",
+   "status": "exact",
+   "note": "dataWatcher 1"
+  },
+  {
+   "kind": "method",
+   "name": "setAir",
+   "sig": "(int)V",
+   "native": "csrc/engine/living.h:air",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onStruckByLightning",
+   "sig": "(EntityLightningBolt)V",
+   "native": "csrc/engine/hostiles_creeper.c:creeper_struck_by_lightning",
+   "status": "partial",
+   "note": "the base body (dealFireDamage(5), fire++, setFire(8) at the wrap) is reproduced on the creeper's charged path; the bolt itself is never spawned (hostiles_creeper.c:231)"
+  },
+  {
+   "kind": "method",
+   "name": "onKillEntity",
+   "sig": "(EntityLivingBase)V",
+   "native": null,
+   "status": "n/a",
+   "note": "only the zombie's villager conversion overrides it; that lives with the zombie kind"
+  },
+  {
+   "kind": "method",
+   "name": "func_145771_j",
+   "sig": "(DDD)Z",
+   "native": "csrc/engine/item_entity.c:push_out_of_blocks",
+   "status": "exact",
+   "note": "the push-out-of-blocks; the item (item_entity.c:677) and player (player.c:653) paths carry it"
+  },
+  {
+   "kind": "method",
+   "name": "setInWeb",
+   "sig": "()V",
+   "native": "csrc/engine/entity.c:entity_set_in_web",
+   "status": "exact",
+   "note": "the BlockWeb callback; the spider's empty override is per kind"
+  },
+  {
+   "kind": "method",
+   "name": "getCommandSenderName",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "chat and death messages are out of scope"
+  },
+  {
+   "kind": "method",
+   "name": "getParts",
+   "sig": "()[Entity",
+   "native": null,
+   "status": "n/a",
+   "note": "the dragon's multi-part body is handled inside dragon.c's fight state"
+  },
+  {
+   "kind": "method",
+   "name": "isEntityEqual",
+   "sig": "(Entity)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "reference identity"
+  },
+  {
+   "kind": "method",
+   "name": "getRotationYawHead",
+   "sig": "()F",
+   "native": "csrc/engine/living.h:rotation_yaw_head",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationYawHead",
+   "sig": "(F)V",
+   "native": "csrc/engine/living.h:rotation_yaw_head",
+   "status": "n/a",
+   "note": "n/a: Entity's empty body: EntityLivingBase overrides it; the client calls it for an S19 head look, which EntityTrackerEntry sends only when getRotationYawHead moves, never for a non-living (its getRotationYawHead is 0)"
+  },
+  {
+   "kind": "method",
+   "name": "canAttackWithItem",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true in the base"
+  },
+  {
+   "kind": "method",
+   "name": "hitByEntity",
+   "sig": "(Entity)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false in the base; the hanging override is fallhang.c's"
+  },
+  {
+   "kind": "method",
+   "name": "toString",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "diagnostics only"
+  },
+  {
+   "kind": "method",
+   "name": "isEntityInvulnerable",
+   "sig": "()Z",
+   "native": "csrc/engine/living.h:invulnerable",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "copyLocationAndAnglesFrom",
+   "sig": "(Entity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "folded into the dimension-transfer reload"
+  },
+  {
+   "kind": "method",
+   "name": "copyDataFrom",
+   "sig": "(Entity,Z)V",
+   "native": "csrc/engine/snapshot_entities.c:sr_living_copy_nbt",
+   "status": "exact",
+   "note": "livings: the constructor on the server streams and readFromNBT over living_write_nbt's tag; items and projectiles: serverreplay.c's sr_ie_copy (the (World) constructor's draws, the saved fields carried, the rest reset); timeUntilPortal and teleportDirection copied"
+  },
+  {
+   "kind": "method",
+   "name": "travelToDimension",
+   "sig": "(int)V",
+   "native": "csrc/engine/serverreplay.c:sr_living_portal_travel",
+   "status": "exact",
+   "note": "non-players: sr_living_portal_travel (livings) and sr_ie_portal_travel (items, orbs, arrows, throwables), into the Nether, the overworld and the End (endportal-ents-s1): removeEntity undone, transferEntityToWorld through sr_travel_place with the destination entered, the old instance appended to the destination's list, its NBT copy behind it, both updateEntityTicks reset; the old one's update runs on dead in the new world. A mob in the End's exit portal (1 to 1) is not modelled. The player's is sr_transfer_player The source world is the Entity.dimension field, not the world the entity stands in: a summoned mob's field is 0 anywhere, so in the End's exit portal it goes to the End's entrance platform and the overworld's updateEntityTick is the one reset (end-exit-mob-s1). A traveller arriving where the player is pushes the player's own motion (portal-foreign-s1). The true End exit of a mob whose field is 1 (to the overworld spawn) is not modelled: its old instance's update goes on at eight times its position in the overworld, whose block reads load chunks.; the old instance spawned in the destination is tracked there at the chunk it stands in (combat_track_travelled, pfc-portalpig-s3); the old instance joins the destination chunk's list; when the rest of its update moves it off that chunk or section, the source world's chunk check retargets or clears its membership and it stays there as a ghost until the chunk unloads (serverreplay.c sr_living_portal_travel, sr_living_post_update; pfc-portalghost-s3); a falling block's End portal trip (serverreplay.c sr_fh_portal_travel, pfc-fallportal-f365); every item-pool entity knows the world whose lists hold it, a skeleton's arrow included (ie_added_to_world, pfc-arrowportal-s18)"
+  },
+  {
+   "kind": "method",
+   "name": "func_145772_a",
+   "sig": "(Explosion,World,IIILBlock)F",
+   "native": "csrc/engine/combatench.c:ench_blast_protection",
+   "status": "partial",
+   "note": "the block resistance read lives in the explosion's block loop; this Entity-level hook is not called separately"
+  },
+  {
+   "kind": "method",
+   "name": "func_145774_a",
+   "sig": "(Explosion,World,IIILBlock,F)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true in the base; the drop logic lives in the explosion pass"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxSafePointTries",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "pathfinding helper, 3 in the base"
+  },
+  {
+   "kind": "method",
+   "name": "getTeleportDirection",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "doesEntityNotTriggerPressurePlate",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false in the base"
+  },
+  {
+   "kind": "method",
+   "name": "addEntityCrashInfo",
+   "sig": "(CrashReportCategory)V",
+   "native": null,
+   "status": "n/a",
+   "note": "crash reporting"
+  },
+  {
+   "kind": "method",
+   "name": "canRenderOnFire",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "method",
+   "name": "getUniqueID",
+   "sig": "()UUID",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_base",
+   "status": "exact",
+   "note": "UUIDMost/UUIDLeast"
+  },
+  {
+   "kind": "method",
+   "name": "isPushedByWater",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true in the base; the water push is in the per-kind move paths"
+  },
+  {
+   "kind": "method",
+   "name": "func_145748_c_",
+   "sig": "()IChatComponent",
+   "native": null,
+   "status": "n/a",
+   "note": "chat"
+  },
+  {
+   "kind": "method",
+   "name": "func_145781_i",
+   "sig": "(int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client data-changed hook, empty in the base"
+  },
+  {
+   "kind": "method",
+   "name": "EnumEntitySize.multiplyBy32AndRound",
+   "sig": "(D)I",
+   "native": null,
+   "status": "n/a",
+   "note": "the network position quantization; the native server-side replay validates moves on doubles"
+  },
+  {
+   "kind": "ctor",
+   "name": "Entity$SwitchEnumEntitySize",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the compiler's switch-map holder: only its static initializer runs"
+  }
+ ]
+}

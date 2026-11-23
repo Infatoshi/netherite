@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/tileentity/TileEntityEndPortal.java",
+  "classes": [
+    "TileEntityEndPortal"
+  ],
+  "lines": 6,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The end portal block's (empty) block entity; it exists so the client can draw the starfield with TileEntityEndPortalRenderer.",
+  "scope": "in_scope",
+  "scope_reason": "End portal blocks appear when a stronghold portal is filled with eyes and at the exit portal after the dragon dies.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "TE_END_PORTAL"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "te_kind_of_block",
+        "render_plain"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "out/java/place/big2",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [],
+  "missing": [],
+  "notes": "No members of its own. The starfield render is TileEntityEndPortalRenderer's record. The placement probe's big2 tile entities include an Airportal entry (grepped); snapshots with end portals round-trip through test_snapshots."
+}

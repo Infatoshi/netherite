@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/stats/StatFileWriter.java",
+  "classes": ["StatFileWriter"],
+  "lines": 95,
+  "side": "common",
+  "category": "stats",
+  "role": "A player's stat counter map (StatBase to value), with the achievement parent gate; the client uses it directly as its mirror of the server's StatisticsFile.",
+  "scope": "in_scope",
+  "scope_reason": "The server counter store and the client mirror that drives the achievement toast.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["surv_stats", "surv_add_stat"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_add_stat", "ach_unlocked", "ach_can_unlock", "surv_client_apply_s37"]}
+  ],
+  "evidence": ["out/java/snapshots/achieve-s1", "out/java/render/toast", "out/java/snapshots/stats-s1", "out/java/snapshots/stats-s1-pre"],
+  "members": [
+    {"kind": "field", "name": "field_150875_a", "sig": "Map<StatBase,TupleIntJsonSerializable>", "native": "csrc/engine/survival.h:surv_stats", "status": "exact", "note": "v and the present bits per stat id (an entry can hold 0); the client mirror is client_v and client_present"},
+    {"kind": "method", "name": "hasAchievementUnlocked", "sig": "(Achievement)Z", "native": "csrc/engine/survival.c:ach_unlocked", "status": "exact"},
+    {"kind": "method", "name": "canUnlockAchievement", "sig": "(Achievement)Z", "native": "csrc/engine/survival.c:ach_can_unlock", "status": "exact"},
+    {"kind": "method", "name": "func_150874_c", "sig": "(Achievement)I", "native": null, "status": "n/a", "note": "locked-depth count for the GuiAchievements screen"},
+    {"kind": "method", "name": "func_150871_b", "sig": "(EntityPlayer,StatBase,int)V", "native": "csrc/engine/survival.c:surv_add_stat", "status": "exact"},
+    {"kind": "method", "name": "func_150873_a", "sig": "(EntityPlayer,StatBase,int)V", "native": "csrc/engine/survival.c:surv_add_stat", "status": "exact", "note": "the client mirror write is surv_client_apply_s37, every stat the S37 carries"},
+    {"kind": "method", "name": "writeStat", "sig": "(StatBase)I", "native": "csrc/engine/survival.c:surv_add_stat", "status": "exact", "note": "direct array read"},
+    {"kind": "method", "name": "func_150870_b", "sig": "(StatBase)IJsonSerializable", "native": "csrc/engine/survival.c:surv_explore_biome", "status": "exact", "note": "the one JsonSerializable value: exploreAllBiomes' biome set (explored bits)"},
+    {"kind": "method", "name": "func_150872_a", "sig": "(StatBase,IJsonSerializable)IJsonSerializable", "native": "csrc/engine/survival.c:surv_explore_biome", "status": "exact", "note": "makes the entry (value 0) without a dirty mark"}
+  ],
+  "missing": []
+}

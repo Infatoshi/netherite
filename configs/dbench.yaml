@@ -1,0 +1,61 @@
+# dbench.yaml (lane/dbench, 2026-11-09): the dragon benchmark's run file, `make -C csrc/runtime dragon-bench W=MODEL.ntw`.
+# Seed 42's spawn with every chain macro on at vanilla fidelity (no fidelity section: natural spawning on, which the
+# endermen need; the Java client replays its episodes), master's defaults for every macro option (pearl_when nether,
+# pearl_yield nether: lane/pearlgate; configs/s64chainall.yaml set the pre-pearlgate rule, pearl_when night). The
+# macros are s64big's (recipe, strip, food, obsidian, nether, pearl, stronghold, dragon, bportal, strip2). The
+# benchmark's other runs (dragon-bench's DB_SEEDS, the links) add a starts section by flags, never by this file.
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64         # net.h's s1 variant (NT_SIDE 64, NT_STEM 1): make -C csrc/runtime train-loop-v NT_V=s1.ls
+  engine:
+    device_mesh: 1
+    raycast: device
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: spawn               # seed 42's spawn
+    worlds: 256
+    groups: 4
+    episode_seconds: 300
+  performance:
+    workers: 30
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: doms
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: recipe,strip,food,obsidian,nether,pearl,stronghold,dragon,bportal,strip2
+    picks: off
+  reward:                      # s64van's (the pareto recipe's)
+    log_cap: 8
+    values: 4/1.0,61/8
+    caps: 4/8,15/8,265/8,263/8
+    ms_weights: stone_pickaxe/10,furnace/5,iron_ingot/10,iron_pickaxe/10,bucket/5,flint_and_steel/5,diamond_pickaxe/10,obsidian/5,blaze_rod/10
+    nether: 20
+  ppo:
+    lr: 5e-6
+    ent: 0.01
+    clip: 0.2
+    gamma: 0.998
+    lam: 0.95
+    epochs: 3
+    mb: 8192
+    horizon: 128
+  net:
+    kind: small
+  run:
+    hours: 0.5
+    log_every: 60

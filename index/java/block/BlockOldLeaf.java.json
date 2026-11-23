@@ -1,0 +1,137 @@
+{
+ "path": "oracle/src/block/BlockOldLeaf.java",
+ "classes": [
+  "BlockOldLeaf"
+ ],
+ "lines": 91,
+ "side": "common",
+ "category": "block",
+ "role": "The oak, spruce, birch and jungle leaves (id 18): BlockLeaves with the pine/birch colour constants, the oak apple roll and the jungle sapling chance 40.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break",
+    "leaves"
+   ]
+  },
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "rt_leaves",
+    "leaves_drop"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "color_multiplier",
+    "foliage_color_multiplier",
+    "table_icon"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/chunks",
+  "csrc/tests/test_tileticks.c",
+  "csrc/tests/test_harvestdrops.c",
+  "csrc/tests/test_meshes.c",
+  "out/java/snapshots/world-crops-s1",
+  "out/java/snapshots/leaves-chop-s1",
+  "out/java/snapshots/fire-forest-s1",
+  "out/java/snapshots/leaves-stale-s1",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150130_N",
+   "sig": "static String[][]",
+   "native": null,
+   "status": "n/a",
+   "note": "fancy/opaque texture names"
+  },
+  {
+   "kind": "field",
+   "name": "field_150131_O",
+   "sig": "static String[]",
+   "native": null,
+   "status": "n/a",
+   "note": "wood names"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderColor",
+   "sig": "(I)I",
+   "native": null,
+   "status": "missing",
+   "note": "item/inventory render colour (pine/birch constants); the world path is color_multiplier; not found for item rendering; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+  },
+  {
+   "kind": "method",
+   "name": "colorMultiplier",
+   "sig": "(IBlockAccess,III)I",
+   "native": "csrc/engine/render_blocks.c:color_multiplier",
+   "status": "exact",
+   "note": "case 18: 6396257 pine, 8431445 birch, else the biome foliage average"
+  },
+  {
+   "kind": "method",
+   "name": "func_150124_c",
+   "sig": "(World,IIIII)V",
+   "native": "csrc/engine/drops.c:leaves",
+   "status": "exact",
+   "note": "apple roll only for meta & 3 == 0"
+  },
+  {
+   "kind": "method",
+   "name": "func_150123_b",
+   "sig": "(I)I",
+   "native": "csrc/engine/drops.c:leaves",
+   "status": "exact",
+   "note": "40 for the jungle variant"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it"
+  },
+  {
+   "kind": "method",
+   "name": "getSubBlocks",
+   "sig": "(Item,CreativeTabs,List)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative tab listing, client only"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration; the native atlas is loaded from the same assets"
+  },
+  {
+   "kind": "method",
+   "name": "func_150125_e",
+   "sig": "()String[]",
+   "native": null,
+   "status": "n/a",
+   "note": "wood names for the item, client"
+  }
+ ],
+ "missing": [],
+ "notes": "The decay path also calls these through randomtick.c leaves_drop (not re-read here). getRenderColor for the held-item colour was not located; marked missing but it only affects item icons."
+}

@@ -1,0 +1,134 @@
+{
+  "path": "oracle/src/item/crafting/ShapedRecipes.java",
+  "classes": [
+    "ShapedRecipes"
+  ],
+  "lines": 147,
+  "side": "common",
+  "category": "crafting",
+  "role": "The shaped recipe: a width*height ingredient grid matched at every offset of the crafting grid, optionally mirrored, with wildcard damage 32767 accepted for any damage.",
+  "scope": "in_scope",
+  "scope_reason": "Most of the 317 recipes are shaped; the wooden-pickaxe loop (SPEC milestone 5) needs matching, mirroring and getRecipeSize.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/crafting.c",
+      "symbols": [
+        "shaped_check",
+        "shaped_matches",
+        "shaped_result"
+      ]
+    },
+    {
+      "file": "csrc/engine/recipes.h",
+      "symbols": [
+        "recipe_def",
+        "RECIPES",
+        "RECIPE_ITEMS"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_crafting.c",
+    "out/java/crafting/s2",
+    "out/java/crafting/s42",
+    "out/java/snapshots/flow-craft-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "ShapedRecipes",
+      "sig": "(II[StackItem;StackItem;)V",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact",
+      "note": "Constructor state is flattened into the generated struct recipe_def (kind, mirrored, width, height, size, items, count, output)."
+    },
+    {
+      "kind": "field",
+      "name": "recipeWidth",
+      "sig": "int",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "recipeHeight",
+      "sig": "int",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "recipeItems",
+      "sig": "ItemStack[]",
+      "native": "csrc/engine/recipes.h:RECIPE_ITEMS",
+      "status": "exact",
+      "note": "Ingredient stacks live in the flat RECIPE_ITEMS table; a recipe owns a run from items to items+count."
+    },
+    {
+      "kind": "field",
+      "name": "recipeOutput",
+      "sig": "ItemStack",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_92101_f",
+      "sig": "boolean",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact",
+      "note": "The struct's mirrored flag. Only CraftingManager's carrot-on-a-stick recipe sets it, and fishing is switched off (world.conf fishing = off), so the tag-copy branch never fires in this game."
+    },
+    {
+      "kind": "method",
+      "name": "getRecipeOutput",
+      "sig": "()LItemStack;",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact",
+      "note": "A field read; the native caller reads recipe_def.output directly."
+    },
+    {
+      "kind": "method",
+      "name": "matches",
+      "sig": "(LInventoryCrafting;LWorld;)Z",
+      "native": "csrc/engine/crafting.c:shaped_matches",
+      "status": "exact",
+      "note": "Every offset the recipe fits at, mirror tried first at each offset; the scan stays over 3x3 even on the player's 2x2 grid, where the third row and column read null."
+    },
+    {
+      "kind": "method",
+      "name": "checkMatch",
+      "sig": "(LInventoryCrafting;IIZ)Z",
+      "native": "csrc/engine/crafting.c:shaped_check",
+      "status": "exact",
+      "note": "Item identity and, unless the ingredient's damage is the 32767 wildcard, damage are compared; no NBT comparison."
+    },
+    {
+      "kind": "method",
+      "name": "getCraftingResult",
+      "sig": "(LInventoryCrafting;)LItemStack;",
+      "native": "csrc/engine/crafting.c:shaped_result",
+      "status": "exact",
+      "note": "A copy of the output; when the mirrored flag is set, the tag of the last tagged grid stack rides along."
+    },
+    {
+      "kind": "method",
+      "name": "getRecipeSize",
+      "sig": "()I",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact",
+      "note": "Stored as recipe_def.size."
+    },
+    {
+      "kind": "method",
+      "name": "func_92100_c",
+      "sig": "()LShapedRecipes;",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact",
+      "note": "Sets the mirrored flag at registration; the generated recipe_def carries it."
+    }
+  ],
+  "missing": [],
+  "notes": "test_crafting.c replays 20,000 random probe grids plus special cases including a mirrored recipe over a tagged stack. The World argument is unused by vanilla here; the native matcher takes no world."
+}

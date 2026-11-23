@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/end.c",
+ "lines": 190,
+ "role": "ChunkProviderEnd's terrain: the five octave generators seeded in constructor order, the 3x33x3 density field of initializeNoiseField, the trilinear fill to end stone or air (func_147420_a), the sky biome for every column, and the literal (no-op) surface pass func_147421_b.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/ChunkProviderEnd.java", "members": ["ChunkProviderEnd", "func_147420_a", "func_147421_b", "initializeNoiseField", "endRNG", "noiseGen1", "noiseGen2", "noiseGen3", "noiseGen4", "noiseGen5"]},
+  {"path": "oracle/src/world/WorldProviderEnd.java", "members": ["registerWorldChunkManager"]}
+ ],
+ "structs": [],
+ "entry_points": ["end_init", "end_biomes", "end_terrain", "end_surface"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"
+ ],
+ "tests": ["csrc/tests/test_dims.c"],
+ "notes": "The End has no structures and no caves. provideChunk's per-chunk reseed and populate (BiomeEndDecorator's spikes, crystals and the dragon) are elsewhere (world.c and populate/endfight paths; not verified which file). Checked against out/java/dims chunk dumps by test_dims.c. Runs during chunk generation, which happens inside the server tick when a chunk is first loaded."
+}

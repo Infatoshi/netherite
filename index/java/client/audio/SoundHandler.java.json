@@ -1,0 +1,198 @@
+{
+ "path": "oracle/src/client/audio/SoundHandler.java",
+ "classes": [
+  "SoundHandler",
+  "SoundHandler.SwitchType"
+ ],
+ "lines": 303,
+ "side": "client",
+ "category": "client_audio",
+ "role": "The client's sound front end: loads every sounds.json into the SoundRegistry on resource reload and forwards play/stop/pause/volume/listener calls to SoundManager.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "static Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147699_c",
+   "sig": "static Gson",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147696_d",
+   "sig": "static ParameterizedType",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147700_a",
+   "sig": "static SoundPoolEntry missing sound",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147697_e",
+   "sig": "SoundRegistry",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147694_f",
+   "sig": "SoundManager",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147695_g",
+   "sig": "IResourceManager",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "SoundHandler",
+   "sig": "(IResourceManager,GameSettings)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onResourceManagerReload",
+   "sig": "(IResourceManager)V",
+   "native": null,
+   "status": "n/a",
+   "note": "parses sounds.json"
+  },
+  {
+   "kind": "method",
+   "name": "func_147693_a",
+   "sig": "(ResourceLocation,SoundList)V",
+   "native": null,
+   "status": "n/a",
+   "note": "register one event"
+  },
+  {
+   "kind": "method",
+   "name": "func_147680_a",
+   "sig": "(ResourceLocation)SoundEventAccessorComposite",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "playSound",
+   "sig": "(ISound)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "playDelayedSound",
+   "sig": "(ISound,I)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147691_a",
+   "sig": "(EntityPlayer,F)V",
+   "native": null,
+   "status": "n/a",
+   "note": "listener position"
+  },
+  {
+   "kind": "method",
+   "name": "func_147689_b",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "pause all"
+  },
+  {
+   "kind": "method",
+   "name": "func_147690_c",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "stop all"
+  },
+  {
+   "kind": "method",
+   "name": "func_147685_d",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "unload"
+  },
+  {
+   "kind": "method",
+   "name": "update",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147687_e",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "resume all"
+  },
+  {
+   "kind": "method",
+   "name": "setSoundLevel",
+   "sig": "(SoundCategory,F)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147683_b",
+   "sig": "(ISound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "stop one"
+  },
+  {
+   "kind": "method",
+   "name": "func_147686_a",
+   "sig": "(SoundCategory...)SoundEventAccessorComposite",
+   "native": null,
+   "status": "n/a",
+   "note": "random event of given categories; the determinize pass draws a fresh Det.newRandom() here"
+  },
+  {
+   "kind": "method",
+   "name": "func_147692_c",
+   "sig": "(ISound)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "isSoundPlaying"
+  },
+  {
+   "kind": "field",
+   "name": "SwitchType.field_148765_a",
+   "sig": "static int[] switch map",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Every call is forwarded to SoundManager, which is inert in agent mode."
+}

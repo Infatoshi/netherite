@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/command/IAdminCommand.java",
+  "classes": [
+    "IAdminCommand"
+  ],
+  "lines": 6,
+  "side": "server",
+  "category": "commands",
+  "role": "Callback interface ServerCommandManager implements so CommandBase.func_152373_a can broadcast admin feedback.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "func_152372_a",
+      "sig": "(ICommandSender,ICommand,int,String,Object[])V",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "Static __OBFID constants are grouped out per the brief."
+}

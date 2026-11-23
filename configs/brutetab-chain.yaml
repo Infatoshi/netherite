@@ -1,0 +1,44 @@
+# brutetab-chain.yaml (lane/brutetab): the brute-force table's chain rows (GOAL.md "Done means" 1), a random policy
+# from spawn for 2-hour episodes with every macro of the chain on, all of it on the CPUs. s64chain-strip2.yaml's world
+# and observation (seed 42's spawn, render distance 4, the 64x64 ray cast the chain's macros were built on) at
+# vanilla fidelity (no fidelity section: natural spawning on, which the pearl step's endermen need; an episode
+# replays on the Java client), every part on the host: device_mesh 0, the ray cast on the host, no renderer.
+#   CUDA_VISIBLE_DEVICES= out/runtime/train/brutetab --run configs/brutetab-chain.yaml [--macros SPEC] [--threads T]
+#   ... --seeds 1-1000 --sample 128     seeds 1-1000's spawns (the seed set of this world, lane/seeds)
+# The table's rows are --macros: recipe; recipe,strip,food; then obsidian, nether, pearl, stronghold, dragon, bportal
+# and strip2 added in turn; then all. A frozen model meets the same file: train-score RUN=configs/brutetab-chain.yaml.
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: host
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: spawn               # seed 42's spawn
+    worlds: 128
+    groups: 4
+    episode_seconds: 7200      # 2 hours, 144,000 steps
+  performance:
+    workers: 48
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: any
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: recipe,strip,food,obsidian,nether,pearl,stronghold,dragon,bportal,strip2
+    picks: off

@@ -1,0 +1,213 @@
+{
+ "path": "oracle/src/network/play/INetHandlerPlayServer.java",
+ "classes": [
+  "INetHandlerPlayServer"
+ ],
+ "lines": 141,
+ "side": "server",
+ "category": "network",
+ "role": "The server-side dispatch interface for every play-state packet from the client: each process method is one C-packet's server half (NetHandlerPlayServer implements all 21).",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_tick_start"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.c",
+   "symbols": [
+    "server_player_tick",
+    "sp_process_player"
+   ]
+  },
+  {
+   "file": "csrc/engine/riding.c",
+   "symbols": [
+    "ride_server_process_input"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/walk300-s1",
+  "out/java/snapshots/fresh-play-s1",
+  "out/java/snapshots/cat-clicks-s1",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_move.c",
+  "out/java/snapshots/ride-pig-s1"
+ ],
+ "members": [
+  {
+   "kind": "method",
+   "name": "processAnimation",
+   "sig": "(C0APacketAnimation)V",
+   "native": null,
+   "status": "n/a",
+   "note": "swingItem on the server player: the swing fields and the S0B to other watchers; nothing the rows, the tick or this player's own client reads (the client swings its own arm, client_swing_item)"
+  },
+  {
+   "kind": "method",
+   "name": "processChatMessage",
+   "sig": "(C01PacketChatMessage)V",
+   "native": null,
+   "status": "n/a",
+   "note": "chat input: the act stream and the native client carry no chat (GuiChat is client_cosmetic); a survival world grants no command a chat line could run but /me and /tell"
+  },
+  {
+   "kind": "method",
+   "name": "processTabComplete",
+   "sig": "(C14PacketTabComplete)V",
+   "native": null,
+   "status": "n/a",
+   "note": "chat input, as processChatMessage"
+  },
+  {
+   "kind": "method",
+   "name": "processClientStatus",
+   "sig": "(C16PacketClientStatus)V",
+   "native": "csrc/engine/survival.c:surv_server_tick_start",
+   "status": "exact",
+   "note": "the respawn and open-inventory-achievement branches on co->c16"
+  },
+  {
+   "kind": "method",
+   "name": "processClientSettings",
+   "sig": "(C15PacketClientSettings)V",
+   "native": null,
+   "status": "n/a",
+   "note": "func_147100_a stores the translator, chat visibility and colours; its view-distance branch is empty in 1.7.10 (the integrated server's view distance follows the client's renderDistanceChunks in IntegratedServer.tick instead)"
+  },
+  {
+   "kind": "method",
+   "name": "processConfirmTransaction",
+   "sig": "(C0FPacketConfirmTransaction)V",
+   "native": "csrc/engine/survival.c:surv_server_tick_start",
+   "status": "exact",
+   "note": "a refused click's setPlayerIsPresent(false) refuses the row's later clicks; the client's C0F answer restores it for the next row"
+  },
+  {
+   "kind": "method",
+   "name": "processEnchantItem",
+   "sig": "(C11PacketEnchantItem)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the enchanting table is off in world.conf (a plain block)"
+  },
+  {
+   "kind": "method",
+   "name": "processClickWindow",
+   "sig": "(C0EPacketClickWindow)V",
+   "native": "csrc/engine/survival.c:surv_server_click",
+   "status": "exact",
+   "note": "the click machine over the open container, then the S2Fs detectAndSendChanges queues"
+  },
+  {
+   "kind": "method",
+   "name": "processCloseWindow",
+   "sig": "(C0DPacketCloseWindow)V",
+   "native": "csrc/engine/survival.c:surv_server_close_screen",
+   "status": "exact",
+   "note": "dispatched from surv_server_tick_start's close-op half"
+  },
+  {
+   "kind": "method",
+   "name": "processVanilla250Packet",
+   "sig": "(C17PacketCustomPayload)V",
+   "native": "csrc/engine/survival.c:surv_server_tick_start",
+   "status": "exact",
+   "note": "MC|TrSel (the merchant's recipe index) is ported; MC|BEdit and MC|BSign (book editing off), MC|AdvCdm (command blocks, creative), MC|Beacon (beacon off) and MC|ItemName (anvil off) never reach a survival server here"
+  },
+  {
+   "kind": "method",
+   "name": "processUseEntity",
+   "sig": "(C02PacketUseEntity)V",
+   "native": "csrc/engine/survival.c:surv_server_tick_start",
+   "status": "exact",
+   "note": "ATTACK ids to combat.c:combat_server_attack, INTERACT ids to process_c02_interact, in arrival order"
+  },
+  {
+   "kind": "method",
+   "name": "processKeepAlive",
+   "sig": "(C00PacketKeepAlive)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the latency average only (field_147249_f is the wall clock); networkTickCount, which the keepalive's % 20 correction reads, is ported"
+  },
+  {
+   "kind": "method",
+   "name": "processPlayer",
+   "sig": "(C03PacketPlayer)V",
+   "native": "csrc/engine/player.c:sp_process_player",
+   "status": "exact",
+   "note": "the full move-verification chain; dispatched from server_player_tick after the C0B actions and the confirm C06s"
+  },
+  {
+   "kind": "method",
+   "name": "processPlayerAbilities",
+   "sig": "(C13PacketPlayerAbilities)V",
+   "native": null,
+   "status": "n/a",
+   "note": "isFlying = packet && allowFlying: allowFlying is false in survival, so the flag stays false"
+  },
+  {
+   "kind": "method",
+   "name": "processPlayerDigging",
+   "sig": "(C07PacketPlayerDigging)V",
+   "native": "csrc/engine/survival.c:surv_server_tick_start",
+   "status": "exact",
+   "note": "walks co->c07[] into process_c07 (drop 3/4, the dig machine, the bow/eat finish); delayed breaks land in surv_server_dig_update"
+  },
+  {
+   "kind": "method",
+   "name": "processEntityAction",
+   "sig": "(C0BPacketEntityAction)V",
+   "native": "csrc/engine/player.c:server_player_tick",
+   "status": "exact",
+   "note": "the c0b[] walk that flips sneaking and sprinting before the C03"
+  },
+  {
+   "kind": "method",
+   "name": "processInput",
+   "sig": "(C0CPacketInput)V",
+   "native": "csrc/engine/riding.c:ride_server_process_input",
+   "status": "exact",
+   "note": "NetHandlerPlayServer.processInput: setEntityActionState"
+  },
+  {
+   "kind": "method",
+   "name": "processHeldItemChange",
+   "sig": "(C09PacketHeldItemChange)V",
+   "native": "csrc/engine/survival.c:surv_server_tick_start",
+   "status": "exact",
+   "note": "sets the server's current_item from co->c09_slot"
+  },
+  {
+   "kind": "method",
+   "name": "processCreativeInventoryAction",
+   "sig": "(C10PacketCreativeInventoryAction)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative mode only: the world is survival (WorldInfo's game type)"
+  },
+  {
+   "kind": "method",
+   "name": "processUpdateSign",
+   "sig": "(C12PacketUpdateSign)V",
+   "native": null,
+   "status": "n/a",
+   "note": "sign editing is off in world.conf (signs are placed blank)"
+  },
+  {
+   "kind": "method",
+   "name": "processPlayerBlockPlacement",
+   "sig": "(C08PacketPlayerBlockPlacement)V",
+   "native": "csrc/engine/survival.c:surv_server_tick_start",
+   "status": "exact",
+   "note": "walks co->c08[] into process_c08 (in-air vs block form); the dig flow's C08 enters through surv_server_use_packet"
+  }
+ ],
+ "missing": [],
+ "notes": "The act stream feeds these handlers through struct client_out (survival.h): the client tick queues what vanilla would have sent, and server_player_tick / surv_server_tick_start consume it in vanilla arrival order. Closed by lane/idxworld: every handler with an effect on this game's state is ported; the rest are n/a with the reason on the member. NetHandlerPlayServer's tick tail: the keepalive ping's id is the wall clock (func_147363_d, nanoTime) and changes nothing, the chat spam counter counts chat the act stream never carries, the kick timers never fire in lockstep; networkTickCount's % 20 correction is ported (player.h network_tick_count)."
+}

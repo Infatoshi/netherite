@@ -1,0 +1,123 @@
+{
+ "path": "csrc/engine/genahead.c",
+ "lines": 1182,
+ "role": "Chunk generation ahead of the step (GPU plan L15): before each step it predicts the chunks the next tick may generate in each environment (the player manager's square one ring out, the spawner's window, livings' pathfinder windows, portal and End-entrance destinations, the dragon, due scheduled ticks near chunk edges, Dev tp hints), generates them in one batch through a generator (the C engine here, csrc/cuda's worldgen in the CUDA build), constructs them and keeps them per environment; its chunk_backend hands a cached chunk to world_chunk_request with the provider state applied, and a request outside the cache falls back to C and is counted.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderServer.java",
+   "members": [
+    "loadChunk",
+    "originalLoadChunk"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "provideChunk",
+    "rand"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderHell.java",
+   "members": [
+    "provideChunk",
+    "hellRNG"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderEnd.java",
+   "members": [
+    "provideChunk",
+    "endRNG"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "struct genahead",
+   "java": null,
+   "fields": [
+    "t",
+    "cap",
+    "used",
+    "step",
+    "st",
+    "states",
+    "pend",
+    "hint",
+    "due",
+    "seen",
+    "win"
+   ]
+  },
+  {
+   "name": "struct ga_entry",
+   "java": null,
+   "fields": [
+    "cx",
+    "cz",
+    "dim",
+    "status",
+    "owed_only",
+    "raw_built",
+    "state",
+    "mark",
+    "rand",
+    "c"
+   ]
+  },
+  {
+   "name": "struct ga_gen",
+   "java": null,
+   "fields": [
+    "name",
+    "ctx",
+    "max_batch",
+    "run",
+    "free",
+    "run_built"
+   ]
+  },
+  {
+   "name": "struct ga_built",
+   "java": null,
+   "fields": [
+    "mask",
+    "metas_any",
+    "ticking",
+    "height_min",
+    "height"
+   ]
+  }
+ ],
+ "entry_points": [
+  "genahead_create",
+  "genahead_free",
+  "genahead_step",
+  "genahead_hint",
+  "genahead_log_misses",
+  "genahead_stats",
+  "genahead_report",
+  "ga_gen_c_create",
+  "ga_gen_free",
+  "genahead_predict",
+  "genahead_fill",
+  "genahead_fill_raw",
+  "genahead_fill_built",
+  "genahead_chunk_built",
+  "genahead_release_raw",
+  "genahead_detach"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 226, function ga_take: inside the tick it removes the cache entry it hands over (open addressing, backward shift, no allocation); the chunk itself was allocated by the step, outside the tick",
+  "line 199, function ga_note_miss: a miss logs to the FILE genahead_log_misses set (a harness flag, NULL otherwise)",
+  "line 726, function genahead_step: runs between ticks and allocates (the table, the batch buffers, the constructed chunks)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/genahead_check.sh"
+ ],
+ "notes": "The cache is per environment and reached through struct world.backend_ctx, never a global. Misses count by the Chebyshev distance from the player's chunk at the step start. make -C csrc gpu-worldgen-ahead-check runs every snapshot recording with --gen-ahead cuda (lane/gpugen, 2026-09-26). lane/envmem: sr_stored also asks the region spill file (rspill_has). genahead_chunk_built makes an overworld chunk from a built result (csrc/cuda/worldgen/built.cu: Chunk's constructor and generateSkylightMap run where the chunk was generated): the bands copied, the metadata and sky arrays stored as chunk_construct and generate_skylight_map leave them (worldgen_built_check compares the two chunk by chunk); the env pool's device generation serves overworld chunks this way (lane/offload)."
+}

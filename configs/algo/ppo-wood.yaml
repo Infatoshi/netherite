@@ -1,0 +1,15 @@
+# The raw log task's PPO (configs/rawtree-log64.yaml's: a fast rate and short horizon for a 20-second episode),
+# on the default 64x64 build, no macros.
+description: PPO for short raw tasks (lr 1e-3, horizon 8, the default 64x64 build), no macros
+macros: none
+net:
+  kind: small
+ppo:
+  lr: 1e-3
+  ent: 0.01
+  clip: 0.2
+  gamma: 0.99
+  lam: 0.95
+  epochs: 4
+  mb: 2048
+  horizon: 8

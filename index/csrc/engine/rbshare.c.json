@@ -1,0 +1,22 @@
+{
+ "path": "csrc/engine/rbshare.c",
+ "lines": 61,
+ "role": "The block renderer's tables (render_blocks.h rb_table from table.bin, about 4.6 MB, and rb_atlas from atlas.json) read once a process and asset directory and never changed or freed (lane/heapprof): raster_live_new and block_item_model.c loaded both into each pipeline env's heap, 9.3 MB an env.",
+ "layer": "render",
+ "java": [],
+ "structs": [
+  {"name": "rbshare", "java": null, "fields": ["dir", "ok", "tab", "atlas", "next"]}
+ ],
+ "entry_points": [
+  "rb_table_shared",
+  "rb_atlas_shared"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "get: a process-wide list of tables built under a lock (the renderer's, never the tick's), allocated from the process heap with the env heap off"
+ ],
+ "tests": [
+  "csrc/tests/test_render.c"
+ ],
+ "notes": "An engine file, not one of pipeline.mk's PL_RENDER files, so the views' private copies of playview.so share one table, as itemtab.c's."
+}

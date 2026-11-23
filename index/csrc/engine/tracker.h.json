@@ -1,0 +1,138 @@
+{
+ "path": "csrc/engine/tracker.h",
+ "lines": 123,
+ "role": "Declares the entity tracker: the packet kinds it can emit, the flat tracker_packet record, one tracker_entry per tracked entity with its last scaled position, angles and motion, and a fixed 512-entry tracker.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/EntityTrackerEntry.java",
+   "members": [
+    "sendLocationToAllClients",
+    "lastScaledXPosition",
+    "lastScaledYPosition",
+    "lastScaledZPosition",
+    "lastYaw",
+    "lastPitch",
+    "lastHeadMotion",
+    "ticks",
+    "ticksSinceLastForcedTeleport",
+    "updateFrequency",
+    "blocksDistanceThreshold",
+    "sendVelocityUpdates",
+    "ridingEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityTracker.java",
+   "members": [
+    "trackedEntities"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "tracker_packet",
+   "java": "the S04/S0D/S0E/S0F/S11/S12/S13/S15-S19/S1B/S1C/S20/S21/S22/S23/S26/S28 server packets, flattened into one record",
+   "fields": [
+    "kind",
+    "id",
+    "type",
+    "data",
+    "x",
+    "y",
+    "z",
+    "yaw",
+    "pitch",
+    "head_yaw",
+    "mx",
+    "my",
+    "mz",
+    "num_ids",
+    "ids",
+    "slot",
+    "leash",
+    "vehicle_id",
+    "effect",
+    "num_chunks",
+    "chunk_x",
+    "chunk_z",
+    "block",
+    "meta",
+    "num_records",
+    "rx",
+    "ry",
+    "rz",
+    "rblock",
+    "rmeta"
+   ]
+  },
+  {
+   "name": "tracker_entry",
+   "java": "EntityTrackerEntry plus the tracked entity's position, motion and angles",
+   "fields": [
+    "id",
+    "cls",
+    "x",
+    "y",
+    "z",
+    "motion_x",
+    "motion_y",
+    "motion_z",
+    "yaw",
+    "pitch",
+    "head_yaw",
+    "last_scaled_x",
+    "last_scaled_y",
+    "last_scaled_z",
+    "last_yaw",
+    "last_pitch",
+    "last_head_yaw",
+    "last_motion_x",
+    "last_motion_y",
+    "last_motion_z",
+    "ticks",
+    "ticks_since_forced_teleport",
+    "update_frequency",
+    "tracking_range",
+    "send_velocity_updates",
+    "riding_entity",
+    "is_airborne",
+    "watch_initialized",
+    "watched",
+    "watch_x",
+    "watch_y",
+    "watch_z"
+   ]
+  },
+  {
+   "name": "tracker",
+   "java": "EntityTracker.trackedEntities as a fixed array",
+   "fields": [
+    "entries",
+    "nentries",
+    "index_mask",
+    "index",
+    "negative_check_s15_for_s17"
+   ]
+  }
+ ],
+ "entry_points": [
+  "tracker_init",
+  "tracker_add",
+  "tracker_find",
+  "tracker_remove",
+  "tracker_multiply_by_32_and_round",
+  "tracker_entry_tick",
+  "tracker_class_name",
+  "tracker_class_of"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 77: struct tracker holds a fixed 512 entries inline (flat, GPU-friendly, but a hard cap)",
+  "lines 40, 46-47, 50: fixed-size arrays inside every tracker_packet (64 ids, 512 chunk coordinates, 64 records), about 6 KB per packet"
+ ],
+ "tests": [
+  "csrc/tests/test_clientworld.c"
+ ],
+ "notes": "Most packet kinds in the enum (S0D, S0E, S0F, S11, S13, S1B, S1C, S04, S20-S28) are parsed by test_clientworld.c from recordings; tracker.c itself emits only S12, S15, S16, S17, S18 and S19. lane/coldaudit: an entry's class is enum tracker_class (tracker_class_name its Java name, tracker_class_of the reverse), not a 32-byte string; the id index is one array of (id, entry) slots over a power-of-two prefix (index_mask) grown with the entries."
+}

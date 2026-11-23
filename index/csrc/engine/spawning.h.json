@@ -1,0 +1,147 @@
+{
+ "path": "csrc/engine/spawning.h",
+ "lines": 255,
+ "role": "The spawner's public types (spawn kinds, creature types, caps, sp_list, sp_rec, sp_data, struct spawner with its box and chunk-list indexes) and entry points for tick and worldgen spawning.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/SpawnerAnimals.java",
+   "members": [
+    "findChunksForSpawning",
+    "performWorldGenSpawning"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EnumCreatureType.java",
+   "members": [
+    "maxNumberOfCreature"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenBase.java",
+   "members": [
+    "getSpawnableList"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "sp_list",
+   "java": "a biome's List<SpawnListEntry> (itemWeight, minGroupCount, maxGroupCount)",
+   "fields": [
+    "n",
+    "kind",
+    "weight",
+    "min_group",
+    "max_group"
+   ]
+  },
+  {
+   "name": "sp_rec",
+   "java": "one constructed EntityLiving: id, UUID, position, its Random, attribute spawn bonuses, zombie/skeleton/sheep/chicken-jockey state, equipment, mount links, box",
+   "fields": [
+    "kind",
+    "id",
+    "alive",
+    "uuid_msb",
+    "uuid_lsb",
+    "x",
+    "y",
+    "z",
+    "yaw",
+    "rnd",
+    "follow_bonus",
+    "knockback_bonus",
+    "child",
+    "villager",
+    "slime_size",
+    "fleece",
+    "skel_type",
+    "eq_item",
+    "eq_dmg",
+    "eq_cnt",
+    "eq_tag",
+    "riding",
+    "ridden_by",
+    "field_70770_ap",
+    "field_70769_ao",
+    "min_x",
+    "min_y",
+    "min_z",
+    "max_x",
+    "max_y",
+    "max_z",
+    "box",
+    "e"
+   ]
+  },
+  {
+   "name": "sp_data",
+   "java": "IEntityLivingData: EntityZombie.GroupData and EntitySpider.GroupData",
+   "fields": [
+    "zombie_made",
+    "child",
+    "villager",
+    "spider_made",
+    "spider_potion"
+   ]
+  },
+  {
+   "name": "spawner",
+   "java": "SpawnerAnimals plus the World state it reads (rand, difficulty, skylightSubtracted, times, player, spawn point, provider)",
+   "fields": [
+    "w",
+    "det",
+    "rand",
+    "pop_rand",
+    "role",
+    "ensure_chunk",
+    "difficulty",
+    "skylight_subtracted",
+    "world_time",
+    "total_time",
+    "player_x",
+    "spawn_x",
+    "cal_month",
+    "cal_day",
+    "seed",
+    "hostile",
+    "peaceful",
+    "animal_gate",
+    "dim",
+    "possible_creatures",
+    "recs",
+    "boxes",
+    "lists",
+    "inh",
+    "out",
+    "rec_index",
+    "rec_index_cap",
+    "rec_indexed"
+   ]
+  }
+ ],
+ "entry_points": [
+  "spawning_list_for",
+  "spawning_scattered_witch",
+  "spawning_hell_list",
+  "spawner_init",
+  "spawner_free",
+  "spawner_tick",
+  "spawner_world_gen",
+  "spawner_summon",
+  "spawner_register_living",
+  "spawner_absorb",
+  "spawner_track"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "struct spawner: recs, rec_index, boxes and out are fixed arrays made at spawner_init; out holds pointers into recs (stable: the array never moves) (lane/gpuarena, L3)",
+  "struct sp_rec: eq_tag holds heap strings"
+ ],
+ "tests": [
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_fortress_spawn.c"
+ ],
+ "notes": "EnumCreatureType path assumed at oracle/src/entity/EnumCreatureType.java; tools/index_check.c confirms existence."
+}

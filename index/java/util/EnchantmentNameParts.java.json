@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/util/EnchantmentNameParts.java",
+  "classes": ["EnchantmentNameParts"],
+  "lines": 40,
+  "side": "client",
+  "category": "client_gui",
+  "role": "Generates the random galactic Standard Galactic Alphabet style words shown on the enchanting table's item tooltip.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf enchanting = off: the enchanting table is a plain block, so the enchantment name is never generated on either side.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "instance", "sig": "EnchantmentNameParts (static)", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "rand", "sig": "Random", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "namePartsArray", "sig": "String[] (static word list)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "generateNewRandomName", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "reseedRandomGenerator", "sig": "(long)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Note the source already draws its Random from netherite.oracle.Det.newRandom, so the oracle keeps the RNG stream deterministic even though the feature is off."
+}

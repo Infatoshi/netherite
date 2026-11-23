@@ -1,0 +1,13 @@
+{
+ "path": "csrc/engine/aabb.h",
+ "lines": 143,
+ "role": "AxisAlignedBB by value, header only: struct aabb and the aabb_* functions as static inline (construction, addCoord, expand, the offset forms, intersectsWith and the three calculateX/Y/ZOffset clipping rules that Entity.moveEntity uses).",
+ "layer": "tick",
+ "java": [{"path": "oracle/src/util/AxisAlignedBB.java", "members": ["minX", "minY", "minZ", "maxX", "maxY", "maxZ", "getBoundingBox", "copy", "addCoord", "expand", "getOffsetBoundingBox", "offset", "intersectsWith", "calculateXOffset", "calculateYOffset", "calculateZOffset"]}],
+ "structs": [{"name": "aabb", "java": "AxisAlignedBB (minX, minY, minZ, maxX, maxY, maxZ)", "fields": ["min_x", "min_y", "min_z", "max_x", "max_y", "max_z"]}],
+ "entry_points": ["aabb_make", "aabb_copy", "aabb_add_coord", "aabb_expand", "aabb_offset_box", "aabb_offset", "aabb_intersects", "aabb_calculate_x_offset", "aabb_calculate_y_offset", "aabb_calculate_z_offset"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_animals.c", "csrc/tests/test_move.c", "csrc/tests/test_snapshots.c"],
+ "notes": "Pure value functions, no state, no allocation: GPU-ready as written. The calculate*Offset functions take the list box first and the entity box second, mirroring Java's receiver/argument order. Inline since lane/mobtick (aabb.c removed): the same operations in the same order, built with -ffp-contract=off. Not ported here: setBounds, func_111270_a (union), contract, isVecInside, getAverageEdgeLength, calculateIntercept, setBB; callers that need them inline the math elsewhere."
+}

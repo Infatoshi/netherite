@@ -1,0 +1,68 @@
+{
+ "path": "csrc/engine/itemtag.h",
+ "lines": 119,
+ "role": "Declares the item tag store (itemtag.c): the itag entry, the interning calls, the decoded reads and the tag writes every stack struct uses.",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  {
+   "name": "itag",
+   "java": "one interned stack tag compound",
+   "fields": [
+    "off",
+    "len",
+    "hash",
+    "next",
+    "has_ench",
+    "nench",
+    "ench",
+    "has_stored",
+    "nstored",
+    "stored",
+    "has_display",
+    "has_color",
+    "has_name",
+    "color",
+    "name_off",
+    "name_len",
+    "repair_cost",
+    "unbreakable"
+   ]
+  },
+  {
+   "name": "itag_ench",
+   "java": "one {id, lvl} ench entry",
+   "fields": [
+    "id",
+    "lvl"
+   ]
+  }
+ ],
+ "entry_points": [
+  "itag_from_tree",
+  "itag_from_text",
+  "itag_from_item",
+  "itag_get",
+  "itag_text",
+  "itag_tree",
+  "itag_put",
+  "itag_ench_level",
+  "itag_nench",
+  "itag_ench_at",
+  "itag_enchanted",
+  "itag_has_color",
+  "itag_color",
+  "itag_name",
+  "itag_add_ench",
+  "itag_add_stored",
+  "itag_set_color",
+  "itag_remove_color",
+  "itag_set_name"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Header for itemtag.c."
+}

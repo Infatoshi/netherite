@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderCaveSpider.java",
+  "classes": ["RenderCaveSpider"],
+  "lines": 61,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityCaveSpider: RenderSpider's spider model at 0.7 scale with the cave spider texture and the same glowing-eyes overlay pass.",
+  "scope": "in_scope",
+  "scope_reason": "Cave spiders spawn in gated worlds and the mob scenes compare their pixels.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_spider", "raster_mobs_draw"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs2a_spider_f006",
+    "out/java/render/mobs2a_spider_f011",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "caveSpiderTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "TEX_CAVE_SPIDER in the texture table"},
+    {"kind": "ctor", "name": "RenderCaveSpider", "sig": "()V", "native": null, "status": "n/a", "note": "shadowSize *= 0.7 is folded into the shadow radius in raster_mobs.c draw_shadow's kind table"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityCaveSpider,F)V", "native": "csrc/engine/raster_mobs.c:model_spider", "status": "exact", "note": "the 0.7 scale is applied in the shared vertex transform for MOB_CAVE_SPIDER"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityCaveSpider)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntitySpider)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,F)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "The spider model itself and the additive eyes overlay (shouldRenderPass in RenderSpider, the superclass another record covers) are in raster_mobs.c model_spider and the TEX_SPIDER_EYES pass in raster_mobs_draw. The spider scenes gate both spider kinds."
+}

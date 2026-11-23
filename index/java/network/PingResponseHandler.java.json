@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/network/PingResponseHandler.java",
+  "classes": ["PingResponseHandler"],
+  "lines": 131,
+  "side": "server",
+  "category": "network",
+  "role": "A netty channel handler that answers the legacy pre-1.6 server-list ping (0xFE request, 0xFF response with MOTD, player count and version string) on the server's listen socket.",
+  "scope": "not_needed",
+  "scope_reason": "The oracle client joins through the in-process local channel; nothing ever connects to a real listen socket to ping a server list, and the native engine has no sockets at all.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_151257_b", "sig": "NetworkSystem", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "PingResponseHandler", "sig": "(NetworkSystem)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "channelRead", "sig": "(ChannelHandlerContext,Object)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151256_a", "sig": "(ChannelHandlerContext,ByteBuf)V", "native": null, "status": "n/a", "note": "writes the response and closes the channel"},
+    {"kind": "method", "name": "func_151255_a", "sig": "(String)ByteBuf", "native": null, "status": "n/a", "note": "builds the 0xFF kick/ping response packet"}
+  ],
+  "missing": [],
+  "notes": "Pure server-list plumbing; never reached in any oracle run or native replay."
+}

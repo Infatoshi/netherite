@@ -1,0 +1,176 @@
+{
+  "path": "csrc/engine/raster.h",
+  "lines": 257,
+  "role": "The renderer's public API: the recorded-scene frame (raster_render), the PNG writer, the HUD and GUI passes implemented in raster_hud.c, and the live renderer (raster_live_*) the playable client drives with a renderstate_compute result. Also the screen extras (gui_screen_extra: the merchant title, the effects, the preview, the credits), raster_hud_boss_set and raster_hud_credits_lines.",
+  "layer": "render",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "renderWorld"
+      ]
+    },
+    {
+      "path": "oracle/src/client/gui/GuiIngame.java",
+      "members": [
+        "renderGameOverlay"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/RenderGlobal.java",
+      "members": [
+        "renderSky",
+        "cloudTickCounter"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/boss/BossStatus.java",
+      "members": [
+        "setBossStatus"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "hud_live_item",
+      "java": "an ItemStack reduced to id, damage, count",
+      "fields": [
+        "id",
+        "meta",
+        "count"
+      ]
+    },
+    {
+      "name": "hud_live_state",
+      "java": "GuiIngame's inputs (player health, food, air, armor, xp, hotbar, overlays) and the GuiAchievement toast, as RenderStateProbe records them",
+      "fields": [
+        "width",
+        "height",
+        "scale",
+        "fancy",
+        "hide",
+        "screen",
+        "update_counter",
+        "current_slot",
+        "clock_ms",
+        "vignette",
+        "brightness",
+        "health",
+        "previous_health",
+        "max_health",
+        "absorption",
+        "saturation",
+        "xp",
+        "hurt_resistant",
+        "armor_value",
+        "food",
+        "previous_food",
+        "air",
+        "in_water",
+        "hardcore",
+        "level",
+        "xp_cap",
+        "show_hud",
+        "survival",
+        "poison",
+        "wither",
+        "regen",
+        "hunger",
+        "tooltip_enabled",
+        "highlight_ticks",
+        "pumpkin_overlay",
+        "third_person",
+        "confusion",
+        "portal",
+        "highlighted",
+        "highlight_name",
+        "inventory",
+        "armor",
+        "toast_on",
+        "toast_desc",
+        "toast_l",
+        "toast_title",
+        "toast_sub",
+        "toast_item",
+        "toast_has_item",
+        "gui_screen"
+      ]
+    },
+    {
+      "name": "raster_live_in",
+      "java": null,
+      "fields": [
+        "rs",
+        "dimension",
+        "rd",
+        "cloud_tick",
+        "wt",
+        "view_y",
+        "clouds"
+      ]
+    },
+    {
+      "name": "raster_live_stats",
+      "java": null,
+      "fields": [
+        "mesh_ms",
+        "lists_ms",
+        "sky_ms",
+        "record_ms",
+        "raster_ms",
+        "meshed",
+        "draws",
+        "triangles"
+      ]
+    }
+  ],
+  "entry_points": [
+    "raster_render",
+    "raster_png",
+    "raster_hud",
+    "raster_hud_draw",
+    "raster_hud_live_json",
+    "raster_hud_toast_json",
+    "raster_hud_item_name",
+    "raster_hud_item_entry",
+    "raster_hud_live",
+    "raster_gui_live",
+    "raster_live_new",
+    "raster_live_mesher",
+    "raster_live_particle_tex",
+    "raster_live_explosion_tex",
+    "raster_live_block_atlas",
+    "raster_live_depth",
+    "raster_live_depth_mut",
+    "raster_live_stale",
+    "raster_live_rebase",
+    "raster_live_stale_all",
+    "raster_live_stats",
+    "raster_live_frame",
+    "raster_live_overlay",
+    "raster_live_weather",
+    "raster_live_overlays",
+    "raster_live_free",
+    "raster_live_animate",
+    "raster_hud_boss_set",
+    "raster_hud_credits_lines",
+    "raster_live_mesh_bytes",
+    "raster_live_translucent",
+    "raster_live_keep",
+    "raster_live_mesh_check",
+    "raster_live_device_mesh",
+    "raster_live_mesh_resync"
+  , "raster_live_set_prec"],
+  "tick_path": false,
+  "gpu": [
+    "line 25, struct hud_live_state: clock_ms carries a millisecond clock into the HUD (the achievement toast timing), a wall-clock input unless the caller pins it",
+    "lines 35, 40, 45: hud_live_state holds borrowed string and json pointers (highlight_name, toast_title, toast_sub, gui_screen)"
+  ],
+  "tests": [
+    "csrc/tests/test_render.c",
+    "csrc/tests/raster.c",
+    "csrc/tests/hud_live_test.c",
+    "csrc/tests/test_hudscreens.c"
+  ],
+  "notes": "raster_hud*, raster_gui_live and the hud_live_state emitters are defined in raster_hud.c, not raster.c. Included by raster.c, raster_hud.c, raster_entities.c and hud_live.c. Whether the play client pins clock_ms was not checked."
+}

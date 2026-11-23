@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/TradesProbe.java",
+ "lines": 292,
+ "role": "Villager trade generation probe: drives one detached villager per case (fresh Random(caseSeed) swapped into Entity.rand) through addDefaultEquipmentAndRecipies(1) and two unlock ticks with n = 1, 3, 7, pinning Collections.shuffle's static Random, and records the recipe list NBT and both 48-bit RNG states per tick plus the two static price tables.",
+ "kind": "probe",
+ "used_by": [
+  "oracle/Makefile run target (make -C oracle run CLASS=TradesProbe), dispatched by Oracle.java",
+  "csrc/tests/test_trades.c (reads out/java/trades/seed2 and seed42: manifest.json and lines.jsonl)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Runs on its own OTHER-role thread while the server is parked; the villagers are never added to the world. DEVLOG notes `test_trades out/java/trades/seed2` passing. Recording dirs were listed, not opened."
+}

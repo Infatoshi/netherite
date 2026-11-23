@@ -1,0 +1,75 @@
+# rawsearch-log64.yaml (lane/rawsearch): configs/rawtree-log64.yaml (a log from a seed's spawn as it is, raw keys,
+# the potential shaping) from any spawn, with 60 s episodes and the teacher's hint: task.hint 24, a step whose cast
+# shows no log has the seen-log scalars and the potential's cell from the nearest log in a box 24 blocks out around the
+# eye (vecenv.h nwrl_vec_opts.task_hint, privileged: the student's weights on those scalars stay 0 and its evals zero
+# them). 60 s: of rawtree's held-out spawns, 41 of 128 have no log within 16 blocks and 33 none within 24; a log 24 to
+# 40 blocks off is 6 to 10 s of walking at the 4.3 blocks a second of a sprint-less walk, the punch 3 s, so 60 s leaves
+# the search about three times the straight path.
+#   make -C csrc/runtime rawtree TR_TASK=search
+sim:
+  world:
+    seed: 1
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    cast_precision: 32
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: device
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: out/java/try/seedset-d989661987/s1
+    worlds: 256
+    groups: 4
+    episode_seconds: 60
+  fidelity:
+    spawning: off
+    random_ticks: off
+    weather: off
+  performance:
+    workers: 30
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: doms
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: none
+    picks: off
+  task:
+    item: 17
+    keys: forward+back+left+right+jump+mine
+    win: 1
+    death: -0.5
+    look: 0.3
+    crack: 0.05
+    dist: 0.1
+    shaping: potential
+    hint: 24
+  starts:
+    library: out/runtime/rawtree/logs-any
+    curriculum: off
+    pin: on
+  ppo:
+    lr: 1e-3
+    ent: 0.01
+    clip: 0.2
+    gamma: 0.99
+    lam: 0.95
+    epochs: 4
+    mb: 2048
+    horizon: 8
+  net:
+    kind: small
+  run:
+    log_every: 1

@@ -1,0 +1,105 @@
+{
+ "classes": [
+  "NetHandlerLoginClient"
+ ],
+ "lines": 125,
+ "side": "client",
+ "category": "network",
+ "role": "The client half of the login handshake: encryption request/response with the session service, login success transition to NetHandlerPlayClient, and disconnect screens.",
+ "scope": "not_needed",
+ "scope_reason": "The native engine has no network stack: the client and server halves run in one process in the SPEC's lockstep order with messages as structs, so no login or encryption ever happens.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147394_b",
+   "sig": "Minecraft",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147395_c",
+   "sig": "GuiScreen",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147393_d",
+   "sig": "NetworkManager",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "NetHandlerLoginClient",
+   "sig": "(NetworkManager,Minecraft,GuiScreen)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "handleEncryptionRequest",
+   "sig": "(S01PacketEncryptionRequest)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Yggdrasil auth and encryption are never reached"
+  },
+  {
+   "kind": "method",
+   "name": "func_147391_c",
+   "sig": "()MinecraftSessionService",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "handleLoginSuccess",
+   "sig": "(S02PacketLoginSuccess)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onDisconnect",
+   "sig": "(IChatComponent)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onConnectionStateTransition",
+   "sig": "(EnumConnectionState,EnumConnectionState)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the handler swap is replaced by the snapshot load"
+  },
+  {
+   "kind": "method",
+   "name": "onNetworkTick",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "handleDisconnect",
+   "sig": "(S00PacketDisconnect)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Not ported by design; SPEC's lockstep section replaces the whole netty login flow.",
+ "path": "oracle/src/client/network/NetHandlerLoginClient.java"
+}

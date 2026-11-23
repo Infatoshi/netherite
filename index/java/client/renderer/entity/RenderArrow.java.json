@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderArrow.java",
+  "classes": ["RenderArrow"],
+  "lines": 109,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityArrow: the arrow shaft and fletching quads from textures/entity/arrow.png, rotated to the arrow's interpolated yaw/pitch with the post-hit wobble rotation.",
+  "scope": "in_scope",
+  "scope_reason": "Arrows fly in gated recordings (throw-bow-s1), so their pixels are in the compared frames' scope.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_things.c", "symbols": ["draw_arrow", "raster_things_scene"]},
+    {"file": "csrc/engine/raster_glx.c", "symbols": ["glx_quad"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/throw-bow-s1",
+    "out/java/render-src/ent_arrow",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "arrowTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_things.c:thing_texture", "status": "exact"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityArrow,DDD FF)V", "native": "csrc/engine/raster_things.c:draw_arrow", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityArrow)ResourceLocation", "native": "csrc/engine/raster_things.c:draw_arrow", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "the bridge overload"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "the bridge overload"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: raster_things.c draw_arrow from the frame row's \"ents\" (EntityRenderProbe): the interpolated yaw and pitch, the arrowShake wobble with the table sin, the two tail quads and the four fins with glNormal3f(0.05625) through GL_RESCALE_NORMAL (a short normal, so arrows light near the ambient 0.4). ent_arrow: three arrows across the view, into a wall and the ground, one burning; 9 views within 7 px (master draws them 2,194 to 2,981 px off)."
+}

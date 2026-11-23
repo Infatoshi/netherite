@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/model/ModelBat.java",
+  "classes": ["ModelBat"],
+  "lines": 115,
+  "side": "client",
+  "category": "client_model",
+  "role": "The bat model: head with two ear boxes, body with the feet plate, and the four wing segments chained as child ModelRenderers, flapping or folded when hanging.",
+  "scope": "in_scope",
+  "scope_reason": "Bats are vanilla, in scope, and pixel-gated (out/java/render/mobs2b_bat_*).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_bat", "draw_model", "pose_model"]}
+  ],
+  "evidence": ["out/java/render/mobs2b_bat_f006", "out/java/render/mobs2b_bat_close_f011", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "batHead", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "part 0, the head yaw/pitch and the two ear boxes"},
+    {"kind": "field", "name": "batBody", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "part 3, body box plus the 0,34 feet plate"},
+    {"kind": "field", "name": "batRightWing", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "part 4, parent 3"},
+    {"kind": "field", "name": "batLeftWing", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "part 6, mirrored"},
+    {"kind": "field", "name": "batOuterRightWing", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "part 5, parent 4"},
+    {"kind": "field", "name": "batOuterLeftWing", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "part 7, parent 6"},
+    {"kind": "ctor", "name": "ModelBat", "sig": "()V", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "the box geometry and the parent chain (part->parent) mirror the addChild tree"},
+    {"kind": "method", "name": "getBatSize", "sig": "()I", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "n/a", "note": "RenderBat.doRender compares it with its renderedBatSize and rebuilds the ModelBat when they differ (always 36, so once): a model reload with nothing drawn from it; RenderBat's shadow is its constructor's 0.25"},
+    {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:draw_model", "status": "exact"},
+    {"kind": "method", "name": "setRotationAngles", "sig": "(float,float,float,float,float,float,Entity)V", "native": "csrc/engine/raster_mobs.c:model_bat", "status": "exact", "note": "the wing flap (mh_cos(age*1.3f)*PI*0.25) and the hang pose live inside model_bat"}
+  ],
+  "missing": [],
+  "notes": "The hanging vs flying wing angles and the PI/4 body tilt match the Java setRotationAngles branches by reading both. Verification only (triage 2026-09-25, out/plan/remaining-2026-09-25.md): verification only: the member is ported but no scene pins it; covered by the verify list, not a port. It stays partial until a recording pins it. lane/idxclient: getBatSize is n/a (only RenderBat's model-reload check reads it)."
+}

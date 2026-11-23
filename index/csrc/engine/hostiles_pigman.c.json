@@ -1,0 +1,120 @@
+{
+ "path": "csrc/engine/hostiles_pigman.c",
+ "lines": 470,
+ "role": "The EntityPigZombie kind on the old (non-task) AI: the zombie constructor with the pigman's attributes and fire immunity, the golden sword in addRandomArmor, onUpdate's attacking speed boost and sound-delay draws, attackEntityFrom's group anger over a 32-block box, findPlayerToAttack gated on anger, EntityMob.attackEntityAsMob with Sharpness, Knockback and Fire Aspect, EntityCreature.updateEntityActionState with EntityLiving's old-AI else branch, the flesh and nugget drops, the Anger NBT key and the 32-byte pigman block of the hostile state record.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntityPigZombie.java",
+   "members": [
+    "EntityPigZombie",
+    "applyEntityAttributes",
+    "onUpdate",
+    "findPlayerToAttack",
+    "attackEntityFrom",
+    "becomeAngryAt",
+    "dropFewItems",
+    "addRandomArmor",
+    "writeEntityToNBT",
+    "angerLevel",
+    "randomSoundDelay",
+    "field_110191_bu",
+    "field_110189_bq",
+    "field_110190_br"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "updateEntityActionState",
+    "updateWanderPath",
+    "field_110181_i",
+    "fleeingTick",
+    "hasAttacked",
+    "entityToAttack",
+    "pathToEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "updateEntityActionState"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMob.java",
+   "members": [
+    "attackEntityAsMob",
+    "attackEntity",
+    "findPlayerToAttack",
+    "getBlockPathWeight"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityZombie.java",
+   "members": [
+    "onLivingUpdate"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "attacking_speed_boost",
+   "java": "EntityPigZombie.field_110190_br (Attacking speed boost, 0.45)",
+   "fields": [
+    "name",
+    "amount",
+    "operation",
+    "uuid_msb",
+    "uuid_lsb",
+    "saved"
+   ]
+  },
+  {
+   "name": "fleeing_speed_bonus",
+   "java": "EntityCreature.field_110181_i",
+   "fields": [
+    "name",
+    "amount",
+    "operation",
+    "uuid_msb",
+    "uuid_lsb",
+    "saved"
+   ]
+  },
+  {
+   "name": "vec3",
+   "java": "Vec3",
+   "fields": [
+    "x",
+    "y",
+    "z"
+   ]
+  }
+ ],
+ "entry_points": [
+  "pigman_construct",
+  "pigman_add_random_armor",
+  "pigman_pre_on_update",
+  "pigman_on_living_update",
+  "pigman_update_entity_action_state",
+  "pigman_attack_entity_from",
+  "pigman_drop_few_items",
+  "pigman_write_kind_nbt",
+  "pigman_write_extra",
+  "pigman_restore_speed_boost"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 72, function pigman_clear_path: free() of the heap path inside the tick; ai_creature_path_to_entity/xyz allocate new ones (lines 108, 381, 403)",
+  "line 249, function pigman_attack_entity_from: an env scratch array of AN_MAX_ENTITIES pointers, and the anger spreads in the entity query's order (container-order dependence on the rand draws of each pigman)",
+  "line 236 and 213, functions become_angry_at and pigman_pre_on_update: entity_to_attack and pigman_last_entity_to_attack are living pointers",
+  "line 427, function pigman_update_entity_action_state: while loop advancing the path index, bounded by the path length",
+  "lines 266 and 269, function pigman_drop_few_items: an_spawn_item heap allocation per item"
+ ],
+ "tests": [
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_lightning.c"
+ ],
+ "notes": "Not found natively: EntityPigZombie.dropRareDrop (the gold ingot; living.c's dropRareDrop is the empty animal body), getCanSpawnHere (difficulty and collision checks), and onSpawnWithEgg's setVillager(false) as a separate step (hostiles.c's zombie onSpawnWithEgg handles the pigman by kind). The enchantment ids 16/19/20 in attack_entity_as_mob are Sharpness, Knockback and Fire Aspect. Evidence recordings: out/java/hostiles pigman-merged2 and pigman-merged42. pigman_restore_speed_boost: a snapshot's angry pigman's unsaved speed boost."
+}

@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/block/BlockAir.java",
+  "classes": ["BlockAir"],
+  "lines": 51,
+  "side": "common",
+  "category": "block",
+  "role": "The air block: id 0, nothing to collide with, nothing to render, nothing to drop.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks_table.c", "symbols": ["BlockAir"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_add_boxes"]}
+  ],
+  "evidence": ["csrc/tests/test_move.c", "csrc/tests/test_registry.c", "out/java/chunks/seed1"],
+  "members": [
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 0 carries render_type -1 (RenderTypeHint -1): the renderer draws nothing."},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "exact", "note": "collide.c's id-0 comment: BlockAir.getCollisionBoundingBoxFromPool returns null, so no box is added."},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 0's opaque_cube is 0."},
+    {"kind": "method", "name": "canCollideCheck", "sig": "(IZ)Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Collidable false in the registry; the bucket path never collides with air."},
+    {"kind": "method", "name": "dropBlockAsItemWithChance", "sig": "(World,IIIFII)V", "native": null, "status": "n/a", "note": "Empty body in Java: air has no drops."},
+    {"kind": "ctor", "name": "BlockAir", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Material air, no bounds, generated into entry 0."}
+  ],
+  "missing": [],
+  "notes": "Entry 0 of blocks.h is generated from the live registry, so every property is exact. Movement against air is exercised by every walking snapshot (out/java/snapshots/walk300-s1)."
+}

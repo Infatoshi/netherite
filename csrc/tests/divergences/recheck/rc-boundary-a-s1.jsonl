@@ -1,0 +1,10 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"n":3,"act":{}}
+{"cmd":"dev","op":"fill","x0":159,"y0":100,"z0":-3,"x1":163,"y1":100,"z1":2,"id":1,"meta":0}
+{"n":3,"act":{}}
+{"cmd":"dev","op":"tp","x":161.5,"y":101.0,"z":-0.5,"yaw":0.0,"pitch":0.0}
+{"n":60,"act":{}}
+{"cmd":"save","name":"rc-boundary-s1"}
+{"n":2,"act":{}}

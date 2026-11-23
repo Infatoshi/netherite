@@ -1,0 +1,232 @@
+{
+ "path": "csrc/engine/spawning.c",
+ "lines": 2266,
+ "role": "SpawnerAnimals bit for bit: findChunksForSpawning (the eligible chunk set in JDK 8 HashMap order, per-type caps, the pack walk, per-type getCanSpawnHere with light and block rules, onSpawnWithEgg equipment and group data) and performWorldGenSpawning, producing constructed spawn records for the mob lanes.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/SpawnerAnimals.java",
+   "members": [
+    "findChunksForSpawning",
+    "func_151350_a",
+    "canCreatureTypeSpawnAtLocation",
+    "performWorldGenSpawning",
+    "eligibleChunksForSpawning"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "spawnRandomCreature",
+    "func_73057_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getSavedLightValue",
+    "getBlockLightValue",
+    "getBlockLightValue_do",
+    "getFullBlockLightValue",
+    "checkNoEntityCollision",
+    "getCollidingBoundingBoxes",
+    "isAnyLiquid",
+    "doesBlockHaveSolidTopSurface",
+    "countEntities",
+    "getClosestPlayer",
+    "func_147462_b",
+    "func_147473_B"
+   ]
+  },
+  {
+   "path": "oracle/src/world/ChunkCoordIntPair.java",
+   "members": [
+    "hashCode"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "getSavedLightValue",
+    "getBlockLightValue",
+    "canBlockSeeTheSky",
+    "getRandomWithSeed",
+    "getTopFilledSegment"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenBase.java",
+   "members": [
+    "spawnableMonsterList",
+    "spawnableCreatureList",
+    "spawnableWaterCreatureList",
+    "spawnableCaveCreatureList",
+    "getSpawnableList"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderHell.java",
+   "members": [
+    "getPossibleCreatures"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenNetherBridge.java",
+   "members": [
+    "spawnList"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenScatteredFeature.java",
+   "members": [
+    "getScatteredFeatureSpawnList"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldProvider.java",
+   "members": [
+    "lightBrightnessTable",
+    "generateLightBrightnessTable"
+   ]
+  },
+  {
+   "path": "oracle/src/util/WeightedRandom.java",
+   "members": [
+    "getRandomItem"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "getCanSpawnHere",
+    "onSpawnWithEgg",
+    "addRandomArmor",
+    "enchantEquipment",
+    "getArmorItemForSlot"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMob.java",
+   "members": [
+    "isValidLightLevel",
+    "getCanSpawnHere"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityAnimal.java",
+   "members": [
+    "getCanSpawnHere"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntitySlime.java",
+   "members": [
+    "getCanSpawnHere"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityBat.java",
+   "members": [
+    "getCanSpawnHere"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityZombie.java",
+   "members": [
+    "onSpawnWithEgg",
+    "addRandomArmor",
+    "attackEntityFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntitySkeleton.java",
+   "members": [
+    "onSpawnWithEgg"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntitySpider.java",
+   "members": [
+    "onSpawnWithEgg"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntitySheep.java",
+   "members": [
+    "onSpawnWithEgg"
+   ]
+  },
+  {
+   "path": "oracle/src/enchantment/EnchantmentHelper.java",
+   "members": [
+    "addRandomEnchantment"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemMonsterPlacer.java",
+   "members": [
+    "spawnCreature"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "lists",
+   "java": "BiomeGenBase's spawn lists after WorldConf.pruneSpawns",
+   "fields": []
+  },
+  {
+   "name": "hell_monster",
+   "java": "BiomeGenHell.spawnableMonsterList",
+   "fields": []
+  },
+  {
+   "name": "fortress_monster",
+   "java": "MapGenNetherBridge.spawnList",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "spawning_list_for",
+  "spawning_scattered_witch",
+  "spawning_hell_list",
+  "spawner_init",
+  "spawner_free",
+  "spawner_set_player",
+  "spawner_set_spawn_types",
+  "spawner_set_scene",
+  "spawner_local_difficulty",
+  "spawner_saved_light",
+  "spawner_block_light_value",
+  "spawner_brightness",
+  "spawner_absorb",
+  "spawner_track",
+  "spawner_summon",
+  "spawner_register_living",
+  "spawner_tick",
+  "spawner_world_gen",
+  "spawner_spawn_creature",
+  "spawner_reinforce",
+  "spawner_set_persistent",
+  "spawner_compact"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "function find_chunks: the eligible set is jorder.c's jord_ccp_window, the 289 keys sorted by JDK bin from the player's chunk, no map (lane/gpuorder, L4)",
+  "line 972, function ench_tag: malloc of an enchantment NBT text per enchanted equipment stack",
+  "line 1651, function pack_walk: while (1) loop bounded only by the pack walk's own break conditions",
+  "line 2025, function spawner_world_gen: while (jr_float(walk) < 0.1F), a probabilistic loop with no fixed bound",
+  "lines 1574-1580, function sp_mat: material lookup by strcmp on names each call",
+  "struct spawner (spawning.h): ensure_chunk and possible_creatures function pointers with void* contexts",
+  "recs, boxes, out and the id index are fixed arrays made with the spawner (SP_MAX_RECS, SP_MAX_BOXES, SP_MAX_OUT); records are append-only, so a long run needs the cap (follow-up: recycle a dead mob's record) (lane/gpuarena, L3)",
+  "function block_light_do: the five neighbour reads go through block_light_raw, no recursion; egg_on_rider runs the jockeys' chicken and skeleton onSpawnWithEgg, so egg_on does not call itself"
+ ],
+ "tests": [
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_fortress_spawn.c",
+  "csrc/tests/test_biome_spawn.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Evidence: out/java/spawning (SpawnProbe/SpawnDump) and out/java/snapshots/mobspawn-fast-s1, mobspawn-final-s1, mobspawn-final-s42; out/java/fortress_spawn for the Nether fortress list; out/java/biome_spawn (BiomeSpawnProbe) for every biome's four lists and the swamp hut's witch list, which swamp-night-s2 exercises. spawner_local_difficulty reads the chunk's inhabited_time, which PlayerManager advances (chunkload.c, inhabit-s42). Horses, wolves and ocelots are absent from the lists per world.conf. The bat rule reads a calendar handed in (cal_month, cal_day), not the wall clock. Several World and Chunk member names are taken from comments; WorldServer.func_73057_a (the SRG name for the creature-list lookup) is assumed, not verified. lane/anytick: rec_spawn grows the record array only outside an onSpawnWithEgg (egg_depth): the chicken jockey's nested chicken spawn used to move the record the egg path was writing through. lane/idxentity: spawner_reinforce (EntityZombie's HARD reinforcement: constructor, the caller's 50 tries, the egg); count_entities leaves persistent livings out. lane/envmem: spawner_compact (the park, overworld only) drops the records of mobs gone for good (dead, the only record of their id) and their boxes; recs, boxes and the id index were append-only and aborted at 131072."
+}

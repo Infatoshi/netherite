@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/util/MovementInput.java",
+  "classes": ["MovementInput"],
+  "lines": 19,
+  "side": "client",
+  "category": "client_input",
+  "role": "Base of the client movement input: moveStrafe, moveForward, jump and sneak flags the player physics read each tick.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/player.h", "symbols": ["in_strafe", "in_forward", "in_jump", "in_sneak"]},
+    {"file": "csrc/engine/player.c", "symbols": ["cp_on_living_update"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/flow-walk-s1",
+    "out/java/snapshots/replay2-walk-s1",
+    "out/java/snapshots/replay2-sneak-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "moveStrafe", "sig": "float", "native": "csrc/engine/player.h:in_strafe", "status": "exact"},
+    {"kind": "field", "name": "moveForward", "sig": "float", "native": "csrc/engine/player.h:in_forward", "status": "exact"},
+    {"kind": "field", "name": "jump", "sig": "boolean", "native": "csrc/engine/player.h:in_jump", "status": "exact"},
+    {"kind": "field", "name": "sneak", "sig": "boolean", "native": "csrc/engine/player.h:in_sneak", "status": "exact"},
+    {"kind": "method", "name": "updatePlayerMoveState", "sig": "()V", "native": null, "status": "n/a", "note": "empty in vanilla; the real one is MovementInputFromOptions"}
+  ],
+  "missing": [],
+  "notes": "The fields live on struct client_player and are replayed from the tape's 'in' snapshot (player.c:487-490 read moveStrafe/moveForward/sneak from the snapshot)."
+}

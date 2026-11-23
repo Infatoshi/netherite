@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/command/CommandDebug.java",
+  "classes": ["CommandDebug"],
+  "lines": 164,
+  "side": "server",
+  "category": "commands",
+  "role": "The /debug command: starts and stops server profiling (MinecraftServer.enableProfiling with the Profiler), then writes the profiler tree and a report with a random quip to debug.txt.",
+  "scope": "not_needed",
+  "scope_reason": "Commands are off in our survival worlds (DEVLOG 2026-09-25); profiling is done by the harness probes and lanetrace, not /debug.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "getCommandName", "sig": "()String", "native": null, "status": "n/a", "note": "\"debug\""},
+    {"kind": "method", "name": "getRequiredPermissionLevel", "sig": "()I", "native": null, "status": "n/a", "note": "3"},
+    {"kind": "method", "name": "getCommandUsage", "sig": "(ICommandSender)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processCommand", "sig": "(ICommandSender,String[])V", "native": null, "status": "n/a", "note": "start/stop profiling and write the report"},
+    {"kind": "method", "name": "func_147205_a", "sig": "(long,int)V", "native": null, "status": "n/a", "note": "write the profile report file"},
+    {"kind": "method", "name": "func_147204_b", "sig": "(long,int)String", "native": null, "status": "n/a", "note": "build the report text"},
+    {"kind": "method", "name": "func_147202_a", "sig": "(int,String,StringBuilder)V", "native": null, "status": "n/a", "note": "recursive profiler tree dump"},
+    {"kind": "method", "name": "func_147203_d", "sig": "()String", "native": null, "status": "n/a", "note": "a random quip from System.nanoTime"},
+    {"kind": "method", "name": "addTabCompletionOptions", "sig": "(ICommandSender,String[])List", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_147206_b", "sig": "long", "native": null, "status": "n/a", "note": "profiling start time"},
+    {"kind": "field", "name": "field_147207_c", "sig": "int", "native": null, "status": "n/a", "note": "profiling start tick"}
+  ],
+  "missing": [],
+  "notes": null
+}

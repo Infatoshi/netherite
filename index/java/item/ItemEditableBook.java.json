@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/item/ItemEditableBook.java",
+  "classes": ["ItemEditableBook"],
+  "lines": 91,
+  "side": "client",
+  "category": "item",
+  "role": "The written book: validates the title/author NBT (for the writable-book path), shows the title and author in the GUI, and opens the reading screen on right click.",
+  "scope": "switched_off",
+  "scope_reason": "Reachable only through a world.conf switch that is off (book and quill) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemEditableBook", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 387, max stack 16"},
+    {"kind": "method", "name": "validBookTagContents", "sig": "(NBTTagCompound)Z", "native": null, "status": "missing", "note": "the title/author NBT validation is not modelled; no path in this game writes a written book's NBT"},
+    {"kind": "method", "name": "getItemStackDisplayName", "sig": "(ItemStack)String", "native": null, "status": "n/a", "note": "client naming"},
+    {"kind": "method", "name": "addInformation", "sig": "(ItemStack,EntityPlayer,List,Z)V", "native": null, "status": "n/a", "note": "client tooltip"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": null, "status": "n/a", "note": "displayGUIBook is a client screen"},
+    {"kind": "method", "name": "getShareTag", "sig": "()Z", "native": null, "status": "n/a", "note": "client NBT sync"},
+    {"kind": "method", "name": "hasEffect", "sig": "(ItemStack)Z", "native": null, "status": "n/a", "note": "client glint"}
+  ],
+  "missing": [
+    "ItemEditableBook.validBookTagContents: the written-book NBT validation is not ported (nothing in this game creates a written book's NBT)."
+  ],
+  "notes": "world.conf's book_editing switch covers the writable book; the written book's reading screen is client presentation. The item itself exists in the registry and can be given, but nothing in the native engine reads its NBT."
+}

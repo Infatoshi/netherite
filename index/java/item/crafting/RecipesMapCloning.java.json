@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/item/crafting/RecipesMapCloning.java",
+  "classes": ["RecipesMapCloning"],
+  "lines": 114,
+  "side": "common",
+  "category": "crafting",
+  "role": "Clones a filled map: one filled map plus N empty maps gives N+1 filled map copies at the original's damage, keeping only the display name.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf maps = off: an empty map stays empty and a filled map from loot never draws, on the oracle side too.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/crafting.c", "symbols": ["map_clone_matches", "map_clone_result"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c"],
+  "members": [
+    {"kind": "method", "name": "matches", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;Lnet/minecraft/world/World;)Z", "native": "csrc/engine/crafting.c:map_clone_matches", "status": "n/a", "note": "ported anyway because the crafting gate replays every recipe class"},
+    {"kind": "method", "name": "getCraftingResult", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/crafting.c:map_clone_result", "status": "n/a", "note": "one filled map per empty one plus the original, at the original's damage, tag reduced to the display name"},
+    {"kind": "method", "name": "getRecipeSize", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getRecipeOutput", "sig": "()Lnet/minecraft/item/ItemStack;", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The matching code is ported and gated by test_crafting.c; the map feature it serves is switched off, so it never matters in play."
+}

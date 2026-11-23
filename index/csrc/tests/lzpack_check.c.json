@@ -1,0 +1,15 @@
+{
+ "path": "csrc/tests/lzpack_check.c",
+ "lines": 128,
+ "role": "The codec check of src/lzpack.h (make lzpack-check, which make test runs): round trips over lengths 0 to 300 and long inputs of every shape the format has a path for (runs at offsets 1 to 20, long literal and match lengths, offsets at 65535, incompressible bytes), with no write past the decoder's slack, then streams cut short, a cap below the length and flipped bytes, each refused or decoded inside its buffer.",
+ "layer": "test",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "A plain program, not a test_*.c: those take a recording directory (tests/input_guard.c)."
+}

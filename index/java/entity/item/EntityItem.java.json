@@ -1,0 +1,310 @@
+{
+ "path": "oracle/src/entity/item/EntityItem.java",
+ "classes": [
+  "EntityItem"
+ ],
+ "lines": 451,
+ "side": "common",
+ "category": "entity",
+ "role": "The dropped-item entity: the stack a broken block, death, Q key or container spill spawns, which bounces, floats on water, burns, stacks with neighbours, despawns after 6000 ticks and is picked up by players.",
+ "scope": "in_scope",
+ "scope_reason": "Item drops are core survival behaviour, not switched off in world.conf.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/item_entity.c",
+   "symbols": [
+    "ie_spawn_item",
+    "item_update",
+    "combine_items",
+    "search_other_items",
+    "ie_attack_from",
+    "ie_water_accelerate",
+    "ie_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity_nbt.c",
+   "symbols": [
+    "ent_nbt_ie"
+   ]
+  },
+  {
+   "file": "csrc/engine/snapshot_entities.c",
+   "symbols": [
+    "ie_adopt_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "collide_with_player_pool"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/phys-ice-s1",
+  "csrc/tests/test_items.c",
+  "csrc/tests/test_drops.c",
+  "csrc/tests/test_harvestdrops.c",
+  "out/java/snapshots/throw-items-s1",
+  "out/java/snapshots/surv_drop-s1",
+  "out/java/snapshots/portal-mobs-s42",
+  "out/java/snapshots/item-tags-s1",
+  "out/java/snapshots/ent-loot-s42",
+  "out/java/snapshots/item-despawn-s1",
+  "out/java/snapshots/plate-arrow-s1",
+  "out/java/snapshots/cont-pickpart-s1",
+  "out/java/snapshots/pfc-loadpick-s9"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "age",
+   "sig": "int",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "ie_ent.age, incremented in item_update, despawn at 6000"
+  },
+  {
+   "kind": "field",
+   "name": "delayBeforeCanPickup",
+   "sig": "int",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "ie_ent.delay"
+  },
+  {
+   "kind": "field",
+   "name": "health",
+   "sig": "int",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "ie_ent.health, starts 5"
+  },
+  {
+   "kind": "field",
+   "name": "field_145801_f",
+   "sig": "String",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_ie",
+   "status": "exact",
+   "note": "the Thrower tag: the Q drop names the player (survival.c), the NBT pair carries it; the only reader is diamondsToYou (EntityItem.onCollideWithPlayer and a mob's pickup, hostiles.c hostile_loot_update)"
+  },
+  {
+   "kind": "field",
+   "name": "field_145802_g",
+   "sig": "String",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_ie",
+   "status": "exact",
+   "note": "the Owner tag (ie_ent.owner_name), written when set"
+  },
+  {
+   "kind": "field",
+   "name": "hoverStart",
+   "sig": "float",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "ie_ent.hover_start, the constructor's Det.mathRandom draw"
+  },
+  {
+   "kind": "field",
+   "name": "static constants",
+   "sig": "Logger logger, String __OBFID",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityItem",
+   "sig": "(World,DDD)V",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "hoverStart, size 0.25, yaw and the three motion draws in order"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityItem",
+   "sig": "(World,DDD,ItemStack)V",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "stack_item/stack_damage/stack_count set by the caller"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityItem",
+   "sig": "(World)V",
+   "native": null,
+   "status": "n/a",
+   "note": "no spawn path uses the bare ctor natively"
+  },
+  {
+   "kind": "method",
+   "name": "canTriggerWalking",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "Entity default false"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "DataWatcher index 10; the native engine keeps the stack in ie_ent fields instead"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/item_entity.c:item_update",
+   "status": "exact",
+   "note": "gravity, the lava fizz jump, water check, slipperiness drag, the 6000-tick despawn"
+  },
+  {
+   "kind": "method",
+   "name": "searchForOtherItemsNearby",
+   "sig": "()V",
+   "native": "csrc/engine/item_entity.c:search_other_items",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "combineItems",
+   "sig": "(EntityItem)Z",
+   "native": "csrc/engine/item_entity.c:combine_items",
+   "status": "exact",
+   "note": "same-item, tag, subtype and stack-size guards, then the merge The tags must be equal (hasTagCompound on both or neither, equal compounds): the tag index compare."
+  },
+  {
+   "kind": "method",
+   "name": "setAgeToCreativeDespawnTime",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative only (EntityPlayer drops in creative); the replayed game type is survival"
+  },
+  {
+   "kind": "method",
+   "name": "handleWaterMovement",
+   "sig": "()Z",
+   "native": "csrc/engine/item_entity.c:ie_water_accelerate",
+   "status": "exact",
+   "note": "water_accelerate shares the liquid flow vector with the orb"
+  },
+  {
+   "kind": "method",
+   "name": "dealFireDamage",
+   "sig": "(int)V",
+   "native": "csrc/engine/item_entity.c:ie_attack_from",
+   "status": "exact",
+   "note": "the IE_SRC_IN_FIRE / IE_SRC_ON_FIRE sources"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(DamageSource,F)Z",
+   "native": "csrc/engine/item_entity.c:ie_attack_from",
+   "status": "exact",
+   "note": "health decrement, death at 0, the nether-star explosion guard"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_ie",
+   "status": "exact",
+   "note": "Health, Age, Thrower, Owner, Item; the per-role world record writer is csrc/engine/living.c:item_entity_write_nbt"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/snapshot_entities.c:ie_adopt_item",
+   "status": "exact",
+   "note": "the snapshot restore path adopts the item with its NBT fields"
+  },
+  {
+   "kind": "method",
+   "name": "onCollideWithPlayer",
+   "sig": "(EntityPlayer)V",
+   "native": "csrc/engine/survival.c:collide_with_player_pool",
+   "status": "exact",
+   "note": "pickup delay, the owner window, the pickup achievements and the pop sound"
+  },
+  {
+   "kind": "method",
+   "name": "getCommandSenderName",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "the localized name feeds chat and death messages only; no state reads it"
+  },
+  {
+   "kind": "method",
+   "name": "canAttackWithItem",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the native melee path never targets item entities, so the guard is vacuous"
+  },
+  {
+   "kind": "method",
+   "name": "travelToDimension",
+   "sig": "(int)V",
+   "native": "csrc/engine/serverreplay.c:sr_ie_portal_travel",
+   "status": "exact",
+   "note": "Entity.travelToDimension for an item; the searchForOtherItemsNearby after it runs on the dead old instance, which combineItems refuses, so it has no effect"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityItem",
+   "sig": "()ItemStack",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "the stack as ie_ent's stack_item/stack_damage/stack_count/stack_tag; DataWatcher 10 is the tracker's S1C"
+  },
+  {
+   "kind": "method",
+   "name": "setEntityItemStack",
+   "sig": "(ItemStack)V",
+   "native": "csrc/engine/item_entity.c:ie_spawn_item",
+   "status": "exact",
+   "note": "the same fields, set at spawn and by the adopt paths"
+  },
+  {
+   "kind": "method",
+   "name": "func_145798_i",
+   "sig": "()Ljava/lang/String;",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_ie",
+   "status": "exact",
+   "note": "the owner getter (Owner tag)"
+  },
+  {
+   "kind": "method",
+   "name": "func_145797_a",
+   "sig": "(String)V",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_ie",
+   "status": "exact",
+   "note": "the owner setter (the dev give path is its only survival caller)"
+  },
+  {
+   "kind": "method",
+   "name": "func_145800_j",
+   "sig": "()Ljava/lang/String;",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_ie",
+   "status": "exact",
+   "note": "the thrower getter: hostile_loot_update reads it for diamondsToYou (ent-loot-s42)"
+  },
+  {
+   "kind": "method",
+   "name": "func_145799_b",
+   "sig": "(String)V",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_ie",
+   "status": "exact",
+   "note": "the thrower setter, the Q-drop path"
+  }
+ ],
+ "missing": [],
+ "notes": "Verified item_update, combine_items, search_other_items, ie_attack_from, water_accelerate and the constructor draws in csrc/engine/item_entity.c; the pickup body in csrc/engine/survival.c:1478-1555. The Q-drop thrower naming is covered by the DEVLOG cat-toss lane entry. I did not verify the nether-star explosion guard against a recording. lane/clientents: the live client's own EntityItem copies (csrc/play/clientents.c citem_update: the water push, pushOutOfBlocks with its Random's mean speed, moveEntity over the client world, friction, bounce, age; no merge, no lava hop) from its EntityTracker emulation; their hoverStart is the server's (the client's comes from Math.random). lane/idxentity: a mob's loot pickup now sees the player's and the blocks' drops (both item pools, ie_items_within_aabb), and a thrown diamond it picks up grants diamondsToYou (ent-loot-s42)."
+}

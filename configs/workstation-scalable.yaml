@@ -1,0 +1,188 @@
+# workstation-scalable.yaml — gpu-workstation 64-core Zen 5 + RTX PRO 6000 Blackwell (sm_120), ~112k env-steps/s, <20 GB RSS.
+# Top-to-bottom: policy -> sim (both visible on screen 1) -> actions (top-level at bottom, alphabetical).
+# All performance counts and ratios are explicit (zero auto-detection).
+# Run: CUDA_VISIBLE_DEVICES=0 out/runtime/train/s1.ls/ntloop --run configs/workstation-scalable.yaml \
+#        --init cache/models/s64-it42.ntw --critic 128 --out out/train/workstation-scalable
+
+policy:
+  net:
+    kind: small
+  ppo:
+    lr: 1e-5
+    ent: 0.01
+    clip: 0.2
+    gamma: 0.998
+    lam: 0.95
+    epochs: 3
+    mb: 8192                   # 2 segments an update (a segment: 128 horizon x 32 envs = 4,096), one minibatch of 8,192
+    horizon: 128
+    ref_kl: 1.0
+    value_warmup: 50
+    value_warmup_lr: 3e-4
+  reward:
+    relative: on
+    nether: 20
+    log_cap: 8
+    values: 4/1.0,61/8
+    caps: 4/8,15/8,265/8,263/8
+    ms_weights: stone_pickaxe/10,furnace/5,iron_ingot/10,iron_pickaxe/10,bucket/5,flint_and_steel/5,diamond_pickaxe/10,obsidian/5,blaze_rod/10
+  starts:
+    library: cache/workstation-scalable/lib64
+    curriculum: adaptive
+    floor: 0.02
+    spawn_min: 0.25
+    seed_set: cache/statebank-2026-11-19/starts
+    seeds: 100005598,1019266621,1044203914,106545754,1086470609,1113382357,1134009793,1155280576,1182857084,1207000883,1233075502,1251471117,127402861,1296218181,1319163461,1342594950
+  run:
+    hours: 4.5
+    log_every: 60
+    save_every: 20
+    out: out/train/workstation-scalable
+
+sim:
+  world:
+    seed: 100005598
+    difficulty: easy
+    render_distance: 4
+  client:
+    observation: 64x64
+    camera: raycast
+    cast_precision: fast32     # the observation only, never a row (Java replay 1,200/1,200 equal); 32 is the bit-exact reference
+    ticks_per_step: 1
+  pipeline:
+    worlds: 256                # total parallel envs
+    groups: 8                  # 8 groups x 32 envs/group = 256 worlds
+    episode_seconds: 600       # 12,000 ticks/episode (20 ticks/s)
+    kind: snapshot             # start mode: saved world snapshot (rebranded from legacy "gold")
+    start: cache/statebank-2026-11-19/starts/s100005598
+  engine:
+    tick: host
+    raycast: device
+    device_mesh: 1
+    device_generation: off
+    device_light: off
+    render: none
+  performance:
+    workers: 64                # explicit: 1 worker per physical core (64 / 64 cores = 1.0x; 4 envs/worker)
+    streams: 2                 # the mesh renderer's streams (render: none here); ntloop makes its own, one a group + the learner's
+    group: 32                  # explicit: 32 envs/group (= worlds / groups = 256 / 8)
+    batch: 256                 # explicit: 256 total batched envs (= worlds)
+    depth: 8                   # explicit: 8 in-flight pipeline groups (= groups)
+    layout: doms               # L3 CCD domain affinity (8 x 32 MB L3 CCDs, 32 envs/CCD)
+    pin: 2                     # what layout doms with no view runs anyway: a queue per L3, each env's steps on its L3's workers
+    place: domain              # each worker on any CPU of its L3 (the L3s in turn, so fewer workers than cores still use all 8)
+    tune: off
+    region_spill: off          # parked chunks stay in memory (the spill file wrote 135-348 GB/hr to the NVMe)
+
+actions:
+  macros:
+    macros: recipe,strip,food,obsidian,nether,pearl,stronghold,dragon,bportal,strip2,carry,pick
+    picks: off
+  options:
+    air_rescue: out
+    armor_craft: first
+    armor_fuel: coal
+    armor_giveup: all
+    armor_kit: full
+    armor_pick: fetch
+    armor_reach: on
+    armor_timing: now
+    armor_turn: make
+    bportal_buckets: any
+    bportal_dpick: always
+    bportal_oracle: on
+    carry_gate: release
+    climb_land: centre
+    dia_first: on
+    diamond_oracle: on
+    dig_bridge: on
+    dig_wade: on
+    dragon_bridge: on
+    dragon_clutch: water
+    dragon_crit: off
+    dragon_crystals: snowball
+    dragon_ender_avert: all
+    dragon_follow: server
+    dragon_food: fetch
+    dragon_hole_floor: on
+    dragon_hunt_cap: on
+    dragon_wait: centre
+    food_break: on
+    food_chase: far
+    food_cook: pearl
+    food_eat: any
+    food_fuel: wood
+    food_hunt: stock32
+    food_night: pearl
+    food_oracle: off
+    food_prov_cook: on
+    food_provision: armor_first
+    food_provision_eyes: on
+    food_scout: walk
+    food_scout_sky: foliage
+    food_swim: on
+    food_trips: many
+    food_wood_retry: on
+    food_wood_route: craft
+    food_wood_stuck: on
+    furnace_kit: carry
+    inwall: dig
+    lava_edge: raw
+    nether_brink_floor: lock
+    nether_camp_side: 2
+    nether_chamber: on
+    nether_chamber_solid: on
+    nether_dig_aim: on
+    nether_dig_refill: on
+    nether_drop_keep: on
+    nether_exit_cover: on
+    nether_eye_strike: margin
+    nether_floor_keep: on
+    nether_fort_path: on
+    nether_hood_roof: skip
+    nether_hood_starve: rest
+    nether_mouth_cover: on
+    nether_near_stop: on
+    nether_oracle: spawner
+    nether_pick_up: dig
+    nether_portal_home: on
+    nether_spawner_tunnel: on
+    nether_sweep: minus
+    nether_trim: on
+    obsidian_carry: fallback
+    obsidian_dig_skip: bad
+    obsidian_early_fill: on
+    obsidian_oracle: on
+    obsidian_yield_live: on
+    pearl_armor: on
+    pearl_home: on
+    pearl_oracle: on
+    pearl_reach_aim: on
+    pearl_reachable: on
+    pearl_strip_yield: on
+    pearl_target: any
+    pearl_trim: on
+    portal_room: wide
+    portal_tower: ground
+    prov_under_surface: hungry
+    snow_first: on
+    snow_gate: start
+    snow_heal: on
+    snow_height: on
+    snow_kit: far
+    snow_target: 32
+    strip_spin: water
+    strip_wood: early
+    stronghold_armor: full
+    stronghold_food: wait80
+    stronghold_oracle: locate
+    stronghold_pack: trim
+    stronghold_room_start: room
+    surface_ceiling: dig
+    sword_kit: iron
+    sword_stock: one
+    threat_interrupt: turn
+    threat_screen: close
+    threat_skeleton: hit
+    water_craft_first: on
+    water_exit: step

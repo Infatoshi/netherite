@@ -1,0 +1,110 @@
+{
+ "path": "oracle/src/client/model/ModelChicken.java",
+ "classes": [
+  "ModelChicken"
+ ],
+ "lines": 106,
+ "side": "client",
+ "category": "client_model",
+ "role": "The chicken's model: head, bill, chin, body, two legs and two wings, with the leg swing and the wing flap.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_chicken",
+    "pose_model",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs_chicken_f006",
+  "out/java/render/mobs_chicken_f011",
+  "out/java/render/mobs_chicken_f016",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "head",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_chicken",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "body",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_chicken",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rightLeg",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_chicken",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "leftLeg",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_chicken",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rightWing",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_chicken",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "leftWing",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_chicken",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "bill",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_chicken",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "chin",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_chicken",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelChicken",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_chicken",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact",
+   "note": "dispatched for MOB_CHICKEN; the child branch (half scale, head translate) is model_vertex"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact",
+   "note": "leg swing and the wing flap (mob_render_input.wing); bill and chin share the head angles"
+  }
+ ],
+ "missing": []
+}

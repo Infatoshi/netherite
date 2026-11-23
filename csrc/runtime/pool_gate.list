@@ -1,0 +1,49 @@
+# The env pool's gate recordings (pool.mk pool-gate): each env's rows against
+# test_snapshots' over these tapes. One name per line under out/java/snapshots.
+# exploring
+explore-long-s1
+gen-walk-s42
+fresh-s42
+play-reload2-s1
+# villages
+persist-village-s42
+cov-tradelist-s1
+cov-villagerep-s42
+idx-villageref-s1
+# fights
+fight-skeleton-s1
+fight-zombie-s1
+fight-enderman-s1
+combat-mobs-s1
+arrow-block-s1
+# death and respawn
+respawn-loop-s1
+surv_death-s1
+death-drops-s1
+bed-respawn-s1
+surv_drown-s42
+chat-deaths-s1
+# the Nether: portal trips, a fight, the fortress
+nether-trip-s1
+nether-trip2-s42
+nether-fight-s1
+cp-nether-s1
+s1chain-S8
+# the End
+end-arrival-s1
+end-dragon-s1
+end-exit-s1
+end-crystals-s1
+cp-end-s1
+s1chain-S23
+gold-g30-s42
+# the rest: long runs, nights, containers, crafting, blocks
+gold-g15-s42
+mobspawn-final-s1
+night-s1
+swamp-night-s2
+cont-furnace-s1
+cat-recipes-s1
+break-place-s1
+chest-chain-s1
+bonemeal-s1

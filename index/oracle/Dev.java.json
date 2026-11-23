@@ -1,0 +1,15 @@
+{
+ "path": "oracle/harness/netherite/oracle/Dev.java",
+ "lines": 652,
+ "role": "Scripted server mutations for --dev agent mode (give, slot, clear, tp, state, xp, time, weather, gamerule, setblock, fill, difficulty, summon, purge, orb, hurt, hanging): validated and queued by tick, applied by the lockstep hook at the head of the server tick.",
+ "kind": "devop",
+ "used_by": [
+  "make -C oracle script DEV=1 (oracle/Makefile)",
+  "oracle/harness/netherite/oracle/Oracle.java (the dev command)",
+  "csrc/engine/dev.c (native mirror of the ops)",
+  "csrc/tests/test_snapshots.c (Dev header entries)",
+  "out/native/play-dev --dev-ops"
+ ],
+ "vanilla_hooks": ["oracle/src/server/MinecraftServer.java"],
+ "notes": "lane/pick: the summon whitelist includes Ghast (native dev.c builds it with a gh_world on any dimension's pool). lane/entrender: the \"entity\" op spawns the render scenes' projectiles, primed TNT and falling blocks from NBT keys (Motion, direction, Fuse, TileID, Data, potionValue, fire); a tape with it is Java-only. lane/netherfire: the summon whitelist includes Blaze (fight-blaze-s42). lane/idxentity: the summon takes \"loot\" (setCanPickUpLoot after the egg) and \"breakdoors\" (a zombie's func_146070_a); csrc/engine/dev.c mirrors both. lane/harness2: the summon's \"child\" sets IsBaby and Age -24000, so it takes Zombie, PigZombie and every EntityAgeable (native dev.c: the age before the placement re-centres the half box), dev-child-s1; a setblock or fill over a container spills it (the action's block env), dev-spill-s1."
+}

@@ -1,0 +1,63 @@
+{
+ "path": "csrc/engine/jorder.c",
+ "lines": 597,
+ "role": "The computed orders of jorder.h: jord_ccp_window orders the (2r+1)^2 chunk window as a JDK 8 HashMap iterates it, by a counting sort by bin on the env scratch stack when the fill starts at its final table and no bin reaches 9, else by the HashMap itself (putVal, resize and split, treeifyBin, TreeNode.treeify, putTreeVal, balanceInsertion, moveRootToFront) over index-linked nodes, two equal hashes in a tree taken as equal identity hashes (-XX:hashCode=2); and jord_set3's keys in insertion order, open-addressed membership index, per-bin counts and counting-sort order; a set3 fill whose bin reached 9 keys replays its keys through the same HashMap over the membership index's storage (set3_order_treed, at most JORD_SET3_TREED_MAX_KEYS keys; csrc/tests/jorder_trees.txt's explosion-set lines).",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/world/ChunkCoordIntPair.java",
+   "members": [
+    "hashCode"
+   ]
+  },
+  {
+   "path": "oracle/src/world/SpawnerAnimals.java",
+   "members": [
+    "eligibleChunksForSpawning"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "activeChunkSet",
+    "setActivePlayerChunksAndCheckLight"
+   ]
+  },
+  {
+   "path": "oracle/src/world/ChunkPosition.java",
+   "members": [
+    "hashCode",
+    "equals"
+   ]
+  },
+  {
+   "path": "oracle/src/world/Explosion.java",
+   "members": [
+    "affectedBlockPositions",
+    "doExplosionA"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "jord_ccp_window",
+  "jord_set3_init",
+  "jord_set3_contains",
+  "jord_set3_add",
+  "jord_set3_order",
+  "jord_ccp_window_memo"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "function jord_set3_add: a key that would make a bin of 9 (a JDK 8 tree bin) or pass the caller's capacity aborts",
+  "function jord_ccp_window: the tree path takes about 30 KB of env scratch (1,089 nodes, two tables of 2,048 bins); two equal hashes in one tree bin are ordered as equal identity hashes, which a JVM's own identity hashes need not match",
+  "no allocation; storage is the caller's or the env scratch stack (lane/gpuorder, L4; lane/longrun)"
+ ],
+ "tests": [
+  "csrc/tests/order_test.c",
+  "csrc/tests/jorder_trees.txt",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_explosions.c"
+ ],
+ "notes": ""
+}

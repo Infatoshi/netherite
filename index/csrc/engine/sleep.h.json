@@ -1,0 +1,49 @@
+{
+ "path": "csrc/engine/sleep.h",
+ "lines": 43,
+ "role": "Declares the bed and sleep entry points (server bed activation, sleep timer, wake, all-asleep hooks, client S0A/S0B handling) and records what is not ported.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/block/BlockBed.java",
+   "members": [
+    "onBlockActivated"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": [
+    "sleepInBedAt",
+    "wakeUpPlayer"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "areAllPlayersAsleep",
+    "wakeAllPlayers"
+   ]
+  },
+  {
+   "path": "oracle/src/client/gui/GuiSleepMP.java",
+   "members": []
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "sleep_bed_activate",
+  "sleep_server_update",
+  "sleep_server_wake",
+  "sleep_all_asleep",
+  "sleep_wake_all",
+  "sleep_client_use_bed",
+  "sleep_client_wake",
+  "sleep_client_update"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Missing: the Nether and End bed explosion; the GuiSleepMP Leave Bed button (C0B action 3)."
+}

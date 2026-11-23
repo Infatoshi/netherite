@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/ActivateProbe.java",
+ "lines": 1149,
+ "role": "Activation probe: drives ItemInWorldManager.activateBlockOrUseItem (Block.onBlockActivated) the way NetHandlerPlayServer handles a C08, on a raw region scattered with every activatable block kind, with a probe-owned survival EntityPlayerMP posed per case; records the block writes, player and tile entity state per case.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=ActivateProbe",
+  "csrc/tests/test_activate.c (csrc/engine/activate.c against the dump)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output directory assumed to be out/java/activate/<name> from the native Makefile's test-data mapping (test X reads out/java/X); not checked on disk."
+}

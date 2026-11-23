@@ -1,0 +1,47 @@
+{
+ "path": "csrc/engine/tileentity.h",
+ "lines": 239,
+ "role": "The tile entity kinds, block ids, per-class state structs (furnace, chest, hopper, spawner, beacon, brewing stand, note, enchanting table, piston, dispenser, flower pot, jukebox, comparator), the tagged union tile_entity, the per-chunk pointer store and its API.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/tileentity/TileEntity.java", "members": ["xCoord", "yCoord", "zCoord", "tileEntityInvalid", "blockMetadata"]},
+  {"path": "oracle/src/tileentity/TileEntityFurnace.java", "members": ["field_145956_a", "field_145963_i", "field_145961_j"]},
+  {"path": "oracle/src/tileentity/TileEntityChest.java", "members": ["field_145987_o", "field_145983_q", "field_145989_m", "field_145986_n", "field_145984_a", "field_145992_i", "field_145988_l", "field_145990_j", "field_145991_k"]},
+  {"path": "oracle/src/tileentity/TileEntityEnderChest.java", "members": ["field_145973_j", "field_145974_k", "field_145972_a", "field_145975_i"]},
+  {"path": "oracle/src/tileentity/TileEntityHopper.java", "members": ["field_145901_j"]},
+  {"path": "oracle/src/tileentity/MobSpawnerBaseLogic.java", "members": ["spawnDelay", "minSpawnDelay", "maxSpawnDelay", "spawnCount", "maxNearbyEntities", "activatingRangeFromPlayer", "spawnRange"]},
+  {"path": "oracle/src/tileentity/TileEntityBrewingStand.java", "members": ["field_145946_k"]},
+  {"path": "oracle/src/tileentity/TileEntityPiston.java", "members": ["field_145875_k", "field_145873_m", "field_145870_n"]},
+  {"path": "oracle/src/tileentity/TileEntityDispenser.java", "members": ["field_146021_j"]},
+  {"path": "oracle/src/tileentity/TileEntitySkull.java", "members": ["func_152107_a", "func_145903_a"]},
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["chunkTileEntityMap", "func_150806_e", "addTileEntity", "removeTileEntity"]}
+ ],
+ "structs": [
+  {"name": "te_pot", "java": "TileEntityFlowerPot item and data", "fields": ["item", "data"]},
+  {"name": "te_stack", "java": "ItemStack in an inventory slot", "fields": ["item", "damage", "count", "tag"]},
+  {"name": "te_furnace", "java": "TileEntityFurnace", "fields": ["slots", "burn_time", "fuel_total", "cook_time"]},
+  {"name": "te_chest", "java": "TileEntityChest and TileEntityEnderChest lid and neighbour state", "fields": ["slots", "players_using", "tick_counter", "lid", "prev_lid", "adjacent_checked", "adj"]},
+  {"name": "te_hopper", "java": "TileEntityHopper", "fields": ["slots", "cooldown"]},
+  {"name": "te_spawner", "java": "MobSpawnerBaseLogic", "fields": ["mob_id", "spawn_delay", "min_spawn_delay", "max_spawn_delay", "spawn_count", "max_nearby_entities", "required_player_range", "spawn_range"]},
+  {"name": "te_beacon", "java": "TileEntityBeacon", "fields": ["primary", "secondary", "levels"]},
+  {"name": "te_brewing", "java": "TileEntityBrewingStand", "fields": ["slots", "brew_time"]},
+  {"name": "te_note", "java": "TileEntityNote", "fields": ["note"]},
+  {"name": "te_enchant", "java": "TileEntityEnchantmentTable", "fields": ["book_spread", "book_rotation", "prev_book_rotation", "book_rotation_2", "tRot", "flip", "oFlip", "flipT", "oFlipT", "otilde", "ot"]},
+  {"name": "te_dispenser", "java": "TileEntityDispenser", "fields": ["slots"]},
+  {"name": "te_piston", "java": "TileEntityPiston", "fields": ["block_id", "block_meta", "facing", "extending", "progress", "last_progress"]},
+  {"name": "te_jukebox", "java": "BlockJukebox.TileEntityJukebox", "fields": ["item", "damage", "count"]},
+  {"name": "te_comparator", "java": "TileEntityComparator", "fields": ["out_signal"]},
+  {"name": "tile_entity", "java": "TileEntity plus a union of the subclass state", "fields": ["x", "y", "z", "kind", "block", "raw", "invalid", "block_metadata", "skull_type", "skull_rot", "u"]},
+  {"name": "te_store", "java": "Chunk.chunkTileEntityMap", "fields": ["v", "n", "cap"]}
+ ],
+ "entry_points": ["te_store_free", "te_find", "te_put", "te_remove", "te_set_raw", "te_kind_of_block", "te_new", "te_free", "te_render", "te_load"],
+ "tick_path": true,
+ "gpu": [
+  "lines 192-195, struct te_store: an array of pointers to individually allocated tile entities (pointer graph)",
+  "lines 73 and 111: owned heap strings inside the entity (te_stack.tag, te_spawner.mob_id)",
+  "line 169: raw, an owned heap copy of the oracle's NBT text",
+  "lines 228-229: extern global mutable function pointer te_dispenser_random and its context"
+ ],
+ "tests": ["csrc/tests/test_dig.c", "csrc/tests/test_sblocks.c", "csrc/tests/test_seedworld.c", "csrc/tests/test_tileticks.c"],
+ "notes": "TE_SIGN, TE_SKULL, TE_COMMAND_BLOCK and TE_END_PORTAL have no union member; skull state sits on the base struct. Several Java field names are copied from the header's comments and were not each re-checked against the Java classes."
+}

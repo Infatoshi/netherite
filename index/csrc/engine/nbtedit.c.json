@@ -1,0 +1,21 @@
+{
+ "path": "csrc/engine/nbtedit.c",
+ "lines": 130,
+ "role": "nbt_set_key: sets one key in a compound by rendering the tree to canonical text, dropping any existing member with that key, appending the new member and parsing the result back to a new tree. Used by crafting for the one-key edits NBTTagCompound.setTag makes on an existing tag.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/nbt/NBTTagCompound.java", "members": ["setTag"]}
+ ],
+ "structs": [],
+ "entry_points": ["nbt_set_key"],
+ "tick_path": true,
+ "gpu": [
+  "lines 55-56, function nbt_set_key: nbt_render allocates two text copies per edit",
+  "line 60, function nbt_set_key: malloc of the spliced text",
+  "line 118, function nbt_set_key: nbt_parse builds a whole new heap tree per edit",
+  "lines 8-45, function value_end: text scan with strchr, bounded by the string length",
+  "line 126, function nbt_set_key: abort() when the spliced text does not parse"
+ ],
+ "tests": ["csrc/tests/test_crafting.c"],
+ "notes": "The only caller found is crafting.c (line 114) (armor dye colour, map scaling, firework FadeColors per the header comment). The rebuilt tree's field insertion order puts the new key last, so an edited compound's nbtbin hash order can differ from Java's HashMap when the key already existed (Java keeps its position in the map by hash, which nbtbin recomputes from insertion order only within a bucket); not verified whether this reaches a hashed entity."
+}

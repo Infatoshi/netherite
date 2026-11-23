@@ -1,0 +1,135 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":155,"y0":89,"z0":240,"x1":172,"y1":89,"z1":258,"id":1,"meta":0}
+{"cmd":"dev","op":"tp","x":161.5,"y":90.0,"z":246.5,"yaw":0.0,"pitch":0.0}
+{"n":3,"act":{}}
+{"n":1,"act":{"press":["key.chat"]}}
+{"n":1,"act":{"gui":[["type","hello  world "]]}}
+{"n":1,"act":{"gui":[["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","seed"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.chat"]}}
+{"n":1,"act":{"gui":[["type","abcdef"],["key",203,0],["key",203,0],["key",14,8],["key",211,127]]}}
+{"n":1,"act":{"gui":[["key",199,0],["type","X"],["key",207,0],["type","Y two words"]]}}
+{"n":1,"act":{"gui":[["mods",2],["key",203,0],["key",14,8]]}}
+{"n":1,"act":{"gui":[["mods",1],["key",203,0],["key",203,0],["key",203,0]]}}
+{"n":1,"act":{"gui":[["type","Z"]]}}
+{"n":1,"act":{"gui":[["mods",2],["key",30,1],["key",46,3]]}}
+{"n":1,"act":{"gui":[["key",207,0],["mods",2],["key",47,22],["key",47,22]]}}
+{"n":1,"act":{"gui":[["mods",3],["key",203,0]]}}
+{"n":1,"act":{"gui":[["mods",2],["key",45,24],["key",211,127]]}}
+{"n":1,"act":{"gui":[["paste","pasted\ntext§c here"]]}}
+{"n":1,"act":{"gui":[["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.chat"]}}
+{"n":1,"act":{"gui":[["type","draft"],["key",200,0]]}}
+{"n":1,"act":{"gui":[["key",200,0],["key",200,0],["key",200,0],["key",208,0]]}}
+{"n":1,"act":{"gui":[["type","!"],["key",208,0],["key",208,0]]}}
+{"n":1,"act":{"gui":[["key",200,0],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.chat"]}}
+{"n":1,"act":{"gui":[["type","dup"],["key",28,13],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.chat"]}}
+{"n":1,"act":{"gui":[["type","gone"],["key",1,27]]}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","he"],["key",15,9]]}}
+{"n":1,"act":{"gui":[["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["key",15,9]]}}
+{"n":1,"act":{"gui":[["key",15,9]]}}
+{"n":1,"act":{"gui":[["key",15,9],["key",15,9]]}}
+{"n":1,"act":{"gui":[["key",1,27]]}}
+{"n":1,"act":{"press":["key.chat"]}}
+{"n":1,"act":{"gui":[["type","hi pl"],["key",15,9]]}}
+{"n":1,"act":{"gui":[["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","tell P"],["key",15,9]]}}
+{"n":1,"act":{"gui":[["type","x"],["key",15,9],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","help"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","help 2"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","help 0"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","help abc"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","help give"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","help -1"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","? 1"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","me waves at @p and @a"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","me sees @a[m=1]"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","me"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","tell player hi"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","tell bob hi"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","w @a hi"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","msg @a[m=1] hi"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","msg @f[c=2] hi"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","msg @r[c=-1] hi"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","tell"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","give Player 1"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","Help"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type"," help"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","me @p[r=3,name=!bob] @p[l=0] @p[score_x=1]"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","tell @p[0,0,0,5] x"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.command"]}}
+{"n":1,"act":{"gui":[["type","time s"],["key",15,9]]}}
+{"n":1,"act":{"gui":[["type"," "],["key",15,9]]}}
+{"n":1,"act":{"gui":[["key",1,27]]}}
+{"n":1,"act":{"press":["key.chat"]}}
+{"n":1,"act":{"gui":[["type","hey"],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"press":["key.chat"]}}
+{"n":1,"act":{"gui":[["chatclick",12,208,0]]}}
+{"n":1,"act":{"gui":[["key",199,0],["key",211,127],["key",211,127],["key",211,127],["key",211,127],["key",211,127]]}}
+{"n":1,"act":{"gui":[["mods",1],["chatclick",12,208,0]]}}
+{"n":1,"act":{"gui":[["wheel",120],["chatclick",200,236,0],["type","!"]]}}
+{"n":1,"act":{"gui":[["key",201,0],["key",209,0],["key",28,13]]}}
+{"n":20,"act":{}}
+{"n":4,"act":{}}

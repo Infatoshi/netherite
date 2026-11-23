@@ -1,0 +1,214 @@
+{
+ "path": "oracle/src/block/BlockRedstoneOre.java",
+ "classes": [
+  "BlockRedstoneOre"
+ ],
+ "lines": 182,
+ "side": "common",
+ "category": "block",
+ "role": "Redstone ore (73) and its lit form (74): touching, walking on or using it lights it with reddust particle draws, a random tick puts it back, and it drops 4-5 redstone plus fortune and xp.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/activate.c",
+   "symbols": [
+    "on_block_activated"
+   ]
+  },
+  {
+   "file": "csrc/engine/dig.c",
+   "symbols": [
+    "dig_op_click"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_walking_block_cb",
+    "living_set_walking_world"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "sp_walking_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "rt_redstone",
+    "RT_REDSTONE_ORE",
+    "RT_LIT_REDSTONE_ORE"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break",
+    "emit_xp"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvestdrops.c",
+   "symbols": [
+    "create_stacked_block",
+    "harvestdrops_create_stacked_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.c",
+   "symbols": [
+    "server_player_load"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_drops.c",
+  "csrc/tests/test_harvestdrops.c",
+  "csrc/tests/test_rendertick.c",
+  "csrc/tests/test_ticks.c",
+  "out/java/dig/r2",
+  "out/java/dig/r42",
+  "out/java/rendertick/fx_rain",
+  "out/java/snapshots/ore-use-s1",
+  "out/java/snapshots/cov-blkbreak-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150187_a",
+   "sig": "boolean",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "lit flag: row 74 has light 9 and tick_randomly"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRedstoneOre",
+   "sig": "(Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 73 and 74"
+  },
+  {
+   "kind": "method",
+   "name": "func_149738_a",
+   "sig": "(World)I",
+   "native": null,
+   "status": "n/a",
+   "note": "tick rate 30; the ore never schedules a tick itself"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockClicked",
+   "sig": "(World,IIIEntityPlayer)V",
+   "native": "csrc/engine/dig.c:dig_op_click",
+   "status": "exact",
+   "note": "six rows of three world-Random floats, then 73 -> 74"
+  },
+  {
+   "kind": "method",
+   "name": "onEntityWalking",
+   "sig": "(World,IIIEntity)V",
+   "native": "csrc/engine/living.c:living_walking_block_cb",
+   "status": "exact",
+   "note": "mobs through living.c, the player through survival.c sp_walking_block for both ore blocks (the lit one draws and does not write); a snapshot-loaded server player steps (player.c server_player_load: canTriggerWalking, nextStepDistance and distanceWalkedOnStepModified from player_server.nbt); world Random draws. The client world's mob copies step too (clientworld.c client_walking_block: their step counters kept per copy, restored from clientents; the sparkle on WorldClient.rand and the local light-up, pfc-orewalk-g12)"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockActivated",
+   "sig": "(World,IIIEntityPlayer,IFFF)Z",
+   "native": "csrc/engine/activate.c:on_block_activated",
+   "status": "exact",
+   "note": "the redstone-ore case: 18 world-Random floats, 73 -> 74, answers false so a held block still places (ore-use-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "func_150185_e",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/dig.c:dig_op_click",
+   "status": "exact",
+   "note": "particle draws then the light-up write, inlined in each caller (dig.c, activate.c, survival.c, living.c)"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/randomtick.c:rt_redstone",
+   "status": "exact",
+   "note": "74 -> 73"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "redstone"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDroppedWithBonus",
+   "sig": "(IRandom)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "4 + nextInt(2) + nextInt(fortune + 1)"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Random)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "dropBlockAsItemWithChance",
+   "sig": "(World,IIIIFI)V",
+   "native": "csrc/engine/drops.c:emit_xp",
+   "status": "exact",
+   "note": "1 + nextInt(5) xp"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the particles and every draw, checked per tick against the spawn log in fx_rain"
+  },
+  {
+   "kind": "method",
+   "name": "func_150186_m",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the particles and every draw, checked per tick against the spawn log in fx_rain"
+  },
+  {
+   "kind": "method",
+   "name": "createStackedBlock",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/harvestdrops.c:create_stacked_block",
+   "status": "exact",
+   "note": "unlit ore, damage 0 (also dig.c)"
+  }
+ ],
+ "missing": [],
+ "notes": "The glow and the draws are not redstone power, so the ore stays in scope under redstone = off. ore-use-s1 right-clicks it with and without a block in hand, walks over unlit and lit ore and mines it. The client world's own func_150185_e (its World.rand draws and its local light-up on click, use and walk) is not modelled; no row field covers it. lane/idxblocks: every member is exact for the server. The client world's own func_150185_e (its World.rand floats and local light-up) is n/a here: the whole-server replay and the playable client keep no WorldClient.rand stream (only test_clientworld does, over walks), the local light-up is overwritten by the server's S23 of the same block, and the particles construct nothing under the pinned minimal setting. Follow-up for the client-world lane."
+}

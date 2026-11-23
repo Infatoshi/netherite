@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/client/gui/inventory/GuiInventory.java",
+  "classes": ["GuiInventory"],
+  "lines": 130,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The player's inventory screen: the survival inventory with armor slots, the 2x2 crafting grid, the rotating player preview, and the stats/achievements buttons.",
+  "scope": "in_scope",
+  "scope_reason": "The inventory screen is the main container screen (pixel-gated out/java/render/gui_inventory) and its clicks change armor and crafting state.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/gui_screens.c", "symbols": ["gui_screen_slot_xy", "gui_screen_layout"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["raster_gui_live"]},
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["raster_mobs_player_preview", "raster_mobs_player_preview_full"]}
+  ],
+  "evidence": ["out/java/render/gui_inventory", "out/java/snapshots/cat-wear-s1", "csrc/tests/test_containers.c", "out/java/render/gui_inventory_preview", "out/java/render/gui_inventory_mouse", "out/java/render/gui_achieve_inv", "out/java/clientframes/idx-preview-s1", "out/java/clientframes/idx-heldblock-s1", "out/java/clientframes/cr-game-s1"],
+  "members": [
+    {"kind": "field", "name": "field_147048_u", "sig": "float", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the stored mouse, recorded as pmx; the live client keeps the last frame's"},
+    {"kind": "field", "name": "field_147047_v", "sig": "float", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "mouse y for the preview tilt"},
+    {"kind": "ctor", "name": "GuiInventory", "sig": "(EntityPlayer)V", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "exact", "note": "the CONTAINER_PLAYER container is the native default (own_container); the field_146291_p flag's effect (no pause) matches"},
+    {"kind": "method", "name": "updateScreen", "sig": "()V", "native": null, "status": "n/a", "note": "the redirect to GuiContainerCreative runs only in creative; the world is SURVIVAL (Oracle.java:234) and nothing changes the game type"},
+    {"kind": "method", "name": "initGui", "sig": "()V", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "exact", "note": "buttonList.clear() then GuiContainer.initGui (guiLeft, guiTop) outside creative: no buttons are added"},
+    {"kind": "method", "name": "func_146979_b", "sig": "(int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "\"Crafting\" at (86,16), raster_hud.c:1569"},
+    {"kind": "method", "name": "drawScreen", "sig": "(int,int,float)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "slots, highlight and tooltip drawn; the player preview is not"},
+    {"kind": "method", "name": "func_146976_a", "sig": "(float,int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the inventory.png background modal is drawn; the func_147046_a call inside it is not"},
+    {"kind": "method", "name": "func_147046_a", "sig": "(int,int,int,float,float,EntityLivingBase)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_player_preview_full", "status": "exact", "note": "drawEntityOnScreen: the rotating player model in the inventory, with the renderYawOffset save/restore"},
+    {"kind": "method", "name": "actionPerformed", "sig": "(GuiButton)V", "native": null, "status": "n/a", "note": "initGui clears buttonList and adds none, so no button can fire it"}
+  ],
+  "missing": [],
+  "notes": "Slot positions are gui_screen_slot_xy's CONTAINER_PLAYER branch (crafting result 144,36, grid from 88,26, armor column at 8,8, main 8,84, hotbar 8,142), matching ContainerPlayer. lane/idxclient (later): func_147046_a draws the player through RenderPlayer whole (raster_mobs_player_preview_full over raster_mobs_draw with the preview's own modelview): the armour layers, the held item (a block through renderItemIn3d), the stuck arrows, the hurt tint and, burning, the fire, which takes the lightmap at the coordinates the first-person hand left (RendererLivingEntity re-enables the lightmap unit before renderEntityOnFire; the flames lift by the preview's yOffset). The stored mouse is the centred pointer as LWJGL reports it (a row lower on the first frame after the session's first ungrab). idx-preview-s1 (iron armour, a sword, a zombie's hits, on fire), idx-heldblock-s1 (a log, a chest, a slab), cr-game-s1 729 from 314 px to 0. Named residual: the hurt tint on the helmet's top face (idx-preview-s1 98, red 254 against the oracle's 109)."
+}

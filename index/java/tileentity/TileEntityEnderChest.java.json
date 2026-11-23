@@ -1,0 +1,130 @@
+{
+  "path": "oracle/src/tileentity/TileEntityEnderChest.java",
+  "classes": [
+    "TileEntityEnderChest"
+  ],
+  "lines": 106,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The ender chest block entity: only the viewer count and lid angle (the items live in the player's InventoryEnderChest), with the periodic block event and lid sounds.",
+  "scope": "in_scope",
+  "scope_reason": "Ender chests are craftable (obsidian and an eye of ender) and open the player's ender inventory.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "TE_ENDER_CHEST",
+        "te_chest"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "ender_chest_update"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_plain"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "gui_open_ender",
+        "gui_close_ender",
+        "gui_can_interact"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_tileent.c",
+      "symbols": [
+        "raster_tileents_lid_tick"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_activate.c",
+    "out/java/activate/full2",
+    "out/java/rendertick/te_chests",
+    "out/java/snapshots/act2-s1",
+    "out/java/snapshots/tiles-reload-s1",
+    "out/java/snapshots/cov-reload-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145972_a, field_145975_i",
+      "sig": "float lid, prevLid",
+      "native": "csrc/engine/tileentity.h:te_chest",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145973_j",
+      "sig": "int numPlayersUsing",
+      "native": "csrc/engine/tileentity.h:te_chest",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145974_k",
+      "sig": "int ticksSinceSync",
+      "native": "csrc/engine/tileentity.h:te_chest",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "updateEntity",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:ender_chest_update",
+      "status": "exact",
+      "note": "The lid and its sounds; the every-20-tick block event carries the count as it is and the next tick's func_147488_Z writes it back after any open or close queued between (tileticks.c:ender_chest_update, world.c world_block_events_run), and the client's lid is stepped from the server count (play.c)."
+    },
+    {
+      "kind": "method",
+      "name": "receiveClientEvent",
+      "sig": "(II)Z",
+      "native": "csrc/engine/raster_tileent.c:raster_tileents_lid_tick",
+      "status": "exact",
+      "note": "The server's: world.c world_block_events_run sets the count to the event's parameter; the client lid steps from the server count (raster_tileents_lid_tick)."
+    },
+    {
+      "kind": "method",
+      "name": "invalidate",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:tileticks_pass",
+      "status": "exact",
+      "note": "cov-reload-s1 mines an ender chest"
+    },
+    {
+      "kind": "method",
+      "name": "func_145969_a",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:gui_open_ender",
+      "status": "exact",
+      "note": "after displayGUIChest's closeScreen, on the associated chest, no floor at 0 (lane/rlscenes; it ran in the activation with a floor before)"
+    },
+    {
+      "kind": "method",
+      "name": "func_145970_b",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:gui_close_ender",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145971_a",
+      "sig": "(EntityPlayer)Z",
+      "native": "csrc/engine/survival.c:gui_can_interact",
+      "status": "exact",
+      "note": "the same tile and within 8"
+    }
+  ],
+  "missing": [],
+  "notes": "The window open/close through func_145969_a / func_145970_b replays exact in the activation probe (DEVLOG); the tick is exact against the tile tick probe. lane/idxblocks: act2-s1 opens and closes an ender chest. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): containers2-s42. lane/reloadstate: a chunk reload resets the lid, viewer count and tick counter (serverreplay.c sr_tiles_loaded)."
+}

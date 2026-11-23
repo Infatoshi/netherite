@@ -1,0 +1,830 @@
+{
+ "path": "oracle/src/world/gen/structure/StructureVillagePieces.java",
+ "classes": [
+  "StructureVillagePieces",
+  "StructureVillagePieces.Church",
+  "StructureVillagePieces.Field1",
+  "StructureVillagePieces.Field2",
+  "StructureVillagePieces.Hall",
+  "StructureVillagePieces.House1",
+  "StructureVillagePieces.House2",
+  "StructureVillagePieces.House3",
+  "StructureVillagePieces.House4Garden",
+  "StructureVillagePieces.Path",
+  "StructureVillagePieces.PieceWeight",
+  "StructureVillagePieces.Road",
+  "StructureVillagePieces.Start",
+  "StructureVillagePieces.Torch",
+  "StructureVillagePieces.Village",
+  "StructureVillagePieces.Well",
+  "StructureVillagePieces.WoodHut"
+ ],
+ "lines": 1909,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The village pieces: the weighted house list, the road and house growth from the well, each piece's box and children, and each piece's blocks (desert sandstone swap, doors, fields with crops, the blacksmith chest) plus the villagers each house spawns.",
+ "scope": "in_scope",
+ "scope_reason": "world.conf villages = on; SPEC Decisions: village structures, villagers and trading are vanilla and in scope.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/village.c",
+   "symbols": [
+    "structure_village",
+    "village_build_component",
+    "village_make_start",
+    "village_can_spawn",
+    "village_begin",
+    "weighted_piece_list",
+    "weight_sum",
+    "can_spawn_more",
+    "class_new",
+    "get_next_village_component",
+    "get_next_village_structure",
+    "get_next_village_path",
+    "next_nn",
+    "next_pp",
+    "well_build",
+    "path_build",
+    "can_village_go_deeper",
+    "are_biomes_viable",
+    "crop_pick"
+   ]
+  },
+  {
+   "file": "csrc/engine/village_blocks.c",
+   "symbols": [
+    "village_blocks",
+    "average_ground_level",
+    "settle",
+    "swap_id",
+    "swap_meta",
+    "v_place",
+    "v_fill",
+    "v_fill_down",
+    "place_door",
+    "spawn_villagers",
+    "well_parts",
+    "path_parts",
+    "torch_parts",
+    "field1_parts",
+    "field2_parts",
+    "house4_parts",
+    "woodhut_parts",
+    "house1_parts",
+    "house2_parts",
+    "house3_parts",
+    "church_parts",
+    "hall_parts"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure.c",
+   "symbols": [
+    "piece_nbt",
+    "start_nbt"
+   ]
+  },
+  {
+   "file": "csrc/engine/loot_tables.h",
+   "symbols": [
+    "LOOT_BLACKSMITH"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/structures/vi-2",
+  "out/java/structures/vi-42",
+  "out/java/villagers/vil-2",
+  "out/java/villagers/vil-42",
+  "out/java/snapshots/persist-village-full-s42",
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_villagers.c",
+  "csrc/tests/test_populate.c",
+  "out/java/snapshots/struct-cp-s42",
+  "out/java/snapshots/cov-structload-s1"
+ ],
+ "members": [
+  {
+   "kind": "method",
+   "name": "func_143016_a",
+   "sig": "()V (registers piece ids ViBB, ViDF, ...)",
+   "native": "csrc/engine/village.c:vill_new",
+   "status": "exact",
+   "note": "Each constructor passes its registry id string to vill_new."
+  },
+  {
+   "kind": "method",
+   "name": "getStructureVillageWeightedPieceList",
+   "sig": "(Random,int)List",
+   "native": "csrc/engine/village.c:weighted_piece_list",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_75079_a",
+   "sig": "(List)I (total weight, -1 when nothing can spawn)",
+   "native": "csrc/engine/village.c:weight_sum",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_75083_a",
+   "sig": "(Start,PieceWeight,List,Random,int,int,int,int,int)Village",
+   "native": "csrc/engine/village.c:class_new",
+   "status": "exact",
+   "note": "The class switch; each func_749xx_a is a *_find plus *_new pair."
+  },
+  {
+   "kind": "method",
+   "name": "getNextVillageComponent",
+   "sig": "(Start,List,Random,int,int,int,int,int)Village",
+   "native": "csrc/engine/village.c:get_next_village_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getNextVillageStructureComponent",
+   "sig": "(Start,List,Random,int,int,int,int,int)StructureComponent",
+   "native": "csrc/engine/village.c:get_next_village_structure",
+   "status": "exact",
+   "note": "Depth bound, reach check, areBiomesViable at the piece centre, torch fallback."
+  },
+  {
+   "kind": "method",
+   "name": "getNextComponentVillagePath",
+   "sig": "(Start,List,Random,int,int,int,int,int)StructureComponent",
+   "native": "csrc/engine/village.c:get_next_village_path",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Church",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:church_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Church.func_74919_a",
+   "sig": "(Start,List,Random,int,int,int,int,int)Church",
+   "native": "csrc/engine/village.c:church_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Church.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:church_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Church.getVillagerType",
+   "sig": "(int)I",
+   "native": "csrc/engine/village_blocks.c:priest_type",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Field1.cropTypeA, cropTypeB, cropTypeC, cropTypeD",
+   "sig": "Block x4",
+   "native": "csrc/engine/structure.h:ca",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Field1",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:field1_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Field1.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Field1.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "a snapshot's structures.json Village.pieces restores each component's box, HPos and VCount and drops the ones population removed; the other keys are the constructor's, which a rebuild repeats, or flags whose effect a rebuild cannot change"
+  },
+  {
+   "kind": "method",
+   "name": "Field1.func_74900_a",
+   "sig": "(Start,List,Random,int,int,int,int,int)Field1",
+   "native": "csrc/engine/village.c:field1_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Field1.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:field1_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Field2.cropTypeA, cropTypeB",
+   "sig": "Block x2",
+   "native": "csrc/engine/structure.h:ca",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Field2",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:field2_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Field2.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Field2.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "a snapshot's structures.json Village.pieces restores each component's box, HPos and VCount and drops the ones population removed; the other keys are the constructor's, which a rebuild repeats, or flags whose effect a rebuild cannot change"
+  },
+  {
+   "kind": "method",
+   "name": "Field2.func_74902_a",
+   "sig": "(Start,List,Random,int,int,int,int,int)Field2",
+   "native": "csrc/engine/village.c:field2_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Field2.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:field2_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Hall",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:hall_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Hall.func_74906_a",
+   "sig": "(Start,List,Random,int,int,int,int,int)Hall",
+   "native": "csrc/engine/village.c:hall_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Hall.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:hall_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Hall.getVillagerType",
+   "sig": "(int)I",
+   "native": "csrc/engine/village_blocks.c:farmer_type",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "House1",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:house1_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House1.func_74898_a",
+   "sig": "(Start,List,Random,int,int,int,int,int)House1",
+   "native": "csrc/engine/village.c:house1_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House1.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:house1_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House1.getVillagerType",
+   "sig": "(int)I",
+   "native": "csrc/engine/village_blocks.c:librarian_type",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "House2.hasMadeChest",
+   "sig": "boolean",
+   "native": "csrc/engine/structure.h:chest",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "House2",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:house2_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House2.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House2.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "a snapshot's structures.json Village.pieces restores each component's box, HPos and VCount and drops the ones population removed; the other keys are the constructor's, which a rebuild repeats, or flags whose effect a rebuild cannot change"
+  },
+  {
+   "kind": "method",
+   "name": "House2.func_74915_a",
+   "sig": "(Start,List,Random,int,int,int,int,int)House2",
+   "native": "csrc/engine/village.c:house2_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House2.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:house2_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House2.getVillagerType",
+   "sig": "(int)I",
+   "native": "csrc/engine/village_blocks.c:blacksmith_type",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "House3",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:house3_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House3.func_74921_a",
+   "sig": "(Start,List,Random,int,int,int,int,int)House3",
+   "native": "csrc/engine/village.c:house3_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House3.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:house3_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "House4Garden.isRoofAccessible",
+   "sig": "boolean",
+   "native": "csrc/engine/structure.h:terrace",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "House4Garden",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:house4_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House4Garden.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House4Garden.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "a snapshot's structures.json Village.pieces restores each component's box, HPos and VCount and drops the ones population removed; the other keys are the constructor's, which a rebuild repeats, or flags whose effect a rebuild cannot change"
+  },
+  {
+   "kind": "method",
+   "name": "House4Garden.func_74912_a",
+   "sig": "(Start,List,Random,int,int,int,int,int)House4Garden",
+   "native": "csrc/engine/village.c:house4_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "House4Garden.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:house4_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "WoodHut.isTallHouse",
+   "sig": "boolean",
+   "native": "csrc/engine/structure.h:tall_house",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "WoodHut.tablePosition",
+   "sig": "int",
+   "native": "csrc/engine/structure.h:table",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "WoodHut",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:woodhut_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "WoodHut.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "WoodHut.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "a snapshot's structures.json Village.pieces restores each component's box, HPos and VCount and drops the ones population removed; the other keys are the constructor's, which a rebuild repeats, or flags whose effect a rebuild cannot change"
+  },
+  {
+   "kind": "method",
+   "name": "WoodHut.func_74908_a",
+   "sig": "(Start,List,Random,int,int,int,int,int)WoodHut",
+   "native": "csrc/engine/village.c:woodhut_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "WoodHut.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:woodhut_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Field1.func_151559_a / Field2.func_151560_a",
+   "sig": "(Random)Block (crop pick)",
+   "native": "csrc/engine/village.c:crop_pick",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "House2.villageBlacksmithChestContents",
+   "sig": "static WeightedRandomChestContent[]",
+   "native": "csrc/engine/loot_tables.h:LOOT_BLACKSMITH",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Path.averageGroundLevel",
+   "sig": "int (Length)",
+   "native": "csrc/engine/structure.h:length",
+   "status": "exact",
+   "note": "Serialized as Length; holds the road length set at construction."
+  },
+  {
+   "kind": "ctor",
+   "name": "Path",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:path_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Path.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Path.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "a snapshot's structures.json Village.pieces restores each component's box, HPos and VCount and drops the ones population removed; the other keys are the constructor's, which a rebuild repeats, or flags whose effect a rebuild cannot change"
+  },
+  {
+   "kind": "method",
+   "name": "Path.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/village.c:path_build",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Path.func_74933_a",
+   "sig": "(Start,List,Random,int,int,int,int)StructureBoundingBox",
+   "native": "csrc/engine/village.c:path_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Path.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:path_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "PieceWeight.villagePieceClass, villagePieceWeight, villagePiecesSpawned, villagePiecesLimit",
+   "sig": "Class, int, int, int",
+   "native": "csrc/engine/structure.h:village_weight",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "PieceWeight",
+   "sig": "(Class,int,int)",
+   "native": "csrc/engine/village.c:weights_add",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PieceWeight.canSpawnMoreVillagePiecesOfType",
+   "sig": "(int)Z",
+   "native": "csrc/engine/village.c:can_spawn_more",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PieceWeight.canSpawnMoreVillagePieces",
+   "sig": "()Z",
+   "native": "csrc/engine/village.c:can_spawn_more",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Road",
+   "sig": "() / (Start,int)",
+   "native": "csrc/engine/village.c:path_new",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Start.worldChunkMngr",
+   "sig": "WorldChunkManager",
+   "native": "csrc/engine/village.c:village_begin",
+   "status": "exact",
+   "note": "Native keeps its own layer stack filled per walk instead of a chunk manager reference."
+  },
+  {
+   "kind": "field",
+   "name": "Start.inDesert",
+   "sig": "boolean",
+   "native": "csrc/engine/village.c:village_world",
+   "status": "exact",
+   "note": "village_world.in_desert."
+  },
+  {
+   "kind": "field",
+   "name": "Start.terrainType",
+   "sig": "int",
+   "native": "csrc/engine/structure.h:terrain_type",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Start.structVillagePieceWeight",
+   "sig": "PieceWeight",
+   "native": "csrc/engine/structure.h:last_weight",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Start.structureVillageWeightedPieceList",
+   "sig": "List<PieceWeight>",
+   "native": "csrc/engine/structure.h:weights",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Start.field_74932_i, Start.field_74930_j",
+   "sig": "List (pending houses, pending roads)",
+   "native": "csrc/engine/structure.h:pending_house",
+   "status": "exact",
+   "note": "pending_road beside it."
+  },
+  {
+   "kind": "ctor",
+   "name": "Start",
+   "sig": "() / (WorldChunkManager,int,Random,int,int,List,int)",
+   "native": "csrc/engine/village.c:village_make_start",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Start.getWorldChunkManager",
+   "sig": "()WorldChunkManager",
+   "native": "csrc/engine/village.c:are_biomes_viable",
+   "status": "exact",
+   "note": "its only caller is areBiomesViable over the world's own layer stack, which native reads directly"
+  },
+  {
+   "kind": "ctor",
+   "name": "Torch",
+   "sig": "() / (Start,int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/village.c:torch_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Torch.func_74904_a",
+   "sig": "(Start,List,Random,int,int,int,int)StructureBoundingBox",
+   "native": "csrc/engine/village.c:torch_find",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Torch.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:torch_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Village.field_143015_k",
+   "sig": "int (HPos, -1 until settled)",
+   "native": "csrc/engine/structure.h:hpos",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Village.villagersSpawned",
+   "sig": "int (VCount)",
+   "native": "csrc/engine/structure.h:vcount",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Village.field_143014_b",
+   "sig": "boolean (Desert)",
+   "native": "csrc/engine/structure.h:desert",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Village",
+   "sig": "() / (Start,int)",
+   "native": "csrc/engine/village.c:vill_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact",
+   "note": "HPos, VCount, Desert."
+  },
+  {
+   "kind": "method",
+   "name": "Village.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "a snapshot's structures.json Village.pieces restores each component's box, HPos and VCount and drops the ones population removed; the other keys are the constructor's, which a rebuild repeats, or flags whose effect a rebuild cannot change"
+  },
+  {
+   "kind": "method",
+   "name": "Village.getNextComponentNN",
+   "sig": "(Start,List,Random,int,int)StructureComponent",
+   "native": "csrc/engine/village.c:next_nn",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.getNextComponentPP",
+   "sig": "(Start,List,Random,int,int)StructureComponent",
+   "native": "csrc/engine/village.c:next_pp",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.getAverageGroundLevel",
+   "sig": "(World,StructureBoundingBox)I",
+   "native": "csrc/engine/village_blocks.c:average_ground_level",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.canVillageGoDeeper",
+   "sig": "(StructureBoundingBox)Z",
+   "native": "csrc/engine/village.c:can_village_go_deeper",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.spawnVillagers",
+   "sig": "(World,StructureBoundingBox,int,int,int,int)V",
+   "native": "csrc/engine/village_blocks.c:spawn_villagers",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.getVillagerType",
+   "sig": "(int)I (base: 0)",
+   "native": "csrc/engine/village_blocks.c:spawn_villagers",
+   "status": "exact",
+   "note": "Base type 0 for House3 and others; subclasses pass their own via *_type."
+  },
+  {
+   "kind": "method",
+   "name": "Village.func_151558_b",
+   "sig": "(Block,int)Block (desert swap)",
+   "native": "csrc/engine/village_blocks.c:swap_id",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.func_151557_c",
+   "sig": "(Block,int)I (desert meta swap)",
+   "native": "csrc/engine/village_blocks.c:swap_meta",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.func_151550_a",
+   "sig": "(World,Block,int,int,int,int,StructureBoundingBox)V",
+   "native": "csrc/engine/village_blocks.c:v_place",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.func_151549_a",
+   "sig": "(World,StructureBoundingBox,int,int,int,int,int,int,Block,Block,boolean)V",
+   "native": "csrc/engine/village_blocks.c:v_fill",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Village.func_151554_b",
+   "sig": "(World,Block,int,int,int,int,StructureBoundingBox)V",
+   "native": "csrc/engine/village_blocks.c:v_fill_down",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Well",
+   "sig": "() / (Start,int,Random,int,int)",
+   "native": "csrc/engine/village.c:village_make_start",
+   "status": "exact",
+   "note": "The Start is the well; its constructor's coordBaseMode draw and fixed box are in village_make_start."
+  },
+  {
+   "kind": "method",
+   "name": "Well.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/village.c:well_build",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Well.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/village_blocks.c:well_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "StructureVillagePieces",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a class of static members only: nothing in oracle/src constructs it (no `new StructureVillagePieces`), so its implicit constructor never runs"
+  }
+ ],
+ "missing": [],
+ "notes": "Class-by-class mapping comes from the comments in village.c and village_blocks.c. test_structures checks the piece trees against out/java/structures/vi-*; test_villagers (out/java/villagers) exercises the villagers the houses spawn; I did not read those manifests in full or run any test. The Java piece classes Road and Path share native V_ROAD. GPU note: pieces are heap-allocated and the pending queues are realloc'd pointer lists (village.c village_pending_add). Closed by lane/idxworld (verification): the piece trees against out/java/structures (vi-2, vi-42), the blocks against the populate dumps, the villagers against out/java/villagers, and a village saved mid-population and resumed by struct-cp-s42 and persist-village-s42. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

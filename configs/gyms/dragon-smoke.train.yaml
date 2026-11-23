@@ -1,0 +1,82 @@
+# The dragon-smoke gym's training run file (configs/gyms/dragon-smoke.yaml): PPO on the End bank's train starts
+# (cache/end-bank-dev-2026-11-23/train, 48 seeds disjoint from its eval set), the late fight's stages, no macros.
+# The flywheel writes RUN/run.yaml from this with --set's overrides and passes --env-steps BUDGET.
+policy:
+  net:
+    kind: small
+  ppo:
+    lr: 8e-5
+    ent: 0.01
+    clip: 0.2
+    gamma: 0.998
+    lam: 0.95
+    epochs: 3
+    mb: 8192
+    horizon: 128
+    ref_kl: 0.08
+    ref_kl_min: 0.03
+    ref_kl_schedule: linear
+    value_warmup: 50
+    value_warmup_lr: 3e-4
+    stage_scale: on
+  reward:
+    relative: on
+    end: 0
+    dragon: 50
+    dragon_hp: 0.5
+    crystals: 10.0
+    step_pen: 2e-4
+    stall_pen: 0
+    log_cap: 8
+    values: 4/1.0,61/8
+    caps: 4/8,15/8,265/8,263/8
+  starts:
+    library: cache/end-bank-dev-2026-11-23/train
+    stages: crystals_gone9+dragon_75+dragon_50+dragon_25
+    curriculum: adaptive
+    floor: 0.15
+    spawn_min: 0.0
+  run:
+    hours: 1
+    log_every: 15
+    save_every: 0
+
+sim:
+  world:
+    seed: 9058709
+    difficulty: easy
+    render_distance: 4
+  client:
+    observation: 64x64
+    camera: raycast
+    cast_precision: fast32
+    ticks_per_step: 1
+  pipeline:
+    worlds: 256
+    groups: 8
+    episode_seconds: 600
+    kind: snapshot
+    start: cache/end-bank-dev-2026-11-23/train/s9058709-end/start
+  engine:
+    tick: host
+    raycast: device
+    device_mesh: 1
+    device_generation: off
+    device_light: off
+    render: none
+  performance:
+    workers: 48
+    streams: 2
+    group: 32
+    batch: 256
+    depth: 8
+    layout: doms
+    pin: 2
+    place: domain
+    tune: off
+    region_spill: off
+
+actions:
+  macros:
+    macros: none
+    picks: off

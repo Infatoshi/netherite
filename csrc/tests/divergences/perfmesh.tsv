@@ -1,0 +1,3 @@
+id	found	by	area	field	cause	status	commit	pin	repro
+# lane/perfmesh: the device mesher under the pipeline's load
+perfmesh-cocoa-cache	2026-09-29	lane/perfmesh (gate)	cuda	-	rb3_render_cocoa kept its three icons in a function static, one for every device thread of the mesher module: a thread read the cache half filled and the device mesher took an illegal address (pipe_bench --kinds explore --device-mesh 1: the orchestrator's explore crash at N = 128, every run at N = 8 with the 32-lane kernel); the icons are looked up each time and mesh.mk fails a build whose device code keeps a writable global	fixed	ee2a18b0	make -C csrc cuda-mesh-stress; the cuda-mesh build's writable-globals check	-

@@ -1,0 +1,753 @@
+{
+ "path": "oracle/src/world/storage/WorldInfo.java",
+ "classes": [
+  "WorldInfo",
+  "WorldInfo$1",
+  "WorldInfo$2",
+  "WorldInfo$3",
+  "WorldInfo$4",
+  "WorldInfo$5",
+  "WorldInfo$6",
+  "WorldInfo$7",
+  "WorldInfo$8",
+  "WorldInfo$9"
+ ],
+ "lines": 670,
+ "side": "common",
+ "category": "world",
+ "role": "The level.dat record of a world: seed, generator, spawn point, total and day time, rain and thunder state and timers, game type, hardcore, commands and game rules, with its NBT read and write. The server world's clock and weather counters live here.",
+ "scope": "in_scope",
+ "scope_reason": "Its time, weather and spawn fields are tick state: World.updateWeather, WorldServer.tick's clock advance and sleep skip, and the spawner read and write them every tick. Deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain); game type, hardcore and mapFeatures=false are unreachable settings (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/servertick.h",
+   "symbols": [
+    "servertick",
+    "total_time",
+    "world_time",
+    "rain_time",
+    "thunder_time",
+    "raining",
+    "thundering",
+    "daylight_cycle"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "servertick_load",
+    "servertick_update_weather",
+    "servertick_tick_head",
+    "servertick_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "serverreplay_load",
+    "sr_world_time",
+    "sr_total_time"
+   ]
+  },
+  {
+   "file": "csrc/engine/snapshot.c",
+   "symbols": [
+    "worldinfo"
+   ]
+  },
+  {
+   "file": "csrc/engine/seedworld.c",
+   "symbols": [
+    "sw_spawn_position"
+   ]
+  },
+  {
+   "file": "csrc/engine/dev.c",
+   "symbols": [
+    "dev_apply"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/cg-replay2-still-rain-s1",
+  "out/java/snapshots/surv2-bed-s1",
+  "out/java/snapshots/death-keepinv-s1",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_seedworld.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "randomSeed",
+   "sig": "long",
+   "native": "csrc/engine/snapshot.c:snapshot_load",
+   "status": "exact",
+   "note": "the manifest's seed, level.dat's RandomSeed"
+  },
+  {
+   "kind": "field",
+   "name": "terrainType",
+   "sig": "WorldType",
+   "native": null,
+   "status": "n/a",
+   "note": "only WorldType.DEFAULT is generated natively"
+  },
+  {
+   "kind": "field",
+   "name": "generatorOptions",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "superflat options; default worlds have \"\""
+  },
+  {
+   "kind": "field",
+   "name": "spawnX",
+   "sig": "int",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact",
+   "note": "read from worldinfo SpawnX"
+  },
+  {
+   "kind": "field",
+   "name": "spawnY",
+   "sig": "int",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spawnZ",
+   "sig": "int",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "totalTime",
+   "sig": "long",
+   "native": "csrc/engine/servertick.h:total_time",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "worldTime",
+   "sig": "long",
+   "native": "csrc/engine/servertick.h:world_time",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "lastTimePlayed",
+   "sig": "long",
+   "native": null,
+   "status": "n/a",
+   "note": "wall clock; the oracle snapshot writes LastPlayed as 0"
+  },
+  {
+   "kind": "field",
+   "name": "sizeOnDisk",
+   "sig": "long",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "playerTag",
+   "sig": "NBTTagCompound",
+   "native": null,
+   "status": "n/a",
+   "note": "native loads the player from player_server.nbt"
+  },
+  {
+   "kind": "field",
+   "name": "dimension",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "only read out of playerTag"
+  },
+  {
+   "kind": "field",
+   "name": "levelName",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "saveVersion",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "raining",
+   "sig": "boolean",
+   "native": "csrc/engine/servertick.h:raining",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rainTime",
+   "sig": "int",
+   "native": "csrc/engine/servertick.h:rain_time",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "thundering",
+   "sig": "boolean",
+   "native": "csrc/engine/servertick.h:thundering",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "thunderTime",
+   "sig": "int",
+   "native": "csrc/engine/servertick.h:thunder_time",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "theGameType",
+   "sig": "WorldSettings.GameType",
+   "native": null,
+   "status": "n/a",
+   "note": "survival, fixed at the world's creation (see notes)"
+  },
+  {
+   "kind": "field",
+   "name": "mapFeaturesEnabled",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "true, fixed at the world's creation: structures are always on in world.conf's worlds"
+  },
+  {
+   "kind": "field",
+   "name": "hardcore",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "false, fixed at the world's creation; the HUD's hardcore hearts read the recorded option"
+  },
+  {
+   "kind": "field",
+   "name": "allowCommands",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "initialized",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "set when the spawn point is first created; native seedworld always builds a fresh world"
+  },
+  {
+   "kind": "field",
+   "name": "theGameRules",
+   "sig": "GameRules",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact",
+   "note": "doFireTick, doMobSpawning, keepInventory, doDaylightCycle from the save and the dev ops; the rest at their defaults, which /gamerule alone changes"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo",
+   "sig": "()",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo",
+   "sig": "(NBTTagCompound)",
+   "native": "csrc/engine/servertick.c:servertick_load",
+   "status": "exact",
+   "note": "a 1.7.10 level.dat always has DayTime"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo",
+   "sig": "(WorldSettings,String)",
+   "native": "csrc/engine/seedworld.c:seedworld_build",
+   "status": "exact",
+   "note": "the fresh world: time 0, the spawn from createSpawnPosition (sw_spawn_position)"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo",
+   "sig": "(WorldInfo)",
+   "native": "csrc/engine/sleep.c:sleep_wake_all",
+   "status": "n/a",
+   "note": "nothing calls the copy constructor (DerivedWorldInfo's constructor uses the no-argument one)"
+  },
+  {
+   "kind": "method",
+   "name": "getNBTTagCompound",
+   "sig": "()NBTTagCompound",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "cloneNBTCompound",
+   "sig": "(NBTTagCompound)NBTTagCompound",
+   "native": null,
+   "status": "n/a",
+   "note": "only for saving level.dat with the player"
+  },
+  {
+   "kind": "method",
+   "name": "updateTagCompound",
+   "sig": "(NBTTagCompound,NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "getSeed",
+   "sig": "()J",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact",
+   "note": "Teleporter Random seeded from snap->seed"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawnX",
+   "sig": "()I",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawnY",
+   "sig": "()I",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawnZ",
+   "sig": "()I",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldTotalTime",
+   "sig": "()J",
+   "native": "csrc/engine/serverreplay.c:sr_total_time",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldTime",
+   "sig": "()J",
+   "native": "csrc/engine/serverreplay.c:sr_world_time",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSizeOnDisk",
+   "sig": "()J",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerNBTTagCompound",
+   "sig": "()NBTTagCompound",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getVanillaDimension",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnX",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "only the setSpawnLocation command path; not used in this game"
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnY",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnZ",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "incrementTotalWorldTime",
+   "sig": "(J)V",
+   "native": "csrc/engine/servertick.c:servertick_tick",
+   "status": "exact",
+   "note": "++total_time in servertick_tick_head and servertick_tick"
+  },
+  {
+   "kind": "method",
+   "name": "setWorldTime",
+   "sig": "(J)V",
+   "native": "csrc/engine/servertick.c:servertick_tick_head",
+   "status": "exact",
+   "note": "daylight advance gated by daylight_cycle, and the sleep skip to the next morning"
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnPosition",
+   "sig": "(III)V",
+   "native": "csrc/engine/seedworld.c:sw_spawn_position",
+   "status": "exact",
+   "note": "WorldServer.createSpawnPosition's result; checked by test_seedworld"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldName",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setWorldName",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getSaveVersion",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setSaveVersion",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getLastTimePlayed",
+   "sig": "()J",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isThundering",
+   "sig": "()Z",
+   "native": "csrc/engine/servertick.c:servertick_update_weather",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setThundering",
+   "sig": "(Z)V",
+   "native": "csrc/engine/servertick.c:servertick_update_weather",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getThunderTime",
+   "sig": "()I",
+   "native": "csrc/engine/servertick.c:servertick_update_weather",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setThunderTime",
+   "sig": "(I)V",
+   "native": "csrc/engine/servertick.c:servertick_update_weather",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isRaining",
+   "sig": "()Z",
+   "native": "csrc/engine/servertick.c:servertick_update_weather",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRaining",
+   "sig": "(Z)V",
+   "native": "csrc/engine/servertick.c:servertick_update_weather",
+   "status": "exact",
+   "note": "also resetRainAndThunder after sleep (not verified line by line)"
+  },
+  {
+   "kind": "method",
+   "name": "getRainTime",
+   "sig": "()I",
+   "native": "csrc/engine/servertick.c:servertick_update_weather",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRainTime",
+   "sig": "(I)V",
+   "native": "csrc/engine/servertick.c:servertick_update_weather",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getGameType",
+   "sig": "()WorldSettings.GameType",
+   "native": null,
+   "status": "n/a",
+   "note": "survival, as theGameType"
+  },
+  {
+   "kind": "method",
+   "name": "isMapFeaturesEnabled",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true, as mapFeaturesEnabled"
+  },
+  {
+   "kind": "method",
+   "name": "setGameType",
+   "sig": "(WorldSettings.GameType)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isHardcoreModeEnabled",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false, as hardcore"
+  },
+  {
+   "kind": "method",
+   "name": "getTerrainType",
+   "sig": "()WorldType",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setTerrainType",
+   "sig": "(WorldType)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getGeneratorOptions",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "areCommandsAllowed",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInitialized",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setServerInitialized",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getGameRulesInstance",
+   "sig": "()GameRules",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addToCrashReport",
+   "sig": "(CrashReportCategory)V",
+   "native": null,
+   "status": "n/a",
+   "note": "crash report sections, anonymous classes WorldInfo$1..$9"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo$1",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "WorldInfo$1.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo$2",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "WorldInfo$2.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo$3",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "WorldInfo$3.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo$4",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "WorldInfo$4.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo$5",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "WorldInfo$5.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo$6",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "WorldInfo$6.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo$7",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "WorldInfo$7.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo$8",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "WorldInfo$8.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldInfo$9",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "WorldInfo$9.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in WorldInfo.addToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  }
+ ],
+ "missing": [],
+ "notes": "Native state lives per world in struct servertick (csrc/engine/servertick.h), loaded from the snapshot's worldinfo.nbt (level.dat NBT written by oracle/harness/netherite/oracle/Snapshot.java) in servertick_load, with per-world weather overridden from worlds.nbt in serverreplay_load. DerivedWorldInfo (Nether/End) is handled by the no_sky branch in servertick_tick_head and the clock copy in csrc/engine/sleep.c sleep_wake_all. Not verified: whether the WorldInfo(NBTTagCompound) fallback for a missing DayTime key matters (the oracle always writes it). Weather evidence from replay2-still-rain-s1, sleep time skip from surv2-bed-s1, keepInventory rule from death-keepinv-s1 (named by recording, not re-run). updateTagCompound's LastPlayed is netherite.oracle.Oracle.saveClockMillis() (the save clock pin, lane/rerecaudit): the pinned calendar instant while the oracle runs, so two runs write the same level.dat. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings). The world is the oracle's survival world (world.conf's worlds, WorldSettings survival, structures on, not hardcore): the game type, map features and hardcore settings are fixed at creation and change only through /gamemode, /defaultgamemode or the LAN menu's cheats, none of which this game carries. Every game rule a survival world reaches keeps its default but the four the save or the dev ops set (doFireTick, doMobSpawning, keepInventory, doDaylightCycle): /gamerule needs cheats. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings). The world is the oracle's survival world (world.conf's worlds, WorldSettings survival, structures on, not hardcore): the game type, map features and hardcore settings are fixed at creation and change only through /gamemode, /defaultgamemode or the LAN menu's cheats, none of which this game carries. Every game rule a survival world reaches keeps its default but the four the save or the dev ops set (doFireTick, doMobSpawning, keepInventory, doDaylightCycle): /gamerule needs cheats."
+}

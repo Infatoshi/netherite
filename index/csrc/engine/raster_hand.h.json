@@ -1,0 +1,27 @@
+{
+ "path": "csrc/engine/raster_hand.h",
+ "lines": 87,
+ "role": "Declares the first-person hand pass and its inputs: the held item as the paths branch on it (raster_hand_item), the per-frame client state (raster_hand_in), the recorded-scene entry and the item table and RGBA loaders the live client uses.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/EntityRenderer.java", "members": ["renderHand"]},
+  {"path": "oracle/src/client/renderer/ItemRenderer.java", "members": ["renderItemInFirstPerson", "itemToRender", "equippedProgress", "prevEquippedProgress"]},
+  {"path": "oracle/src/entity/EntityLivingBase.java", "members": ["swingProgress", "prevSwingProgress"]},
+  {"path": "oracle/src/item/EnumAction.java", "members": ["none", "eat", "drink", "block", "bow"]},
+  {"path": "oracle/src/block/Block.java", "members": ["getRenderColor"]}
+ ],
+ "structs": [
+  {"name": "raster_hand_item", "java": "ItemRenderer.itemToRender reduced to what the render paths branch on: icon uv per pass, tint, getItemUseAction, getMaxItemUseDuration, shouldRotateAroundWhenRendering, Block.getRenderColor", "fields": ["id", "meta", "block3d", "sprite", "npass", "pass", "action", "max_use", "rotate", "render_color", "grass"]},
+  {"name": "raster_hand_in", "java": "the client player's interpolation inputs for renderHand: rotation, EntityPlayerSP's arm angles, equippedProgress, swingProgress, getItemInUseCount, the light at the player", "fields": ["pt", "pitch", "prev_pitch", "yaw", "prev_yaw", "arm_pitch", "prev_arm_pitch", "arm_yaw", "prev_arm_yaw", "equipped", "prev_equipped", "swing", "prev_swing", "use_count", "light", "invisible", "has_item", "item", "proj", "mv", "lm", "scene", "skin", "items", "items_w", "items_h", "blocks", "blocks_w", "blocks_h", "chest", "no_hand"]}
+ ],
+ "entry_points": [
+  "raster_hand_draw",
+  "raster_hand_scene",
+  "raster_hand_item_lookup",
+  "raster_hand_read_rgba"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_render.c"],
+ "notes": "HAND_USE_* mirror EnumAction's ordinals. Included by raster.c, raster_hand.c and play/play.c. lane/entrender: raster_hand_item.eff, raster_hand_in.glint and now."
+}

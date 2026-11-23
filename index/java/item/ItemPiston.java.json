@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/item/ItemPiston.java",
+  "classes": ["ItemPiston"],
+  "lines": 21,
+  "side": "common",
+  "category": "item",
+  "role": "ItemBlock for the piston and sticky piston (ids 33, 29): forces the placed metadata to 7 (the extended-bit encoding the block stores while unextended).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_get_metadata"]}
+  ],
+  "evidence": ["csrc/tests/test_place.c", "out/java/snapshots/cov-place-s1"],
+  "members": [
+    {"kind": "ctor", "name": "ItemPiston", "sig": "(Lnet/minecraft/block/Block;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "rows 29 and 33, class_name ItemPiston"},
+    {"kind": "method", "name": "getMetadata", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact", "note": "cov-place-s1 places it (wool, leaves, a piston, snow layers through ItemSnow's super path)"}
+  ],
+  "missing": [],
+  "notes": null
+}

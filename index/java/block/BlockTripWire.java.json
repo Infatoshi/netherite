@@ -1,0 +1,244 @@
+{
+  "path": "oracle/src/block/BlockTripWire.java",
+  "classes": [
+    "BlockTripWire"
+  ],
+  "lines": 274,
+  "side": "common",
+  "category": "block",
+  "role": "The tripwire (id 132): a thin string across a hook-to-hook line; it arms when an entity stands in it, tells the hooks, and breaks when its floor support goes.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "tripwire_on_added",
+        "tripwire_neighbor",
+        "tripwire_hooks_step",
+        "bwl_on_added",
+        "block_on_neighbor_changed",
+        "blockcb_tripwire_hooks",
+        "bwl_on_broken"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_dispatch"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_pool_box"
+      ]
+    },
+    {
+      "file": "csrc/engine/harvest.c",
+      "symbols": [
+        "item_can_harvest"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "place_tripwire_on_added"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_plate_collide",
+        "sr_plate_tick",
+        "sr_tripwire_check"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/pf-tripwire-g13",
+    "out/java/snapshots/pf-wirebounds-g16",
+    "out/java/snapshots/idx-blocks-s1",
+    "out/java/meshes/scene3-42",
+    "csrc/tests/test_meshes.c",
+    "out/java/snapshots/plate-dead-s1",
+    "out/java/snapshots/struct-jungle-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockTripWire",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "id 132: Material.circuits row, 0.15625 bounds, tick_randomly"
+    },
+    {
+      "kind": "method",
+      "name": "func_149738_a",
+      "sig": "(Lnet/minecraft/world/World;)I",
+      "native": "csrc/engine/serverreplay.c:sr_tripwire_check",
+      "status": "exact",
+      "note": "The tick rate 10."
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_pool_box",
+      "status": "exact",
+      "note": "case 132: null"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderBlockPass",
+      "sig": "()I",
+      "native": null,
+      "status": "exact",
+      "note": "Pass 1 from the generated table; the mesh scenes record the wire in pass 1; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "render_type 30"
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+      "native": "csrc/engine/drops.c:drops_dispatch",
+      "status": "exact",
+      "note": "case 132: string"
+    },
+    {
+      "kind": "method",
+      "name": "getItem",
+      "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/item/Item;",
+      "native": "csrc/engine/pickblock.c:block_get_item",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)V",
+      "native": "csrc/engine/blockcb.c:tripwire_neighbor",
+      "status": "exact",
+      "note": "drops itself when the solid-top support under it changes"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockAdded",
+      "sig": "(Lnet/minecraft/world/World;III)V",
+      "native": "csrc/engine/blockcb.c:tripwire_on_added",
+      "status": "exact",
+      "note": "sets the support bit and runs the hook update (place.c:place_tripwire_on_added covers the item-placement path)"
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;I)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_broken",
+      "status": "exact",
+      "note": "func_150138_a(meta | 1): both runs' facing hooks run func_150136_a inside the write, before the cell's metadata is replaced (blockcb.c:bwl_on_broken, added by lane/idxblocks; the index had cited it but it was missing)."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockHarvested",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/player/EntityPlayer;)V",
+      "native": "csrc/engine/dig.c:try_harvest_block",
+      "status": "exact",
+      "note": "Shears set bit 8 (disarmed) with flag 4 before the wire goes, so the hooks read it disarmed (dig.c:try_harvest_block, added by lane/idxblocks)."
+    },
+    {
+      "kind": "method",
+      "name": "func_150138_a",
+      "sig": "(Lnet/minecraft/world/World;IIII)V",
+      "native": "csrc/engine/blockcb.c:tripwire_hooks_step",
+      "status": "exact",
+      "note": "walks both directions to the hooks and runs their state machine"
+    },
+    {
+      "kind": "method",
+      "name": "onEntityCollidedWithBlock",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/Entity;)V",
+      "native": "csrc/engine/serverreplay.c:sr_plate_collide",
+      "status": "exact",
+      "note": "collide.c answers COLLIDE_EFFECT_PLATE for id 132, and the world's plate hook (installed on the replay's worlds for every phase, so the player's own moves reach it) runs func_150140_e while the wire is not tripped. Arrows reach it through projectile.c:arrow_block_collisions."
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(Lnet/minecraft/world/World;IIILjava/util/Random;)V",
+      "native": "csrc/engine/serverreplay.c:sr_plate_tick",
+      "status": "exact",
+      "note": "servertick.c dispatches 132 to the plate hook; it re-checks while tripped."
+    },
+    {
+      "kind": "method",
+      "name": "func_150140_e",
+      "sig": "(Lnet/minecraft/world/World;III)V",
+      "native": "csrc/engine/serverreplay.c:sr_tripwire_check",
+      "status": "exact",
+      "note": "The wire's box against every entity but the bat, the tripped bit (flag 3), func_150138_a to the hooks, and the 10-tick re-check while occupied. The box is the state's setBlockBoundsBasedOnState bounds; Java's is whatever the shared Block last held (every ray and render sets it), which for a resting wire holds the same entities in the recorded scene. details-blocks-s1 walks across a hooked wire both ways. The count takes entities already dead this tick, as the chunk lists do (sr_box_count; plate-dead-s1)."
+    },
+    {
+      "kind": "method",
+      "name": "func_150139_a",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;IIIII)Z",
+      "native": "csrc/engine/render_blocks3.c:tripwire_side",
+      "status": "exact",
+      "note": "RenderBlocks' arm test (render_blocks3.c:tripwire_side); the mesh scenes draw the wire's arms; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+    }
+  ],
+  "missing": [],
+  "notes": "The hook half of the pair is ported (BlockTripWireHook's record). The wire's own detection (onEntityCollidedWithBlock, updateTick, func_150140_e) is serverreplay.c's sr_tripwire_check, on the box of the wire's own metadata: the oracle's tripwire pin (SPEC.md, Oracle.tripwireBounds) makes Java read the same box instead of the singleton's last bounds. The jungle pyramid's tripwires are placed by structure generation (blockcb.c:738 notes they matter to state). lane/idxblocks: idx-blocks-s1 walks through an attached line and cuts it with shears; the seven metadata writes of the cut match in order."
+}

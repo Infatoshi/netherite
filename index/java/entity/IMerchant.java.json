@@ -1,0 +1,32 @@
+{
+ "path": "oracle/src/entity/IMerchant.java",
+ "classes": ["IMerchant"],
+ "lines": 21,
+ "side": "server",
+ "category": "entity",
+ "role": "The trading interface: customer bookkeeping, the recipe list, useRecipe on a completed trade and func_110297_a_'s trade sound hook. EntityVillager implements it on the server, NpcMerchant on the client.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/villagers.c", "symbols": ["villager_get_recipes", "villager_player_trade", "villager_func_110297_a_"]},
+  {"file": "csrc/engine/survival.c", "symbols": ["gui_open_merchant", "surv_merchant_use"]},
+  {"file": "csrc/engine/container.c", "symbols": ["container_merchant_reset", "merchant_out_on_pickup"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/trade-full-s1",
+  "out/java/snapshots/cat-recipes-s1",
+  "csrc/tests/test_trades.c",
+  "csrc/tests/test_containers.c"
+ ],
+ "members": [
+  {"kind": "method", "name": "setCustomer", "sig": "(EntityPlayer)V", "native": "csrc/engine/survival.c:gui_open_merchant", "status": "partial", "note": "buying_player is a flag plus a name, not an entity pointer; the container close clears it"},
+  {"kind": "method", "name": "getCustomer", "sig": "()EntityPlayer", "native": null, "status": "n/a", "note": "living.h's buying_player/buying_player_name"},
+  {"kind": "method", "name": "getRecipes", "sig": "(EntityPlayer)MerchantRecipeList", "native": "csrc/engine/villagers.c:villager_get_recipes", "status": "exact", "note": "the lazy default-offers build on the first trade"},
+  {"kind": "method", "name": "setRecipes", "sig": "(MerchantRecipeList)V", "native": null, "status": "n/a", "note": "no NBT Recipes write path was found; not a gap (triage 2026-09-25)"},
+  {"kind": "method", "name": "useRecipe", "sig": "(MerchantRecipe)V", "native": "csrc/engine/villagers.c:villager_player_trade", "status": "exact", "note": "uses tick-up, the yes sound's two pitch draws, the last-recipe 40-tick unlock"},
+  {"kind": "method", "name": "func_110297_a_", "sig": "(ItemStack)V", "native": "csrc/engine/villagers.c:villager_func_110297_a_", "status": "exact", "note": "gated on livingSoundTime, called at the end of every resetRecipeAndSlots"}
+ ],
+ "missing": [],
+ "notes": "The server half lives in villagers.c and survival.c (displayGUIMerchant, useRecipe through SlotMerchantResult.onPickupFromSlot); the container's merchant_use/merchant_sound callbacks (container.h) carry the dispatch. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): offers load through readEntityFromNBT (trade-s1, persist-village-s42); NBT-driven setRecipes has no other caller. Formerly listed as missing: setRecipes (the NBT-driven custom recipe list) has no native write path; only the default offers built on first use exist. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

@@ -1,0 +1,22 @@
+{
+ "path": "oracle/src/client/model/ModelZombieVillager.java",
+ "classes": ["ModelZombieVillager"],
+ "lines": 62,
+ "side": "client",
+ "category": "client_model",
+ "role": "The zombie villager's model: the zombie biped with the villager head and nose boxes.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_zombie", "draw_model", "pose_model", "pose_armor"]}
+ ],
+ "evidence": ["csrc/tests/test_render.c", "out/java/render-src/ent_zvil"],
+ "members": [
+  {"kind": "ctor", "name": "ModelZombieVillager", "sig": "()V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+  {"kind": "ctor", "name": "ModelZombieVillager", "sig": "(float,float,boolean)V", "native": "csrc/engine/raster_mobs.c:pose_armor", "status": "exact", "note": "the 64x32 armour variant"},
+  {"kind": "method", "name": "func_82897_a", "sig": "()I", "native": null, "status": "n/a", "note": "the head-y render offset used by RenderZombie; no native counterpart found"},
+  {"kind": "method", "name": "setRotationAngles", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:model_zombie", "status": "exact", "note": "identical body to ModelZombie"}
+ ],
+ "missing": [],
+ "notes": "No render scene records a zombie villager; the geometry claim is from model_zombie's shared use, not from a recording."
+}

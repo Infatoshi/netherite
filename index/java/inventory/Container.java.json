@@ -1,0 +1,374 @@
+{
+ "classes": [
+  "Container"
+ ],
+ "lines": 779,
+ "side": "common",
+ "category": "inventory",
+ "role": "The abstract container behind every GUI window: the slot list, slotClick's seven click modes including the drag modes, mergeItemStack, the per-container transferStackInSlot dispatch, the close-time cursor spill, and detectAndSendChanges to the client.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_slot_click",
+    "container_init",
+    "container_free",
+    "container_slot",
+    "container_close",
+    "merge_item_stack",
+    "transfer_player",
+    "transfer_workbench",
+    "transfer_chest",
+    "transfer_furnace",
+    "transfer_merchant",
+    "slot_click_inner",
+    "drag_reset",
+    "drag_add",
+    "drag_share",
+    "can_drag_into",
+    "can_collect_from",
+    "drag_matches",
+    "matrix_changed"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "detect_and_send_changes",
+    "PK_S2F",
+    "PK_S30",
+    "gui_can_interact",
+    "gui_furnace_progress",
+    "click_resend"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/containers",
+  "out/java/snapshots/cat-clicks-s1",
+  "out/java/snapshots/cat-recipes-s1",
+  "out/java/snapshots/pickaxe-complete-s1",
+  "out/java/snapshots/te-chest-s1",
+  "out/java/snapshots/trade-full-s1",
+  "out/java/snapshots/containers2-s42",
+  "out/java/snapshots/item-tags-s1",
+  "out/java/snapshots/te-furnace-s1",
+  "out/java/snapshots/pfc-hotbarfull-g18",
+  "out/java/snapshots/pfc-mergeresult-f311"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "inventoryItemStacks",
+   "sig": "List",
+   "native": null,
+   "status": "n/a",
+   "note": "the client display list; the native container keeps only the slot list"
+  },
+  {
+   "kind": "field",
+   "name": "inventorySlots",
+   "sig": "List",
+   "native": "csrc/engine/container.h:slots",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "windowId",
+   "sig": "int",
+   "native": "csrc/engine/container.h:window_id",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "transactionID",
+   "sig": "short",
+   "native": "csrc/engine/survival.c:click_resend",
+   "status": "exact",
+   "note": "The number only pairs a refused click with the client's C0F: the server keeps the refused window's key and refuses the row's later clicks (setPlayerIsPresent false, survival.c's refused flag) until the confirm, and the client echoes the number it got, so the count itself carries no state; playfuzz's refused-click pins (pf-sneakinv-g3, pf-gridclose-g10) replay it."
+  },
+  {
+   "kind": "field",
+   "name": "field_94535_f",
+   "sig": "int",
+   "native": "csrc/engine/container.h:drag_button",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_94536_g",
+   "sig": "int",
+   "native": "csrc/engine/container.h:drag_state",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_94537_h",
+   "sig": "Set",
+   "native": "csrc/engine/container.h:drag_slot",
+   "status": "exact",
+   "note": "Java's HashSet<Slot> identity order is not reproducible; the port keeps a deduplicated array (container.h header explains why that is equivalent)"
+  },
+  {
+   "kind": "field",
+   "name": "crafters",
+   "sig": "List",
+   "native": null,
+   "status": "n/a",
+   "note": "single player; the S2F queue lives on the server player"
+  },
+  {
+   "kind": "field",
+   "name": "playerList",
+   "sig": "Set",
+   "native": null,
+   "status": "n/a",
+   "note": "single player"
+  },
+  {
+   "kind": "method",
+   "name": "addSlotToContainer",
+   "sig": "(Lnet/minecraft/inventory/Slot;)Lnet/minecraft/inventory/Slot;",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact",
+   "note": "the slot layout is built inside container_init per kind"
+  },
+  {
+   "kind": "method",
+   "name": "addCraftingToCrafters",
+   "sig": "(Lnet/minecraft/inventory/ICrafting;)V",
+   "native": "csrc/engine/survival.c:detect_and_send_changes",
+   "status": "exact",
+   "note": "The listener's initial sendContainerAndContentsToPlayer (the S30 and the cursor's S2F) and progress bars, sent by each window's open path in survival.c; one listener (the player) exists in single player."
+  },
+  {
+   "kind": "method",
+   "name": "removeCraftingFromCrafters",
+   "sig": "(Lnet/minecraft/inventory/ICrafting;)V",
+   "native": null,
+   "status": "n/a",
+   "note": "single player"
+  },
+  {
+   "kind": "method",
+   "name": "getInventory",
+   "sig": "()Ljava/util/List;",
+   "native": null,
+   "status": "n/a",
+   "note": "client display list"
+  },
+  {
+   "kind": "method",
+   "name": "detectAndSendChanges",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:detect_and_send_changes",
+   "status": "exact",
+   "note": "The slots' S2F sync (survival.c:detect_and_send_changes) and the furnace's three S31 progress bars (survival.c:gui_furnace_progress); rows compare the client's furnace fields (cp.fur) in te-furnace-s1 and te-charcoal-s1."
+  },
+  {
+   "kind": "method",
+   "name": "enchantItem",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "Only ContainerEnchantment and ContainerBeacon answer it: world.conf enchanting = off, beacon = off."
+  },
+  {
+   "kind": "method",
+   "name": "getSlotFromInventory",
+   "sig": "(Lnet/minecraft/inventory/IInventory;I)Lnet/minecraft/inventory/Slot;",
+   "native": "csrc/engine/container.h:slot",
+   "status": "exact",
+   "note": "the slot struct carries inv plus index, so the identity lookup is the field read"
+  },
+  {
+   "kind": "method",
+   "name": "getSlot",
+   "sig": "(I)Lnet/minecraft/inventory/Slot;",
+   "native": "csrc/engine/container.c:container_slot",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:transfer_player",
+   "status": "n/a",
+   "note": "n/a: the base (null): every Container class overrides it (ContainerPlayer, ContainerChest, ContainerWorkbench, ContainerFurnace, ContainerDispenser, ContainerHopper, ContainerBrewingStand, ContainerEnchantment, ContainerRepair, ContainerMerchant, ContainerBeacon, ContainerHorseInventory, GuiContainerCreative's); container.c ports each override"
+  },
+  {
+   "kind": "method",
+   "name": "slotClick",
+   "sig": "(IIILnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:container_slot_click",
+   "status": "exact",
+   "note": "all seven modes including the drags; gated by out/java/containers probe rows in test_containers.c; the mode-0 click ends in onSlotChanged, which resets a merchant inventory (container.c:slot_changed, trade-full-s1); the pickup's putStack(null) test reads the stack object Java holds (a merchant result taken whole, or merged onto the cursor, resets nothing before useRecipe; container.c, pfc-mergeresult-f311)"
+  },
+  {
+   "kind": "method",
+   "name": "func_94530_a",
+   "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/inventory/Slot;)Z",
+   "native": "csrc/engine/container.c:can_collect_from",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "retrySlotClick",
+   "sig": "(IIZLnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": "csrc/engine/container.c:slot_click_inner",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onContainerClosed",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": "csrc/engine/container.c:container_close",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onCraftMatrixChanged",
+   "sig": "(Lnet/minecraft/inventory/IInventory;)V",
+   "native": "csrc/engine/container.c:matrix_changed",
+   "status": "exact",
+   "note": "the result comes from craft_find_matching with the null world the probe passes"
+  },
+  {
+   "kind": "method",
+   "name": "putStackInSlot",
+   "sig": "(ILnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/survival.c:PK_S2F",
+   "status": "exact",
+   "note": "The client's S2F into its window (survival.c's packet pump); the rows compare the client inventory and window every tick."
+  },
+  {
+   "kind": "method",
+   "name": "putStacksInSlots",
+   "sig": "[Lnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/survival.c:PK_S30",
+   "status": "exact",
+   "note": "The client's S30 into its window, as putStackInSlot."
+  },
+  {
+   "kind": "method",
+   "name": "updateProgressBar",
+   "sig": "(II)V",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "status": "n/a",
+   "note": "n/a: the empty base: S31s come from ContainerFurnace (overrides it), ContainerBrewingStand (overrides it; brewing = off opens none) and ContainerEnchantment (enchanting = off)"
+  },
+  {
+   "kind": "method",
+   "name": "getNextTransactionID",
+   "sig": "(Lnet/minecraft/inventory/InventoryPlayer;)S",
+   "native": "csrc/engine/survival.c:click_resend",
+   "status": "exact",
+   "note": "The client's click counter; only its echo in the C0F matters, as transactionID."
+  },
+  {
+   "kind": "method",
+   "name": "isPlayerNotUsingContainer",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "single player; the presence timeout has nothing to serve"
+  },
+  {
+   "kind": "method",
+   "name": "setPlayerIsPresent",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "per kind in gui_can_interact; EntityPlayerMP.onUpdate closes the window on false"
+  },
+  {
+   "kind": "method",
+   "name": "mergeItemStack",
+   "sig": "(Lnet/minecraft/item/ItemStack;IIZ)Z",
+   "native": "csrc/engine/container.c:merge_item_stack",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_94529_b",
+   "sig": "(I)I",
+   "native": null,
+   "status": "n/a",
+   "note": "the drag mode/state encodings are kept as plain ints (drag_state, drag_button)"
+  },
+  {
+   "kind": "method",
+   "name": "func_94532_c",
+   "sig": "(I)I",
+   "native": null,
+   "status": "n/a",
+   "note": "same encoding"
+  },
+  {
+   "kind": "method",
+   "name": "func_94534_d",
+   "sig": "(II)I",
+   "native": null,
+   "status": "n/a",
+   "note": "same encoding"
+  },
+  {
+   "kind": "method",
+   "name": "func_94528_d",
+   "sig": "(I)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "same encoding"
+  },
+  {
+   "kind": "method",
+   "name": "func_94533_d",
+   "sig": "()V",
+   "native": "csrc/engine/container.c:drag_reset",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_94527_a",
+   "sig": "(Lnet/minecraft/inventory/Slot;Lnet/minecraft/item/ItemStack;Z)Z",
+   "native": "csrc/engine/container.c:drag_matches",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_94525_a",
+   "sig": "(Ljava/util/Set;ILnet/minecraft/item/ItemStack;I)V",
+   "native": "csrc/engine/container.c:drag_share",
+   "status": "exact",
+   "note": "the per-slot share; the deduplicated slot loop is in the click body"
+  },
+  {
+   "kind": "method",
+   "name": "canDragIntoSlot",
+   "sig": "(Lnet/minecraft/inventory/Slot;)Z",
+   "native": "csrc/engine/container.c:can_drag_into",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "calcRedstoneFromInventory",
+   "sig": "(Lnet/minecraft/inventory/IInventory;)I",
+   "native": null,
+   "status": "n/a",
+   "note": "Comparator output only: world.conf redstone = off."
+  }
+ ],
+ "missing": [],
+ "notes": "container.h documents the deliberate omissions another lane owns: the dropped entity's motion, SlotFurnace's XP orbs, the crafting achievements and stats, and SlotCrafting's dead container-item branch. lane/idxblocks: the S31 progress bars and the refused-click confirm were already ported (the record predated them); the enchanting, beacon and comparator members are switches. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour.",
+ "path": "oracle/src/inventory/Container.java"
+}

@@ -1,0 +1,15 @@
+{
+  "path": "oracle/harness/netherite/oracle/Lockstep.java",
+  "lines": 118,
+  "role": "Pairs every client tick with exactly one integrated-server tick: client runTick, drain client-to-server packets, wait until the last RowHash job has serialized its entities, permit one server tick, wait for it, drain server-to-client packets; at a tick's end the server thread starts that tick's RowHash job and helps serialize it until its next permit. The packet counters are maintained by the patched NetworkManager, the permit semaphore by the patched MinecraftServer.run loop. settleSetup: drain the server's packets after a setup command.",
+  "kind": "harness",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Oracle.java (ticksThisFrame calls Lockstep.pair)",
+    "oracle/harness/netherite/oracle/MeshProbe.java, SpawnDump.java (rely on the parked server)"
+  ],
+  "vanilla_hooks": [
+    "oracle/src/server/MinecraftServer.java",
+    "oracle/src/network/NetworkManager.java"
+  ],
+  "notes": "Timeout 120 s per wait. Native has no counterpart: the native engine runs client and server ticks in order in one thread. stopping lets a pool stop the server without a last tick. --tick-profile (Prof): pair() laps the drains, the serialization wait and the server's side of the handoff (permit, tick start and end, done)."
+}

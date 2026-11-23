@@ -1,0 +1,41 @@
+{
+  "path": "oracle/src/client/renderer/ItemRenderer.java",
+  "classes": ["ItemRenderer"],
+  "lines": 739,
+  "side": "client",
+  "category": "client_render",
+  "role": "The first-person held item and arm: renders the item in hand (block as a 3D item, sprite as an extruded 2D quad), the eat/drink/bow/block use animations, the swing and equip motions, and the screen overlays (inside-block texture, water warp, fire).",
+  "scope": "in_scope",
+  "scope_reason": "The hand and the first-person overlays are part of every frame the agent sees; the native hand path reproduces them from the same state.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_hand.c", "symbols": ["raster_hand_draw", "render_item", "item_in_2d", "first_person_arm", "block_as_item", "swing_progress"]},
+    {"file": "csrc/engine/raster_worldfx.c", "symbols": ["worldfx_screen", "overlay_inside", "overlay_water", "overlay_fire"]},
+    {"file": "csrc/play/play.c", "symbols": ["equip_tick", "draw_hand"]},
+    {"file": "csrc/engine/renderstate.c", "symbols": ["renderstate_hand_camera"]},
+    {"file": "csrc/engine/raster_things.c", "symbols": ["thing_render_item", "item_glint"]}
+  ],
+  "evidence": ["out/java/render/hand_idle", "out/java/render/hand_swing", "out/java/render/hand_block", "out/java/render/hand_grass", "out/java/render/hand_apple", "out/java/render/hand_pickaxe", "out/java/render/hand_pickaxe_swing", "out/java/render/hand_dig", "out/java/render/hand_sword", "out/java/render/hand_sword_block", "out/java/render/hand_bow_a", "out/java/render/hand_bow_b", "out/java/render/hand_eat", "out/java/render/hand_drink", "out/java/render/hand_equip_up", "out/java/render/hand_equip_down", "out/java/render/worldfx_underwater", "out/java/render/worldfx_fire", "out/java/render/hud_underwater", "out/java/snapshots/death-lava-s1", "out/java/snapshots/scen-drown-s1", "out/java/snapshots/scen-suffocate-s1", "out/java/snapshots/fresh-play-s1", "out/java/render-src/ent_hand", "out/java/render-src/ent_held", "csrc/tests/test_render.c", "out/java/clientframes/idx-glint-s1", "out/java/clientframes/idx-deathmsg-s1", "out/java/clientframes/cov-blocks-s1", "out/java/clientframes/cov-zoo-s1"],
+  "members": [
+    {"kind": "field", "name": "static constants (RES_ITEM_GLINT, RES_MAP_BACKGROUND, RES_UNDERWATER_OVERLAY, __OBFID)", "sig": "static final", "native": null, "status": "n/a", "note": "RES_MAP_BACKGROUND and the glint belong to the unported held-map and glint branches; the underwater texture path is resolved by the C asset reader"},
+    {"kind": "field", "name": "mc", "sig": "Minecraft", "native": null, "status": "n/a", "note": "the C hand pass reads play.c's client state"},
+    {"kind": "field", "name": "itemToRender", "sig": "ItemStack", "native": "csrc/play/play.c:equip_tick", "status": "exact", "note": "play.c's equip struct: item, damage, present, and the surv_stack gen standing in for == identity"},
+    {"kind": "field", "name": "equippedProgress", "sig": "float", "native": "csrc/play/play.c:equip_tick", "status": "exact", "note": "equip.eq"},
+    {"kind": "field", "name": "prevEquippedProgress", "sig": "float", "native": "csrc/play/play.c:equip_tick", "status": "exact", "note": "equip.peq"},
+    {"kind": "field", "name": "renderBlocksIr", "sig": "RenderBlocks", "native": "csrc/engine/raster_hand.c:block_as_item", "status": "exact", "note": "the held block drawn through block_item_model's cube geometry"},
+    {"kind": "field", "name": "equippedItemSlot", "sig": "int", "native": "csrc/play/play.c:equip_tick", "status": "exact", "note": "equip.slot"},
+    {"kind": "ctor", "name": "ItemRenderer", "sig": "(Minecraft)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "renderItem", "sig": "(LEntityLivingBase;LItemStack;I)V", "native": "csrc/engine/raster_things.c:thing_render_item", "status": "exact", "note": "third person through raster_things.c, first person through raster_hand.c, both with the glint"},
+    {"kind": "method", "name": "renderItemIn2D", "sig": "(LTessellator;FFFFIIF)V", "native": "csrc/engine/raster_hand.c:item_in_2d", "status": "exact", "note": "front and back faces plus the four extruded edge strips"},
+    {"kind": "method", "name": "renderItemInFirstPerson", "sig": "(F)V", "native": "csrc/engine/raster_hand.c:raster_hand_draw", "status": "exact", "note": "the eat/drink, bow pull, sword block, swing and equip animations, the bare arm, the two render passes (the potion's overlay and bottle, the second under GL_LEQUAL) and the enchant glint on the tick clock (idx-glint-s1 25 to 57 within 18 px). The filled_map branch is unreachable: maps = off (world.conf) makes ItemEmptyMap.onItemRightClick return first (ItemEmptyMap.java:23), and no loot or trade holds a filled map (the stronghold library's Items.map is the empty one)"},
+    {"kind": "method", "name": "renderOverlays", "sig": "(F)V", "native": "csrc/engine/raster_worldfx.c:worldfx_screen", "status": "exact", "note": "isBurning, isEntityInsideOpaqueBlock (worldfx_is_inside_opaque/worldfx_inside_block) and isInsideOfMaterial(water) dispatch"},
+    {"kind": "method", "name": "renderInsideOfBlock", "sig": "(FIIcon)V", "native": "csrc/engine/raster_worldfx.c:overlay_inside", "status": "exact"},
+    {"kind": "method", "name": "renderWarpedTextureOverlay", "sig": "(F)V", "native": "csrc/engine/raster_worldfx.c:overlay_water", "status": "exact", "note": "the yaw/64, pitch/64 UV scroll at the player's brightness"},
+    {"kind": "method", "name": "renderFireInFirstPerson", "sig": "(F)V", "native": "csrc/engine/raster_worldfx.c:overlay_fire", "status": "exact", "note": "two rotated quads of the fire layer sprite at alpha 0.9"},
+    {"kind": "method", "name": "updateEquippedItem", "sig": "()V", "native": "csrc/play/play.c:equip_tick", "status": "exact", "note": "the same-item/damage identity shortcut uses the stack gen instead of reference =="},
+    {"kind": "method", "name": "resetEquippedProgress", "sig": "()V", "native": "csrc/play/play.c:equip_tick", "status": "exact", "note": "player.h's equip_reset flag is consumed at the top of equip_tick"},
+    {"kind": "method", "name": "resetEquippedProgress2", "sig": "()V", "native": "csrc/play/play.c:equip_tick", "status": "exact", "note": "same reset path"}
+  ],
+  "missing": [],
+  "notes": "The hand camera (renderstate.c:renderstate_hand_camera) reproduces renderHand's getFOVModifier(pt,false) projection and the hurt/bob modelview before this class's transforms. draw_hand in csrc/play/play.c wires the equip state, the swing progress and the light value into raster_hand_draw. The hand scenes are pixel-gated by csrc/tests/test_render.c against the oracle goldens. lane/idxclient: closed: the glint and the multi-pass hand are drawn and judged (idx-glint-s1); the held map is unreachable with maps off. lane/idxclient (later): renderFireInFirstPerson reads the client player's isBurning: its own fire (moveEntity's touch of fire or lava this tick) or the server's flag byte, which the server now sets where Entity.onEntityUpdate does and the tracker pass sends (PK_S1C_FLAGS); it had read a field nothing wrote (idx-deathmsg-s1 426: 32,090 px to 2,884)."
+}

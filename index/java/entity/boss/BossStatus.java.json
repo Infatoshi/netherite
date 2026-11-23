@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/entity/boss/BossStatus.java",
+  "classes": ["BossStatus"],
+  "lines": 18,
+  "side": "client",
+  "category": "client_gui",
+  "role": "Client-side static HUD state for the boss health bar: the health fraction, the boss name, the bar timer and the damage tint flag, set from the boss renderer each frame.",
+  "scope": "in_scope",
+  "scope_reason": "C4: the dragon's boss bar and name.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["boss_status", "raster_hud_boss_set", "draw_boss"]}
+  ],
+  "evidence": ["out/java/render/hud_boss_f016", "out/java/render/hud_boss_f021", "out/java/render/hud_boss_f051", "out/java/hudscreens/hudboss-s1", "csrc/tests/test_hudscreens.c", "out/java/clientframes/idx-dragondeath-s42"],
+  "members": [
+    {"kind": "field", "name": "healthScale", "sig": "static float", "native": "csrc/engine/raster_hud.c:boss_status", "status": "exact", "note": "client boss bar only, no native counterpart"},
+    {"kind": "field", "name": "statusBarTime", "sig": "static int", "native": "csrc/engine/raster_hud.c:boss_status", "status": "exact", "note": "client boss bar only, no native counterpart"},
+    {"kind": "field", "name": "bossName", "sig": "static String", "native": "csrc/engine/raster_hud.c:boss_status", "status": "exact", "note": "client boss bar only, no native counterpart"},
+    {"kind": "field", "name": "hasColorModifier", "sig": "static boolean", "native": null, "status": "n/a", "note": "only the wither sets it true; the wither is switched off"},
+    {"kind": "method", "name": "setBossStatus", "sig": "(IBossDisplayData,boolean)V", "native": "csrc/engine/raster_hud.c:raster_hud_boss_set", "status": "exact", "note": "called from RenderDragon.doRender and RenderWither.doRender in vanilla; no native counterpart"},
+    {"kind": "ctor", "name": "BossStatus", "sig": "()V", "native": null, "status": "n/a", "note": "n/a: a static-only class; nothing in oracle/src constructs it (no new BossStatus())"},
+    {"kind": "method", "name": "setBossStatus", "sig": "(IBossDisplayData,Z)V", "native": null, "status": "exact", "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-idx-dragondeath-s42 (RenderDragon.doRender)"}
+  ],
+  "missing": [],
+  "notes": "No native counterpart anywhere: the live HUD JSON emitter (csrc/engine/hud_live.c:raster_hud_live_json) writes a constant \"boss\":null,\"bosst\":0,\"bossh\" field, which is a placeholder, not a port of this class. The wither side of setBossStatus is additionally moot because world.conf has wither = off. Not verified: nothing beyond the greps of oracle/src and csrc/engine."
+}

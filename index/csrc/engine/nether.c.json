@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/nether.c",
+ "lines": 411,
+ "role": "The Nether chunk pipeline: ChunkProviderHell's construction (noise order), density pass (initializeNoiseField plus func_147419_a interpolation into netherrack and the y<32 lava sea), surface pass (func_147418_b: soul sand, gravel, bedrock floor and roof), and MapGenCavesHell's carver over the 8-chunk range.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/ChunkProviderHell.java", "members": ["ChunkProviderHell", "func_147419_a", "func_147418_b", "initializeNoiseField", "hellRNG", "netherNoiseGen1", "netherNoiseGen2", "netherNoiseGen3", "slowsandGravelNoiseGen", "netherrackExculsivityNoiseGen", "netherNoiseGen6", "netherNoiseGen7"]},
+  {"path": "oracle/src/world/gen/MapGenCavesHell.java", "members": ["func_151544_a", "func_151543_a", "func_151538_a"]},
+  {"path": "oracle/src/world/gen/MapGenBase.java", "members": ["func_151539_a", "range"]}
+ ],
+ "structs": [
+  {"name": "hell_cave", "java": "MapGenBase's per-call chunk coordinates and Block[] target, as MapGenCavesHell sees them", "fields": ["cx", "cz", "ids"]}
+ ],
+ "entry_points": ["nether_init", "nether_terrain", "nether_surface", "nether_caves"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 348-411, function hell_tunnel: recursive (each branch point calls hell_tunnel twice); depth bounded in practice by width > 1.0f halving but not by a fixed limit",
+  "line 96, function nether_field: libm cos stands in for StrictMath.cos; exactness depends on the platform libm, which a GPU math library may not match"
+ ],
+ "tests": ["csrc/tests/test_dims.c"],
+ "notes": "Runs inside the tick only when world.c load_dim_chunk generates a Nether chunk on demand (world.c reseeds nether.rand per chunk before nether_terrain). The Nether fortress (MapGenNetherBridge) and ChunkProviderHell.populate are not here: they live in features_nether.c and structure code (not verified here). Block ids only; metas stay zero."
+}

@@ -1,0 +1,27 @@
+{
+ "path": "oracle/src/client/model/ModelSkeleton.java",
+ "classes": ["ModelSkeleton"],
+ "lines": 54,
+ "side": "client",
+ "category": "client_model",
+ "role": "The skeleton and wither skeleton model: the zombie biped with thin arms and legs.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_skeleton", "pose_model", "model_zombie"]}
+ ],
+ "evidence": [
+  "out/java/render/mobs2a_skeleton_f006",
+  "out/java/render/mobs2a_skeleton_f011",
+  "csrc/tests/test_render.c",
+  "out/java/render-src/ent_held"
+ ],
+ "members": [
+  {"kind": "ctor", "name": "ModelSkeleton", "sig": "()V", "native": "csrc/engine/raster_mobs.c:model_skeleton", "status": "exact"},
+  {"kind": "ctor", "name": "ModelSkeleton", "sig": "(float)V", "native": "csrc/engine/raster_mobs.c:model_skeleton", "status": "exact"},
+  {"kind": "method", "name": "setLivingAnimations", "sig": "(EntityLivingBase,float,float,float)V", "native": "csrc/engine/raster_mobs.c:model_skeleton", "status": "exact", "note": "aimedBow has no effect: ModelZombie.setRotationAngles overrides the arms after it"},
+  {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:model_skeleton", "status": "exact", "note": "built on model_zombie's biped with the thin arms and legs"},
+  {"kind": "method", "name": "setRotationAngles", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"}
+ ],
+ "missing": []
+}

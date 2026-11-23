@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/entity/ai/EntityAILeapAtTarget.java",
+  "classes": ["EntityAILeapAtTarget"],
+  "lines": 64,
+  "side": "server",
+  "category": "ai",
+  "role": "Makes an attacking wolf or ocelot leap at its target: when 2 to 4 blocks away, on the ground, and a 1-in-5 draw passes, adds the horizontal leap impulse and sets motionY.",
+  "scope": "switched_off",
+  "scope_reason": "Only EntityWolf and EntityOcelot register this task (grep over oracle/src), and world.conf forces wolves = off and ocelots = off, so it is never constructed, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "leaper", "sig": "EntityLiving", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "leapTarget", "sig": "EntityLivingBase", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "leapMotionY", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityAILeapAtTarget", "sig": "(EntityLiving,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": null, "status": "n/a", "note": "the motionX/motionZ impulse and motionY = leapMotionY"}
+  ],
+  "missing": [],
+  "notes": "The double literal 0.800000011920929D is the widened float 0.4f*2 pattern; a future port must copy it as printed (AGENTS.md gotcha)."
+}

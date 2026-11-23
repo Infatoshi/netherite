@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/network/play/server/S32PacketConfirmTransaction.java",
+  "classes": ["S32PacketConfirmTransaction"],
+  "lines": 77,
+  "side": "common",
+  "category": "network",
+  "role": "The server's yes or no on a client container click's transaction id: accept lets the client's predicted slots stand, reject reverts them.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: the server confirms every window click with one (built in 21 recordings) and refuses a mismatched one (the stack the C0E claimed is not the server's result), after which the client answers with a C0F; misc-refuse-s1 and trade-full-s1 refuse clicks.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/survival.c", "symbols": ["surv_server_tick_start", "click_ret_equal", "click_resend", "surv_server_click"]}],
+  "evidence": ["out/java/snapshots/misc-refuse-s1", "out/java/snapshots/trade-full-s1"],
+  "members": [
+    {"kind": "ctor", "name": "S32PacketConfirmTransaction", "sig": "()V", "status": "n/a", "native": null, "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"},
+    {"kind": "ctor", "name": "S32PacketConfirmTransaction", "sig": "(int,short,boolean)V", "status": "exact", "native": "csrc/engine/survival.c:surv_server_tick_start", "note": "processClickWindow's two sends: accepted when click_ret_equal holds (the confirm, then detectAndSendChanges under isChangingQuantityOnly: the mirror takes the server's slots without an S2F), refused otherwise (click_resend: the S30 of the window and the cursor's S2F, and the row's later clicks are dropped: setPlayerIsPresent(false))"},
+    {"kind": "field", "name": "field_148894_a", "sig": "int", "status": "exact", "note": "the window id: the click's window must be the open container's (processClickWindow's check), and a refused tile window's S30 part rides it (s2c_pkt.pwin)", "native": "csrc/engine/survival.c:surv_server_click"},
+    {"kind": "field", "name": "field_148892_b", "sig": "short", "status": "n/a", "note": "the transaction id only pairs the client's C0F with this S32 (processConfirmTransaction's IntHashMap lookup); the lockstep pairs them by tick", "native": null},
+    {"kind": "field", "name": "field_148893_c", "sig": "boolean", "status": "exact", "note": "accepted: ItemStack.areItemStacksEqual over the C0E's claimed stack and slotClick's result", "native": "csrc/engine/survival.c:click_ret_equal"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "status": "n/a", "native": null, "note": "byte codec; the native channel carries structs (survival.h s2c_pkt), not packets"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "status": "n/a", "native": null, "note": "byte codec; the native channel carries structs (survival.h s2c_pkt), not packets"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayClient)V", "status": "exact", "native": "csrc/engine/survival.c:surv_server_tick_start", "note": "handleConfirmTransaction: an accepted S32 does nothing; a refused one for window 0 or the client's open window makes the client send a C0F, and the client handles it in PlayerControllerMP.updateController before that tick's clicks, so the refusal holds exactly the rest of its own tick's clicks (the refused flag, scoped to the row). A refused S32 for a window the client closed in the same tick sends no C0F; the server's closeContainer already dropped that container"},
+    {"kind": "method", "name": "serialize", "sig": "()String", "status": "n/a", "note": "debug formatting", "native": null},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandler)V", "status": "n/a", "note": "dispatch overload", "native": null},
+    {"kind": "method", "name": "func_148889_c", "sig": "()I", "status": "n/a", "native": null, "note": "accessor over the packet's fields; the native packets are plain structs"},
+    {"kind": "method", "name": "func_148890_d", "sig": "()S", "status": "n/a", "native": null, "note": "accessor over the packet's fields; the native packets are plain structs"},
+    {"kind": "method", "name": "func_148888_e", "sig": "()Z", "status": "n/a", "native": null, "note": "accessor over the packet's fields; the native packets are plain structs"},
+    {"kind": "field", "name": "__OBFID", "sig": "String (static)", "status": "n/a", "native": null}
+  ],
+  "missing": [],
+  "notes": "lane/idxmisc 2026-09-27: the missing entries were wrong about the timing: Minecraft.runTick's PlayerControllerMP.updateController processes the received packets (so the refused S32's C0F is sent) before the GUI input of the same tick, so the server takes the C0F ahead of the next tick's clicks and accepts them; only the refused tick's later clicks are ignored, which native already did. misc-refuse-s1 (seed 1, dev slots set on the server only, so the client's claimed stack is stale) refuses a click in the inventory with two more clicks in its tick and one in the next, refuses one with a close in the same tick, then the same twice in a chest; it failed on master at row 51 and was made exact by three fixes around the refusal (survival.c): a window's open sends the S30's player slots and the cursor (Container.addCraftingToCrafters' sendContainerAndContentsToPlayer), a refused click's S30 leaves the container's slot copies alone and a tile window's part reaches the client only while that window is open (handleWindowItems), and the C0D's closeContainer sends no S2E and empties the server's cursor copy, with the client's cursor one stack under every window. Container click outcomes are proven against the oracle by out/java/containers and csrc/tests/test_containers.c; only the confirmation protocol is absent. idxaudit 2026-09-27: was not_needed/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

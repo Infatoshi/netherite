@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/RayCast.java",
+ "lines": 1618,
+ "role": "The policy's observation drawn by the oracle (lane/parity, GOAL.md Done means 4): csrc/runtime/raycast.c's FP64 reference ray cast (raycast_ref: the camera, the walk, blocks by texture, liquids, crossed planes, boxes, entity boxes, the lightmap, sky and fog of rc_light_port) computed from the Java client's own state as each row is captured (the client world's chunks through ChunkProviderClient.chunkMapping, the client player's eye and look, the client world's clock, the server world's prevRainingStrength and prevThunderingStrength, the client world's living copies, fireballs and dragon, the player's dimension's server items, orbs and arrows), every expression in raycast.c's order. Puts the frame's FNV-1a 64 in the row as d.rc under client.camera raycast (client.observation, client.channels, client.graphics, client.gamma) or Main's --raycast WxH[xCH][:fancy]; the tape header's options.raycast names the spec. --raycast-dump DIR:EVERY writes frames, DIR:@T one row's frame and its trace (the setup's reals as bits, the entity boxes, each pixel's walk, its light and biome), the form pool_gate --raycast-dump DIR:WxH:@T writes for C's cast.",
+ "kind": "recorder",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Rows.java (capture: d.rc; Check.diff: d.rc optional on replay, as d.px)",
+  "oracle/harness/netherite/oracle/Main.java (--raycast, --raycast-dump; WorldConf.raycast)",
+  "oracle/harness/netherite/oracle/Oracle.java (the header's options.raycast)",
+  "csrc/runtime/rcparity.sh (make -C csrc/runtime raycast-parity: each row's d.rc against pool_gate --raycast-rows)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Reads the tables the C cast loads, which the oracle made: out/java/render/forest-fast (table.bin, atlas.json, atlas.rgba) and out/assets (the entities' flat colours, the End sky, the underwater overlay); the checkout is found from Main's --assets (ROOT/out/java/assets). The FP64 instance only (client.cast_precision 64). Read only: nothing the game reads changes."
+}

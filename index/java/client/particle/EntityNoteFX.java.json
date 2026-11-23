@@ -1,0 +1,91 @@
+{
+ "classes": [
+  "EntityNoteFX"
+ ],
+ "lines": 85,
+ "side": "client",
+ "category": "particles",
+ "role": "The note-block note: colour from the note pitch, grows over 6 ticks.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: playing a note block by hand (BlockNote.onBlockActivated or onBlockClicked, no redstone needed) queues a block event whose client half spawns 'note' (BlockNote.java:109).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "new_note",
+    "fx_update",
+    "particles_live_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "render_scale"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_client_pump"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/rendertick/fx_client",
+  "csrc/tests/test_rendertick.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  },
+  {
+   "kind": "field",
+   "name": "noteParticleScale",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.h:base_scale",
+   "status": "exact",
+   "note": "the scale renderParticle animates from"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityNoteFX",
+   "sig": "(World,DDDDDD)V",
+   "native": "csrc/engine/particles_live.c:new_note",
+   "status": "exact",
+   "note": "the 2.0 scale form"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityNoteFX",
+   "sig": "(World,DDDDDD,F)V",
+   "native": "csrc/engine/particles_live.c:new_note",
+   "status": "exact",
+   "note": "EntityFX(x,y,z,0,0,0), motion x0.01 and +0.2 up, the colour from the note (vx = note/24) through MathHelper.sin, scale 0.75 x 2, six ticks, texture 64"
+  },
+  {
+   "kind": "method",
+   "name": "renderParticle",
+   "sig": "(Tessellator,FFFFFF)V",
+   "native": "csrc/engine/raster_particles.c:render_scale",
+   "status": "exact",
+   "note": "the scale over (age + pt) / maxAge x 32, clamped to 1"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/particles_live.c:fx_update",
+   "status": "exact",
+   "note": "PLIVE_NOTE: move, x1.1 when stopped, x0.66, x0.7 on the ground"
+  }
+ ],
+ "missing": [],
+ "notes": "No behavior is ported. The scene renderer csrc/engine/raster_particles.c draws whatever class names the recorded state dump lists (base quads or icon quads), so a dump containing this class would render, but nothing constructs or ticks it natively. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). Spawned by BlockNote.onBlockEventReceived on the client (survival.c's S24 handler, through the particle setting's gate: at the pinned minimal setting nothing is built and nothing drawn). lane/idxlast 2026-09-27: proven by the rendertick scene fx_client (seed 1, --particles 0, 143 ticks, 3,923 FX compared field by field against the oracle's dump, test_rendertick); it fails with the class changed (a negative control of 80 mismatches).",
+ "path": "oracle/src/client/particle/EntityNoteFX.java"
+}

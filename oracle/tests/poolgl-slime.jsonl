@@ -1,0 +1,13 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":8}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"gamerule","name":"doDaylightCycle","value":"false"}
+{"cmd":"dev","op":"time","value":6000}
+{"cmd":"dev","op":"weather","type":"clear","seconds":100000}
+{"cmd":"dev","op":"fill","x0":150,"y0":88,"z0":240,"x1":166,"y1":88,"z1":256,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":150,"y0":89,"z0":240,"x1":166,"y1":96,"z1":256,"id":0,"meta":0}
+{"cmd":"dev","op":"setblock","x":158,"y":89,"z":247,"id":63,"meta":8}
+{"cmd":"dev","op":"tp","x":158.5,"y":89.0,"z":243.5,"yaw":0.0,"pitch":12.0}
+{"cmd":"dev","op":"summon","name":"Slime","x":160.5,"y":89.0,"z":250.5,"size":2}
+{"n":4,"act":{"look":[0.0,12.0]}}
+{"n":1,"act":{"look":[0.0,12.0]},"frame":true}

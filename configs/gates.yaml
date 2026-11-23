@@ -1,0 +1,106 @@
+# nether gate's checks (csrc/cli/cli_gate.c reads this file; nether gate --help). One map a check, run in
+# this order by the modes that name it: quick, full, java, default (nether gate with no mode flag). Commands
+# are split into words and run by posix_spawn from the checkout, never by a shell; {gpu} is --gpu's index and
+# {root} the checkout. A check with gpu: yes runs only with --gpu G and sees CUDA_VISIBLE_DEVICES=G; every other
+# check sees no GPU. A make target that runs a binary on a device takes CUDA_DEV={gpu}: the Makefiles set
+# CUDA_VISIBLE_DEVICES=$(CUDA_DEV) themselves, and CUDA_DEV defaults to 0.
+
+# a lane's build replaces the out/assets link with a directory of its own; the gate puts the link back after
+# every check (the directory moves into the gate's logs)
+protect_links: out/assets
+
+checks:
+  macro_freeze:
+    modes: quick,full
+    builtin: macro-freeze
+    path: csrc/mods/macros
+  native_build:
+    modes: quick,full,java,default
+    cmd: make -s -C csrc
+    build: yes
+    timeout: 1800
+  globals:
+    modes: quick,full
+    # the script, not make globals: its "all" prerequisite is native_build's (and --no-build's tree is built)
+    cmd: bash csrc/tests/globals.sh
+  runtime_build:
+    modes: quick,full
+    cmd: make -s -C csrc/runtime vec_bench train-loop-cfg
+    build: yes
+    timeout: 1800
+  digest_128x2:
+    modes: quick,full
+    builtin: pinned-digest
+    pins: csrc/runtime/gates.tsv
+    pin: digest-128x2
+    if_missing: out/java/snapshots/gold-g1-s42/manifest.json
+    first: make -s -C oracle script SEED=42 SCRIPT=tests/gold-g1-s42.jsonl TAPE=../out/java/snapshots/gold-g1-s42/tape.jsonl
+    cmd: out/runtime/vec_bench --config {root}/out/runtime/train/cfg/host.yaml {pin_args} --digest --obs-digest
+    timeout: 900
+  train_wire_check:
+    modes: quick,full
+    gpu: yes
+    cmd: make -s -C csrc/runtime train-wire-check CUDA_DEV={gpu}
+    require: TRAIN-WIRE-CHECK PASS
+    timeout: 1800
+  digest_512x4_f32:
+    modes: full
+    builtin: pinned-digest
+    pins: csrc/runtime/gates.tsv
+    pin: digest-512x4-f32
+    if_missing: out/java/snapshots/gold-g1-s42/manifest.json
+    first: make -s -C oracle script SEED=42 SCRIPT=tests/gold-g1-s42.jsonl TAPE=../out/java/snapshots/gold-g1-s42/tape.jsonl
+    cmd: out/runtime/vec_bench --config {root}/out/runtime/train/cfg/host.yaml {pin_args} --digest --obs-digest
+    timeout: 1800
+  macro_digests:
+    modes: full
+    cmd: make -s -C csrc/runtime macro-digests MD_J=4
+    require: MACRO-DIGESTS PASS
+    timeout: 3600
+  raycast_parity:
+    modes: full
+    gpu: yes
+    cmd: make -s -C csrc gpu-raycast-check CUDA_DEV={gpu}
+    require: "pool_gate: OK"
+    timeout: 3600
+  rec_gate_tps1:
+    modes: full
+    gpu: yes
+    cmd: make -s -C csrc/runtime rec-gate CUDA_DEV={gpu} REC_TPS=1
+    timeout: 3600
+  rec_gate_tps2:
+    modes: full
+    gpu: yes
+    cmd: make -s -C csrc/runtime rec-gate CUDA_DEV={gpu} REC_TPS=2
+    timeout: 3600
+  oracle_gate:
+    modes: java,default
+    cmd: make -s -C oracle gate
+    unset_env: CACHE
+    timeout: 3600
+  java_fresh_play_s1:
+    modes: java,default
+    if_missing: out/java/snapshots/fresh-play-s1/manifest.json
+    first: make -s -C oracle script SEED=1 SCRIPT=tests/fresh-play-s1.jsonl TAPE=../out/java/snapshots/fresh-play-s1/tape.jsonl
+    cmd: out/native/test_snapshots out/java/snapshots/fresh-play-s1
+    unset_env: CACHE
+  java_fresh_s42:
+    modes: java,default
+    if_missing: out/java/snapshots/fresh-s42/manifest.json
+    first: make -s -C oracle script SEED=42 SCRIPT=tests/fresh-s42.jsonl TAPE=../out/java/snapshots/fresh-s42/tape.jsonl
+    cmd: out/native/test_snapshots out/java/snapshots/fresh-s42
+    unset_env: CACHE
+  java_break_place_s1:
+    modes: java,default
+    if_missing: out/java/snapshots/break-place-s1/manifest.json
+    first: make -s -C oracle script SEED=1 DEV=1 SCRIPT=tests/break-place-s1.jsonl TAPE=../out/java/snapshots/break-place-s1/tape.jsonl
+    cmd: out/native/test_snapshots out/java/snapshots/break-place-s1
+    unset_env: CACHE
+  native_test:
+    modes: default
+    cmd: make -s -C csrc test
+    timeout: 3600
+  clangcheck:
+    modes: default
+    cmd: make -s -C csrc clangcheck
+    timeout: 3600

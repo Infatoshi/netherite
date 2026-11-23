@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/block/BlockCompressedPowered.java",
+  "classes": ["BlockCompressedPowered"],
+  "lines": 29,
+  "side": "common",
+  "category": "block",
+  "role": "The redstone block: a compressed block that provides power level 15 on all sides.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf redstone = off: the block exists in the registry but no block receives its power (SPEC's unsupported-features rule).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": ["csrc/tests/test_registry.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockCompressedPowered", "sig": "(Material,MapColor)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 152, class BlockCompressedPowered, canProvidePower's flag set in the entry."},
+    {"kind": "method", "name": "canProvidePower", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "The flag is in the registry (the 0,0,1,0 column blockcb.c:1363 reads); no consumer receives it."},
+    {"kind": "method", "name": "isProvidingWeakPower", "sig": "(IBlockAccess,IIII)I", "native": null, "status": "missing", "note": "The constant 15; redstone off."},
+    {"kind": "method", "name": "isProvidingStrongPower", "sig": "(IBlockAccess,IIII)I", "native": null, "status": "missing", "note": "The constant 15; redstone off."}
+  ],
+  "missing": [
+    "BlockCompressedPowered's power emission (weak and strong 15 on every side) is not ported: world.conf redstone = off."
+  ],
+  "notes": "The registry entry is exact; only the emission is dead."
+}

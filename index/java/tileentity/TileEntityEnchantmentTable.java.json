@@ -1,0 +1,132 @@
+{
+  "path": "oracle/src/tileentity/TileEntityEnchantmentTable.java",
+  "classes": [
+    "TileEntityEnchantmentTable"
+  ],
+  "lines": 151,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The enchanting table's block entity: the floating book's page flip and rotation animation (turning toward a player within 3 blocks, with its own Random) and a custom name.",
+  "scope": "in_scope",
+  "scope_reason": "world.conf enchanting = off makes the table a plain block, but tables are craftable, so the entity exists and ticks on both sides.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "te_enchant",
+        "TE_ENCHANT_TABLE"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "enchant_update",
+        "enchant_rand_int_n"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_plain"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_closest_player"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "out/java/snapshots/iu-off-s1",
+    "out/java/snapshots/cov-reload-s1",
+    "out/java/snapshots/pfc-enchjoin-f59",
+    "out/java/snapshots/pfc-ridench-f54"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145926_a",
+      "sig": "int tickCount",
+      "native": "csrc/engine/tileentity.h:te_enchant",
+      "status": "exact",
+      "note": "book_spread"
+    },
+    {
+      "kind": "field",
+      "name": "field_145933_i .. field_145924_q",
+      "sig": "float animation fields (9)",
+      "native": "csrc/engine/tileentity.h:te_enchant",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145923_r",
+      "sig": "static Random (Det.splitRandom)",
+      "native": null,
+      "status": "n/a",
+      "note": "A private static Random read only by the player-near branch of updateEntity for the book's page-flip target; see updateEntity."
+    },
+    {
+      "kind": "field",
+      "name": "field_145922_s",
+      "sig": "String customName",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_plain",
+      "status": "exact",
+      "note": "Only CustomName is written, and only an anvil sets it."
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "cov-reload-s1 reads a table back with its chunk"
+    },
+    {
+      "kind": "method",
+      "name": "updateEntity",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:enchant_update",
+      "status": "exact",
+      "note": "Both branches: with a player within 3 (tt_env.closest_player, serverreplay.c:sr_closest_player) the book turns (StrictMath.atan2) and flips, drawing the class's static Random field_145923_r on the server role (enchant_rand_int_n), which the rows' d.sstat digest sees (iu-off-s1 failed there before lane/itemuse); else the no-player branch. The animation floats are not in NBT, so a table already standing at a snapshot restarts from zero natively. The client's book renderer (RenderEnchantmentTable) is not in the native rasterizer.; a snapshot's table carries the book state (tilesrt: snapshot.c snap_tile_runtime, pfc-enchjoin-f59); the client's tables tick after every entity, a rider placed by its vehicle first (pickobj_client_te_tick, pfc-ridench-f54)"
+    },
+    {
+      "kind": "method",
+      "name": "func_145919_a",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "func_145921_b",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "func_145920_a",
+      "sig": "(String)V",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    }
+  ],
+  "missing": [],
+  "notes": "The animation floats affect nothing but the client book render; they matter for state equality against the oracle's tile tick rows. lane/idxblocks: world.conf enchanting = off makes the table a plain block; its tile entity still ticks, and its static Random's draws near a player are server-visible through the Det split digest (iu-off-s1). lane/reloadstate: a chunk reload restarts the book floats (serverreplay.c sr_tiles_loaded)."
+}

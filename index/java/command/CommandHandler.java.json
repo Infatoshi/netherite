@@ -1,0 +1,101 @@
+{
+  "path": "oracle/src/command/CommandHandler.java",
+  "classes": [
+    "CommandHandler"
+  ],
+  "lines": 261,
+  "side": "server",
+  "category": "commands",
+  "role": "The command registry and dispatcher: maps names to ICommand objects and executes one line with permission checks, username-index selector expansion and error chat lines.",
+  "scope": "in_scope",
+  "scope_reason": "In scope since lane/idxclient: the chat takes typed input (GuiChat, the live client's T and slash), so a player types commands; the integrated server without cheats answers each (only tell, me, help and seed are allowed) and its tab completion reads the command map (csrc/engine/chatcmd.c).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcmd.c",
+      "symbols": [
+        "execute",
+        "cmd_lookup",
+        "key_order",
+        "can_use",
+        "chatcmd_tab",
+        "cmd_help"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/idx-chattype-s1",
+    "out/java/snapshots/idx-chatsleep-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "commandMap",
+      "sig": "Map",
+      "native": "csrc/engine/chatcmd.c:KEYS",
+      "status": "exact",
+      "note": "each name then its aliases in registration order; the HashMap's order from jorder.h (key_order)"
+    },
+    {
+      "kind": "field",
+      "name": "commandSet",
+      "sig": "Set",
+      "native": "csrc/engine/chatcmd.c:cmd_help",
+      "status": "exact",
+      "note": "getPossibleCommands(sender) then Collections.sort: the allowed four by name"
+    },
+    {
+      "kind": "method",
+      "name": "executeCommand",
+      "sig": "(ICommandSender,String)int",
+      "native": "csrc/engine/chatcmd.c:execute",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "registerCommand",
+      "sig": "(ICommand)ICommand",
+      "native": "csrc/engine/chatcmd.c:KEYS",
+      "status": "exact",
+      "note": "ServerCommandManager's registration as a table: the aliases after their name, a later alias never overwriting a command's own name"
+    },
+    {
+      "kind": "method",
+      "name": "dropFirstString",
+      "sig": "(String[])String[]",
+      "native": "csrc/engine/chatcmd.c:execute",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getPossibleCommands",
+      "sig": "(ICommandSender,String)List",
+      "native": "csrc/engine/chatcmd.c:chatcmd_tab",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getPossibleCommands",
+      "sig": "(ICommandSender)List",
+      "native": "csrc/engine/chatcmd.c:chatcmd_tab",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCommands",
+      "sig": "()Map",
+      "native": "csrc/engine/chatcmd.c:cmd_lookup",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getUsernameIndex",
+      "sig": "(ICommand,String[])int",
+      "native": "csrc/engine/chatcmd.c:execute",
+      "status": "exact",
+      "note": "tell's first argument, a selector that can match more than one player"
+    }
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: executeCommand for the one player without cheats (chatcmd.c execute): the command map (a table in registration order, its HashMap order computed), the not-found and permission lines, the username index loop (a null matchPlayers is the NullPointerException's commands.generic.exception), a CommandException inside processCommand as its red translation (a WrongUsageException too: the inner catch takes it before the outer), getPossibleCommands for tab completion. idx-chattype-s1."
+}

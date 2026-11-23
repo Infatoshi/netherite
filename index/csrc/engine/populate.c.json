@@ -1,0 +1,144 @@
+{
+ "path": "csrc/engine/populate.c",
+ "lines": 979,
+ "role": "The overworld populate driver: ChunkProviderGenerate.populate in vanilla order (seed, the four structure generators out of their own HashMap-ordered structure maps, water and lava lakes, dungeons, decorate, the ice and snow pass), the structure-map bookkeeping every generated chunk extends, the world-spawn biome search, and Chunk.func_150809_p's populated-flag relight.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "populate",
+    "rand",
+    "mineshaftGenerator",
+    "villageGenerator",
+    "strongholdGenerator",
+    "scatteredFeatureGenerator"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/MapGenBase.java",
+   "members": [
+    "func_151539_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenStructure.java",
+   "members": [
+    "func_151538_a",
+    "generateStructuresInChunk",
+    "structureMap"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureStart.java",
+   "members": [
+    "isSizeableStructure",
+    "generateStructure"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "func_150809_p",
+    "func_150811_f",
+    "func_150801_a",
+    "getTopFilledSegment",
+    "getPrecipitationHeight"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenBase.java",
+   "members": [
+    "getFloatTemperature",
+    "field_150605_ac",
+    "field_150606_ad"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/WorldChunkManager.java",
+   "members": [
+    "func_150795_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "createSpawnPosition"
+   ]
+  },
+  {
+   "path": "oracle/src/server/MinecraftServer.java",
+   "members": [
+    "initialWorldChunkLoad"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "canBlockFreeze",
+    "func_147478_e",
+    "getPrecipitationHeight"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenLakes.java",
+   "members": [
+    "generate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenDungeons.java",
+   "members": [
+    "generate"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "POP_TYPES",
+   "java": "ChunkProviderGenerate's four MapGenStructure fields in field order",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "populate_init",
+  "populate_free",
+  "populate_offer_chunk",
+  "populate_add_start",
+  "populate_biome_spawn_search",
+  "populate_initial_chunks",
+  "populate_map_size",
+  "populate_150809_p",
+  "populate_seed",
+  "populate_structures",
+  "populate_structures_count",
+  "populate_lakes",
+  "populate_dungeons",
+  "populate_freeze",
+  "populate_stage_now",
+  "populate_top_filled_segment",
+  "populate_precipitation_height",
+  "populate_float_temperature",
+  "populate_reseed",
+  "populate_spill_far"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 200-224, function populate_add_start: saves, nulls and restores the global populate_world_rand around the start build",
+  "lines 172 and 213, functions populate_offer_chunk and populate_add_start: realloc growth of each structure map's start array on chunk generation",
+  "line 319, function map_order: realloc of the order scratch",
+  "line 241, function populate_biome_spawn_search: malloc of the 129x129 biome grid (world creation)",
+  "lines 312-329, function map_order: container-order dependence carried deliberately as java.util.HashMap iteration order through jhm64_order",
+  "line 390, function populate_structures: sc_generate over structure pieces; sc_free_ents frees the per-call entity list (line 394)",
+  "line 448, function populate_precipitation_height: while loop bounded by y > 0",
+  "line 86, function chunk_at: world_load_chunk may generate neighbour chunks from inside populate",
+  "function start_reload: a mineshaft start's pieces read back from the environment's blob file (regionspill.c) and malloc'd inside the tick, when a population meets a start the park spilled",
+  "tables COLUMN_EMIT (light sources by an id's low byte) and PRECIP_STOP (the precipitation walk's stops by id), built before main (lane/popfeat)"
+ ],
+ "tests": [
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_spawning.c"
+ ],
+ "notes": "Runs whenever a chunk is populated, which in whole-server replay happens inside the server tick (seedworld.c and serverreplay-driven chunk loads); tick_path true on that basis. decorator_decorate and decorator_negative_* are declared in populate.h but live in decorator.c. The Java member names for MapGenStructure.func_151538_a and StructureStart.generateStructure were taken from the port's comments and naming, not re-opened in oracle/src. lane/envmem: pop_start.pop_left frees a mineshaft's or village's pieces once every chunk that can reach it has populated (its key stays: the map order is of every key ever put); populate_spill_far keeps a far mineshaft's pieces in the blob file. sky_column_check walks a column by band pointer and tests a band's 16 cells below the first loop for a light source at once (COLUMN_EMIT); populate_precipitation_height walks by band (PRECIP_STOP); populate_freeze computes a column's biome and perlin drop once and skips the drop when the biome's temperature decides the test (COLUMN_DROP_MAX) (lane/popfeat)."
+}

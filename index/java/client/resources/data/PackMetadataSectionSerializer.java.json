@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/client/resources/data/PackMetadataSectionSerializer.java",
+  "classes": ["PackMetadataSectionSerializer"],
+  "lines": 44,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Gson deserializer/serializer for the 'pack' .mcmeta section: description (via the IChatComponent adapter) and pack_format.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Resource pack metadata plumbing the native engine never touches.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "deserialize", "sig": "(JsonElement,Type,JsonDeserializationContext)PackMetadataSection", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "serialize", "sig": "(PackMetadataSection,Type,JsonSerializationContext)JsonElement", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "serialize", "sig": "(Object,Type,JsonSerializationContext)JsonElement", "native": null, "status": "n/a", "note": "JsonSerializer bridge"},
+    {"kind": "method", "name": "getSectionName", "sig": "()String", "native": null, "status": "n/a", "note": "\"pack\""}
+  ],
+  "missing": [],
+  "notes": null
+}

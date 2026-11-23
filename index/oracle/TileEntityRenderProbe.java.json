@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/TileEntityRenderProbe.java",
+ "lines": 188,
+ "role": "The render-state recorder's tile-entity block: each frame row's tes (RenderGlobal.tileEntities in order with each renderer's fields, the viewer position the dispatcher uses, ActiveRenderInfo's object-space camera, Minecraft.getSystemTime), read at the fogGL hook without calling anything that changes state (a chest the chunk rebuild made this frame gets its adjacency computed as func_145979_i would), and the tile-entity textures dumped once (state/te_*.rgba, te.json).",
+ "kind": "recorder",
+ "used_by": [
+  "oracle/harness/netherite/oracle/RenderStateProbe.java (doFogGL)",
+  "csrc/engine/raster_tileent.c (raster_tileents_scene)",
+  "csrc/tests/test_rendertick.c (the client lid and spawner ticks)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "A spawner's display entity is made by the renderer on the first frame that draws it, its head yaw drawn from the RENDER role's Math.random; the probe reports made=0 then and the entity's rotations once it exists, so render recordings take a warm-up frame first."
+}

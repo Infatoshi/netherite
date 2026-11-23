@@ -1,0 +1,53 @@
+{
+ "path": "csrc/engine/stronghold_blocks.c",
+ "lines": 687,
+ "role": "StructureStrongholdPieces' addComponentParts for all twelve piece kinds: corridors, turns, crossings, rooms, library (chests, bookshelves), portal room (end portal frames, lava, silverfish spawner), stairs and prison, with the Stones randomized block selector and the doors.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/structure/StructureStrongholdPieces.java",
+   "members": [
+    "addComponentParts",
+    "placeDoor",
+    "Stones",
+    "Straight",
+    "ChestCorridor",
+    "Corridor",
+    "Crossing",
+    "LeftTurn",
+    "RightTurn",
+    "Library",
+    "PortalRoom",
+    "Prison",
+    "RoomCrossing",
+    "Stairs",
+    "StairsStraight",
+    "strongholdStones",
+    "strongholdChestContents",
+    "strongholdLibraryChestContents",
+    "strongholdCorridorChestContents"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureComponent.java",
+   "members": [
+    "fillWithRandomizedBlocks",
+    "generateStructureChestContents"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "stronghold_blocks"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 33, function dup_text: malloc of a string copy",
+  "lines 141-153, function chest: loot_book_build/loot_book_free allocate per chest",
+  "line 106, function stones_select: selector passed as a callback with a void* context"
+ ],
+ "tests": [
+  "csrc/tests/test_sblocks.c"
+ ],
+ "notes": "Called through populate.c's structure block dispatch. Evidence: out/java/sblocks (StructureBlocksProbe). Chest table and field names are recalled from vanilla, not checked against StructureStrongholdPieces.java."
+}

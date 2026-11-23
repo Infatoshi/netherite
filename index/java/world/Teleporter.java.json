@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/world/Teleporter.java",
+  "classes": ["Teleporter", "Teleporter.PortalPosition"],
+  "lines": 525,
+  "side": "server",
+  "category": "world",
+  "role": "Places an entity arriving through a portal: finds the nearest nether portal block within 128 blocks (cached per arrival column), builds a new portal when none exists, and for the End builds the 5x5 obsidian platform. Stale cache entries are dropped every 100 ticks.",
+  "scope": "in_scope",
+  "scope_reason": "Nether and End travel are vanilla and in scope (SPEC Decisions: the Nether and the End are vanilla worldgen; dimension travel is in the loop).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/portal.c", "symbols": ["teleporter_init", "teleporter_place_in_portal", "teleporter_place_in_existing_portal", "teleporter_make_portal", "teleporter_remove_stale_locations", "portal_cache_get", "portal_cache_put", "portal_cache_remove", "portal_cache_remove_stale", "actual_height"]},
+    {"file": "csrc/engine/portal.h", "symbols": ["struct teleporter", "struct portal_cache", "struct portal_cache_entry", "DIR_ROTATE_LEFT", "DIR_ROTATE_OPPOSITE", "DIR_ROTATE_RIGHT"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["teleporter_init", "teleporter_remove_stale_locations", "portal_transfer_entity"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/nether-trip-s1",
+    "out/java/snapshots/nether-trip2-s42",
+    "out/java/snapshots/end-arrival-s1",
+    "csrc/tests/test_portals.c",
+    "out/java/snapshots/portal-mobs-s42",
+    "out/java/snapshots/portal-pigspawn-s1",
+    "out/java/snapshots/end-return-s42",
+    "out/java/snapshots/portalcache-s1",
+    "out/java/snapshots/portalmake-s1",
+    "out/java/snapshots/endportal-ents-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "worldServerInstance", "sig": "WorldServer", "native": "csrc/engine/portal.h:struct teleporter", "status": "exact", "note": "struct teleporter.world"},
+    {"kind": "field", "name": "random", "sig": "Random", "native": "csrc/engine/portal.h:struct teleporter", "status": "exact", "note": "struct teleporter.rand, seeded new Random(world.getSeed()) in teleporter_init."},
+    {"kind": "field", "name": "destinationCoordinateCache", "sig": "LongHashMap", "native": "csrc/engine/portal.h:struct portal_cache", "status": "exact", "note": "Open-addressed, heap-grown table (portal_cache_grow)."},
+    {"kind": "field", "name": "destinationCoordinateKeys", "sig": "List<Long>", "native": "csrc/engine/portal.h:struct portal_cache", "status": "exact", "note": "portal_cache.keys keeps insertion order for the stale sweep."},
+    {"kind": "ctor", "name": "Teleporter", "sig": "(WorldServer)", "native": "csrc/engine/portal.c:teleporter_init", "status": "exact"},
+    {"kind": "method", "name": "placeInPortal", "sig": "(Entity,double,double,double,float)V", "native": "csrc/engine/portal.c:teleporter_place_in_portal", "status": "exact", "note": "Includes the End branch: the 5x5 obsidian platform and air above. Non-player travellers reach it through serverreplay.c's sr_travel_place."},
+    {"kind": "method", "name": "placeInExistingPortal", "sig": "(Entity,double,double,double,float)Z", "native": "csrc/engine/portal.c:teleporter_place_in_existing_portal", "status": "exact"},
+    {"kind": "method", "name": "makePortal", "sig": "(Entity)Z", "native": "csrc/engine/portal.c:teleporter_make_portal", "status": "exact"},
+    {"kind": "method", "name": "removeStalePortalLocations", "sig": "(J)V", "native": "csrc/engine/portal.c:teleporter_remove_stale_locations", "status": "exact", "note": "Called from WorldServer.tick's tail in serverreplay.c."},
+    {"kind": "ctor", "name": "PortalPosition", "sig": "(int,int,int,long)", "native": "csrc/engine/portal.h:struct portal_cache_entry", "status": "exact"},
+    {"kind": "field", "name": "PortalPosition.lastUpdateTime", "sig": "long", "native": "csrc/engine/portal.h:struct portal_cache_entry", "status": "exact", "note": "portal_cache_entry.last_update_time"}
+  ],
+  "missing": [],
+  "notes": "GPU hazard for the native port (belongs to the portal.c record): the portal cache is heap allocated and grows (malloc/realloc) instead of a fixed-capacity array. The placement search itself is bounded (257x257 columns x actual height). Exact status is from the nether-trip and end-arrival recordings named in DEVLOG; I did not run them. Since lane/endreturn (2026-09-27): end-return-s42 re-enters the End after a death and a respawn, and the arrival platform is rebuilt over a broken obsidian cell and a placed cobblestone row."
+}

@@ -1,0 +1,50 @@
+{
+ "path": "csrc/tests/test_worldgen.c",
+ "lines": 233,
+ "role": "Gate: native worldgen against the oracle's per-chunk stage dumps (out/java/chunks/<name>/), in pipeline order, each stage fed by the native output of the previous one: genbiomes, biomes, terrain density, surface, caves, ravines, skylight.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/biome/WorldChunkManager.java",
+   "members": [
+    "getBiomesForGeneration",
+    "loadBlockGeneratorData"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/layer/GenLayer.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "func_147424_a",
+    "func_147422_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/MapGenCaves.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/gen/MapGenRavine.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "generateSkylightMap"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_worldgen.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Exercises layers.c, terrain.c, surface.c, carve.c, light.c via dump.h. Dumps without light.bin.gz skip the light stage."
+}

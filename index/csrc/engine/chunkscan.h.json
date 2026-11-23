@@ -1,0 +1,38 @@
+{
+ "path": "csrc/engine/chunkscan.h",
+ "lines": 46,
+ "role": "A block scan's chunk cache: up to 4 x 4 chunks each looked up once while loaded, a read in a loaded one taken straight from its cells (world_get_block's answer), every other read world_get_block's own so a loading read still loads in order (the client world's display-tick cells, the village door scan).",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getBlock"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "chunkscan",
+   "java": null,
+   "fields": [
+    "w",
+    "cx0",
+    "cz0",
+    "c"
+   ]
+  }
+ ],
+ "entry_points": [
+  "chunkscan_init",
+  "chunkscan_block"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 17, struct chunkscan: chunk pointers held for one scan only (a stack local), never across ticks"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "lane/hostmisc (2026-09-29): cp_world_tick's 1,000 cells a client tick and VillageCollection's 32 x 8 x 32 door scan."
+}

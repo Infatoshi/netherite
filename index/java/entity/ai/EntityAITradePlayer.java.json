@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/entity/ai/EntityAITradePlayer.java",
+  "classes": ["EntityAITradePlayer"],
+  "lines": 61,
+  "side": "server",
+  "category": "ai",
+  "role": "Makes a trading villager stand still: while a customer has the merchant window open within 4 blocks, the villager clears its path and does not walk.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_start", "ai_reset", "ai_setup_kind"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/trade-full-s1", "out/java/trades/seed2", "csrc/tests/test_trades.c", "csrc/tests/test_villagers.c"],
+  "members": [
+    {"kind": "field", "name": "villager", "sig": "EntityVillager", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the villager itself (struct living); the customer is its buying_player"},
+    {"kind": "ctor", "name": "EntityAITradePlayer", "sig": "(EntityVillager)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_TRADE_PLAYER, priority 1, mutex 5"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_TRADE_PLAYER case (shared block with AIC_AVOID_ENTITY): alive, not in water, on the ground, velocityChanged clear, a customer within 4 blocks, and the customer's openContainer is a Container (always true in the engine)"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "clearPathEntity -> nav_clear_path"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "setCustomer(null) -> buying_player = 0"}
+  ],
+  "missing": [],
+  "notes": "continueExecuting is EntityAIBase's default (shouldExecute again), mirrored directly in ai.c's continue switch. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

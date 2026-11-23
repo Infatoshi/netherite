@@ -1,0 +1,7 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"n":3,"act":{}}
+{"cmd":"dev","op":"tp","x":1500.5,"y":120.0,"z":-1499.5,"yaw":0.0,"pitch":0.0}
+{"cmd":"dev","op":"fill","x0":1498,"y0":118,"z0":-1502,"x1":1502,"y1":118,"z1":-1497,"id":1,"meta":0}
+{"n":60,"act":{}}

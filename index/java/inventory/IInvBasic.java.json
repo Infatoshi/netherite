@@ -1,0 +1,35 @@
+{
+ "classes": [
+  "IInvBasic"
+ ],
+ "lines": 9,
+ "side": "common",
+ "category": "inventory",
+ "role": "The InventoryBasic change-listener interface; in vanilla only the array that is never filled implements it.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "inv_set"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c"
+ ],
+ "members": [
+  {
+   "kind": "method",
+   "name": "onInventoryChanged",
+   "sig": "(Lnet/minecraft/inventory/InventoryBasic;)V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "partial",
+   "note": "the notify is folded into inv_set's per-kind triggers (the craft grid's matrix_changed, the merchant's recipe reset); no listener registry exists"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): no vanilla listener ever receives a call. Formerly listed as missing: The listener registry (add/remove) is not ported; no vanilla listener ever receives a call.",
+ "path": "oracle/src/inventory/IInvBasic.java"
+}

@@ -1,0 +1,28 @@
+{
+ "path": "csrc/engine/hostiles_creeper.c",
+ "lines": 375,
+ "role": "The EntityCreeper kind and EntityAICreeperSwell: attributes and data-watcher defaults, the fuse head of onUpdate (lastActiveTime, creeperState, timeSinceIgnited), fall feeding the fuse, EntityMob's living tick without burning, the blast through explosion.c with its drops joined to the arena list, gunpowder drops, the kind NBT keys, the charged creeper's lightning bolt (Det draws and fire placement), and the swell task's shouldExecute and updateTask.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntityCreeper.java", "members": ["EntityCreeper", "applyEntityAttributes", "entityInit", "onUpdate", "fall", "getMaxSafePointTries", "attackEntityAsMob", "func_146068_u", "writeEntityToNBT", "onStruckByLightning", "func_146077_cc", "setCreeperState", "getCreeperState", "lastActiveTime", "timeSinceIgnited", "fuseTime", "explosionRadius"]},
+  {"path": "oracle/src/entity/ai/EntityAICreeperSwell.java", "members": ["shouldExecute", "updateTask"]},
+  {"path": "oracle/src/entity/monster/EntityMob.java", "members": ["onLivingUpdate"]},
+  {"path": "oracle/src/entity/EntityLivingBase.java", "members": ["dropFewItems"]},
+  {"path": "oracle/src/entity/effect/EntityLightningBolt.java", "members": ["EntityLightningBolt"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["onStruckByLightning"]},
+  {"path": "oracle/src/world/World.java", "members": ["createExplosion", "spawnEntityInWorld"]}
+ ],
+ "structs": [],
+ "entry_points": ["creeper_construct", "creeper_pre_on_update", "creeper_on_living_update", "creeper_fall", "creeper_attack_entity_as_mob", "creeper_drop_few_items", "creeper_struck_by_lightning", "creeper_max_safe_point_tries", "creeper_write_kind_nbt", "creeper_explode", "creeper_swell_should_execute", "creeper_swell_update"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 49, function material_is_air: strcmp on the material name string per call",
+  "line 77, function creeper_construct: kind_fall function pointer",
+  "line 175, function creeper_drop_few_items: an_spawn_item heap allocation per gunpowder",
+  "lines 199-226, function creeper_absorb_items: O(n) scan of an->list per new item and calloc of each an_ent inside the tick",
+  "line 318, function creeper_explode: expl_run over the shared world and entity pool, whose damage order follows the entity lists (container-order dependence)"
+ ],
+ "tests": ["csrc/tests/test_hostiles.c", "csrc/tests/test_lightning.c"],
+ "notes": "mobGriefing is hardcoded 1 in creeper_explode (the default gamerule). Flint-and-steel ignition (EntityCreeper.interact setting the ignited byte) is not in this file; the ignited flag is only loaded from NBT (snapshot_entities.c, serverreplay.c), so ignition by the player was not found natively. The creeper.primed sound is a no-op. Evidence recordings: out/java/hostiles c-2, c-42, c-charged, and the fight-creeper-s1 snapshot."
+}

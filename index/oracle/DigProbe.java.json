@@ -1,0 +1,11 @@
+{
+ "path": "oracle/harness/netherite/oracle/DigProbe.java",
+ "lines": 1029,
+ "role": "Digging reference: the server block-breaking state machine (ItemInWorldManager.onBlockClicked, updateBlockRemoving, uncheckedTryHarvestBlock, cancelDestroyingBlock, tryHarvestBlock, removeBlock) driven as for a C07, on a raw region of dig sites with every breakable kind, a probe-owned survival player and controlled held stacks; records writes, drops, inventory, exhaustion, stats, Det and Random states.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=DigProbe",
+  "csrc/tests/test_dig.c (csrc/engine/dig.c)"
+ ],
+ "vanilla_hooks": []
+}

@@ -1,0 +1,92 @@
+{
+ "path": "oracle/src/entity/passive/EntityWaterMob.java",
+ "classes": [
+  "EntityWaterMob"
+ ],
+ "lines": 78,
+ "side": "server",
+ "category": "entity",
+ "role": "The water-mob base (the squid is the only subclass): can breathe underwater, its own drowning pass when out of water, a 120-tick talk interval, and the entity-collision spawn check.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_base_entity_update",
+    "living_can_despawn",
+    "living_on_death_update"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "can_spawn_here"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_spawning.c",
+  "out/java/spawning/rec-s2-ocean",
+  "out/java/snapshots/details-mobs-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EntityWaterMob",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a",
+   "note": "the constructor only calls super"
+  },
+  {
+   "kind": "method",
+   "name": "canBreatheUnderwater",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_base_entity_update",
+   "status": "exact",
+   "note": "no standalone flag: its effect is the air-pass ordering, the EntityLivingBase decrement never applies to water mobs"
+  },
+  {
+   "kind": "method",
+   "name": "getCanSpawnHere",
+   "sig": "(0p)",
+   "native": "csrc/engine/spawning.c:can_spawn_here",
+   "status": "exact",
+   "note": "no_entity_collision over the bounding box"
+  },
+  {
+   "kind": "method",
+   "name": "getTalkInterval",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_base_entity_update",
+   "status": "exact",
+   "note": "the 120 branch of talk_interval"
+  },
+  {
+   "kind": "method",
+   "name": "canDespawn",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_can_despawn",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getExperiencePoints",
+   "sig": "(1p)",
+   "native": "csrc/engine/living.c:living_on_death_update",
+   "status": "exact",
+   "note": "1 + worldObj.rand.nextInt(3) on the world Random, beside EntityAnimal's; details-mobs-s1 kills a squid for 1 XP"
+  },
+  {
+   "kind": "method",
+   "name": "onEntityUpdate",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_base_entity_update",
+   "status": "exact",
+   "note": "air_before read before super, the own pass after, the -20 drown"
+  }
+ ],
+ "missing": []
+}

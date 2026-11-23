@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntitySpecialRenderer.java",
+  "classes": ["TileEntitySpecialRenderer"],
+  "lines": 37,
+  "side": "client",
+  "category": "client_render",
+  "role": "Abstract base class of every tile-entity renderer: holds the TileEntityRendererDispatcher back-reference, the abstract renderTileEntityAt, texture binding through the dispatcher's TextureManager, and the FontRenderer accessor.",
+  "scope": "not_needed",
+  "scope_reason": "Interface, marker or abstract base; its behavior lives in the subclasses' ports (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_147501_a", "sig": "TileEntityRendererDispatcher", "native": null, "status": "missing"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntity,D,D,D,F)V", "native": null, "status": "missing", "note": "abstract"},
+    {"kind": "method", "name": "bindTexture", "sig": "(ResourceLocation)V", "native": null, "status": "missing"},
+    {"kind": "method", "name": "func_147497_a", "sig": "(TileEntityRendererDispatcher)V", "native": null, "status": "missing"},
+    {"kind": "method", "name": "func_147496_a", "sig": "(World)V", "native": null, "status": "missing", "note": "empty world-change hook"},
+    {"kind": "method", "name": "func_147498_b", "sig": "()FontRenderer", "native": null, "status": "missing"}
+  ],
+  "missing": [],
+  "notes": "Base plumbing (the dispatcher back-reference, bindTexture, the font getter); the renderers in raster_tileent.c are plain functions over their inputs."
+}

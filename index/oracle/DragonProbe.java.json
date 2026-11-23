@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/DragonProbe.java",
+ "lines": 266,
+ "role": "Raw End entity trace: ticks the ender dragon, crystals and their fight in raw End chunks, writing every floating field as raw bits, every changed block and the Det RNG streams each tick.",
+ "kind": "probe",
+ "used_by": [
+  "oracle/Makefile run target (make run CLASS=DragonProbe), dispatched by Oracle.java's {\"cmd\":\"run\",\"class\":...}",
+  "csrc/tests/test_dragon.c (out/java/dragon/*: d, player, pillar, blocks, parts, crystal, crystal-kill, healing, multi, no-grief, force, death on seeds 2 and 42)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Borrows GhastProbe.field/floatField reflection helpers. DEVLOG 2026-09 records 24 recordings, 27,200 ticks, all matched by the native replay. No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

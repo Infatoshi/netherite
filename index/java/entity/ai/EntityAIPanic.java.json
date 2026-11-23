@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIPanic.java",
+  "classes": ["EntityAIPanic"],
+  "lines": 64,
+  "side": "server",
+  "category": "ai",
+  "role": "Flee reaction: when the entity has a revenge target or is burning it picks a random spot (findRandomTarget 5x4) and runs there at the kind's panic speed (1.25 pig, 2.0 cow, 1.4 chicken, 1.25 sheep).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_start", "ai_continue_executing", "ai_setup_kind", "random_target"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/cg-combat-pig-s1", "out/java/snapshots/rc-animals-s1", "csrc/tests/test_animals.c"],
+  "members": [
+    {"kind": "field", "name": "theEntityCreature", "sig": "EntityCreature", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living"},
+    {"kind": "field", "name": "speed", "sig": "double", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "ai_task.speed, registered per kind"},
+    {"kind": "field", "name": "randPosX", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.x"},
+    {"kind": "field", "name": "randPosY", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.y"},
+    {"kind": "field", "name": "randPosZ", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.z"},
+    {"kind": "ctor", "name": "EntityAIPanic", "sig": "(EntityCreature,double)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_PANIC, priority 1, mutex 1"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_PANIC case: entity_living_to_attack or burning, then findRandomTarget(5,4) -> random_target"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "tryMoveToXYZ(randPos, speed)"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "!noPath, shared with AIC_WANDER"}
+  ],
+  "missing": [],
+  "notes": "Java has no resetTask or updateTask; the native switch has no AIC_PANIC case in ai_reset/ai_update either."
+}

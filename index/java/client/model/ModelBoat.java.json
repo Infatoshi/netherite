@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/model/ModelBoat.java",
+  "classes": ["ModelBoat"],
+  "lines": 47,
+  "side": "client",
+  "category": "client_model",
+  "role": "The boat model: five flat side panels (base plus four walls) with fixed rotations, rendered without any pose math.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf boats = off: boats cannot be placed (SPEC Decisions), so no boat entity ever exists to render.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "boatSides", "sig": "ModelRenderer[5]", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ModelBoat", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No native grep hit for ModelBoat or boatSides."
+}

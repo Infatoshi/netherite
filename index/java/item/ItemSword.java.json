@@ -1,0 +1,39 @@
+{
+  "path": "oracle/src/item/ItemSword.java",
+  "classes": ["ItemSword"],
+  "lines": 135,
+  "side": "common",
+  "category": "item",
+  "role": "The swords (ids 267-283): attack damage from the tool material, 1 wear per hit, 2 per block broken with hardness, block speed 1.5 on plant-like materials and 15 on web, 72000-tick blocking use.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "TOOL_MATERIALS"]},
+    {"file": "csrc/engine/harvest.c", "symbols": ["item_str_vs_block", "item_can_harvest"]},
+    {"file": "csrc/engine/combat.c", "symbols": ["combat_server_attack"]},
+    {"file": "csrc/engine/dig.c", "symbols": ["item_on_block_destroyed"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["process_c08"]},
+    {"file": "csrc/engine/enchant.c", "symbols": ["item_enchantability"]}
+  ],
+  "evidence": ["csrc/tests/test_dig.c", "out/java/snapshots/dev-give-s1", "out/java/snapshots/flow-combat-s1", "out/java/snapshots/cov-mobs-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150934_a", "sig": "float", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "4.0 + material damage, in the ITEMS damage column"},
+    {"kind": "field", "name": "field_150933_b", "sig": "Item.ToolMaterial", "native": "csrc/engine/items.h:TOOL_MATERIALS", "status": "exact", "note": "the tool_material index in each sword row"},
+    {"kind": "ctor", "name": "ItemSword", "sig": "(Lnet/minecraft/item/Item$ToolMaterial;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "rows 267-283, maxUses as max_damage"},
+    {"kind": "method", "name": "func_150931_i", "sig": "()F", "native": "csrc/engine/items.h:TOOL_MATERIALS", "status": "exact", "note": "EntityLiving's loot pickup comparing two swords: cov-mobs-s1 drops a diamond sword by a zombie holding an iron one"},
+    {"kind": "method", "name": "func_150893_a", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/block/Block;)F", "native": "csrc/engine/harvest.c:item_str_vs_block", "status": "exact", "note": "the ITEM_SWORD branch: 15 on web, 1.5 on plants/vine/coral/leaves/field_151572_C"},
+    {"kind": "method", "name": "hitEntity", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/entity/EntityLivingBase;)Z", "native": "csrc/engine/combat.c:combat_server_attack", "status": "exact", "note": "the wear block: sword kind takes 1 per landed hit"},
+    {"kind": "method", "name": "onBlockDestroyed", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/block/Block;IIILnet/minecraft/entity/EntityLivingBase;)Z", "native": "csrc/engine/dig.c:item_on_block_destroyed", "status": "exact", "note": "the ItemSword branch: 2 damage when the block hardness is not 0"},
+    {"kind": "method", "name": "isFull3D", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getItemUseAction", "sig": "(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/EnumAction;", "native": null, "status": "n/a", "note": "the blocking animation"},
+    {"kind": "method", "name": "getMaxItemUseDuration", "sig": "(Lnet/minecraft/item/ItemStack;)I", "native": "csrc/engine/survival.c:process_c08", "status": "exact", "note": "the 72000 use the sword's in-air form sets"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/survival.c:process_c08", "status": "exact", "note": "the ITEM_SWORD branch of the in-air C08: setItemInUse(stack, 72000)"},
+    {"kind": "method", "name": "func_150897_b", "sig": "(Lnet/minecraft/block/Block;)Z", "native": "csrc/engine/harvest.c:item_can_harvest", "status": "exact", "note": "web only"},
+    {"kind": "method", "name": "getItemEnchantability", "sig": "()I", "native": "csrc/engine/enchant.c:item_enchantability", "status": "exact"},
+    {"kind": "method", "name": "func_150932_j", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getIsRepairable", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemStack;)Z", "native": null, "status": "n/a", "note": "the anvil repair query; the crafting-grid repair path is CraftingManager's and is ported (crafting.c:repair_result)"},
+    {"kind": "method", "name": "getItemAttributeModifiers", "sig": "()Lcom/google/common/collect/Multimap;", "native": "csrc/engine/combat.c:combat_server_attack", "status": "exact", "note": "the attack reads the held item's ITEMS damage as the attackDamage modifier"}
+  ],
+  "missing": [],
+  "notes": "dev-give-s1 gives the iron sword (item 267) and replays its use; flow-combat-s1 covers the attack path."
+}

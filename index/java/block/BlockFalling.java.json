@@ -1,0 +1,101 @@
+{
+  "path": "oracle/src/block/BlockFalling.java",
+  "classes": [
+    "BlockFalling"
+  ],
+  "lines": 60,
+  "side": "common",
+  "category": "block",
+  "role": "The falling-block behaviour shared by sand, gravel and the anvil: the fall test, the EntityFallingBlock spawn or the instant drop, and the fallInstantly flag.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/servertick.c",
+      "symbols": [
+        "falling_can_fall",
+        "falling_spawn",
+        "update_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/world-falling-s1",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_populate.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_149832_M",
+      "sig": "boolean",
+      "native": "csrc/engine/servertick.c:falling_can_fall",
+      "status": "exact",
+      "note": "fallInstantly: the short path's gate (the flag the oracle pins false in agent mode, DEVLOG's per-frame pin list)"
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockFalling",
+      "sig": "(Z)V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "rows 12, 13, 145 set the falling material"
+    },
+    {
+      "kind": "method",
+      "name": "func_149831_e",
+      "sig": "(IBlockAccess,III)Z",
+      "native": "csrc/engine/servertick.c:falling_can_fall",
+      "status": "exact",
+      "note": "the can-fall-through test"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockAdded",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_added",
+      "status": "exact",
+      "note": "the schedule for the falling ids"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIIBlock)V",
+      "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+      "status": "exact",
+      "note": "the same schedule on a neighbour write"
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(World,IIIRandom)V",
+      "native": "csrc/engine/servertick.c:update_tick",
+      "status": "exact",
+      "note": "case 12/13/145: the fall test, the 32-chunk entity spawn or the instant drop walk"
+    },
+    {
+      "kind": "method",
+      "name": "onEntityCollidedWithBlock (inherited)",
+      "sig": "(World,IIILnet/minecraft/entity/Entity;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the empty body, no state"
+    },
+    {
+      "kind": "method",
+      "name": "func_149828_a",
+      "sig": "(Lnet/minecraft/world/World;IIII)V",
+      "native": null,
+      "status": "n/a",
+      "note": "an empty onEndFalling hook (BlockFalling.java:105); 1.7.10 has no landing damage on sand"
+    }
+  ],
+  "missing": [],
+  "notes": "Verified by world-falling-s1 (whole-server, 0 field mismatches) and the populate probe's sand columns. The EntityFallingBlock itself carries the entity-side record."
+}

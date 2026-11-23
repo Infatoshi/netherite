@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/PlaceProbe.java",
+ "lines": 1000,
+ "role": "Placement reference: every block-placing item (ItemBlock and subclasses, ItemReed, ItemDoor, ItemBed, ItemSign, ItemSeeds, ItemSeedFood, ItemSkull, ItemHoe, ItemRedstone, ItemEnderEye, cocoa dye) driven through ItemStack.tryPlaceItemIntoWorld on a raw region scattered with support blocks, with a posed survival placer; records return values, every block write, drops, tile entity deltas, 3x3 chunk hashes and the Det digest per case.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=PlaceProbe (writes out/java/place/<name>)",
+  "csrc/tests/test_place.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output: manifest.json (kind place), shapes.bin, cases.bin, writes.bin, drops.bin, tileentities.bin, digest.txt.gz, start/end.txt, final.bin.gz, optional watch.bin.gz and at<N>.bin.gz. Uses Probe.rawChunks and Rows.writeListener. csrc/engine/place.h names it as its reference."
+}

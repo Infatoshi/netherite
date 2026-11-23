@@ -1,0 +1,692 @@
+{
+  "classes": [
+    "NetHandlerPlayClient"
+  ],
+  "lines": 1811,
+  "side": "client",
+  "category": "network",
+  "role": "The client's packet handler for the play state: builds and updates the WorldClient's entities and chunks from server packets, applies player state (health, position, respawn, windows, effects) to the client player, and drives sounds, particles and GUI screens.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/clientworld.c",
+      "symbols": [
+        "clientworld_handle_packet",
+        "clientworld_init",
+        "clientworld_tick",
+        "clientworld_tick_entities",
+        "clientworld_add_entity"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_client_pump"
+      ]
+    },
+    {
+      "file": "csrc/engine/particles_live.c",
+      "symbols": [
+        "particles_live_crit"
+      ]
+    },
+    {
+      "file": "csrc/engine/combat.c",
+      "symbols": [
+        "copy_kindw"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/clientworld/smoke-s1",
+    "out/java/clientworld/walk300-s1",
+    "out/java/clientworld/walk300-s42",
+    "csrc/tests/test_clientworld.c",
+    "out/java/snapshots/flow-walk-s1",
+    "out/java/clientframes/idx-doorcrack-s1",
+    "out/java/clientframes/idx-watch-s1",
+    "out/java/clientframes/idx-burn-s1",
+    "out/java/clientframes/idx-pot-s1",
+    "out/java/clientframes/idx-deathmsg-s1",
+    "out/java/snapshots/pfc-s1clive-s7",
+    "out/java/snapshots/pfc-potattr-g26"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "logger",
+      "sig": "Logger",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "netManager",
+      "sig": "NetworkManager",
+      "native": null,
+      "status": "n/a",
+      "note": "messages are structs in queues, not a netty channel"
+    },
+    {
+      "kind": "field",
+      "name": "gameController",
+      "sig": "Minecraft",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "clientWorldController",
+      "sig": "WorldClient",
+      "native": "csrc/engine/world.c:world_client_set_block",
+      "status": "exact",
+      "note": "the session's client world (the chunk packets' copies, the block packets through world_client_set_block with the relight) and clientworld.c's entity side"
+    },
+    {
+      "kind": "field",
+      "name": "doneLoadingTerrain",
+      "sig": "boolean",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "the join is the snapshot's; a world change's GuiDownloadTerrain opens at the S07 and closes at its S08 inside one pump, so no row shows it, and its key and click-counter resets are what the next input snapshot carries (a GuiChat it replaces is closed with it)"
+    },
+    {
+      "kind": "field",
+      "name": "mapStorageOrigin",
+      "sig": "MapStorage",
+      "native": null,
+      "status": "n/a",
+      "note": "maps are off"
+    },
+    {
+      "kind": "field",
+      "name": "playerInfoMap",
+      "sig": "Map",
+      "native": null,
+      "status": "n/a",
+      "note": "tab list is cosmetic"
+    },
+    {
+      "kind": "field",
+      "name": "playerInfoList",
+      "sig": "List",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "guiScreenServer",
+      "sig": "GuiScreen",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "avRandomizer",
+      "sig": "Random",
+      "native": null,
+      "status": "exact",
+      "note": "handleCollectItem's five draws (clientworld.c's S0D case); handleParticles never runs (S2A comes from EntityFishHook only, and fishing = off: ItemFishingRod.onItemRightClick returns first)"
+    },
+    {
+      "kind": "field",
+      "name": "currentServerMaxPlayers",
+      "sig": "int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "NetHandlerPlayClient",
+      "sig": "(Minecraft,GuiScreen,NetworkManager)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "cleanup",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "onNetworkTick",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "handleJoinGame",
+      "sig": "(S01PacketJoinGame)V",
+      "native": "csrc/engine/clientworld.c:clientworld_init",
+      "status": "exact",
+      "note": "the join happens before the snapshot: the client world, dimension and entity id are the snapshot's"
+    },
+    {
+      "kind": "method",
+      "name": "handleSpawnObject",
+      "sig": "(S0EPacketSpawnObject)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S0E"
+    },
+    {
+      "kind": "method",
+      "name": "handleSpawnExperienceOrb",
+      "sig": "(S11PacketSpawnExperienceOrb)V",
+      "native": "csrc/play/clientents.c:citems_packets",
+      "status": "exact",
+      "note": "the live client's orb copy at the S11's raw 1/32-unit fields (thirty-two times out) until the first move; the replay's client world adds none"
+    },
+    {
+      "kind": "method",
+      "name": "handleSpawnGlobalEntity",
+      "sig": "(S2CPacketSpawnGlobalEntity)V",
+      "native": "csrc/play/play.c:live_weather",
+      "status": "exact",
+      "note": "the S2C lightning bolt, built on the client at the next tick's packets (clientstate.c)"
+    },
+    {
+      "kind": "method",
+      "name": "handleSpawnPainting",
+      "sig": "(S10PacketSpawnPainting)V",
+      "native": "csrc/engine/pickobj.c:pickobj_client_tick",
+      "status": "exact",
+      "note": "the S10 painting copy (pickobj.c)"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityVelocity",
+      "sig": "(S12PacketEntityVelocity)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S12"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityMetadata",
+      "sig": "(S1CPacketEntityMetadata)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "the player's own watcher by PK_S1C (health, a plain write) and PK_S1C_FLAGS, the copies' watcher 16, flag byte and kind values by the tracker's S1C; the player's own S1C values are read when the pump runs, not when the tracker sent it (the integrated server's packet holds the live WatchableObjects: survival.c s2c_in_watch_live, pfc-s1clive-s7)"
+    },
+    {
+      "kind": "method",
+      "name": "handleSpawnPlayer",
+      "sig": "(S0CPacketSpawnPlayer)V",
+      "native": null,
+      "status": "n/a",
+      "note": "S0C spawns another player; single player has one"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityTeleport",
+      "sig": "(S18PacketEntityTeleport)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S18"
+    },
+    {
+      "kind": "method",
+      "name": "handleHeldItemChange",
+      "sig": "(S09PacketHeldItemChange)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S09 (syncPlayerInventory at a respawn or a world change): idx-portalclose-s1"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityMovement",
+      "sig": "(S14PacketEntity)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S15/S16/S17 relative move, look, look-move"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityHeadLook",
+      "sig": "(S19PacketEntityHeadLook)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S19 head yaw"
+    },
+    {
+      "kind": "method",
+      "name": "handleDestroyEntities",
+      "sig": "(S13PacketDestroyEntities)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S13"
+    },
+    {
+      "kind": "method",
+      "name": "handlePlayerPosLook",
+      "sig": "(S08PacketPlayerPosLook)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S08, including the C06 reply from the position it left"
+    },
+    {
+      "kind": "method",
+      "name": "handleMultiBlockChange",
+      "sig": "(S22PacketMultiBlockChange)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S22"
+    },
+    {
+      "kind": "method",
+      "name": "handleChunkData",
+      "sig": "(S21PacketChunkData)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S21 chunk load"
+    },
+    {
+      "kind": "method",
+      "name": "handleBlockChange",
+      "sig": "(S23PacketBlockChange)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S23"
+    },
+    {
+      "kind": "method",
+      "name": "handleDisconnect",
+      "sig": "(S40PacketDisconnect)V",
+      "native": null,
+      "status": "n/a",
+      "note": "no disconnect path in lockstep replay"
+    },
+    {
+      "kind": "method",
+      "name": "onDisconnect",
+      "sig": "(IChatComponent)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addToSendQueue",
+      "sig": "(Packet)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client-to-server messages are structs pushed from the input paths"
+    },
+    {
+      "kind": "method",
+      "name": "handleCollectItem",
+      "sig": "(S0DPacketCollectItem)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S0D; the item or orb entity's construction draws (entity id, UUID, five math draws) are consumed, the sound is dropped"
+    },
+    {
+      "kind": "method",
+      "name": "handleChat",
+      "sig": "(S02PacketChat)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "the S02's parts to the live GuiNewChat"
+    },
+    {
+      "kind": "method",
+      "name": "handleAnimation",
+      "sig": "(S0BPacketAnimation)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S0B; ids 4 and 5 add EntityCrit2FX: particles_live_crit (fx_crit)"
+    },
+    {
+      "kind": "method",
+      "name": "handleUseBed",
+      "sig": "(S0APacketUseBed)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S0A"
+    },
+    {
+      "kind": "method",
+      "name": "handleSpawnMob",
+      "sig": "(S0FPacketSpawnMob)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S0F with the living entity's constructor draws"
+    },
+    {
+      "kind": "method",
+      "name": "handleTimeUpdate",
+      "sig": "(S03PacketTimeUpdate)V",
+      "native": null,
+      "status": "n/a",
+      "note": "world time rides the tick state, not a packet"
+    },
+    {
+      "kind": "method",
+      "name": "handleSpawnPosition",
+      "sig": "(S05PacketSpawnPosition)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the spawn point comes from world info"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityAttach",
+      "sig": "(S1BPacketEntityAttach)V",
+      "native": "csrc/engine/riding.c:ride_client_s1b",
+      "status": "exact",
+      "note": "the player's own mount (PK_S1B) and the leashes (clientents.c's leash holder)"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityStatus",
+      "sig": "(S19PacketEntityStatus)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S19 entity status events"
+    },
+    {
+      "kind": "method",
+      "name": "handleUpdateHealth",
+      "sig": "(S06PacketUpdateHealth)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S06 health, food, saturation"
+    },
+    {
+      "kind": "method",
+      "name": "handleSetExperience",
+      "sig": "(S1FPacketSetExperience)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S1F: setXPStats, the HUD's bar and level"
+    },
+    {
+      "kind": "method",
+      "name": "handleRespawn",
+      "sig": "(S07PacketRespawn)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S07 dimension switch and respawn"
+    },
+    {
+      "kind": "method",
+      "name": "handleExplosion",
+      "sig": "(S27PacketExplosion)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S27 player motion add"
+    },
+    {
+      "kind": "method",
+      "name": "handleOpenWindow",
+      "sig": "(S2DPacketOpenWindow)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S2D container windows"
+    },
+    {
+      "kind": "method",
+      "name": "handleSetSlot",
+      "sig": "(S2FPacketSetSlot)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S2F; a hotbar slot whose count rises pops (animationsToGo 5, player.h inv_anim)"
+    },
+    {
+      "kind": "method",
+      "name": "handleConfirmTransaction",
+      "sig": "(S32PacketConfirmTransaction)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "S32 and the C0F answer: idx-refuse-s1"
+    },
+    {
+      "kind": "method",
+      "name": "handleWindowItems",
+      "sig": "(S30PacketWindowItems)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S30"
+    },
+    {
+      "kind": "method",
+      "name": "handleSignEditorOpen",
+      "sig": "(S36PacketSignEditorOpen)V",
+      "native": null,
+      "status": "n/a",
+      "note": "sign_editing = off (world.conf): the editor never opens"
+    },
+    {
+      "kind": "method",
+      "name": "handleUpdateSign",
+      "sig": "(S33PacketUpdateSign)V",
+      "native": null,
+      "status": "n/a",
+      "note": "sign_editing = off: every sign is blank, and no generated structure holds one"
+    },
+    {
+      "kind": "method",
+      "name": "handleUpdateTileEntity",
+      "sig": "(S35PacketUpdateTileEntity)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "the renderers read the tile entities at the row, which holds what the S35 with its block brings (idx-pot-s1)"
+    },
+    {
+      "kind": "method",
+      "name": "handleWindowProperty",
+      "sig": "(S31PacketWindowProperty)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S31: ContainerFurnace.updateProgressBar on the matching window"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityEquipment",
+      "sig": "(S04PacketEntityEquipment)V",
+      "native": "csrc/play/clientents.c:cents_after_row",
+      "status": "exact",
+      "note": "the copies' equipment from the tracker's S04s (clientents.c)"
+    },
+    {
+      "kind": "method",
+      "name": "handleCloseWindow",
+      "sig": "(S2EPacketCloseWindow)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S2E"
+    },
+    {
+      "kind": "method",
+      "name": "handleBlockAction",
+      "sig": "(S24PacketBlockAction)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "the chest lids (the players-using count); BlockNote.onBlockEventReceived's note particle through the particle setting (fx_client)"
+    },
+    {
+      "kind": "method",
+      "name": "handleBlockBreakAnim",
+      "sig": "(S25PacketBlockBreakAnim)V",
+      "native": "csrc/engine/ai.c:ai_block_break_event",
+      "status": "exact",
+      "note": "EntityAIBreakDoor's destroyBlockInWorldPartially (each new stage, -1 at resetTask) recorded as the row's S25s (env block_break), filtered to the players within 32 and applied to the client's map at the next tick (play.c damaged_blocks_after_row): idx-doorcrack-s1"
+    },
+    {
+      "kind": "method",
+      "name": "handleMapChunkBulk",
+      "sig": "(S26PacketMapChunkBulk)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S26"
+    },
+    {
+      "kind": "method",
+      "name": "handleChangeGameState",
+      "sig": "(S2BPacketChangeGameState)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S2B"
+    },
+    {
+      "kind": "method",
+      "name": "handleMaps",
+      "sig": "(S34PacketMaps)V",
+      "native": null,
+      "status": "n/a",
+      "note": "maps are off"
+    },
+    {
+      "kind": "method",
+      "name": "handleEffect",
+      "sig": "(S28PacketEffect)V",
+      "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+      "status": "exact",
+      "note": "S28's effects the client draws from: the sound draws, the 2001 break particles, the 1005 record (whose message RenderGlobal.playRecord never sets: the records. lookup misses)"
+    },
+    {
+      "kind": "method",
+      "name": "handleStatistics",
+      "sig": "(S37PacketStatistics)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S37"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityEffect",
+      "sig": "(S1DPacketEntityEffect)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S1D"
+    },
+    {
+      "kind": "method",
+      "name": "handleRemoveEntityEffect",
+      "sig": "(S1EPacketRemoveEntityEffect)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "PK_S1E"
+    },
+    {
+      "kind": "method",
+      "name": "handlePlayerListItem",
+      "sig": "(S38PacketPlayerListItem)V",
+      "native": null,
+      "status": "n/a",
+      "note": "tab list is cosmetic"
+    },
+    {
+      "kind": "method",
+      "name": "handleKeepAlive",
+      "sig": "(S00PacketKeepAlive)V",
+      "native": null,
+      "status": "n/a",
+      "note": "no network round trip"
+    },
+    {
+      "kind": "method",
+      "name": "onConnectionStateTransition",
+      "sig": "(EnumConnectionState,EnumConnectionState)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "handlePlayerAbilities",
+      "sig": "(S39PacketPlayerAbilities)V",
+      "native": null,
+      "status": "exact",
+      "note": "in survival every S39 carries the defaults the snapshot's client player already has (no fly, no instant build); nothing changes the game type"
+    },
+    {
+      "kind": "method",
+      "name": "handleTabComplete",
+      "sig": "(S3APacketTabComplete)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "handleSoundEffect",
+      "sig": "(S29PacketSoundEffect)V",
+      "native": null,
+      "status": "n/a",
+      "note": "sounds are dropped; only their RNG draws are consumed at the call sites"
+    },
+    {
+      "kind": "method",
+      "name": "handleCustomPayload",
+      "sig": "(S3FPacketCustomPayload)V",
+      "native": "csrc/engine/survival.c:surv_client_pump",
+      "status": "exact",
+      "note": "MC|TrList (PK_S3F); MC|Brand only logs"
+    },
+    {
+      "kind": "method",
+      "name": "handleScoreboardObjective",
+      "sig": "(S3BPacketScoreboardObjective)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "handleUpdateScore",
+      "sig": "(S3CPacketUpdateScore)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "handleDisplayScoreboard",
+      "sig": "(S3DPacketDisplayScoreboard)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "handleTeams",
+      "sig": "(S3EPacketTeams)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "handleParticles",
+      "sig": "(S2APacketParticles)V",
+      "native": null,
+      "status": "n/a",
+      "note": "S2A is sent only by EntityFishHook (WorldServer.func_147487_a), and fishing rods are switched off (world.conf), so no S2A reaches the client in this game"
+    },
+    {
+      "kind": "method",
+      "name": "handleEntityProperties",
+      "sig": "(S20PacketEntityProperties)V",
+      "native": "csrc/engine/player.c:server_player_tick",
+      "status": "exact",
+      "note": "the client player's S20 (the sprint and potion speed modifiers, s20_queued); the other entities' copies are interpolated, so their attributes move nothing; a rejoin snapshot's pending S20 names its potion amplifiers (Snapshot speedAmp/slowAmp: pfc-potattr-g26)"
+    },
+    {
+      "kind": "method",
+      "name": "getNetworkManager",
+      "sig": "()NetworkManager",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "NetHandlerPlayClient$1",
+      "sig": "(boolean,int)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the GuiYesNo callback of a server resource pack offer (handleCustomPayload's MC|RPack, NetHandlerPlayClient.java:1592): the integrated server never sends one (lane/covclient)"
+    }
+  ],
+  "missing": [],
+  "notes": "Verified by csrc/tests/test_clientworld.c against the oracle's ClientWorldProbe recordings (out/java/clientworld/smoke-s1, walk300-s1, walk300-s42): entity spawn/move/teleport/destroy packets, chunk data, digests d.cw/d.cseed/d.cmath/d.cstat, and negative checks (S15-for-S17, skipped torch draw). Player-state packets are exercised by the survival tape snapshots (flow-walk-s1 and friends). lane/idxclient: the handlers checked one by one; four gaps remain (the note particle, a zombie's door crack, the S35 and S1C one-tick reads), each in missing. lane/idxclient (later): the gaps closed. handleEntityMetadata: each copy keeps watcher 16, the flag byte and its kind's values (the creeper's state, power and ignition, the enderman's block and scream, the zombie's child, villager and converting flags) from the S0F and every S1C the tracker sends when one changes (combat.c copy_kindw), and the renderer reads them (idx-watch-s1: the fleece stays on the sheared sheep at 31 and 32 as Java has it; idx-burn-s1: a zombie into lava and a creeper's swell, every tick); the player's own flag byte reaches it by PK_S1C_FLAGS and its health by the tracker pass's S1C, a plain watcher write. handleUpdateTileEntity: the plant a pot takes lands with its block, so the frame of the planting shows it as Java does (idx-pot-s1 84 and 85 within 17 px); a placed skull's S35 rides the same PlayerInstance flush. handleBlockAction's note particle: BlockNote.onBlockEventReceived's spawnParticle(\"note\") goes through RenderGlobal.doSpawnParticle, which returns null for every name but the explosions and the firework spark when particleSetting is over 1 (RenderGlobal.java:2083-2120), and the oracle's options.txt pins particles:2 (Main.java particles, optionsFor), so nothing is drawn and the call draws no Random. handleChat: GuiNewChat's line from the S02's parts (idx-deathmsg-s1, idx-hudfx-s1).",
+  "path": "oracle/src/client/network/NetHandlerPlayClient.java"
+}

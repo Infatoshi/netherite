@@ -1,0 +1,17 @@
+{
+ "path": "csrc/engine/jrand.h",
+ "lines": 63,
+ "role": "java.util.Random bit for bit as inline functions over a 48-bit LCG state: setSeed, next, nextInt, nextInt(n), nextLong, nextDouble, nextFloat, nextBoolean.",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  {"name": "jrand", "java": "java.util.Random.seed (a JDK class, not in oracle/src)", "fields": ["seed"]}
+ ],
+ "entry_points": ["jr_seed", "jr_next", "jr_int", "jr_int_n", "jr_long", "jr_double", "jr_float", "jr_bool"],
+ "tick_path": true,
+ "gpu": [
+  "lines 32-36, function jr_int_n: Random.nextInt(n) rejection do-while for a non-power-of-two n, unbounded in principle (expected under two iterations)"
+ ],
+ "tests": ["csrc/tests/test_paths.c", "csrc/tests/test_clientworld.c", "csrc/tests/test_trades.c", "csrc/tests/test_populate.c"],
+ "notes": "java.util.Random is a JDK class, so java is empty. The per-entity and per-role streams in det.h build on this. Arithmetic is unsigned to avoid C signed-overflow UB. State is a single uint64, flat and GPU-friendly."
+}

@@ -1,0 +1,129 @@
+{
+ "path": "csrc/engine/pathfind.h",
+ "lines": 109,
+ "role": "Declares the pathfinder: the PathPoint and entity-view structs, the PathFinder state struct with its point pool, heap and hash table, and the two World entry points; its header comment lists the block rules and the vanilla quirks kept.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/pathfinding/PathFinder.java",
+   "members": [
+    "isWoddenDoorAllowed",
+    "isMovementBlockAllowed",
+    "isPathingInWater",
+    "canEntityDrown",
+    "pointMap",
+    "pathOptions",
+    "path"
+   ]
+  },
+  {
+   "path": "oracle/src/pathfinding/PathPoint.java",
+   "members": [
+    "xCoord",
+    "yCoord",
+    "zCoord",
+    "hash",
+    "isFirst"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getEntityPathToXYZ",
+    "getPathEntityToEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "setPosition",
+    "getMaxSafePointTries",
+    "isInWater"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "struct pf_point",
+   "java": "PathPoint",
+   "fields": [
+    "x",
+    "y",
+    "z",
+    "hash",
+    "index",
+    "total",
+    "next",
+    "target",
+    "prev",
+    "is_first"
+   ]
+  },
+  {
+   "name": "struct pf_entity",
+   "java": "the Entity fields the pathfinder reads: posX/Y/Z, width, height, boundingBox, inWater, getMaxSafePointTries, yOffset, ySize",
+   "fields": [
+    "pos_x",
+    "pos_y",
+    "pos_z",
+    "width",
+    "height",
+    "box",
+    "in_water",
+    "max_safe_point_tries",
+    "y_offset",
+    "y_size"
+   ]
+  },
+  {
+   "name": "struct pf",
+   "java": "PathFinder plus Path and IntHashMap",
+   "fields": [
+    "w",
+    "wooden_door_allowed",
+    "movement_block_allowed",
+    "pathing_in_water",
+    "can_entity_drown",
+    "max_dist",
+    "pos_x",
+    "pos_y",
+    "pos_z",
+    "width",
+    "height",
+    "box",
+    "in_water",
+    "max_safe_tries",
+    "size_x",
+    "size_y",
+    "size_z",
+    "pts",
+    "npts",
+    "pcap",
+    "heap",
+    "nheap",
+    "hcap",
+    "keys",
+    "vals",
+    "mcap",
+    "options",
+    "out",
+    "out_cap"
+   ]
+  }
+ ],
+ "entry_points": [
+  "pf_entity_set_position",
+  "pf_init",
+  "pf_free",
+  "pf_get_entity_path_to_xyz",
+  "pf_get_path_entity_to_entity"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "struct pf: the point pool, heap and key table are the environment's pf_store arrays (PF_MAX_POINTS), bound at the first search; the table grows within them and refills from the points (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_paths.c"
+ ],
+ "notes": "Included by ai.c, living.c, hostiles_spider.c and test_paths.c."
+}

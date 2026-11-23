@@ -1,0 +1,15 @@
+{
+ "path": "csrc/tests/raster.c",
+ "lines": 12,
+ "role": "Plain tool: renders a recorded scene to a PNG (optionally coverage and sky masks) through raster_render; the CLI behind the render pixel-diff path.",
+ "layer": "tool",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "Thin wrapper; all rendering lives in csrc/engine/raster.c. Usage: raster SCENE OUT.png [COVERAGE.png [SKY.png]]."
+}

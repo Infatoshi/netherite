@@ -1,0 +1,99 @@
+{
+ "path": "csrc/engine/combat.c",
+ "lines": 1279,
+ "role": "Melee combat in the whole-server replay: tracks living mobs through EntityTrackerEntry into a clientworld mirror, picks the entity under the crosshair (getMouseOver's exact entity pass, pick.c, over the living copies, the large fireball and pickobj.c's objects in chunk-list order), and applies the server attack (reach and line-of-sight check, attribute damage, critical, knockback, stats, tool wear, exhaustion); tracks the large fireball too (S0E with the acceleration, S12 on velocityChanged) and deflects it on a hit, on the server and on the client copy.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "attackTargetEntityWithCurrentItem"
+   ]
+  },
+  {
+   "path": "oracle/src/network/NetHandlerPlayServer.java",
+   "members": [
+    "processUseEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/EntityRenderer.java",
+   "members": [
+    "getMouseOver"
+   ]
+  },
+  {
+   "path": "oracle/src/util/AxisAlignedBB.java",
+   "members": [
+    "calculateIntercept",
+    "expand",
+    "addCoord"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityTrackerEntry.java",
+   "members": [
+    "sendLocationToAllClients",
+    "tryStartWachingThis",
+    "sendEventsToPlayers"
+   ]
+  },
+  {
+   "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+   "members": [
+    "handleRespawn"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityFireball.java",
+   "members": [
+    "attackEntityFrom",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/multiplayer/PlayerControllerMP.java",
+   "members": [
+    "attackEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "checkNoEntityCollision"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityTracker.java",
+   "members": [
+    "func_85172_a"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "combat_bind",
+  "combat_client_tick",
+  "combat_client_world_change",
+  "combat_pick_entity",
+  "combat_server_finish",
+  "combat_server_attack",
+  "combat_track_spawn",
+  "combat_client_attack",
+  "combat_client_prevents"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 109, function combat_bind: calloc of the combat state (once per run on bind, not per tick)",
+  "function combat_server_finish: the liveness check sorts the live ids (qsort into a static buffer grown as needed) and bsearches each tracker entry; tracker_remove changes the entry order",
+  "lines 217-224, function combat_server_attack: linear search of the living world's list (pool slots of an_ent) for the target id; the tracker packet queue is a fixed array made at the bind (COMBAT_MAX_PENDING) (lane/gpuarena, L3)",
+  "line 20, function track_one: tracker packets applied through clientworld_handle_packet, entity order is tracker insertion order",
+  "function combat_pick_entity: static arrays of CW_MAX_ENTITIES + 256 candidates (process-global scratch)",
+  "function combat_server_finish: the live-id list is sorted in place by heapsort (qsort could allocate) (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_raypick.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Living entities and the large fireball are tracked here. Item damage uses ITEMS[held_attr_item].damage, the attribute map's last item, as Java does. Enchantment damage and knockback enchantments (EnchantmentHelper) are not applied in this file (not verified whether another file covers them). Recordings exercising melee were not identified by name in this pass. lane/pick: combat_pick_entity is getMouseOver's exact entity pass (pick.c) over the living copies and the large fireball (border 1.0; the small fireball is not collidable) in chunk-list order plus pickobj.c's objects; combat_server_attack hands the other non-living targets to pickobj_server_attack; the fireball entry sends the onFire S12 every tick from its second update and forces the update block at the burning flag. The client's deflect of its fireball copy waits for the tick's packets (runTick's updateController comes before clickMouse; the native click comes first), so the onFire S12s do not overwrite it. Recordings: pick-shapes-s1, nf-mobs-s42 (fireball deflect), nf-blaze-s42, fight-*-s1. combat_restore_snapshot: a snapshot with clientents.jsonl restores the tracker entries (EntityTrackerEntry's last sent position, angles, motion, counters, range check) in the player's own dimension, the client world's entities (interpolation, server positions, chunk slice order) and the entity packets the client had not pumped. combat_server_attack_part: the C02 on a dragon part (lane/endbot). lane/clientents: the watched set (DataWatcher.hasChanges) includes each kind's own values (the creeper's state, power and ignition, the enderman's carried block, its data and scream, the zombie's child, villager and converting flags, the witch's aggression, the potion colour), so the update block runs off its cadence as Java's does (an enderman's S19 at gold-g10 6498). lane/covclient: a fireball's tracker entry takes its size class from setSize (small 0.3125: SIZE_1, large 1.0: SIZE_4) for multiplyBy32AndRound, not the default SIZE_2."
+}

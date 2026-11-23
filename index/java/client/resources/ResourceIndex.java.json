@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/resources/ResourceIndex.java",
+  "classes": ["ResourceIndex"],
+  "lines": 76,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Maps the vanilla launcher asset store's indexes/<version>.json to on-disk object files so the default resource pack can locate assets by resource path.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Asset-locating plumbing for the launcher's asset store. The native engine reads the asset tree directly from a scene/assets directory (csrc/engine/raster.c loads atlas.json, table.bin and the .rgba sheets by path); there is no resource index or pack layer.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "ResourceIndex", "sig": "(File,String)V", "native": null, "status": "n/a", "note": "parses the launcher asset index JSON; no native asset index exists"},
+    {"kind": "method", "name": "func_152782_a", "sig": "()Map", "native": null, "status": "n/a", "note": "returns the parsed path-to-file map"},
+    {"kind": "field", "name": "field_152784_b", "sig": "Map", "native": null, "status": "n/a", "note": "resource path to object file map"}
+  ],
+  "missing": [],
+  "notes": "Out of the GPU/RL path by construction: the C renderer resolves every texture and font sheet from the render scene directory, so no record of the launcher index layout is kept."
+}

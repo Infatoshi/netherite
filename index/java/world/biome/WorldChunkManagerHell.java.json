@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/world/biome/WorldChunkManagerHell.java",
+  "classes": ["WorldChunkManagerHell"],
+  "lines": 95,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The single-biome biome source the Nether (hell) and the End (sky) register: every query returns the one biome and a fixed rainfall.",
+  "scope": "in_scope",
+  "scope_reason": "The Nether and the End are vanilla and in scope (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.c", "symbols": ["load_dim_chunk"]},
+    {"file": "csrc/engine/nether.h", "symbols": ["DIM_BIOME_HELL", "DIM_BIOME_SKY"]},
+    {"file": "csrc/engine/end.c", "symbols": ["end_biomes"]}
+  ],
+  "evidence": ["csrc/tests/test_dims.c", "csrc/tests/test_worldgen.c", "out/java/dims", "out/java/snapshots/nether-trip-s1", "out/java/snapshots/end-arrival-s1"],
+  "members": [
+    {"kind": "field", "name": "biomeGenerator", "sig": "BiomeGenBase", "native": "csrc/engine/nether.h:DIM_BIOME_HELL", "status": "exact", "note": "8 (hell) or 9 (sky)"},
+    {"kind": "field", "name": "rainfall", "sig": "float", "native": null, "status": "n/a", "note": "only read through getRainfall, unused natively"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "WorldChunkManagerHell", "sig": "(BiomeGenBase,float)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getBiomeGenAt", "sig": "(int,int)BiomeGenBase", "native": "csrc/engine/world.c:load_dim_chunk", "status": "n/a", "note": "Nether and End chunks get their biome array at generation (loadBlockGeneratorData in ChunkProviderHell/End.provideChunk) and from S21 on the client, so Chunk.getBiomeGenForWorldCoords never falls back to the manager; World.getBiomeGenForCoordsBody asks it only for a chunk that does not exist, and every server caller reads a loaded chunk"},
+    {"kind": "method", "name": "getBiomesForGeneration", "sig": "(BiomeGenBase[],int,int,int,int)BiomeGenBase[]", "native": "csrc/engine/end.c:end_biomes", "status": "n/a", "note": "called only by ChunkProviderGenerate (the overworld) and the overworld structure generators, never on this manager"},
+    {"kind": "method", "name": "getRainfall", "sig": "(float[],int,int,int,int)float[]", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadBlockGeneratorData", "sig": "(BiomeGenBase[],int,int,int,int)BiomeGenBase[]", "native": "csrc/engine/end.c:end_biomes", "status": "exact", "note": "the Nether fills DIM_BIOME_HELL inline in load_dim_chunk"},
+    {"kind": "method", "name": "getBiomeGenAt", "sig": "(BiomeGenBase[],int,int,int,int,boolean)BiomeGenBase[]", "native": "csrc/engine/end.c:end_biomes", "status": "n/a", "note": "called only by BiomeCache.Block (the WorldChunkManager.getBiomeGenAt(int,int) and loadBlockGeneratorData paths, both overridden here), so never on the Nether or End manager"},
+    {"kind": "method", "name": "func_150795_a", "sig": "(int,int,int,List,Random)ChunkPosition", "native": null, "status": "n/a", "note": "spawn search is overworld-only; no native caller in other dimensions found"},
+    {"kind": "method", "name": "areBiomesViable", "sig": "(int,int,int,List)Z", "native": null, "status": "n/a", "note": "no structure in the Nether/End asks it"}
+  ],
+  "missing": [],
+  "notes": "world.c world_get_biome falls back to the overworld layer stack for an unloaded chunk regardless of dimension; whether any Nether/End caller can reach that fallback was not verified."
+}

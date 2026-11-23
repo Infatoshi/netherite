@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/SceneSetup.java",
+ "lines": 509,
+ "role": "Dev-only scene stager (requires --dev agent mode, MUTATES): moves the player to a dimension and pose, sets health, food, saturation, air, xp, hotbar, armor, selected slot, time, rain, burning, portal, platform and blocks, spawns entities, and poses loaded mobs (hurtTime, deathTime, dragon state) for render recordings. Adds flying, clearEffects, effects (addPotionEffect) and spawn (the world spawn at the scene). exitPortal builds the End's exit fountain with EntityDragon.createEnderPortal on a dragon never spawned.",
+ "kind": "devop",
+ "used_by": [
+  "oracle/tests/trade-scene.jsonl",
+  "render source recordings under out/java/render-src (DEVLOG: endfight, mob scenes)",
+  "oracle/tests/hudscreens-s1.jsonl",
+  "the tile-entity render recordings out/java/rendertick/te_* (lane/terender)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Refuses to run outside dev agent mode; noted as a setup row in the tape via Rows.noteSetup. An item_frame entity takes \"item\" (a stack) and \"rot\" (setItemRotation). lane/entrender: scene mobs take equip, fire and villager, poses take the golem's rose, items a pickup delay."
+}

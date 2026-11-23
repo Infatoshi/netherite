@@ -1,0 +1,17 @@
+{
+ "path": "csrc/engine/light.h",
+ "lines": 40,
+ "role": "The chunk light stage after ravines: a light_map (height map, minimum, precipitation height, section mask, sky light) and the declarations of the section-mask pass, generateSkylightMap with and without sky, and the opacity lookup.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["Chunk", "generateSkylightMap", "func_150808_b", "heightMap", "heightMapMinimum", "precipitationHeightMap", "getTopFilledSegment"]}
+ ],
+ "structs": [
+  {"name": "light_map", "java": "Chunk.heightMap, heightMapMinimum, precipitationHeightMap, the storageArrays section mask and each ExtendedBlockStorage skylightArray", "fields": ["height", "height_min", "precipitation", "mask", "sky"]}
+ ],
+ "entry_points": ["light_pass", "skylight_map", "skylight_map_nosky", "block_opacity"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_worldgen.c"],
+ "notes": "skylight_map is declared twice (lines 19 and 37), harmless. The struct is flat fixed-size arrays. The file has no trailing newline."
+}

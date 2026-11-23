@@ -1,0 +1,20 @@
+# A harvest smoke (nether harvest configs/gyms/bank-smoke.yaml --out out/bank/smoke --threads 4): the seeds of
+# the End bank's train index, each run through the C vector env for a few seconds (a real per-seed command, cheap),
+# its log checked for the trajectory digest, then the passed seeds split into disjoint train and eval sets. It
+# proves the mechanics (resume after SIGTERM, the progress file, splits.json); a real bank swaps harvest.cmd for
+# the chain search and train/harvest.sh and harvest.verify for test_snapshots on the start it made.
+bank:
+  seeds_tsv: cache/end-bank-dev-2026-11-23/train/index.tsv
+  seeds_column: seed
+  exclude_files: configs/gyms/bank-smoke.exclude
+  split_train: 0.75
+  split_key: bank-smoke
+
+vars:
+  host_cfg: out/runtime/train/cfg/host.yaml
+
+harvest:
+  cmd: out/runtime/vec_bench --config {root}/{host_cfg} --ns 16 --groups 1 --threads 2 --warm 50 --steps 6000 --ep-len 400 --macros 63 --seed {seed} --digest
+  produces: "{work}/harvest.log"
+  verify: grep -q "trajectory digest [0-9a-f]" {work}/harvest.log
+  timeout: 120

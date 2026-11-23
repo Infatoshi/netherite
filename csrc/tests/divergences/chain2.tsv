@@ -1,0 +1,3 @@
+id	found	by	area	field	cause	status	commit	pin	repro
+# lane/chain2: the unattended search's proofs (chainrun.sh, chainverify.sh)
+chain2-negzero-t2140	2026-11-10	lane/chain2 (chainverify)	input	cp rotation_pitch, d.ents	the stitched script wrote an act's look pitch of -0.0 as "-0" (moveact.c script_line, %.9g); the oracle's Gson 2.2.4 reads "-0" as the long 0, so Java set the pitch +0.0 where the sim stepped -0.0: one row (t 2,140) of s42k2-4 node 1's 18,501, the engine and the oracle each right	fixed	316bf88c	chain script-check (make -C csrc/runtime chain-script-check)	~/.cache/netherite-native/chain2/repro/chain2-negzero-t2140: chainverify.sh on a libneth before the fix (script line 2140, "look":[-21.5305367,-0])

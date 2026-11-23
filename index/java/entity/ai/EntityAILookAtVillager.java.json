@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/entity/ai/EntityAILookAtVillager.java",
+  "classes": ["EntityAILookAtVillager"],
+  "lines": 73,
+  "side": "server",
+  "category": "ai",
+  "role": "Iron golem flavour task: on a 1-in-8000 draw at night it picks the nearest villager in a 6x2x6 box, holds a rose for 400 ticks and looks at that villager.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_update", "ai_setup_kind"]},
+    {"file": "csrc/engine/villagers.c", "symbols": ["iron_golem_set_holding_rose"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-village-full-s42", "out/java/villagers/vil-2", "csrc/tests/test_villagers.c", "out/java/snapshots/village-life-s42"],
+  "members": [
+    {"kind": "field", "name": "theGolem", "sig": "EntityIronGolem", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the golem itself (struct living)"},
+    {"kind": "field", "name": "theVillager", "sig": "EntityVillager", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target"},
+    {"kind": "field", "name": "lookTime", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.look_time"},
+    {"kind": "ctor", "name": "EntityAILookAtVillager", "sig": "(EntityIronGolem)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_LOOK_AT_VILLAGER, priority 5, mutex 3"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_LOOK_AT_VILLAGER case: isDaytime (skylight < 4) blocks, rand(8000), findNearestEntityWithinAABB over the 6x2x6 box"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "lookTime > 0"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "lookTime = 400 and setHoldingRose(true) -> iron_golem_set_holding_rose"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "setHoldingRose(false) and theVillager = null"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "setLookPositionWithEntity(villager, 30, 30), --lookTime"}
+  ],
+  "missing": [],
+  "notes": "lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

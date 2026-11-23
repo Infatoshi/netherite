@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/noise.c",
+ "lines": 310,
+ "role": "The four 1.7.10 noise generators: NoiseGeneratorImproved (Perlin with the per-y-cell corner reuse), NoiseGeneratorOctaves (3D and 2D, with the 16777216 wrap), NoiseGeneratorSimplex (array and single-point forms) and NoiseGeneratorPerlin (octaves of simplex). Every worldgen density, surface, biome-colour and lake noise draws from here.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/NoiseGeneratorImproved.java", "members": ["NoiseGeneratorImproved", "lerp", "func_76309_a", "grad", "populateNoiseArray"]},
+  {"path": "oracle/src/world/gen/NoiseGeneratorOctaves.java", "members": ["NoiseGeneratorOctaves", "generateNoiseOctaves"]},
+  {"path": "oracle/src/world/gen/NoiseGeneratorSimplex.java", "members": ["NoiseGeneratorSimplex", "func_151607_a", "func_151604_a", "func_151605_a", "func_151606_a", "field_151611_e", "field_151609_g", "field_151615_h"]},
+  {"path": "oracle/src/world/gen/NoiseGeneratorPerlin.java", "members": ["NoiseGeneratorPerlin", "func_151601_a", "func_151599_a", "func_151600_a"]}
+ ],
+ "structs": [
+  {"name": "GX, GY, GZ, G2X, G2Z (static const tables)", "java": "NoiseGeneratorImproved's gradient tables field_152381_e..field_152385_i, as used by grad and func_76309_a", "fields": []},
+  {"name": "SG (static const table)", "java": "NoiseGeneratorSimplex.field_151611_e, the 12 gradient vectors", "fields": []}
+ ],
+ "entry_points": ["improved_init", "octaves_init", "simplex_init", "perlin_init", "octaves_3d", "octaves_2d", "perlin_point", "perlin_2d"],
+ "tick_path": true,
+ "gpu": [
+  "lines 104-171, function improved_add: the 3D path caches corner gradients across iterations while the integer y cell repeats (last_y, c0..c3), a loop-carried dependence a per-cell GPU thread cannot split without recomputing; results must stay bit-identical",
+  "line 189 and line 335, functions octaves_3d and perlin_2d: out arrays are caller-owned; no allocation here, but sizes are unchecked (xs*ys*zs up to the caller)"
+ ],
+ "tests": ["csrc/tests/test_worldgen.c", "csrc/tests/test_seedworld.c", "csrc/tests/test_dims.c", "csrc/tests/test_populate.c"],
+ "notes": "Pure functions over caller state; no globals, no allocation, loops bounded by the arguments. It is on the tick path only because chunk generation runs when the tick loads a chunk. The simplex point form uses no generator offsets, matching func_151605_a. Test list is from which tests reach worldgen (terrain, surface, nether, end), not from a direct include of noise.h; not verified member by member against the Java names of the gradient tables."
+}

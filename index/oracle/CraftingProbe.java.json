@@ -1,0 +1,11 @@
+{
+ "path": "oracle/harness/netherite/oracle/CraftingProbe.java",
+ "lines": 623,
+ "role": "Crafting and smelting reference: grids generated from Random(opseed) (recipe patterns, mirrored, perturbed, random, tool repair) with CraftingManager.findMatchingRecipe's result or thrown exception, plus every smelting input's result and experience; stacks in the canonical JSON csrc/engine/nbtjson.c reads.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=CraftingProbe (oracle/Makefile run target)",
+  "csrc/tests/test_crafting.c (csrc/engine/crafting.c)"
+ ],
+ "vanilla_hooks": []
+}

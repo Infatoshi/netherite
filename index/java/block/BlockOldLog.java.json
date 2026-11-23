@@ -1,0 +1,74 @@
+{
+ "path": "oracle/src/block/BlockOldLog.java",
+ "classes": [
+  "BlockOldLog"
+ ],
+ "lines": 34,
+ "side": "common",
+ "category": "block",
+ "role": "The oak, spruce, birch and jungle logs (id 17): BlockLog with four wood variants; only the variant names and icons are its own.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "on_block_placed"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "render_block_log",
+    "table_icon"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/chunks",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_harvestdrops.c",
+  "csrc/tests/test_place.c",
+  "out/java/snapshots/rc-blocks-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150168_M",
+   "sig": "static String[] {oak, spruce, birch, jungle}",
+   "native": null,
+   "status": "n/a",
+   "note": "texture suffixes"
+  },
+  {
+   "kind": "method",
+   "name": "getSubBlocks",
+   "sig": "(Item,CreativeTabs,List)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative tab listing, client only"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration; the native atlas is loaded from the same assets"
+  }
+ ],
+ "missing": [],
+ "notes": "Behavior lives in BlockLog and BlockRotatedPillar. Trees place id 17 during populate (features_trees.c), so every chunk dump with trees exercises it."
+}

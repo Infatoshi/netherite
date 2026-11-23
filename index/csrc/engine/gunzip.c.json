@@ -1,0 +1,77 @@
+{
+ "path": "csrc/engine/gunzip.c",
+ "lines": 797,
+ "role": "A gzip reader (RFC 1952 member header and trailer around an RFC 1951 inflater) that copies matches a word at a time (a distance-1 run is a memset): gunzip_file inflates a whole file into one buffer; gunzip_open/read/gets/close stream one through a 32 KiB window and a 4 MiB span, and fall back to zlib's gzread for a file they do not take. Gives the same bytes as zlib, checked against the trailer's CRC-32 (zlib's crc32) and length.",
+ "layer": "io",
+ "java": [],
+ "structs": [
+  {
+   "name": "htab",
+   "java": null,
+   "fields": [
+    "e"
+   ]
+  },
+  {
+   "name": "bits",
+   "java": null,
+   "fields": [
+    "in",
+    "end",
+    "buf",
+    "cnt"
+   ]
+  },
+  {
+   "name": "gunzip",
+   "java": null,
+   "fields": [
+    "g",
+    "in",
+    "trailer",
+    "b",
+    "dyn_lit",
+    "dyn_dist",
+    "lit",
+    "dist",
+    "buf",
+    "pos",
+    "rd",
+    "stored",
+    "total",
+    "crc",
+    "stage",
+    "last"
+   ]
+  }
+ ],
+ "entry_points": [
+  "gunzip_file",
+  "gunzip_open",
+  "gunzip_read",
+  "gunzip_gets",
+  "gunzip_close"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "functions gunzip_file, inflate_all, dynamic: heap buffers for the file, the output and the dynamic tables (load time, outside the tick)",
+  "function gunzip_file: file reads (I/O, load time only)",
+  "functions gunzip_open, produce: a heap window-plus-span buffer and the whole compressed file per stream (load time)",
+  "function crc_update: static crc_fold_ok, the CPU check at the first call; crc_fold uses x86 PCLMULQDQ intrinsics (target attribute), the GPU port needs the table CRC"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_seedworld.c",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_clientworld.c",
+  "csrc/tests/test_activate.c",
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_animals.c"
+ ],
+ "notes": "Ports no oracle/src file: it reads what java.util.zip.GZIPOutputStream writes (the snapshot's chunks.bin.gz and saved-chunks.bin.gz, through snapshot.c:load_chunk_bytes). Checked byte for byte against zlib's gzread on all 1474 .gz files under out/java (111 GB inflated; lane suitestart, 2026-09-25). The stream was checked the same way with random read sizes (identical on all 1474 files, 2.55x less time than gzread). The trailer CRC-32 folds 64-byte blocks with PCLMULQDQ (crc_fold, Gopal et al. 2009, the constants Chromium's zlib uses) where the CPU has it; checked against zlib's crc32 on 200,000 random buffers."
+}

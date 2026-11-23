@@ -1,0 +1,398 @@
+{
+ "path": "oracle/src/client/multiplayer/PlayerControllerMP.java",
+ "classes": [
+  "PlayerControllerMP"
+ ],
+ "lines": 540,
+ "side": "client",
+ "category": "player",
+ "role": "The client-side player controller: the dig state machine, right click, window clicks, entity attack and interact, and the packets each of these queues to the server.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_client_click_block",
+    "surv_client_damage_block",
+    "surv_client_dig_tick",
+    "surv_client_attack_pressed",
+    "surv_client_use_pressed",
+    "surv_client_click",
+    "surv_client_entity_interact",
+    "client_destroy",
+    "surv_same_tool_and_block",
+    "surv_client_input",
+    "surv_client_tick_start",
+    "surv_client_pump",
+    "client_damage_stack"
+   ]
+  },
+  {
+   "file": "csrc/engine/throw.c",
+   "symbols": [
+    "throw_client_use",
+    "throw_client_release"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.h",
+   "symbols": [
+    "synced_item",
+    "right_click_delay"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/dig/r2",
+  "out/java/place/big2",
+  "out/java/containers/seed2",
+  "out/java/itemuse/seed2-v2",
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_itemuse.c",
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/cpred-mobplace-s1",
+  "out/java/snapshots/cpred-doors-s1",
+  "out/java/snapshots/reinforce-baby-s1",
+  "out/java/snapshots/craft-spam-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "currentBlockX",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_dig",
+   "status": "exact",
+   "note": "the dig state struct's cur_x"
+  },
+  {
+   "kind": "field",
+   "name": "currentBlockY",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_dig",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "currentblockZ",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_dig",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "currentItemHittingBlock",
+   "sig": "ItemStack",
+   "native": "csrc/engine/survival.c:surv_dig",
+   "status": "exact",
+   "note": "the held stack the dig machine compares"
+  },
+  {
+   "kind": "field",
+   "name": "curBlockDamageMP",
+   "sig": "float",
+   "native": "csrc/engine/survival.c:surv_dig",
+   "status": "exact",
+   "note": "cur_damage"
+  },
+  {
+   "kind": "field",
+   "name": "stepSoundTickCounter",
+   "sig": "float",
+   "native": "csrc/engine/survival.c:surv_dig",
+   "status": "exact",
+   "note": "step_counter"
+  },
+  {
+   "kind": "field",
+   "name": "blockHitDelay",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_dig",
+   "status": "exact",
+   "note": "hit_delay"
+  },
+  {
+   "kind": "field",
+   "name": "isHittingBlock",
+   "sig": "boolean",
+   "native": "csrc/engine/survival.c:surv_dig",
+   "status": "exact",
+   "note": "is_hitting"
+  },
+  {
+   "kind": "field",
+   "name": "currentGameType",
+   "sig": "WorldSettings.GameType",
+   "native": null,
+   "status": "n/a",
+   "note": "survival only; creative and adventure modes are out of scope (dig.h)"
+  },
+  {
+   "kind": "field",
+   "name": "currentPlayerItem",
+   "sig": "int",
+   "native": "csrc/engine/player.h:synced_item",
+   "status": "exact",
+   "note": "synced against the hotbar in surv_client_tick_start"
+  },
+  {
+   "kind": "field",
+   "name": "mc",
+   "sig": "Minecraft",
+   "native": null,
+   "status": "n/a",
+   "note": "harness context"
+  },
+  {
+   "kind": "field",
+   "name": "netClientHandler",
+   "sig": "NetHandlerPlayClient",
+   "native": null,
+   "status": "n/a",
+   "note": "packets are structs in the native replay"
+  },
+  {
+   "kind": "ctor",
+   "name": "PlayerControllerMP",
+   "sig": "(Minecraft,NetHandlerPlayClient)V",
+   "native": null,
+   "status": "n/a",
+   "note": "state init only"
+  },
+  {
+   "kind": "method",
+   "name": "clickBlockCreative",
+   "sig": "(Minecraft,PlayerControllerMP,int,int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative only"
+  },
+  {
+   "kind": "method",
+   "name": "setPlayerCapabilities",
+   "sig": "(EntityPlayer)V",
+   "native": null,
+   "status": "n/a",
+   "note": "survival capabilities only"
+  },
+  {
+   "kind": "method",
+   "name": "enableEverythingIsScrewedUpMode",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "demo leftover, always false"
+  },
+  {
+   "kind": "method",
+   "name": "setGameType",
+   "sig": "(WorldSettings.GameType)V",
+   "native": null,
+   "status": "n/a",
+   "note": "game type never changes"
+  },
+  {
+   "kind": "method",
+   "name": "flipPlayer",
+   "sig": "(EntityPlayer)V",
+   "native": null,
+   "status": "n/a",
+   "note": "respawn orientation only"
+  },
+  {
+   "kind": "method",
+   "name": "shouldDrawHUD",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "survival always true"
+  },
+  {
+   "kind": "method",
+   "name": "onPlayerDestroyBlock",
+   "sig": "(int,int,int,int)Z",
+   "native": "csrc/engine/survival.c:client_destroy",
+   "status": "partial",
+   "note": "the client prediction half (particles, then setBlockToAir) is client_destroy; the tool damage and the block callbacks run on the server's C07 path (dig.c). The held stack's damage is client_damage_stack (the Unbreaking rolls, renderBrokenItemStack's draws and particles), then destroyCurrentEquippedItem of a used-up stack."
+  },
+  {
+   "kind": "method",
+   "name": "clickBlock",
+   "sig": "(int,int,int,int)V",
+   "native": "csrc/engine/survival.c:surv_client_click_block",
+   "status": "exact",
+   "note": "the C07 0/1 packets, onBlockClicked and the instant-break test are the server's"
+  },
+  {
+   "kind": "method",
+   "name": "resetBlockRemoving",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_client_dig_tick",
+   "status": "partial",
+   "note": "the reset runs when the attack key is not held (the C07 1 packet with it)"
+  },
+  {
+   "kind": "method",
+   "name": "onPlayerDamageBlock",
+   "sig": "(int,int,int,int)V",
+   "native": "csrc/engine/survival.c:surv_client_damage_block",
+   "status": "exact",
+   "note": "the per-tick held path: hit delay, damage accumulation, the C07 2 and the destroy"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockReachDistance",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a",
+   "note": "the 4.5 survival reach lives in the mouseover raytrace; no named native symbol"
+  },
+  {
+   "kind": "method",
+   "name": "updateController",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_client_tick_start",
+   "status": "exact",
+   "note": "syncCurrentPlayItem is surv_client_tick_start, the packet pump is surv_client_pump, the eat countdown is surv_client_eat_tick"
+  },
+  {
+   "kind": "method",
+   "name": "sameToolAndBlock",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/survival.c:surv_same_tool_and_block",
+   "status": "exact",
+   "note": "the item, the tag (areItemStackTagsEqual: surv_dig held_tag against the held stack's interned tag index) and, for a stack that cannot take damage, the damage (lane/inputorder: tool-swap-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "syncCurrentPlayItem",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:surv_client_tick_start",
+   "status": "exact",
+   "note": "the C09 on a hotbar change: updateController's in surv_client_tick_start (client_out c09_slot), a consumer's in sync_current_play_item (a CPK_C09 in client_out's ordered packet list, ahead of the packet it rides with; each sender syncs, so a press that sends nothing sends no C09)"
+  },
+  {
+   "kind": "method",
+   "name": "onPlayerRightClick",
+   "sig": "(EntityPlayer,World,ItemStack,int,int,int,int,Vec3)Z",
+   "native": "csrc/engine/survival.c:surv_client_use_pressed",
+   "status": "exact",
+   "note": "onBlockActivated's client answer, then a held ItemBlock whose func_150936_a refuses answers false before the C08 (no swing; func_147121_ag sends the in-air use), then the C08; the packet carries the held stack after onBlockActivated, before the placement (client_out.c08_stack)"
+  },
+  {
+   "kind": "method",
+   "name": "sendUseItem",
+   "sig": "(EntityPlayer,World,ItemStack)Z",
+   "native": "csrc/engine/throw.c:throw_client_use",
+   "status": "exact",
+   "note": "the C08 (-1) and the item's onItemRightClick"
+  },
+  {
+   "kind": "method",
+   "name": "func_147493_a",
+   "sig": "(World,StatFileWriter)EntityClientPlayerMP",
+   "native": null,
+   "status": "n/a",
+   "note": "the native client player is a struct, built by surv_client_fresh on respawn"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntity",
+   "sig": "(EntityPlayer,Entity)V",
+   "native": "csrc/engine/survival.c:surv_client_attack_pressed",
+   "status": "exact",
+   "note": "the C02 ATTACK and the swing"
+  },
+  {
+   "kind": "method",
+   "name": "interactWithEntitySendPacket",
+   "sig": "(EntityPlayer,Entity)Z",
+   "native": "csrc/engine/survival.c:surv_client_entity_interact",
+   "status": "exact",
+   "note": "the C02 INTERACT and the client-side interact"
+  },
+  {
+   "kind": "method",
+   "name": "windowClick",
+   "sig": "(int,int,int,int,EntityPlayer)ItemStack",
+   "native": "csrc/engine/survival.c:surv_client_click",
+   "status": "exact",
+   "note": "the click on the client's container copy and the C0E"
+  },
+  {
+   "kind": "method",
+   "name": "sendEnchantPacket",
+   "sig": "(int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "enchanting is off (world.conf)"
+  },
+  {
+   "kind": "method",
+   "name": "sendSlotPacket",
+   "sig": "(ItemStack,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative only"
+  },
+  {
+   "kind": "method",
+   "name": "sendPacketDropItem",
+   "sig": "(ItemStack)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative only; the survival Q drop is the C07 status 4 path"
+  },
+  {
+   "kind": "method",
+   "name": "onStoppedUsingItem",
+   "sig": "(EntityPlayer)V",
+   "native": "csrc/engine/throw.c:throw_client_release",
+   "status": "exact",
+   "note": "the C07 status 5 and the client stopUsingItem"
+  },
+  {
+   "kind": "method",
+   "name": "gameIsSurvivalOrAdventure",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "survival only"
+  },
+  {
+   "kind": "method",
+   "name": "isNotCreative",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "survival only"
+  },
+  {
+   "kind": "method",
+   "name": "isInCreativeMode",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "survival only"
+  },
+  {
+   "kind": "method",
+   "name": "extendedReach",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "survival only"
+  },
+  {
+   "kind": "method",
+   "name": "func_110738_j",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "horse riding is off (world.conf)"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): creative, adventure, hardcore or game-type path; the game is survival at the pinned difficulty; enchanting is off. Formerly listed as missing: The creative-only paths (clickBlockCreative, sendSlotPacket, sendPacketDropItem, the creative reach) are not ported; creative and adventure modes are out of scope (dig.h). sendEnchantPacket is not ported: enchanting is off (world.conf). onPlayerDestroyBlock's client half predicts the break, but the tool damage and the block callbacks run on the server's C07 path, so there is no single native function for it."
+}

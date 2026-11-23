@@ -1,0 +1,9 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"fall12"}
+{"n":2,"act":{}}
+{"cmd":"run","class":"MobFree","radius":0}
+{"cmd":"run","class":"Snapshot"}
+{"n":80,"act":{}}
+{"n":1,"act":{"dlook":[180,0]}}
+{"n":6,"act":{"hold":["forward"]}}
+{"n":60,"act":{}}

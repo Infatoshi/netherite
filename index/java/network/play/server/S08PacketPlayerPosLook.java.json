@@ -1,0 +1,192 @@
+{
+ "path": "oracle/src/network/play/server/S08PacketPlayerPosLook.java",
+ "classes": [
+  "S08PacketPlayerPosLook"
+ ],
+ "lines": 96,
+ "side": "server",
+ "category": "network",
+ "role": "The server's authoritative position for the client player: handlePlayerPosLook teleports the client player and answers with a C06 confirm.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_fresh",
+    "surv_client_pump"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_set_player_location"
+   ]
+  },
+  {
+   "file": "csrc/engine/sleep.c",
+   "symbols": [
+    "set_player_location"
+   ]
+  },
+  {
+   "file": "csrc/engine/throw.c",
+   "symbols": [
+    "pearl_impact"
+   ]
+  },
+  {
+   "file": "csrc/engine/dev.c",
+   "symbols": [
+    "dev_apply"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/walk300-s1",
+  "out/java/snapshots/replay2-walk-s1",
+  "out/java/snapshots/surv2-bed-s1",
+  "out/java/snapshots/throw-items-s1",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148940_a",
+   "sig": "double",
+   "status": "exact",
+   "note": "x, rides s2c_pkt.f0"
+  },
+  {
+   "kind": "field",
+   "name": "field_148938_b",
+   "sig": "double",
+   "status": "exact",
+   "note": "y (eye height added), rides s2c_pkt.f1"
+  },
+  {
+   "kind": "field",
+   "name": "field_148939_c",
+   "sig": "double",
+   "status": "exact",
+   "note": "z, rides s2c_pkt.f2"
+  },
+  {
+   "kind": "field",
+   "name": "field_148936_d",
+   "sig": "float",
+   "status": "exact",
+   "note": "yaw, rides s2c_pkt.f3"
+  },
+  {
+   "kind": "field",
+   "name": "field_148937_e",
+   "sig": "float",
+   "status": "exact",
+   "note": "pitch, rides s2c_pkt.f4"
+  },
+  {
+   "kind": "field",
+   "name": "field_148935_f",
+   "sig": "boolean",
+   "status": "exact",
+   "note": "onGround, rides s2c_pkt.i0"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(double,double,double,float,float,boolean)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:surv_server_fresh",
+   "note": "also serverreplay.c:sr_set_player_location, sleep.c:set_player_location, throw.c:pearl_impact, dev.c:dev_apply"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "PK_S08 case: entity_set_pos_rot and the C06 confirm built into client_player.confirm_pkt"
+  },
+  {
+   "kind": "method",
+   "name": "func_148932_c",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148928_d",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148933_e",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148931_f",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148930_g",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148929_h",
+   "sig": "()Z",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "The movement-side correction S08s ride client_player's pending_s08 fields (csrc/engine/player.h)."
+}

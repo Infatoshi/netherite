@@ -1,0 +1,55 @@
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64         # net.h's s1 variant (NT_SIDE 64, NT_STEM 1): make -C csrc/runtime train-loop-v NT_V=s1
+  engine:
+    device_mesh: 1
+    raycast: device
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: spawn               # seed 42's spawn
+    worlds: 256                # the pareto arms' --n
+    groups: 4
+    episode_seconds: 300       # the pareto arms' --seconds
+  performance:
+    workers: 30
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: doms
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: recipe,strip       # fromspawn's "model" set (vecenv.RECIPE, s64-it42.pt saves none) and the strip: 16383
+    picks: off
+  reward:                      # the pareto recipe's reward (ntloop's keys; pairs NAME/W, the grammar holds no '=')
+    log_cap: 8
+    values: 4/1.0,61/8         # cobblestone 1, furnace 8 over reward.values()
+    caps: 4/8,15/8,265/8,263/8   # cobblestone, iron ore, iron ingot, coal: at most 8 each counted
+    ms_weights: stone_pickaxe/10,furnace/5,iron_ingot/10,iron_pickaxe/10,bucket/5,flint_and_steel/5,diamond_pickaxe/10,obsidian/5,blaze_rod/10
+    nether: 20
+  ppo:
+    lr: 5e-6                   # the pareto night: 5e-6 to 1e-5 held near the teacher, 3e-5 lost depth
+    ent: 0.01                  # the pareto arms' --ent
+    clip: 0.2
+    gamma: 0.998
+    lam: 0.95
+    epochs: 3
+    mb: 8192
+    horizon: 128               # the pareto arms' --T
+  net:
+    kind: small
+  run:
+    hours: 0.5
+    log_every: 60

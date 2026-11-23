@@ -1,0 +1,93 @@
+{
+  "path": "oracle/src/item/crafting/ShapelessRecipes.java",
+  "classes": [
+    "ShapelessRecipes"
+  ],
+  "lines": 86,
+  "side": "common",
+  "category": "crafting",
+  "role": "The shapeless recipe: an unordered ingredient list matched by consuming one grid stack per ingredient, item identity plus damage (wildcard 32767 takes any).",
+  "scope": "in_scope",
+  "scope_reason": "Shapeless recipes (flint and steel, dyes, buckets and more) are part of the recipe list the crafting gate replays; no switch touches them.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/crafting.c",
+      "symbols": [
+        "shapeless_matches"
+      ]
+    },
+    {
+      "file": "csrc/engine/recipes.h",
+      "symbols": [
+        "RECIPE_SHAPELESS",
+        "RECIPE_ITEMS"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_crafting.c",
+    "out/java/crafting/s2",
+    "out/java/crafting/s42",
+    "out/java/snapshots/flow-craft-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "ShapelessRecipes",
+      "sig": "(LItemStack;Ljava/util/List;)V",
+      "native": "csrc/engine/recipes.h:RECIPES",
+      "status": "exact",
+      "note": "Constructor state is flattened into the generated struct recipe_def (kind RECIPE_SHAPELESS, size, ingredient run, output)."
+    },
+    {
+      "kind": "field",
+      "name": "recipeOutput",
+      "sig": "ItemStack",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "recipeItems",
+      "sig": "List",
+      "native": "csrc/engine/recipes.h:RECIPE_ITEMS",
+      "status": "exact",
+      "note": "The ingredient list is a run in the flat RECIPE_ITEMS table."
+    },
+    {
+      "kind": "method",
+      "name": "getRecipeOutput",
+      "sig": "()LItemStack;",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact",
+      "note": "A field read; the native caller reads recipe_def.output directly."
+    },
+    {
+      "kind": "method",
+      "name": "matches",
+      "sig": "(LInventoryCrafting;LWorld;)Z",
+      "native": "csrc/engine/crafting.c:shapeless_matches",
+      "status": "exact",
+      "note": "Each grid stack consumes one ingredient of the same item and damage (wildcard takes any); every ingredient must be consumed. Java scans the grid slots; native walks the same order."
+    },
+    {
+      "kind": "method",
+      "name": "getCraftingResult",
+      "sig": "(LInventoryCrafting;)LItemStack;",
+      "native": "csrc/engine/crafting.c:craft_find_matching",
+      "status": "exact",
+      "note": "Just a copy of the output; the native caller copies recipe_def.output in the shared result path."
+    },
+    {
+      "kind": "method",
+      "name": "getRecipeSize",
+      "sig": "()I",
+      "native": "csrc/engine/recipes.h:recipe_def",
+      "status": "exact",
+      "note": "recipeItems.size() is recipe_def.size."
+    }
+  ],
+  "missing": [],
+  "notes": "Java's matches mutates a copy of the ingredient list while scanning; the native matcher keeps the same consumption order so results agree, which the 40,000-grid probe checks. Did not verify a named native symbol for the copy in getCraftingResult; it is the shared output path of craft_find_matching."
+}

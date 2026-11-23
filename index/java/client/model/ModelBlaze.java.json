@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/model/ModelBlaze.java",
+  "classes": ["ModelBlaze"],
+  "lines": 85,
+  "side": "client",
+  "category": "client_model",
+  "role": "The blaze model: an 8x8x8 head and 12 orbiting stick rods in three rings, rotated by setRotationAngles' per-group angle walks.",
+  "scope": "in_scope",
+  "scope_reason": "Blazes are vanilla hostiles, in scope, and pixel-gated (out/java/render/mobs2b_blaze_*).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_blaze", "draw_model", "pose_model"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs2b_blaze_f006",
+    "out/java/render/mobs2b_blaze_f011",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "blazeSticks", "sig": "ModelRenderer[12]", "native": "csrc/engine/raster_mobs.c:model_blaze", "status": "exact", "note": "the 12 stick parts with the 2x8x2 box at 0,16"},
+    {"kind": "field", "name": "blazeHead", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_blaze", "status": "exact", "note": "the 8x8x8 head at 0,0"},
+    {"kind": "ctor", "name": "ModelBlaze", "sig": "()V", "native": "csrc/engine/raster_mobs.c:model_blaze", "status": "exact"},
+    {"kind": "method", "name": "func_78104_a", "sig": "()I", "native": "csrc/engine/raster_mobs.c:model_blaze", "status": "partial", "note": "the 8 (RenderBlaze's scale denominator) is baked into the native draw, not carried as data"},
+    {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:draw_model", "status": "exact"},
+    {"kind": "method", "name": "setRotationAngles", "sig": "(float,float,float,float,float,float,Entity)V", "native": "csrc/engine/raster_mobs.c:model_blaze", "status": "exact", "note": "the three orbit rings' cos/sin walks (0.25F steps, 9/7/5 radii) and the head yaw/pitch"}
+  ],
+  "missing": [],
+  "notes": "The stick orbit math was compared line by line against the Java loops; the blaze sticks also get the animated texture scroll via the blaze material path."
+}

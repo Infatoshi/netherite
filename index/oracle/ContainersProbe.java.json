@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/ContainersProbe.java",
+ "lines": 1493,
+ "role": "Inventory clicking reference: five container kinds (player, workbench, furnace, chest27, chest54) filled with random stacks and clicked thousands of times (slot, button, mode, including -999); every row records all slots, the cursor stack, slotClick's return and dropped stacks.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=ContainersProbe",
+  "csrc/tests/test_containers.c (csrc/engine/container.c)",
+  "oracle/harness/netherite/oracle/Rows.java"
+ ],
+ "vanilla_hooks": []
+}

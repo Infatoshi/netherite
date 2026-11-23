@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/structure_blocks.h",
+ "lines": 162,
+ "role": "Declares the shared structure block layer (structure_blocks.c): the sc_ent and sc_ctx structs, the block-id and entity-kind enums, CART_SLOTS, and every StructureComponent helper plus sc_generate; documents the seam each structure type's <type>_blocks dispatch plugs into.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/StructureComponent.java", "members": ["getXWithOffset", "getYWithOffset", "getZWithOffset", "func_151555_a", "func_151550_a", "func_151548_a", "func_151549_a", "func_151556_a", "fillWithAir", "func_151551_a", "fillWithRandomizedBlocks", "func_151552_a", "func_151547_a", "func_151554_b", "clearCurrentPositionBlocksUpwards", "isLiquidInStructureBoundingBox", "generateStructureChestContents", "generateStructureDispenserContents"]},
+  {"path": "oracle/src/world/gen/structure/StructureStart.java", "members": ["generateStructure"]}
+ ],
+ "structs": [
+  {"name": "struct sc_ent", "java": "an entity a structure piece constructed (EntityMinecartChest, EntityItem, EntityVillager, EntityWitch)", "fields": ["kind", "entity_id", "rand_state", "uuid_msb", "uuid_lsb", "x", "y", "z", "yaw", "hover", "motion_x", "motion_z", "item", "damage", "count", "profession", "slots", "nslots"]},
+  {"name": "struct sc_ctx", "java": "World, step StructureBoundingBox and population Random passed to addComponentParts, plus Det role OTHER and World.rand", "fields": ["w", "box", "rand", "det", "world_rand", "piece_fn", "ents", "nents", "cap"]},
+  {"name": "sc_piece_fn", "java": "StructureComponent.addComponentParts, as a function pointer per structure type", "fields": []},
+  {"name": "sc_select_fn", "java": "StructureComponent.BlockSelector.selectBlocks", "fields": []}
+ ],
+ "entry_points": ["sc_generate", "sc_place", "sc_block_at", "sc_fill", "sc_fill_meta", "sc_fill_air", "sc_fill_random", "sc_fill_randomized", "sc_random_place", "sc_fill_dome", "sc_fill_down", "sc_clear_upwards", "sc_is_liquid_in", "sc_chest_contents", "sc_dispenser_contents", "sc_witch_new", "sc_cart_new", "sc_villager_new", "sc_in_step_box", "sc_orient_meta", "sc_x_with_offset", "sc_y_with_offset", "sc_z_with_offset", "sc_free_ents", "sc_ent_free"],
+ "tick_path": true,
+ "gpu": [
+  "line 65, struct sc_ctx: piece_fn is a function pointer and ents a heap array the context grows (pointer state the GPU cannot mirror as is)",
+  "line 50, struct sc_ent: slots are loot_stack values whose tag field is heap-owned (see structure_blocks.c sc_ent_free)"
+ ],
+ "tests": ["csrc/tests/test_sblocks.c", "csrc/tests/test_populate.c"],
+ "notes": "Header only; the implementations and their hazards are in structure_blocks.c."
+}

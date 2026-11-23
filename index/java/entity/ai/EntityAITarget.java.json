@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/entity/ai/EntityAITarget.java",
+  "classes": ["EntityAITarget"],
+  "lines": 221,
+  "side": "server",
+  "category": "ai",
+  "role": "Abstract base of the target tasks (HurtByTarget, NearestAttackableTarget, and the wolf-only ones): the shared continue/range/suitability logic, including the sight check with a 60-tick unseen grace and the home-distance guard.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_continue_executing", "ai_start", "ai_reset", "ai_is_suitable_target", "living_is_within_home_distance", "target_nearby_ok"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-zombie-s1", "out/java/snapshots/fight-skeleton-s1", "out/java/snapshots/fight-witch-s1", "csrc/tests/test_hostiles.c", "out/java/snapshots/dmg-sources-s1", "out/java/snapshots/melee-mods-s1", "out/java/snapshots/golem-fight-s42", "out/java/snapshots/ent-water-s1"],
+  "members": [
+    {"kind": "field", "name": "taskOwner", "sig": "EntityCreature", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living"},
+    {"kind": "field", "name": "shouldCheckSight", "sig": "boolean", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.should_check_sight"},
+    {"kind": "field", "name": "nearbyOnly", "sig": "boolean", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.nearby_only: the golem's NearestAttackableTarget and DefendVillage"},
+    {"kind": "field", "name": "targetSearchStatus", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target_search_status"},
+    {"kind": "field", "name": "targetSearchDelay", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target_search_delay"},
+    {"kind": "field", "name": "field_75298_g", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target_unseen_ticks"},
+    {"kind": "ctor", "name": "EntityAITarget", "sig": "(EntityCreature,boolean)V", "native": "csrc/engine/ai.c:add_target_task_full", "status": "exact"},
+    {"kind": "ctor", "name": "EntityAITarget", "sig": "(EntityCreature,boolean,boolean)V", "native": "csrc/engine/ai.c:add_target_task_full", "status": "exact"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "the aliveness, followRange distance and 60-tick unseen grace; Java's last check (the target an EntityPlayerMP in creative) is always false: the replayed game type is survival"},
+    {"kind": "method", "name": "getTargetDistance", "sig": "()D", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "the followRange attribute value (attrs_value(ATTR_FOLLOW_RANGE)); the null fallback 16.0 is unreachable because EntityLiving registers the attribute"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "targetSearchStatus/Delay = 0 and field_75298_g = 0; the native starts clear target_unseen_ticks"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "setAttackTarget(null) -> attack_target = NULL in the shared AIC_HURT_BY_TARGET/AIC_NEAREST_ATTACKABLE_TARGET case"},
+    {"kind": "method", "name": "isSuitableTarget", "sig": "(EntityLivingBase,boolean)Z", "native": "csrc/engine/ai.c:ai_is_suitable_target", "status": "exact", "note": "the null/self/alive checks, canAttackClass (creeper, ghast, the player-built golem sparing players), the home-distance guard, the sight check and the nearbyOnly reach test (ai.c target_nearby_ok: canEasilyReach's delay draw and path end); the IEntityOwnable branch needs a wolf or an ocelot, both switched off"},
+    {"kind": "method", "name": "canEasilyReach", "sig": "(EntityLivingBase)Z", "native": "csrc/engine/ai.c:target_nearby_ok", "status": "exact", "note": "the 10 + nextInt(5) delay, getPathToEntityLiving and the final point within 1.5 blocks"}
+  ],
+  "missing": [],
+  "notes": "The class is abstract; every concrete behavior is reachable only through HurtByTarget and NearestAttackableTarget, whose cases share the continue path in ai.c. lane/idxentity: ent-water-s1 pins the nearbyOnly reach test on an iron golem under water (the golem's navigator never swims: EntityIronGolem adds no EntityAISwimming, so its path from under water starts at its feet; ai.c now leaves can_swim off for it)."
+}

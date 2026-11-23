@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/util/RenderDistanceSorter.java",
+  "classes": ["RenderDistanceSorter"],
+  "lines": 34,
+  "side": "client",
+  "category": "client_render",
+  "role": "Comparator that orders RenderLists (render chunks) by squared XZ distance from a camera chunk, nearest first.",
+  "scope": "client_cosmetic",
+  "scope_reason": "RenderList ordering for the GL chunk renderers. The native renderer culls and orders sections by its own window and distance sorts (csrc/engine/raster.c water_section_compare sorts sections by distance; the draw-list build in raster_live does the culling).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/raster.c", "symbols": ["water_section_compare"]}
+  ],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "RenderDistanceSorter", "sig": "(int,int)V", "native": null, "status": "n/a", "note": "the camera chunk x,z"},
+    {"kind": "method", "name": "compare", "sig": "(RenderList,RenderList)I", "native": "csrc/engine/raster.c:water_section_compare", "status": "partial", "note": "behavioural counterpart: the live path's section distance ordering, not a port of the RenderList sort"},
+    {"kind": "method", "name": "compare", "sig": "(Object,Object)I", "native": null, "status": "n/a", "note": "Comparator bridge"},
+    {"kind": "field", "name": "field_152632_a", "sig": "int", "native": null, "status": "n/a", "note": "camera chunk x"},
+    {"kind": "field", "name": "field_152633_b", "sig": "int", "native": null, "status": "n/a", "note": "camera chunk z"}
+  ],
+  "missing": [],
+  "notes": null
+}

@@ -1,0 +1,142 @@
+{
+ "classes": [
+  "DestroyBlockProgress"
+ ],
+ "lines": 82,
+ "side": "client",
+ "category": "client_render",
+ "role": "One entry in the client's map of blocks being destroyed by a player: the position, the 1-10 crack stage and the tick it was last updated, drawn by RenderGlobal's damage overlay.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_client_dig_stage"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_overlay.c",
+   "symbols": [
+    "raster_overlay_draw",
+    "crack",
+    "crack_triangle"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/particles_dig",
+  "csrc/tests/test_render.c",
+  "out/java/dig/r2"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "miningPlayerEntId",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "one player per scenario; no per-player map"
+  },
+  {
+   "kind": "field",
+   "name": "partialBlockX",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_client_dig_stage",
+   "status": "exact",
+   "note": "the dig target block"
+  },
+  {
+   "kind": "field",
+   "name": "partialBlockY",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_client_dig_stage",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "partialBlockZ",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_client_dig_stage",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "partialBlockProgress",
+   "sig": "int",
+   "native": "csrc/engine/survival.c:surv_client_dig_stage",
+   "status": "partial",
+   "note": "computed as (int)(cur_damage * 10) - 1 from the dig state instead of stored from S25"
+  },
+  {
+   "kind": "field",
+   "name": "createdAtCloudUpdateTick",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "stale-progress bookkeeping is not modelled; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "ctor",
+   "name": "DestroyBlockProgress",
+   "sig": "(int,int,int,int)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getPartialBlockX",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:surv_client_dig_stage",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getPartialBlockY",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:surv_client_dig_stage",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getPartialBlockZ",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:surv_client_dig_stage",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setPartialBlockDamage",
+   "sig": "(I)V",
+   "native": "csrc/engine/survival.c:surv_client_dig_stage",
+   "status": "partial",
+   "note": "the stage comes from the client's own dig progress, not the S25 payload"
+  },
+  {
+   "kind": "method",
+   "name": "getPartialBlockDamage",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:surv_client_dig_stage",
+   "status": "partial"
+  },
+  {
+   "kind": "method",
+   "name": "setCloudUpdateTick",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getCreationCloudUpdateTick",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  }
+ ],
+ "missing": [],
+ "notes": "The visible result is gated: the particles_dig render scene carries the destroy-progress crack (csrc/tests/render_budget.txt note at the particles_dig line). Multi-player destroy-progress packets are not modelled. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): only observable by a second player; the env is single player. Formerly listed as missing: The S25PacketBlockBreakAnim-driven per-player map in RenderGlobal is unported; the crack stage is computed from the local dig flow (survival.c:surv_client_dig_stage) and drawn by raster_overlay.c:crack.",
+ "path": "oracle/src/client/renderer/DestroyBlockProgress.java"
+}

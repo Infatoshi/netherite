@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/world/gen/FlatLayerInfo.java",
+  "classes": ["FlatLayerInfo"],
+  "lines": 83,
+  "side": "common",
+  "category": "worldgen",
+  "role": "One superflat layer: a block, its metadata, a thickness and the Y it starts at.",
+  "scope": "not_needed",
+  "scope_reason": "Only used by FlatGeneratorInfo and ChunkProviderFlat; the oracle always runs WorldType.DEFAULT (oracle/harness/netherite/oracle/Oracle.java).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_151537_a", "sig": "Block", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "layerCount", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "layerFillBlockMeta", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "layerMinimumY", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "FlatLayerInfo", "sig": "(int,Block)", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "FlatLayerInfo", "sig": "(int,Block,int)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getLayerCount", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151536_b", "sig": "()Block", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFillBlockMeta", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMinY", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setMinY", "sig": "(int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "toString", "sig": "()String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": ""
+}

@@ -1,0 +1,90 @@
+{
+ "path": "oracle/src/client/gui/GuiScreenWorking.java",
+ "classes": [
+  "GuiScreenWorking"
+ ],
+ "lines": 70,
+ "side": "client",
+ "category": "client_gui",
+ "role": "The progress screen during a blocking resource operation: the message, the working string and the percent, cleared by func_146586_a.",
+ "scope": "not_needed",
+ "scope_reason": "Its only caller in oracle/src is ResourcePackRepository's reload; resource packs are never reloaded in this game.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_146591_a",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146589_f",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146590_g",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146592_h",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "displayProgressMessage",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "resetProgressAndMessage",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "resetProgresAndWorkingMessage",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setLoadingProgress",
+   "sig": "(int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146586_a",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "setDone / the done flag that closes the screen"
+  },
+  {
+   "kind": "method",
+   "name": "drawScreen",
+   "sig": "(int,int,float)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

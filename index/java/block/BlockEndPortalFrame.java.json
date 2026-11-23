@@ -1,0 +1,175 @@
+{
+  "path": "oracle/src/block/BlockEndPortalFrame.java",
+  "classes": [
+    "BlockEndPortalFrame"
+  ],
+  "lines": 113,
+  "side": "common",
+  "category": "block",
+  "role": "The End portal frame (120): a 0.8125-tall frame block; an eye of ender fills the meta bit 4 and twelve filled frames build the portal.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "item_endereye_on_item_use"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks3.c",
+      "symbols": [
+        "rb3_render_end_portal_frame"
+      ]
+    },
+    {
+      "file": "csrc/engine/dragon.c",
+      "symbols": [
+        "create_portal"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/end-arrival-s1",
+    "csrc/tests/test_dims.c",
+    "csrc/tests/test_feature.c",
+    "out/java/snapshots/sh-bot-s42",
+    "out/java/snapshots/pfc-framebounds-g2"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_150023_a",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "client top texture"
+    },
+    {
+      "kind": "field",
+      "name": "field_150022_b",
+      "sig": "IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "client eye texture"
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockEndPortalFrame",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 120, render_type 26"
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture selection"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture registration"
+    },
+    {
+      "kind": "method",
+      "name": "func_150021_e",
+      "sig": "()Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a",
+      "note": "client item renderer"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "opaque_cube 0"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "render_type 26 -> rb3_render_end_portal_frame"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsForItemRender",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "the 0.8125-tall stored bounds; a snapshot records the shared bounds (worldstate blockBounds 120, and 119's), which an item's pushOutOfBlocks reads through func_147469_q (pfc-framebounds-g2)"
+    },
+    {
+      "kind": "method",
+      "name": "addCollisionBoxesToList",
+      "sig": "(World,IIILnet/minecraft/util/AxisAlignedBB;Ljava/util/List;Lnet/minecraft/entity/Entity;)V",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "the frame box plus the eye's 0.3125 box when bit 4 is set"
+    },
+    {
+      "kind": "method",
+      "name": "func_150020_b",
+      "sig": "(I)Z",
+      "native": "csrc/engine/place.c:item_endereye_on_item_use",
+      "status": "n/a",
+      "note": "meta & 4, folded into the eye fill"
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "n/a",
+      "note": "the frame has hardness -1 and resistance 6000000: no player, explosion or (redstone off) piston removes it with a drop"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(World,IIILnet/minecraft/entity/EntityLivingBase;ItemStack)V",
+      "native": "csrc/engine/place.c:func_150071_a",
+      "status": "n/a",
+      "note": "the end portal frame's ItemBlock (id 120) cannot be obtained in survival: the frame is unbreakable and never in loot"
+    },
+    {
+      "kind": "method",
+      "name": "hasComparatorInputOverride",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "redstone off"
+    },
+    {
+      "kind": "method",
+      "name": "getComparatorInputOverride",
+      "sig": "(World,IIII)I",
+      "native": null,
+      "status": "n/a",
+      "note": "redstone off"
+    }
+  ],
+  "missing": [],
+  "notes": "The eye-of-ender fill is item_endereye_on_item_use (place.c line 1968, the 120 guard) and the completed ring builds the portal through the End lane (end.c); both are exercised by end-arrival-s1."
+}

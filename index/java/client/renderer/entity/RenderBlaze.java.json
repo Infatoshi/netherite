@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderBlaze.java",
+  "classes": ["RenderBlaze"],
+  "lines": 89,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityBlaze: the blaze model (smoke head, twelve rotating rods) whose rod count changes the model each tick.",
+  "scope": "in_scope",
+  "scope_reason": "Blazes are gated content (Nether fortress recordings) and the mob scenes compare their pixels.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_blaze", "raster_mobs_draw"]}
+  ],
+  "evidence": [
+    "out/java/clientframes/cov-zoo-s1",
+    "out/java/render/mobs2b_blaze_f006",
+    "out/java/render/mobs2b_blaze_f011",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "blazeTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:model_blaze", "status": "exact", "note": "TEX_BLAZE in the texture table"},
+    {"kind": "field", "name": "field_77068_a", "sig": "private int", "native": null, "status": "n/a", "note": "cached rod count for the model-swap; the native model is stateless per draw"},
+    {"kind": "ctor", "name": "RenderBlaze", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityBlaze,DDD FF)V", "native": "csrc/engine/raster_mobs.c:model_blaze", "status": "exact", "note": "model_blaze builds head and rods from age + partialTick; the rods' rotation is the same function of the blaze's age"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityBlaze)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "The rod-count model swap (field_77068_a) is meaningless in the native per-draw model construction. Verified out/java/snapshots/fight-blaze-s1 exists."
+}

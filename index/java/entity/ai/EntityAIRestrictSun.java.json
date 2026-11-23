@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIRestrictSun.java",
+  "classes": ["EntityAIRestrictSun"],
+  "lines": 38,
+  "side": "server",
+  "category": "ai",
+  "role": "Skeleton daytime task: while the sun is up it sets the navigator's avoidSun flag, which makes every path the navigator builds avoid sky-exposed points.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_start", "ai_reset", "ai_setup_kind"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-skeleton-s1", "out/java/snapshots/mobspawn-final-s1", "csrc/tests/test_hostiles.c"],
+  "members": [
+    {"kind": "field", "name": "theEntity", "sig": "EntityCreature", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the skeleton itself (struct living); the flag is nav.no_sun_pathfind"},
+    {"kind": "ctor", "name": "EntityAIRestrictSun", "sig": "(EntityCreature)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_RESTRICT_SUN, priority 2, mutex 0"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_RESTRICT_SUN case: isDaytime -> skylight < 4"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "setAvoidSun(true) -> nav.no_sun_pathfind = 1; nav_set_path then trims path points that can see the sky"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "setAvoidSun(false) -> nav.no_sun_pathfind = 0"}
+  ],
+  "missing": [],
+  "notes": ""
+}

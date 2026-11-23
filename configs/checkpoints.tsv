@@ -1,0 +1,22 @@
+# checkpoints: named starts for pipeline.start, pipe_bench/pipe_gate --start NAME=CHECKPOINT and the trainer's binding
+# (csrc/runtime/pool.c checkpoint_resolve). A start that is not a directory is looked up here by name, then as
+# out/java/snapshots/NAME. snapshot is relative to the tree's root. The seed-42 golden playthrough (gold-g1-s42 to
+# gold-g30-s42, DEVLOG 2026-09-24 to 2026-10-01) spans the game from a fresh world to the dragon: configs/gold.yaml is
+# its world (seed 42, normal, render distance 4), so `pipe_bench --config configs/gold.yaml --start x=iron --kinds x`.
+# name	snapshot	dimension	what the segment starting here plays
+fresh	out/java/snapshots/fresh-play-s1	overworld	a fresh seed-1 world (config.yaml's world)
+spawn	out/java/snapshots/gold-g1-s42	overworld	seed 42 at spawn: a tree, planks, sticks, a table, a wooden pickaxe, cobblestone
+stone	out/java/snapshots/gold-g2-s42	overworld	stone tools, coal, a furnace, torches
+food	out/java/snapshots/gold-g3-s42	overworld	pigs hunted and porkchops cooked
+iron	out/java/snapshots/gold-g4-s42	overworld	iron mined and smelted, flint from gravel, an iron pickaxe, a bucket, flint and steel
+diamonds	out/java/snapshots/gold-g5-s42	overworld	diamonds, a diamond pickaxe, obsidian cast from a lava lake
+portal	out/java/snapshots/gold-g6-s42	overworld	the portal frame built and lit, the way into the Nether
+nether	out/java/snapshots/gold-g7-s42	nether	the fortress's blaze farm: blaze rods
+nether-return	out/java/snapshots/gold-g8-s42	nether	out of the blaze farm and back through the portal
+armor	out/java/snapshots/gold-g9-s42	overworld	iron armor and an iron sword
+pearls	out/java/snapshots/gold-g10-s42	overworld	the ender pearl hunt begins (gold-g10-s42 to gold-g23-s42: endermen in caves and at night)
+pearls-mid	out/java/snapshots/gold-g16-s42	overworld	the pearl hunt, 6 pearls held
+eyes	out/java/snapshots/gold-g24-s42	overworld	eyes of ender thrown and followed toward the stronghold
+stronghold-walk	out/java/snapshots/gold-g26-s42	overworld	the walk and tunnels toward the stronghold
+stronghold	out/java/snapshots/gold-g29-s42	overworld	the stronghold and its portal room
+end	out/java/snapshots/gold-g30-s42	end	the End: the dragon fight

@@ -1,0 +1,30 @@
+{
+ "path": "oracle/src/network/status/INetHandlerStatusServer.java",
+ "classes": [
+  "INetHandlerStatusServer"
+ ],
+ "lines": 12,
+ "side": "server",
+ "category": "network",
+ "role": "The server side of the server list ping protocol: receives the query and the ping.",
+ "scope": "not_needed",
+ "scope_reason": "Only a dedicated server being pinged from a server list implements this; the game here is a single embedded player.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "method",
+   "name": "processPing",
+   "sig": "(C01PacketPing)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processServerQuery",
+   "sig": "(C00PacketServerQuery)V",
+   "status": "n/a"
+  }
+ ],
+ "missing": []
+}

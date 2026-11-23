@@ -1,0 +1,254 @@
+{
+ "path": "oracle/src/entity/passive/EntitySquid.java",
+ "classes": [
+  "EntitySquid"
+ ],
+ "lines": 234,
+ "side": "server",
+ "category": "entity",
+ "role": "The water squid: the tentacle rotation state machine, a random swim vector refreshed every 50 ticks in water, ink-sac drops, and the 45 < y < 63 ocean spawn rule.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/animals.c",
+   "symbols": [
+    "animal_construct",
+    "animal_attributes",
+    "squid_on_living_update",
+    "squid_move_entity_with_heading",
+    "squid_update_entity_action_state",
+    "squid_is_in_water",
+    "animal_drop_few_items",
+    "squid_pitch",
+    "squid_rotation_velocity"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_has_living_sound"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "can_spawn_here"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_spawning.c",
+  "out/java/spawning/rec-s2-ocean",
+  "out/java/snapshots/mobspawn-final-s1",
+  "out/java/render/mobs2b_squid_f006",
+  "out/java/snapshots/squid-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "squidPitch",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:squid_pitch",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevSquidPitch",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:prev_squid_pitch",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "squidYaw",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:squid_yaw",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevSquidYaw",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:prev_squid_yaw",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "squidRotation",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:squid_rotation",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevSquidRotation",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:prev_squid_rotation",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "tentacleAngle",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:tentacle_angle",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "lastTentacleAngle",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:last_tentacle_angle",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "randomMotionSpeed",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:squid_random_motion_speed",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rotationVelocity",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:squid_rotation_velocity",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_70871_bB",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:squid_field_70871_bB",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "randomMotionVecX",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:squid_random_motion_vec_x",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "randomMotionVecY",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:squid_random_motion_vec_y",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "randomMotionVecZ",
+   "sig": "float",
+   "native": "csrc/engine/animals.c:squid_random_motion_vec_z",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntitySquid",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_construct",
+   "status": "exact",
+   "note": "size and the first rotationVelocity draw"
+  },
+  {
+   "kind": "method",
+   "name": "applyEntityAttributes",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:animal_attributes",
+   "status": "exact",
+   "note": "maxHealth 10; the movement-speed base stays 0.1 because the squid does not override isAIEnabled"
+  },
+  {
+   "kind": "method",
+   "name": "getLivingSound",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_has_living_sound",
+   "status": "exact",
+   "note": "null, so no pitch draws"
+  },
+  {
+   "kind": "method",
+   "name": "getHurtSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDeathSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getSoundVolume",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146068_u",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canTriggerWalking",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:can_trigger_walking",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "dropFewItems",
+   "sig": "(2p)",
+   "native": "csrc/engine/animals.c:animal_drop_few_items",
+   "status": "exact",
+   "note": "count-1 dye stacks"
+  },
+  {
+   "kind": "method",
+   "name": "isInWater",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:squid_is_in_water",
+   "status": "exact",
+   "note": "the box expanded 0.6 down through handleMaterialAcceleration"
+  },
+  {
+   "kind": "method",
+   "name": "onLivingUpdate",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:squid_on_living_update",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "moveEntityWithHeading",
+   "sig": "(2p)",
+   "native": "csrc/engine/animals.c:squid_move_entity_with_heading",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateEntityActionState",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:squid_update_entity_action_state",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getCanSpawnHere",
+   "sig": "(0p)",
+   "native": "csrc/engine/spawning.c:can_spawn_here",
+   "status": "exact",
+   "note": "the SP_SQUID branch carries EntityWaterMob's body plus the 45..63 band"
+  }
+ ],
+ "missing": [],
+ "notes": "Every float field is recorded state in the probe dumps, so the whole state machine is ported bit for bit."
+}

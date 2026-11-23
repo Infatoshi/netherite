@@ -1,0 +1,19 @@
+{
+ "path": "csrc/engine/fire.h",
+ "lines": 31,
+ "role": "Declares BlockFire's native half: the per-tick weather and difficulty scalars, the placement test the block callbacks read, the fire update tick, and the TNT-priming hook the spread calls.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/block/BlockFire.java", "members": ["canPlaceBlockAt", "updateTick"]},
+  {"path": "oracle/src/block/BlockTNT.java", "members": ["onBlockDestroyedByPlayer"]},
+  {"path": "oracle/src/world/World.java", "members": ["isRaining", "difficultySetting"]}
+ ],
+ "structs": [],
+ "entry_points": ["fire_set_weather", "fire_can_place", "fire_update_tick"],
+ "tick_path": true,
+ "gpu": [
+  "lines 29-30: extern global mutable function pointer fire_tnt_prime and its void* context, installed by the server tick"
+ ],
+ "tests": ["csrc/tests/test_fallhang.c", "csrc/tests/test_lightning.c"],
+ "notes": "Callers named in the header: randomtick.c and servertick.c (fire_update_tick), blockcb.c (fire_can_place)."
+}

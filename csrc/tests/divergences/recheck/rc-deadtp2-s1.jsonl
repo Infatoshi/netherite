@@ -1,0 +1,14 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"death","bare":true}
+{"n":2,"act":{}}
+{"cmd":"run","class":"MobFree","radius":16}
+{"cmd":"run","class":"Snapshot"}
+{"n":80,"act":{}}
+{"n":1,"act":{"dlook":[180,0]}}
+{"n":8,"act":{"hold":["forward"]}}
+{"n":35,"act":{}}
+{"n":15,"act":{}}
+{"cmd":"dev","op":"tp","x":165.5,"y":90.0,"z":250.5,"yaw":0.0,"pitch":0.0}
+{"n":20,"act":{}}
+{"n":1,"act":{"gui":[["respawn"]]}}
+{"n":40,"act":{}}

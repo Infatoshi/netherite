@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/item/ItemEgg.java",
+  "classes": ["ItemEgg"],
+  "lines": 37,
+  "side": "server",
+  "category": "item",
+  "role": "The throwable egg: consumes one from the stack, plays the itemRand pitch and spawns an EntityEgg that may hatch chicks on impact.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/throw.c", "symbols": ["throw_server_use", "throw_client_use", "spawn_throwable", "item_rand_float"]},
+    {"file": "csrc/engine/projectile.c", "symbols": ["egg_on_impact"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/throw-items-s1",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemEgg", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 344, max stack 16"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/throw.c:throw_server_use", "status": "exact", "note": "the stack decrement, the itemRand pitch and the EntityEgg spawn; throw-items-s1 gates eight eggs with no hatch in the draws"}
+  ],
+  "missing": [],
+  "notes": null
+}

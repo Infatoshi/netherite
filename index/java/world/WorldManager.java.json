@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/world/WorldManager.java",
+  "classes": ["WorldManager"],
+  "lines": 131,
+  "side": "server",
+  "category": "world",
+  "role": "The server's IWorldAccess listener on a WorldServer: adds and removes entities in the EntityTracker, turns sounds and effects into S29/S28 packets for nearby players, sends block changes through the PlayerManager, and sends block-break animations.",
+  "scope": "in_scope",
+  "scope_reason": "The entity tracker it drives decides what the client sees (entity spawn and position packets), which the replay compares; sounds and effects are client presentation.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/tracker.c", "symbols": ["tracker_add", "tracker_remove", "tracker_find"]}
+  ],
+  "evidence": ["out/java/snapshots/replay2-walk-s1", "csrc/tests/test_clientworld.c"],
+  "members": [
+    {"kind": "field", "name": "mcServer", "sig": "MinecraftServer", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "theWorldServer", "sig": "WorldServer", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "WorldManager", "sig": "(MinecraftServer,WorldServer)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "spawnParticle", "sig": "(String,double,double,double,double,double,double)V", "native": null, "status": "n/a", "note": "Empty on the server."},
+    {"kind": "method", "name": "onEntityCreate", "sig": "(Entity)V", "native": "csrc/engine/tracker.c:tracker_add", "status": "partial", "note": "EntityTracker.addEntityToTracker; not verified that every entity kind's tracking range and update frequency are ported."},
+    {"kind": "method", "name": "onEntityDestroy", "sig": "(Entity)V", "native": "csrc/engine/tracker.c:tracker_remove", "status": "partial"},
+    {"kind": "method", "name": "playSound", "sig": "(String,double,double,double,float,float)V", "native": null, "status": "n/a", "note": "S29 sound packet; audio only."},
+    {"kind": "method", "name": "playSoundToNearExcept", "sig": "(EntityPlayer,String,double,double,double,float,float)V", "native": null, "status": "n/a", "note": "Audio only."},
+    {"kind": "method", "name": "markBlockRangeForRenderUpdate", "sig": "(int,int,int,int,int,int)V", "native": null, "status": "n/a", "note": "Empty on the server."},
+    {"kind": "method", "name": "markBlockForUpdate", "sig": "(int,int,int)V", "native": null, "status": "n/a", "note": "PlayerManager.func_151250_a (queue the block for an S23/S22 to watching players); world.c notes markBlockForUpdate is not ported and treats the client as seeing server writes directly.; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "markBlockForRenderUpdate", "sig": "(int,int,int)V", "native": null, "status": "n/a", "note": "Empty on the server."},
+    {"kind": "method", "name": "playRecord", "sig": "(String,int,int,int)V", "native": null, "status": "n/a", "note": "Empty on the server."},
+    {"kind": "method", "name": "playAuxSFX", "sig": "(EntityPlayer,int,int,int,int,int)V", "native": null, "status": "n/a", "note": "S28 effect packet: sounds and particles only (native comments mark these 'no state')."},
+    {"kind": "method", "name": "broadcastSound", "sig": "(int,int,int,int,int)V", "native": null, "status": "n/a", "note": "Global S28 (wither spawn, dragon death sound)."},
+    {"kind": "method", "name": "destroyBlockPartially", "sig": "(int,int,int,int,int)V", "native": null, "status": "n/a", "note": "S25 block-break animation to other players within 32 blocks; single-player replay has no other player, so it never sends. Not ported.; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "onStaticEntitiesChanged", "sig": "()V", "native": null, "status": "n/a", "note": "Empty on the server."}
+  ],
+  "missing": [],
+  "notes": "Evidence is weak: the tracker is exercised by every replay that carries entities, but I did not trace which test checks tracker_add specifically; test_clientworld.c is cited because the client world consumes tracker output (not verified line by line). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): only observable by a second player; the env is single player; block changes reach the client through shared state under the lockstep. Formerly listed as missing: markBlockForUpdate's PlayerManager block-change queue (S22/S23 packets to watching players) is not modelled; the native client reads server block state directly. destroyBlockPartially's S25 break-animation packets to other players are not ported (no other players in the replayed sessions)."
+}

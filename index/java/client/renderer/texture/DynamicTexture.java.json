@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/renderer/texture/DynamicTexture.java",
+  "classes": ["DynamicTexture"],
+  "lines": 44,
+  "side": "client",
+  "category": "client_resources",
+  "role": "An in-memory RGBA texture the client re-uploads each frame; the base for TextureClock and TextureCompass, whose pixels tick per frame.",
+  "scope": "client_cosmetic",
+  "scope_reason": "GL texture plumbing: an int[] uploaded to a GL texture. Its users are EntityRenderer's lightmap (whose values the native renderer computes itself, see EntityRenderer's record), the map renderer (maps = off) and the title-screen panorama; the class adds no pixels of its own.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "dynamicTextureData", "sig": "int[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "width", "sig": "int", "native": null, "status": "n/a", "note": "icon width in pixels"},
+    {"kind": "field", "name": "height", "sig": "int", "native": null, "status": "n/a", "note": "icon height in pixels"},
+    {"kind": "ctor", "name": "DynamicTexture", "sig": "(BufferedImage)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "DynamicTexture", "sig": "(int,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadTexture", "sig": "(IResourceManager)V", "native": null, "status": "n/a", "note": "empty in vanilla"},
+    {"kind": "method", "name": "updateDynamicTexture", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getTextureData", "sig": "()int[]", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "If the clock or compass ever joins the HUD, this class's tick is the missing piece (TextureClock/TextureCompass implement ITickable). idxaudit 2026-09-27: scope reason rewritten."
+}

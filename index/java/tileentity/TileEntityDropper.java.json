@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/tileentity/TileEntityDropper.java",
+  "classes": ["TileEntityDropper"],
+  "lines": 14,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The dropper block entity: a TileEntityDispenser with its own inventory title and NBT id.",
+  "scope": "in_scope",
+  "scope_reason": "Droppers are craftable and placeable; dropping needs power (world.conf redstone = off), but the block entity and its storage exist.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/tileentity.c", "symbols": ["te_kind_of_block", "render_dispenser"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["gui_open_tile"]}
+  ],
+  "evidence": ["csrc/tests/test_place.c", "csrc/tests/test_snapshots.c", "out/java/snapshots/containers2-s42"],
+  "members": [
+    {"kind": "method", "name": "getInventoryName", "sig": "()String", "native": null, "status": "n/a", "note": "the window title only the client screen draws"}
+  ],
+  "missing": [],
+  "notes": "Natively a dropper is a TE_DISPENSER whose te->block == 158 selects the \"Dropper\" id in render_dispenser."
+}

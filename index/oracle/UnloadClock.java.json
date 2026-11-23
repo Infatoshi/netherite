@@ -1,0 +1,15 @@
+{
+ "path": "oracle/harness/netherite/oracle/UnloadClock.java",
+ "lines": 57,
+ "role": "Records, per overworld chunk, the server tickCounter at which ChunkProviderServer.unloadQueuedChunks saved it, so a whole-server replay restores each chunk's pending tile ticks with the same clock the unload save used (the save runs before incrementTotalWorldTime).",
+ "kind": "snapshot",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Snapshot.java worldsState (writes dump() as worlds.nbt w0.unloadClock)",
+  "csrc/engine/serverreplay.c serverreplay_load (parses unloadClock; sr_ensure_saved uses each chunk's own clock)",
+  "csrc/tests/test_snapshots.c (whole-server replay of snapshots)"
+ ],
+ "vanilla_hooks": [
+  "oracle/src/world/gen/ChunkProviderServer.java"
+ ],
+ "notes": "Always on. Dimension 0 only. Static TreeMap keyed by chunkXZ2Int, so dump order is key order, not the unload order. DEVLOG (around line 65-80) records the fix: the death recordings were re-recorded with it. Which test_snapshots recordings carry the field was not verified."
+}

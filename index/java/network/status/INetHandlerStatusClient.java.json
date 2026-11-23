@@ -1,0 +1,30 @@
+{
+ "path": "oracle/src/network/status/INetHandlerStatusClient.java",
+ "classes": [
+  "INetHandlerStatusClient"
+ ],
+ "lines": 12,
+ "side": "client",
+ "category": "network",
+ "role": "The client side of the server list ping protocol: receives the server info and the pong.",
+ "scope": "not_needed",
+ "scope_reason": "Only a client pinging a multiplayer server from the server list reaches the status protocol; this game is one embedded player and the native engine has no sockets.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "method",
+   "name": "handleServerInfo",
+   "sig": "(S00PacketServerInfo)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "handlePong",
+   "sig": "(S01PacketPong)V",
+   "status": "n/a"
+  }
+ ],
+ "missing": []
+}

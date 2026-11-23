@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/itemuse.h",
+ "lines": 87,
+ "role": "Declares item use: ItemInWorldManager.tryUseItem and activateBlockOrUseItem's item half over a small player and stack record, the look-ray block query, and the live Item.itemRand stream hookup; its header comment lists which Java body maps to which C function and what is deliberately left out.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/server/management/ItemInWorldManager.java", "members": ["tryUseItem", "activateBlockOrUseItem"]},
+  {"path": "oracle/src/item/Item.java", "members": ["getMovingObjectPositionFromPlayer", "itemRand"]},
+  {"path": "oracle/src/item/ItemStack.java", "members": ["stackSize", "itemDamage", "useItemRightClick", "tryPlaceItemIntoWorld"]}
+ ],
+ "structs": [
+  {"name": "iu_player", "java": "EntityPlayer fields read by item use: posX/Y/Z, yOffset, rotationYaw/Pitch, capabilities.allowEdit, capabilities.isCreativeMode", "fields": ["pos_x", "pos_y", "pos_z", "y_offset", "yaw", "pitch", "allow_edit", "creative"]},
+  {"name": "iu_stack", "java": "ItemStack (item id, stackSize, itemDamage; no tag)", "fields": ["item", "count", "damage"]}
+ ],
+ "entry_points": ["itemuse_try_use_item", "itemuse_activate_block_or_use_item", "itemuse_look_block", "itemuse_set_live_det"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_itemuse.c"],
+ "notes": "Flat structs, no pointers. Hazards are recorded on itemuse.c."
+}

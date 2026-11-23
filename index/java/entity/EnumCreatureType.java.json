@@ -1,0 +1,36 @@
+{
+ "path": "oracle/src/entity/EnumCreatureType.java",
+ "classes": ["EnumCreatureType"],
+ "lines": 70,
+ "side": "server",
+ "category": "entity",
+ "role": "The four spawn categories (monster, creature, ambient, waterCreature) with their root class, cap, material and peaceful/animal flags that the world's mob spawner balances against.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/spawning.c", "symbols": ["type_of_kind", "spawner_tick", "cap_of"]},
+  {"file": "csrc/engine/spawning.h", "symbols": ["CT_MONSTER", "CAP_MONSTER", "CT_TYPES"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/mobspawn-final-s1",
+  "out/java/snapshots/mobspawn-fast-s1",
+  "csrc/tests/test_spawning.c"
+ ],
+ "members": [
+  {"kind": "field", "name": "monster, creature, ambient, waterCreature (constants)", "sig": "EnumCreatureType", "native": "csrc/engine/spawning.h:CT_MONSTER", "status": "exact", "note": "values() order CT_MONSTER..CT_WATER"},
+  {"kind": "field", "name": "creatureClass", "sig": "Class", "native": "csrc/engine/spawning.c:type_of_kind", "status": "partial", "note": "class membership is a kind-table lookup (living_kind_in_class), not a Class object"},
+  {"kind": "field", "name": "maxNumberOfCreature", "sig": "int", "native": "csrc/engine/spawning.h:CAP_MONSTER", "status": "exact", "note": "70/10/15/5"},
+  {"kind": "field", "name": "creatureMaterial", "sig": "Material", "native": "csrc/engine/spawning.c:spawner_tick", "status": "partial", "note": "want_mat is air for three types and water for waterCreature"},
+  {"kind": "field", "name": "isPeacefulCreature", "sig": "boolean", "native": "csrc/engine/spawning.h:spawner", "status": "partial", "note": "the spawner's hostile/peaceful flags stand in"},
+  {"kind": "field", "name": "isAnimal", "sig": "boolean", "native": "csrc/engine/spawning.h:spawner", "status": "partial", "note": "the animal_gate flag stands in"},
+  {"kind": "ctor", "name": "EnumCreatureType", "sig": "(ClassIMaterialZZ)V", "native": null, "status": "n/a", "note": "constants are compile-time in the native tables"},
+  {"kind": "method", "name": "getCreatureClass", "sig": "()Class", "native": null, "status": "n/a", "note": "kind-table lookup"},
+  {"kind": "method", "name": "getMaxNumberOfCreature", "sig": "()I", "native": "csrc/engine/spawning.h:CAP_MONSTER", "status": "exact"},
+  {"kind": "method", "name": "getCreatureMaterial", "sig": "()Material", "native": "csrc/engine/spawning.c:spawner_tick", "status": "partial"},
+  {"kind": "method", "name": "getPeacefulCreature", "sig": "()Z", "native": "csrc/engine/spawning.h:spawner", "status": "partial"},
+  {"kind": "method", "name": "getAnimal", "sig": "()Z", "native": "csrc/engine/spawning.h:spawner", "status": "partial"}
+ ],
+ "missing": [],
+ "notes": "spawning.c's cap_of and the countEntities <= maxNumberOfCreature * eligible / 256 check implement the spawner's use of these caps (spawning.c:1776). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: The Class-object machinery (getCreatureClass and the instanceof checks it feeds) is a kind-table lookup in the native engine, not a port of the enum's fields."
+}

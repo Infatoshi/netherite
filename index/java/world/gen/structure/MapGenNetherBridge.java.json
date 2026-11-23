@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/world/gen/structure/MapGenNetherBridge.java",
+  "classes": ["MapGenNetherBridge", "MapGenNetherBridge.Start"],
+  "lines": 75,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The Nether fortress generator: one fortress chance per 16x16-chunk region at a jittered spot, its Start building the bridge pieces at height 48..70, and the fortress mob spawn list (blaze, pig zombie, skeleton, magma cube).",
+  "scope": "in_scope",
+  "scope_reason": "The Nether and its fortresses are vanilla worldgen and on (SPEC Decisions).",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/fortress.c", "symbols": ["structure_fortress", "fortress_begin", "fortress_can_spawn", "fortress_make_start"]}, {"file": "csrc/engine/spawning.h", "symbols": ["spawning_hell_list"]}, {"file": "csrc/engine/populate_nether.c", "symbols": ["populate_hell_fortress_at", "populate_hell_offer_chunk", "populate_hell_structures"]}],
+  "evidence": ["csrc/tests/test_structures.c", "csrc/tests/test_sblocks.c", "csrc/tests/test_fortress_spawn.c", "out/java/structures/nf-2", "out/java/structures/nf-42", "out/java/sblocks/fo-s2a", "out/java/sblocks/fo-s42a", "out/java/fortress_spawn/fs-2", "out/java/fortress_spawn/fs-42"],
+  "members": [
+    {"kind": "field", "name": "spawnList", "sig": "List<SpawnListEntry>", "native": "csrc/engine/spawning.h:spawning_hell_list", "status": "exact", "note": "The fortress list lives in spawning.c and is returned by spawning_hell_list inside a fortress."},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "MapGenNetherBridge", "sig": "()V", "native": "csrc/engine/fortress.c:structure_fortress", "status": "exact"},
+    {"kind": "method", "name": "func_143025_a", "sig": "()String", "native": "csrc/engine/fortress.c:structure_fortress", "status": "exact", "note": "The name \"Fortress\"."},
+    {"kind": "method", "name": "getSpawnList", "sig": "()List", "native": "csrc/engine/spawning.h:spawning_hell_list", "status": "exact"},
+    {"kind": "method", "name": "canSpawnStructureAtCoords", "sig": "(int,int)Z", "native": "csrc/engine/fortress.c:fortress_can_spawn", "status": "exact"},
+    {"kind": "method", "name": "getStructureStart", "sig": "(int,int)StructureStart", "native": "csrc/engine/fortress.c:fortress_make_start", "status": "exact"},
+    {"kind": "ctor", "name": "Start", "sig": "()V", "native": null, "status": "n/a", "note": "NBT-load constructor."},
+    {"kind": "ctor", "name": "Start", "sig": "(World,Random,int,int)V", "native": "csrc/engine/fortress.c:fortress_make_start", "status": "exact", "note": "Start piece, pending queue drained in random order, updateBoundingBox, setRandomHeight(48, 70)."}
+  ],
+  "missing": [],
+  "notes": "Gate not re-run for this record."
+}

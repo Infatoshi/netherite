@@ -1,0 +1,42 @@
+{
+  "path": "oracle/src/util/Vec3.java",
+  "classes": ["Vec3"],
+  "lines": 243,
+  "side": "common",
+  "category": "math",
+  "role": "The immutable 3D double vector used by every ray trace, look-vector, motion and rotation in the game.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raytrace.c", "symbols": ["intermediate"]},
+    {"file": "csrc/engine/hostiles_enderman.c", "symbols": ["vec3", "vec_normalize", "vec_length", "vec_dot", "vec_square_dist_to"]},
+    {"file": "csrc/engine/render_blocks2.c", "symbols": ["vec_rot_x", "vec_rot_y", "vec_rot_z"]}
+  ],
+  "evidence": ["csrc/tests/test_explosions.c", "out/java/snapshots/walk300-s1"],
+  "members": [
+    {"kind": "field", "name": "xCoord", "sig": "double", "native": null, "status": "partial", "note": "no shared C Vec3 type: coordinates are plain doubles in locals and structs at every call site"},
+    {"kind": "field", "name": "yCoord", "sig": "double", "native": null, "status": "partial"},
+    {"kind": "field", "name": "zCoord", "sig": "double", "native": null, "status": "partial"},
+    {"kind": "method", "name": "createVectorHelper", "sig": "(DDD)LVec3;", "native": null, "status": "n/a", "note": "no heap vectors; callers carry (x, y, z) triples"},
+    {"kind": "ctor", "name": "Vec3", "sig": "(DDD)V", "native": null, "status": "n/a", "note": "the -0.0 normalization is applied inline where the port reached it"},
+    {"kind": "method", "name": "setComponents", "sig": "(DDD)LVec3;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "subtract", "sig": "(LVec3;)LVec3;", "native": null, "status": "partial", "note": "inlined as plain double arithmetic at each call site"},
+    {"kind": "method", "name": "normalize", "sig": "()LVec3;", "native": "csrc/engine/hostiles_enderman.c:vec_normalize", "status": "partial", "note": "one per-file copy (1.0E-4 zero-vector rule kept); the same math is inlined elsewhere"},
+    {"kind": "method", "name": "dotProduct", "sig": "(LVec3;)D", "native": "csrc/engine/hostiles_enderman.c:vec_dot", "status": "partial"},
+    {"kind": "method", "name": "crossProduct", "sig": "(LVec3;)LVec3;", "native": null, "status": "n/a", "note": "no native caller has needed it yet; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "addVector", "sig": "(DDD)LVec3;", "native": null, "status": "partial", "note": "inlined"},
+    {"kind": "method", "name": "distanceTo", "sig": "(LVec3;)D", "native": null, "status": "partial", "note": "inlined; the entity variants (getDistanceSqToEntity) have per-file helpers"},
+    {"kind": "method", "name": "squareDistanceTo", "sig": "(LVec3;)D", "native": null, "status": "partial", "note": "inlined"},
+    {"kind": "method", "name": "squareDistanceTo", "sig": "(DDD)D", "native": "csrc/engine/hostiles_enderman.c:vec_square_dist_to", "status": "partial"},
+    {"kind": "method", "name": "lengthVector", "sig": "()D", "native": "csrc/engine/hostiles_enderman.c:vec_length", "status": "partial"},
+    {"kind": "method", "name": "getIntermediateWithXValue", "sig": "(LVec3;D)LVec3;", "native": "csrc/engine/raytrace.c:intermediate", "status": "partial", "note": "one shared helper, axis-tagged; the 1.0000000116860974E-7 epsilon kept"},
+    {"kind": "method", "name": "getIntermediateWithYValue", "sig": "(LVec3;D)LVec3;", "native": "csrc/engine/raytrace.c:intermediate", "status": "partial"},
+    {"kind": "method", "name": "getIntermediateWithZValue", "sig": "(LVec3;D)LVec3;", "native": "csrc/engine/raytrace.c:intermediate", "status": "partial"},
+    {"kind": "method", "name": "toString", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "rotateAroundX", "sig": "(F)V", "native": "csrc/engine/render_blocks2.c:vec_rot_x", "status": "partial", "note": "with MathHelper's table cos/sin; used by the block renderers"},
+    {"kind": "method", "name": "rotateAroundY", "sig": "(F)V", "native": "csrc/engine/render_blocks2.c:vec_rot_y", "status": "partial"},
+    {"kind": "method", "name": "rotateAroundZ", "sig": "(F)V", "native": "csrc/engine/render_blocks2.c:vec_rot_z", "status": "partial"}
+  ],
+  "missing": [],
+  "notes": "The port spreads Vec3 across callers by design (SPEC: flat locals, no pointer graphs); each per-file copy keeps Java's exact float/double widening. Verified only the citations above; other call sites were not enumerated. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: crossProduct has no native caller yet; everything else is ported inline or per-file without a shared Vec3 type, which is the deliberate GPU-contract shape (no heap vectors)."
+}

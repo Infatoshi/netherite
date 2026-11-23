@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderMagmaCube.java",
+  "classes": ["RenderMagmaCube"],
+  "lines": 57,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the magma cube: ModelMagmaCube and the slime-size squish scaling before the model draws.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_magma_cube", "model_vertex", "raster_mobs_draw", "texture_names"]}
+  ],
+  "evidence": ["out/java/clientframes/cov-zoo-s1", "out/java/render/mobs2b_magma_cube_f006", "out/java/render/mobs2b_magma_cube_f011", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "magmaCubeTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constant, grouped; the TEX_MAGMACUBE entry"},
+    {"kind": "ctor", "name": "RenderMagmaCube", "sig": "()V (ModelMagmaCube, shadow 0.25)", "native": "csrc/engine/raster_mobs.c:model_magma_cube", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityMagmaCube)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityMagmaCube,float)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the shared MOB_SLIME/MOB_MAGMA_CUBE branch applies the same squish/scale formula"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

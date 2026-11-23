@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/block/BlockGlass.java",
+  "classes": ["BlockGlass"],
+  "lines": 42,
+  "side": "common",
+  "category": "block",
+  "role": "Glass: a breakable transparent block that drops nothing and can be silk-harvested.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["can_silk_harvest", "create_stacked_block"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/rc-blocks-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockGlass", "sig": "(Lnet/minecraft/block/material/Material;Z)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 20: the glass material, render type 2 (the pane-adjacent breakable form)"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 20 drops nothing"},
+    {"kind": "method", "name": "getRenderBlockPass", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "the mesher's pass assignment; row 20's opaque_cube 0 puts glass in the cutout pass; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "normal_block 0 in row 20"},
+    {"kind": "method", "name": "canSilkHarvest", "sig": "()Z", "native": "csrc/engine/harvestdrops.c:can_silk_harvest", "status": "exact", "note": "one of the seven named true overrides"}
+  ],
+  "missing": [],
+  "notes": "canSilkHarvest is BlockBreakable's flag here; harvestdrops.c names the glass override explicitly. Verified by the harvestdrops probe."
+}

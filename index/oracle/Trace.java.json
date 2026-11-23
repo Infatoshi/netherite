@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/Trace.java",
+ "lines": 157,
+ "role": "Matched tracepoints: Trace.t(label, values...) writes one line per call (doubles and floats as raw hex bits, integers decimal, booleans 0/1) to the file given by Main's --trace PATH, with pause/resume/restart so a trace holds only the work being compared; csrc/engine/trace.c writes the same lines from the same call sites so a diff names the first diverging step.",
+ "kind": "util",
+ "used_by": [
+  "oracle/Makefile TRACE=path variable on play/check/serve/chunks/probe/structures/run targets (--trace)",
+  "csrc/engine/trace.c and csrc/engine/trace.h (the native twin)",
+  "csrc/tests/trace_diff.c (diffs the two trace files)",
+  "Probes that call Trace.t or Trace.restart: VillageProbe, SpawnProbe, PotionProbe, HostileProbe, SlimeProbe, AnimalProbe"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Off unless --trace is given (t() returns at once). Autoflush per line because Oracle.finish ends with Runtime.halt. grep for Trace.t( in oracle/src found no vanilla call site in this tree; the tracepoints live in the harness probes. Global static mutable writer, oracle side only."
+}

@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/network/play/client/C0DPacketCloseWindow.java",
+  "classes": ["C0DPacketCloseWindow"],
+  "lines": 46,
+  "side": "client",
+  "category": "network",
+  "role": "Tells the server the player closed a container window.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_client_input", "surv_server_close_screen", "surv_server_tick_start"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/cat-clicks-s1",
+    "out/java/containers/seed2",
+    "csrc/tests/test_containers.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149556_a (window id)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "not carried: the act's [\"close\"] op closes whatever container the row has open, the same window the server's open_container names"},
+    {"kind": "ctor", "name": "C0DPacketCloseWindow", "sig": "(I)V", "native": "csrc/engine/survival.c:surv_client_input", "status": "exact", "note": "the act's gui_close op plays EntityClientPlayerMP.closeScreen (the C0D) where the input consumers run"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/survival.c:surv_server_close_screen", "status": "exact", "note": "surv_server_tick_start runs the close op's server half (processCloseWindow: the cursor stack empties, the container closes), then surv_server_close_screen does the closeScreenNoPacket tail"},
+    {"kind": "ctor", "name": "C0DPacketCloseWindow", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [],
+  "notes": null
+}

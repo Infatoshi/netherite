@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/item/ItemCoal.java",
+  "classes": ["ItemCoal"],
+  "lines": 51,
+  "side": "common",
+  "category": "item",
+  "role": "Coal and charcoal (damage 0 and 1): subtypes, per-damage name and icon; charcoal smelts like coal and both are furnace fuel.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "has_subtypes"]},
+    {"file": "csrc/engine/tileticks.c", "symbols": ["furnace_fuel_value"]},
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/te-furnace-s1",
+    "out/java/snapshots/te-charcoal-s1",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_111220_a", "sig": "IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "ctor", "name": "ItemCoal", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 263, has_subtypes"},
+    {"kind": "method", "name": "getUnlocalizedName(ItemStack)", "sig": "(ItemStack)String", "native": null, "status": "n/a", "note": "client naming"},
+    {"kind": "method", "name": "getSubItems", "sig": "(Item,CreativeTabs,List)V", "native": null, "status": "n/a", "note": "creative menu"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "method", "name": "registerIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client icons"}
+  ],
+  "missing": [],
+  "notes": "The server-visible behaviors (the fuel value 1600 in tileticks.c's furnace_fuel_value and the smelting and block-of-coal recipes in recipes.h) come through the generated row and recipe tables, so the class's own members are all naming or icons."
+}

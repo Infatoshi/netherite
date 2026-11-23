@@ -1,0 +1,15 @@
+{
+  "path": "oracle/harness/netherite/oracle/Prof.java",
+  "lines": 155,
+  "role": "--tick-profile: where the tick loop's wall time goes, one ORACLE PROFILE line at the end of a run (per tick pair: the rest of the frame, the command source, the client tick, the packet drains, the RowHash serialization wait, the permit-to-done wait split into the server's wake, its tick, the RowHash job start and the client's wake, the held row's flush, the capture, the emit), the rate after and up to pairs 100..4000 (the JIT's warm-up), and an ORACLE PROFILE RUN line splitting the run from the JVM's start (to the first pair, the loop, from the last pair to the end). A third line, ORACLE PROFILE PHASES, is the run's timeline from the JVM's start (or a pool job's arrival, start= in epoch ms): jvm, client, pool, save, spawn (the server's world load and spawn area), poll, join, loop, end; a phase a prelaunch ran before the job is marked pre (lane/replaylat).",
+  "kind": "harness",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Oracle.java",
+    "oracle/harness/netherite/oracle/Lockstep.java",
+    "oracle/harness/netherite/oracle/Rows.java",
+    "oracle/harness/netherite/oracle/Main.java",
+    "oracle/harness/netherite/oracle/Pool.java"
+  ],
+  "vanilla_hooks": [],
+  "notes": "Off by default; every call site tests one static boolean. The wait before the JVM starts (the memory budget, a display slot) is oracle/tests/headless.sh's ORACLE QUEUE line (lane/oracletick)."
+}

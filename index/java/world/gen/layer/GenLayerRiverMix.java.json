@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/world/gen/layer/GenLayerRiverMix.java",
+  "classes": ["GenLayerRiverMix"],
+  "lines": 71,
+  "side": "server",
+  "category": "worldgen",
+  "role": "Merges the biome chain with the river chain: river cells replace land biomes (frozen river on ice plains, mushroom shore on mushroom biomes); oceans keep their id.",
+  "scope": "in_scope",
+  "scope_reason": "Part of the overworld biome layer stack (GenLayer.initializeAllBiomeGenerators) that decides the biome of every overworld column.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/layers.c", "symbols": ["river_mix", "seed_world", "layer_ints", "layers_init", "biomes_gen"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "out/java/chunks/seed1", "out/java/chunks/wide2", "out/java/chunks/wide42", "out/java/chunks/hills-42", "out/java/chunks/mesa-123456789", "out/java/chunks/junglem-123456789"],
+  "members": [
+    {"kind": "field", "name": "biomePatternGeneratorChain", "sig": "GenLayer", "native": "csrc/engine/layers.c:river_mix", "status": "exact", "note": "struct layer p1."},
+    {"kind": "field", "name": "riverPatternGeneratorChain", "sig": "GenLayer", "native": "csrc/engine/layers.c:river_mix", "status": "exact", "note": "struct layer p2."},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "GenLayerRiverMix", "sig": "(long,GenLayer,GenLayer)V", "native": "csrc/engine/layers.c:layers_init", "status": "exact"},
+    {"kind": "method", "name": "initWorldGenSeed", "sig": "(long)V", "native": "csrc/engine/layers.c:seed_world", "status": "exact", "note": "The L_RIVER_MIX branch seeds both inputs, then itself."},
+    {"kind": "method", "name": "getInts", "sig": "(int,int,int,int)[I", "native": "csrc/engine/layers.c:river_mix", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "layers.c builds the stack as a pointer graph of struct layer nodes (p1, p2) in a fixed 64-node array and recurses through it, and each layer mallocs its parent area per call (area()); both are GPU-contract hazards but outside the tick (chunk generation). Status exact rests on test_worldgen comparing the genbiomes and biomes stages against the oracle chunk dumps; the gate was not re-run for this record."
+}

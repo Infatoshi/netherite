@@ -1,0 +1,76 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenDungeons.java",
+ "classes": [
+  "WorldGenDungeons"
+ ],
+ "lines": 176,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The dungeon room: checks the 7x5x7-ish cavity has 1 to 5 openings, walls it in cobblestone and mossy cobblestone, places up to two loot chests and a zombie, skeleton or spider spawner.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_dungeons.c",
+   "symbols": [
+    "feature_dungeons",
+    "pick_mob_spawner"
+   ]
+  },
+  {
+   "file": "csrc/engine/populate.c",
+   "symbols": [
+    "feature_dungeons"
+   ]
+  },
+  {
+   "file": "csrc/engine/loot_tables.h",
+   "symbols": [
+    "LOOT_DUNGEON"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-dungeons-2",
+  "out/java/probes/fe-dungeons-42",
+  "out/java/seedworld/seed1",
+  "out/java/snapshots/struct-spawner-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_111189_a",
+   "sig": "static WeightedRandomChestContent[]",
+   "native": "csrc/engine/loot_tables.h:LOOT_DUNGEON",
+   "status": "exact",
+   "note": "Plus the enchanted book func_92080_a appends, built in feature_dungeons."
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_dungeons.c:feature_dungeons",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "pickMobSpawner",
+   "sig": "(Random)String",
+   "native": "csrc/engine/features_dungeons.c:pick_mob_spawner",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "features_dungeons.c own_str heap-allocates the spawner's entity id string (a GPU-contract hazard for the native record). Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

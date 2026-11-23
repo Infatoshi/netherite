@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderPainting.java",
+  "classes": ["RenderPainting"],
+  "lines": 165,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders a painting: the art's border quads and canvas quads from the paintings atlas, positioned on the wall by the hanging direction and motive size.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_entities.c", "symbols": ["render_painting", "find_art", "ARTS", "raster_entities_draw", "raster_painting_live"]}
+  ],
+  "evidence": ["out/java/render/painting", "csrc/tests/test_render.c", "out/java/render-src/ent_painting", "out/java/render/ent_painting_w5", "out/java/clientframes/cr-hang-s1"],
+  "members": [
+    {"kind": "field", "name": "field_110807_a", "sig": "ResourceLocation (static, paintings_kristoffer_zetterstrand.png)", "native": "csrc/engine/raster_entities.c:render_painting", "status": "exact", "note": "static constant, grouped; the atlas the scene loader reads"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityPainting,double,double,double,float,float)V", "native": "csrc/engine/raster_entities.c:render_painting", "status": "exact", "note": "the border and canvas quads per direction (raster_painting_live, the recorded path); ent_painting_w5..w7 within budget, the older painting scene's residual being its clouds and water"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityPainting)ResourceLocation", "native": "csrc/engine/raster_entities.c:render_painting", "status": "exact"},
+    {"kind": "method", "name": "func_77010_a", "sig": "(EntityPainting,int,int,int,int)V", "native": "csrc/engine/raster_entities.c:render_painting", "status": "exact", "note": "the quad set for one face"},
+    {"kind": "method", "name": "func_77008_a", "sig": "(EntityPainting,float,float)V", "native": "csrc/engine/raster_entities.c:find_art", "status": "exact", "note": "the motive's size and atlas offset from the ARTS table"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "exact", "note": "the border and canvas quads per direction (raster_painting_live, the recorded path); ent_painting_w5..w7 within budget, the older painting scene's residual being its clouds and water"}
+  ],
+  "missing": [],
+  "notes": "Paintings draw on the recorded-scene path (raster_entities_draw reads EntityPainting rows from entities.jsonl) and on the live path in play.c. lane/entrender: ent_painting (five sizes on a wall, three views) within 54 px; the old painting scene's 10,930 px are its clouds and fancy water, which its row predates. lane/clientents: the live client draws pickobj.c's EntityPainting copies through raster_painting_live (csrc/assets/misc/painting.rgba from the jar), yawed as EntityHanging.setDirection turns them; hang-s1."
+}

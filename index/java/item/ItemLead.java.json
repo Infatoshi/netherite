@@ -1,0 +1,59 @@
+{
+ "path": "oracle/src/item/ItemLead.java",
+ "classes": [
+  "ItemLead"
+ ],
+ "lines": 78,
+ "side": "server",
+ "category": "item",
+ "role": "The lead: right click on a fence (render type 11) ties every leashed entity within 7 blocks that is leashed to the player to a leash knot at that block, creating the knot when absent.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/items.h",
+   "symbols": [
+    "ITEMS"
+   ]
+  },
+  {
+   "file": "csrc/engine/leash.c",
+   "symbols": [
+    "leash_tie_to_fence"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_items.c",
+  "out/java/snapshots/lead-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "ItemLead",
+   "sig": "()V",
+   "native": "csrc/engine/items.h:ITEMS",
+   "status": "exact",
+   "note": "row 420"
+  },
+  {
+   "kind": "method",
+   "name": "onItemUse",
+   "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z",
+   "native": "csrc/engine/survival.c:surv_server_use_packet",
+   "status": "exact",
+   "note": "BlockFence.onBlockActivated runs func_150909_a first; a held lead's onItemUse runs it again when that tied nothing, with the useItem stat"
+  },
+  {
+   "kind": "method",
+   "name": "func_150909_a",
+   "sig": "(EntityPlayer,World,III)Z",
+   "native": "csrc/engine/leash.c:leash_tie_to_fence",
+   "status": "exact",
+   "note": "EntityLeashKnot.getKnotForBlock and func_110129_a are not ported; the NBT carries a Leashed flag (living.c) but no knot entity exists"
+  }
+ ],
+ "missing": [],
+ "notes": "Ported in lane/ride (leash.c); lead-s1 ties a cow to a fence post."
+}

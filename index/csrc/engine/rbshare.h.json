@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/rbshare.h",
+ "lines": 22,
+ "role": "rbshare.c's API: rb_table_shared and rb_atlas_shared, a directory's block renderer tables, one copy a process.",
+ "layer": "render",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "rb_table_shared",
+  "rb_atlas_shared"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_render.c"
+ ],
+ "notes": ""
+}

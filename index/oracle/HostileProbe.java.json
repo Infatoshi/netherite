@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/HostileProbe.java",
+ "lines": 1773,
+ "role": "Hostile mob probe: zombies, skeletons, creepers, spiders and the other hostile kinds in HostileProbe.KINDS (enderman, witch, silverfish, pig zombie, blaze, ...) ticking with a probe player (HostileProbe.ProbePlayer) in a flattened raw-region arena (roofed room, doors, pool, wall), day or night; records per-tick FNV-1a hashes of canonical NBT plus AI, path, helper, attack and per-kind state, spawns, removals, events and explosions, as the reference for EntityMob, targeting, hostile AI tasks, arrows and explosions.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=HostileProbe",
+  "csrc/tests/test_hostiles.c",
+  "oracle/harness/netherite/oracle/EyesProbe.java, LightningProbe.java (reuse HostileProbe.ProbePlayer)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output DIR/manifest.json (kind hostiles), shapes.bin, spawns.bin, ticks.bin.gz, digest/nbt64/spawns/removals/events .txt.gz, start.txt, end.txt, final.bin.gz. Dispatched through Oracle's reflective {\"cmd\":\"run\",\"class\":...}."
+}

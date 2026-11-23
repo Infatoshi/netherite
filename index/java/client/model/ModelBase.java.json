@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/client/model/ModelBase.java",
+  "classes": ["ModelBase"],
+  "lines": 60,
+  "side": "client",
+  "category": "client_model",
+  "role": "The abstract base of every entity model: the ModelRenderer box list, the texture offsets map, the texture size, and the render/setRotationAngles lifecycle every mob render calls.",
+  "scope": "in_scope",
+  "scope_reason": "Mob rendering is pixel-gated (out/java/render/mobs_* scenes); the native renderer reimplements this lifecycle per model kind rather than as a class.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["draw_model", "pose_model", "texture_size"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs_zombie_f006",
+    "out/java/render/mobs_pig_f006",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "onGround", "sig": "float", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "partial", "note": "swing progress reaches the native models as mob_render_input.swing"},
+    {"kind": "field", "name": "isRiding", "sig": "boolean", "native": null, "status": "n/a", "note": "no riding offset in the native mob render input; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "boxList", "sig": "List", "native": "csrc/engine/raster_mobs.c:draw_model", "status": "partial", "note": "replaced by each mob_model's flat mob_part/mob_box arrays; no shared list"},
+    {"kind": "field", "name": "isChild", "sig": "boolean", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "partial", "note": "mob_render_input.child plus child_head_y/child_head_z offsets and the child scale in the pose"},
+    {"kind": "field", "name": "modelTextureMap", "sig": "Map", "native": null, "status": "n/a", "note": "folded away: each box() call carries its own u,v; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "textureWidth", "sig": "int", "native": "csrc/engine/raster_mobs.c:texture_size", "status": "exact", "note": "per-texture size table (texture_size[idx].w)"},
+    {"kind": "field", "name": "textureHeight", "sig": "int", "native": "csrc/engine/raster_mobs.c:texture_size", "status": "exact", "note": "texture_size[idx].h"},
+    {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": null, "status": "n/a", "note": "the empty base: every in-scope model overrides render, and its one super.render caller is ModelWolf (wolves are off in world.conf); each model's own render is draw_model's per-kind entry (lane/covframes)"},
+    {"kind": "method", "name": "setRotationAngles", "sig": "(float,float,float,float,float,float,Entity)V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact", "note": "the pose pass before the draw"},
+    {"kind": "method", "name": "setLivingAnimations", "sig": "(EntityLivingBase,float,float,float)V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "partial", "note": "the eat/wing inputs (eat_head_y, wing) ride in mob_render_input"},
+    {"kind": "method", "name": "getRandomModelBox", "sig": "(Random)ModelRenderer", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "setTextureOffset", "sig": "(String,int,int)V", "native": null, "status": "n/a", "note": "offsets are baked into the box() arguments; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getTextureOffset", "sig": "(String)TextureOffset", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"}
+  ],
+  "missing": [],
+  "notes": "The mapping is per-model-kind functions (model_pig, model_zombie, ...) in raster_mobs.c rather than a port of this class; see the per-model records. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: getRandomModelBox, setTextureOffset and getTextureOffset have no native counterpart: the native models are flat box lists with u,v baked in, so the ModelRenderer-tree API does not exist. A vanilla path that picks a random box from a model would have nothing to call."
+}

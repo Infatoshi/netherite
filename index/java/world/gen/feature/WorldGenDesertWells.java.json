@@ -1,0 +1,53 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenDesertWells.java",
+ "classes": [
+  "WorldGenDesertWells"
+ ],
+ "lines": 97,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The rare desert well: a sandstone basin with a water source, slab roof and four pillars, placed when the ground is sand and flat enough.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_lakes.c",
+   "symbols": [
+    "feature_desertwell"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "desert_post"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-desertwell-2",
+  "out/java/probes/fe-desertwell-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_lakes.c:feature_desertwell",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Called once per 1000 desert chunks from decorator.c desert_post. Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

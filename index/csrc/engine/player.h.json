@@ -1,0 +1,293 @@
+{
+  "path": "csrc/engine/player.h",
+  "lines": 363,
+  "role": "Declares the two lockstep players: the key-binding enum and per-row act (look, input snapshot, window clicks, trade selections), the client_player struct (EntityClientPlayerMP down to Entity plus screens, packet bookkeeping and render-only arm swing) and the server_player struct (EntityPlayerMP plus NetHandlerPlayServer bookkeeping and open containers), and the tick and load entry points.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/client/entity/EntityClientPlayerMP.java",
+      "members": [
+        "oldPosX",
+        "oldMinY",
+        "oldPosY",
+        "oldPosZ",
+        "oldRotationYaw",
+        "oldRotationPitch",
+        "wasOnGround",
+        "shouldStopSneaking",
+        "wasSneaking",
+        "ticksSinceMovePacket",
+        "sendMotionUpdates"
+      ]
+    },
+    {
+      "path": "oracle/src/client/entity/EntityPlayerSP.java",
+      "members": [
+        "sprintToggleTimer",
+        "sprintingTicksLeft",
+        "renderArmPitch",
+        "renderArmYaw"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "isJumping",
+        "jumpTicks",
+        "jumpMovementFactor",
+        "swingItem",
+        "swingProgress",
+        "swingProgressInt",
+        "isSwingInProgress"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "setRotation",
+        "setPositionAndRotation",
+        "handleWaterMovement",
+        "dimension"
+      ]
+    },
+    {
+      "path": "oracle/src/client/multiplayer/PlayerControllerMP.java",
+      "members": [
+        "rightClickDelayTimer",
+        "currentPlayerItem",
+        "windowClick"
+      ]
+    },
+    {
+      "path": "oracle/src/network/NetHandlerPlayServer.java",
+      "members": [
+        "processPlayer",
+        "hasMoved",
+        "lastPosX",
+        "lastPosY",
+        "lastPosZ",
+        "floatingTickCount",
+        "networkTickCount"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayerMP.java",
+      "members": [
+        "playerConqueredTheEnd",
+        "currentWindowId",
+        "openContainer",
+        "onUpdateEntity"
+      ]
+    },
+    {
+      "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+      "members": [
+        "handleRespawn",
+        "handlePlayerPosLook"
+      ]
+    },
+    {
+      "path": "oracle/src/util/MovementInputFromOptions.java",
+      "members": [
+        "updatePlayerMoveState"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "struct key_state",
+      "java": "KeyBinding pressed and pressTime per vanilla GameSettings binding plus the nine hotbar keys",
+      "fields": [
+        "held",
+        "presses"
+      ]
+    },
+    {
+      "name": "struct act",
+      "java": null,
+      "fields": [
+        "has_look",
+        "look",
+        "has_in",
+        "keys",
+        "hb",
+        "focus",
+        "lcc",
+        "ctrl",
+        "rd",
+        "gui_close",
+        "gui_respawn",
+        "clicks",
+        "gui_click",
+        "trsels",
+        "trsel"
+      ]
+    },
+    {
+      "name": "struct client_player",
+      "java": "EntityClientPlayerMP, EntityPlayerSP, EntityLivingBase and Entity client fields, MovementInput, PlayerControllerMP timers, open GUI screens",
+      "fields": [
+        "e",
+        "combat",
+        "own_container",
+        "wb_container",
+        "rotation_yaw",
+        "rotation_pitch",
+        "prev_rotation_yaw",
+        "prev_rotation_pitch",
+        "keys",
+        "in_strafe",
+        "in_forward",
+        "in_jump",
+        "in_sneak",
+        "is_jumping",
+        "jump_ticks",
+        "jump_movement_factor",
+        "sprinting",
+        "sprint_toggle_timer",
+        "sprinting_ticks_left",
+        "fly_toggle_timer",
+        "old_pos_x",
+        "old_min_y",
+        "old_pos_y",
+        "old_pos_z",
+        "old_rotation_yaw",
+        "old_rotation_pitch",
+        "was_on_ground",
+        "should_stop_sneaking",
+        "was_sneaking",
+        "ticks_since_move_packet",
+        "food_level",
+        "allow_flying",
+        "is_flying",
+        "in_game_has_focus",
+        "screen_inventory",
+        "screen_gameover",
+        "screen_sleep",
+        "screen_credits",
+        "game_paused",
+        "left_click_counter",
+        "hotbar",
+        "ctrl",
+        "ticks_existed",
+        "first_update",
+        "client_tick_index",
+        "client_row_tick",
+        "is_dead",
+        "first_client_tick",
+        "right_click_delay",
+        "synced_item",
+        "dimension",
+        "on_world_change",
+        "world_change_ctx",
+        "pending_s08",
+        "pending_confirm",
+        "confirm_og",
+        "confirm_pkt",
+        "pending_confirm2",
+        "confirm2_og",
+        "confirm2_pkt",
+        "s08_c",
+        "s08_d",
+        "s08_e",
+        "s08_yaw",
+        "s08_pitch",
+        "move_speed",
+        "pending_s20",
+        "pending_s20_mod",
+        "sv",
+        "s2c",
+        "open_container",
+        "swing_in_progress",
+        "swing_int",
+        "swing_progress",
+        "prev_swing_progress",
+        "arm_pitch",
+        "arm_yaw",
+        "prev_arm_pitch",
+        "prev_arm_yaw",
+        "equip_reset"
+      ]
+    },
+    {
+      "name": "struct server_player",
+      "java": "EntityPlayerMP plus NetHandlerPlayServer movement bookkeeping, attribute S20 tracking, portal state and open containers",
+      "fields": [
+        "e",
+        "replay",
+        "server_tick",
+        "rotation_yaw",
+        "rotation_pitch",
+        "prev_rotation_yaw",
+        "prev_rotation_pitch",
+        "sprinting",
+        "sneaking",
+        "jump_movement_factor",
+        "jump_ticks",
+        "has_moved",
+        "last_pos_x",
+        "last_pos_y",
+        "last_pos_z",
+        "floating_tick_count",
+        "network_tick_count",
+        "sent_s08",
+        "s08_c",
+        "s08_d",
+        "s08_e",
+        "s08_yaw",
+        "s08_pitch",
+        "move_speed",
+        "attr_dirty",
+        "s20_queued",
+        "s20_mod",
+        "dimension",
+        "conquered_end",
+        "pertinent_update",
+        "portal",
+        "on_entity_update",
+        "on_entity_ctx",
+        "sv",
+        "held_attr_item",
+        "s2c",
+        "dev_prequeued",
+        "iew",
+        "snapshot_tree",
+        "open_container",
+        "wb_container",
+        "own_container",
+        "window_id",
+        "gui_x",
+        "gui_y",
+        "gui_z",
+        "gui_pair_x",
+        "gui_pair_z",
+        "gui_has_pair",
+        "gui_ender"
+      ]
+    }
+  ],
+  "entry_points": [
+    "key_desc",
+    "key_lookup",
+    "client_player_load",
+    "server_player_load",
+    "client_player_tick",
+    "client_swing_item",
+    "server_player_tick",
+    "entity_set_rotation",
+    "entity_set_pos_rot",
+    "handle_water_movement",
+    "player_no_sprint_boost",
+    "player_no_ground_friction"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 146 and 238, struct client_player on_world_change and struct server_player on_entity_update: function pointers with void* contexts inside per-player state",
+    "struct client_player combat, open_container and struct server_player replay, iew, open_container, snapshot_tree: pointers into other structures (a pointer graph the GPU cannot mirror directly)"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "notes": "The header comment's list of what is not ported (digging, world tick, FoodStats, potions) is older than the survival.c, sleep.c and combat.c work that now hangs off these structs; treat it as stale. Included by play/play.c and test_snapshots.c, and by dev.c, combat.c, tnt.c, serverreplay.c, sleep.c, throw.c, sr_digest.c, survival.c."
+}

@@ -1,0 +1,66 @@
+{
+ "path": "csrc/engine/nbtjson_tree.h",
+ "lines": 43,
+ "role": "The nbt tree's layout (struct nbt, the interned struct nbt_key with its String.hashCode, length and ASCII flag, struct nbt_field), private to nbtjson.c, which builds it, and nbtbin.c, which writes and compares it directly.",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/nbt/NBTTagCompound.java",
+   "members": [
+    "tagMap"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTBase.java",
+   "members": [
+    "getId"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "nbt_key",
+   "java": "a tagMap key String with its hashCode",
+   "fields": [
+    "s",
+    "len",
+    "hash",
+    "ascii"
+   ]
+  },
+  {
+   "name": "nbt_field",
+   "java": "one tagMap entry",
+   "fields": [
+    "key",
+    "val"
+   ]
+  },
+  {
+   "name": "nbt",
+   "java": "NBTBase and its subclasses as one tagged union",
+   "fields": [
+    "type",
+    "shared",
+    "u.i",
+    "u.f",
+    "u.d",
+    "u.s",
+    "u.bytes",
+    "u.ints",
+    "u.list",
+    "u.comp"
+   ]
+  }
+ ],
+ "entry_points": [],
+ "tick_path": true,
+ "gpu": [
+  "struct nbt: a pointer tree (nbt **v, struct nbt_field *f) the GPU cannot mirror",
+  "struct nbt_key: pointers into the process-lifetime intern table"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Added by lane replayspeed (2026-09-25) when nbtbin.c started reading the tree directly; nothing outside nbtjson.c and nbtbin.c includes it."
+}

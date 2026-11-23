@@ -1,0 +1,5 @@
+{"cmd":"run","class":"MobFree","radius":4,"mobs":true}
+{"cmd":"run","class":"Snapshot"}
+{"n":1,"act":{}}
+{"cmd":"run","class":"MobMove","id":243,"x":161.5,"y":71.0,"z":249.5}
+{"n":100,"act":{}}

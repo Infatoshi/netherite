@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/entity/boss/IBossDisplayData.java",
+  "classes": ["IBossDisplayData"],
+  "lines": 12,
+  "side": "common",
+  "category": "entity",
+  "role": "Interface exposing a boss's max health, current health and display name to the client boss bar; implemented by EntityDragon and EntityWither.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/dragon.h", "symbols": ["dragon_state"]},
+    {"file": "csrc/engine/dragon.c", "symbols": ["dragon_setup"]},
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["raster_mobs_draw"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/end-dragon-s1",
+    "csrc/tests/test_dragon.c",
+    "out/java/render/hud_boss_f016",
+    "out/java/hudscreens/hudboss-s1"
+  ],
+  "members": [
+    {"kind": "method", "name": "getMaxHealth", "sig": "()float", "native": "csrc/engine/dragon.c:dragon_setup", "status": "exact", "note": "the dragon's 200 maxHealth is baked into dragon_setup; the wither's 300 is switched off (world.conf wither = off)"},
+    {"kind": "method", "name": "getHealth", "sig": "()float", "native": "csrc/engine/dragon.h:dragon_state", "status": "exact", "note": "dragon_state.health, maintained by dragon_tick and dragon_attack_part"},
+    {"kind": "method", "name": "func_145748_c_", "sig": "()IChatComponent", "native": null, "status": "missing", "note": "the boss display name has no native counterpart; it only feeds the client boss bar (BossStatus), which is client_cosmetic and unported"}
+  ],
+  "missing": [],
+  "notes": "The interface itself needs no code; these members are realized on the dragon side (dragon_state.health and the 200 maxHealth). EntityWither also implements this interface but the wither is switched off (world.conf wither = off), so only the dragon side exists natively. The interface is read client-side only through BossStatus.setBossStatus (RenderDragon.doRender). Not verified: nothing beyond what these notes state. The dragon's getHealth/getMaxHealth and func_145748_c_ (\"Ender Dragon\" plus the formatted text's reset) reach BossStatus through raster_mobs_draw's raster_hud_boss_set; the recordings carry hp, mhp and the Java name (test_hudscreens)."
+}

@@ -1,0 +1,46 @@
+{
+ "path": "csrc/engine/meshfeed.c",
+ "lines": 496,
+ "role": "The device mesher's feed: the host's model of the chunk records one device slot holds (chunk and band slots, kept current by the renderer's stale marks and a compare of each needed chunk's height map, mask and biomes), and each frame's section passes to mesh with exactly the bytes the device lacks, their flower pots' plants and their double plants' libm values.",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/WorldRenderer.java",
+   "members": [
+    "updateRenderer"
+   ]
+  },
+  {
+   "path": "oracle/src/world/ChunkCache.java",
+   "members": [
+    "getTileEntity"
+   ]
+  }
+ ],
+ "structs": [
+  "meshfeed",
+  "mf_chunk"
+ ],
+ "entry_points": [
+  "meshfeed_new",
+  "meshfeed_free",
+  "meshfeed_reset",
+  "meshfeed_dirty",
+  "meshfeed_dirty_all",
+  "meshfeed_begin",
+  "meshfeed_request",
+  "meshfeed_requests",
+  "meshfeed_keep",
+  "meshfeed_end",
+  "meshfeed_take",
+  "meshfeed_static_trig"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/cuda/render/check.c",
+  "csrc/cuda/render/gate.sh",
+  "csrc/runtime/pipe_gate.c"
+ ],
+ "notes": "Not vanilla code: the host half of the device mesher (csrc/cuda/meshing). Runs in the renderer (raster.c raster_live_device_mesh), never in the tick; its memory is the renderer's. Bands go as the 64-byte granules that differ from what the device slot holds (a shadow per band slot, a 64-bit hash per granule since lane/heapprof, 0 for zeros; slots read zero at an epoch start): MF_BAND_RUN; an op replaced later in the same untaken feed is MF_SKIP (lane/dmeshflow)."
+}

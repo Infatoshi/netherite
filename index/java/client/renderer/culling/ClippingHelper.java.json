@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/renderer/culling/ClippingHelper.java",
+  "classes": ["ClippingHelper"],
+  "lines": 26,
+  "side": "client",
+  "category": "client_render",
+  "role": "The frustum test data holder: six normalized clip planes plus the projection, modelview and combined matrices, and isBoxInFrustum, the 4-corner-per-plane AABB test RenderGlobal and RenderManager cull with.",
+  "scope": "in_scope",
+  "scope_reason": "Culling decides what the compared frame draws; the native renderer reproduces the decision for sections.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster.c", "symbols": ["live_culled", "clip_triangle"]},
+    {"file": "csrc/engine/raster_itemframe.c", "symbols": ["raster_itemframe_in_frustum"]}
+  ],
+  "evidence": [
+    "out/java/render/terrain1",
+    "csrc/tests/test_render.c",
+    "out/java/rendertick/anim_dials"
+  ],
+  "members": [
+    {"kind": "field", "name": "frustum", "sig": "float[16][16]", "native": "csrc/engine/raster.c:live_culled", "status": "n/a", "note": "the native pipeline never materializes the six planes; it tests the box's eight corners through the projection and modelview directly, which decides the same in/out question"},
+    {"kind": "field", "name": "projectionMatrix", "sig": "float[16]", "native": "csrc/engine/raster.c:live_culled", "status": "exact", "note": "the frame's proj matrix (raster.c struct frame f->proj)"},
+    {"kind": "field", "name": "modelviewMatrix", "sig": "float[16]", "native": "csrc/engine/raster.c:live_culled", "status": "exact", "note": "the frame's mv matrix"},
+    {"kind": "field", "name": "clippingMatrix", "sig": "float[16]", "native": null, "status": "n/a", "note": "proj*modelview product; implicit in the native per-corner evaluation"},
+    {"kind": "method", "name": "isBoxInFrustum", "sig": "(DDDDDD)Z", "native": "csrc/engine/raster.c:live_culled", "status": "exact", "note": "live_culled tests all 8 box corners against all 6 clip planes with a 1e-3 rounding margin; the Java tests 4 corners per plane without a margin, so exactly-on-plane boxes can differ, which the per-triangle GL clip (clip_triangle) then resolves correctly for anything drawn"}
+  ],
+  "missing": [],
+  "notes": "Used by RenderGlobal.clipRenderersByFrustum (sections) and RenderManager's entity cull. The section-level counterpart is proven by the terrain scenes; an entity-level frustum cull is not reproduced (raster_mobs uses the render-distance range check only). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): GL plumbing: GL is the numerical oracle, not emitted (SPEC); atlases and meshes are consumed as data. Formerly listed as missing: The stored plane arrays and the exact 4-corner formulation: the native test evaluates corners in clip space with a rounding margin instead of normalized planes; identical decisions except for boxes exactly on a plane."
+}

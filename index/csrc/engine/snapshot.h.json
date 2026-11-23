@@ -1,0 +1,144 @@
+{
+ "path": "csrc/engine/snapshot.h",
+ "lines": 191,
+ "role": "The snapshot structures (snap_chunk, snap_entity, snap_tick, snapshot) and the loader, chunk byte layout, hash and diff declarations for the oracle's start-of-tape snapshot.",
+ "layer": "io",
+ "java": [
+  {
+   "path": "oracle/src/world/NextTickListEntry.java",
+   "members": [
+    "xCoord",
+    "yCoord",
+    "zCoord",
+    "scheduledTime",
+    "priority",
+    "tickEntryID"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "snap_tile",
+   "java": "a TileEntity's NBT",
+   "fields": [
+    "tag",
+    "text"
+   ]
+  },
+  {
+   "name": "snap_entity",
+   "java": "one Entity: id, its Random state and cached nextGaussian, the navigator path, the watch-closest task, class and NBT",
+   "fields": [
+    "dim",
+    "id",
+    "rand_state",
+    "rand_born",
+    "has_born",
+    "has_gauss",
+    "gauss",
+    "has_path",
+    "path_index",
+    "path_speed",
+    "path_n",
+    "path_pts",
+    "has_watch",
+    "watch_is_player",
+    "watch_look_time",
+    "cls",
+    "player",
+    "weather",
+    "tag",
+    "text"
+   ]
+  },
+  {
+   "name": "snap_tick",
+   "java": "NextTickListEntry, in pendingTickListEntriesTreeSet or pendingTickListEntriesThisTick",
+   "fields": [
+    "dim",
+    "list",
+    "x",
+    "y",
+    "z",
+    "id",
+    "priority",
+    "scheduled",
+    "entry"
+   ]
+  },
+  {
+   "name": "snap_chunk",
+   "java": "Chunk: block arrays as bytes, biome array, populated/light flags, inhabitedTime, updateSkylightColumns, tile entities",
+   "fields": [
+    "dim",
+    "cx",
+    "cz",
+    "hash",
+    "near",
+    "bytes",
+    "biome",
+    "terrain_populated",
+    "light_populated",
+    "populated",
+    "modified",
+    "has_entities",
+    "send_updates",
+    "gap",
+    "last_save_time",
+    "inhabited_time",
+    "queued_light_checks",
+    "skylight_columns",
+    "tiles",
+    "ntiles"
+   ]
+  },
+  {
+   "name": "snapshot",
+   "java": "the whole game state at a tape's start (oracle Snapshot.java)",
+   "fields": [
+    "dir",
+    "seed",
+    "tick",
+    "version",
+    "world",
+    "chunks",
+    "nchunks",
+    "ents",
+    "nents",
+    "ticks",
+    "nticks",
+    "this_tick",
+    "nthis",
+    "worldinfo",
+    "worldstate",
+    "det",
+    "clientworld",
+    "player_client",
+    "player_server",
+    "manifest",
+    "manifest_json",
+    "players"
+   ]
+  }
+ ],
+ "entry_points": [
+  "snapshot_load",
+  "snapshot_free",
+  "snapshot_drop_runtime",
+  "snapshot_chunk_bytes",
+  "snapshot_chunk_hash",
+  "snapshot_chunk_hash_around",
+  "snapshot_chunk_diff",
+  "snapshot_chunk_hash_n",
+  "snapshot_chunk_hash_around_n",
+  "snapshot_fnv"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "lines 47-49, struct snap_entity: heap strings and NBT pointer trees (load-time data)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "NextTickListEntry field names are the MCP names as recalled, not re-read."
+}

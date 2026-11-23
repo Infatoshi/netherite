@@ -1,0 +1,46 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenGlowStone2.java",
+ "classes": [
+  "WorldGenGlowStone2"
+ ],
+ "lines": 87,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Nether glowstone cluster (variant 2): hangs from netherrack ceilings, 1500 tries growing glowstone next to exactly one existing glowstone.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_nether.c",
+   "symbols": [
+    "feature_glowstone"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "out/java/probes/fe-glowstone2-2",
+  "out/java/probes/fe-glowstone2-42",
+  "out/java/seedworld/seed2-nether"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_nether.c:feature_glowstone",
+   "status": "exact",
+   "note": "GlowStone1 and GlowStone2 have identical generate bodies; one C function serves both."
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

@@ -1,0 +1,70 @@
+{
+ "path": "csrc/engine/projectile.h",
+ "lines": 46,
+ "role": "Declares the projectile constructors (arrow, throwable, fireball, ender eye, from a direction, a target or a shooter's look), the two setThrowableHeading ports and the per-tick projectile_update over ie_ent.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/projectile/EntityArrow.java",
+   "members": [
+    "EntityArrow",
+    "setThrowableHeading",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityThrowable.java",
+   "members": [
+    "EntityThrowable",
+    "setThrowableHeading",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityFireball.java",
+   "members": [
+    "EntityFireball",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityEnderEye.java",
+   "members": [
+    "moveTowards",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemEnderEye.java",
+   "members": [
+    "onItemRightClick"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "proj_spawn_arrow",
+  "proj_spawn_arrow_target",
+  "proj_spawn_throwable",
+  "proj_spawn_fireball",
+  "proj_spawn_arrow_shooter",
+  "proj_spawn_throwable_shooter",
+  "proj_arrow_heading",
+  "proj_throwable_heading",
+  "projectile_update",
+  "proj_spawn_ender_eye",
+  "proj_throw_ender_eye",
+  "proj_use_ender_eye"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "the shooter is passed as a struct living pointer and kept on the projectile as an lref (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_projectiles.c",
+  "csrc/tests/test_ghasts.c",
+  "csrc/tests/test_eyes.c",
+  "csrc/tests/test_hostiles.c"
+ ],
+ "notes": "Included by hostiles_blaze.c, hostiles_witch.c, hostiles_spider.c, ghasts.c, item_entity.c, living.c, throw.c, serverreplay.c and snapshot_entities.c. The projectile state itself (ie_ent) is declared in item_entity.h."
+}

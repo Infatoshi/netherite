@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/hud_live.c",
+ "lines": 252,
+ "role": "Serializes the live player's HUD inputs (hotbar, armor, health, food, XP, air, overlays, highlighted item, achievement toast) into the RenderStateProbe JSON shape and draws them through raster_hud_draw, so recorded and played frames share one HUD rasterizer; also loads each scene's item icon and name tables. The live stacks keep their own damage (durability bars) and the chat's messages ride along; the boss fields are left to BossStatus's state.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/gui/GuiIngame.java", "members": ["renderGameOverlay", "updateCounter", "remainingHighlightTicks", "highlightingItemStack", "prevVignetteBrightness"]},
+  {"path": "oracle/src/client/gui/achievement/GuiAchievement.java", "members": ["func_146254_a", "field_146263_l", "field_146265_j", "field_146268_i", "field_146262_n"]},
+  {"path": "oracle/src/client/gui/GuiNewChat.java", "members": ["func_146230_a"]}
+ ],
+ "structs": [
+  {"name": "writer", "java": null, "fields": ["s", "n", "cap"]}
+ ],
+ "entry_points": ["raster_hud_item_name", "raster_hud_item_entry", "raster_hud_live_json", "raster_hud_toast_json", "raster_hud_live"],
+ "tick_path": false,
+ "gpu": [
+  "lines 50-53: static mutable table, table_scene, names and names_scene caches of the last scene's item tables (outside the tick)",
+  "lines 35-48, function read_text: file reads of <scene>/state/item_table.json and item_names.json at draw time",
+  "line 26, function add: realloc growth of the JSON buffer; lines 131 and 199 malloc per frame",
+  "lines 23, 27, 65, 85: exit(1) on format, allocation or parse failure"
+ ],
+ "tests": ["csrc/tests/hud_live_test.c", "csrc/tests/test_hudscreens.c"],
+ "notes": "Client-side presentation outside the tick; the GPU contract applies only loosely. struct hud_live_state and hud_live_item are declared in raster.h. The GuiIngame and GuiAchievement member names map the JSON fields (uc, hlt, hl, vign, toast l/title/sub/desc) to vanilla fields confirmed present in those files; the bar fields come from the player, not GuiIngame, and were not checked against RenderStateProbe.java. The toast timing uses clock_ms (Minecraft.getSystemTime in vanilla), supplied by the caller in the state rather than read here. Horse, boss bar and record fields are always written as zero or null. Called by play/play.c, raster_hud.c and raster_entities.c."
+}

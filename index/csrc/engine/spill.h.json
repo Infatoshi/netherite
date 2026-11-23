@@ -1,0 +1,87 @@
+{
+ "path": "csrc/engine/spill.h",
+ "lines": 70,
+ "role": "Declares the block Random table (block_rand, its det.nbt groups and born-state reset), struct spill_item and container_spill.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/block/BlockChest.java",
+   "members": [
+    "breakBlock",
+    "field_149955_b"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFurnace.java",
+   "members": [
+    "breakBlock",
+    "field_149933_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDispenser.java",
+   "members": [
+    "breakBlock",
+    "field_149942_b"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockHopper.java",
+   "members": [
+    "breakBlock",
+    "field_149922_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockBrewingStand.java",
+   "members": [
+    "breakBlock",
+    "field_149961_a"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "spill_item",
+   "java": "EntityItem as breakBlock's spill builds it",
+   "fields": [
+    "entity_id",
+    "rand_state",
+    "uuid_msb",
+    "uuid_lsb",
+    "x",
+    "y",
+    "z",
+    "mx",
+    "my",
+    "mz",
+    "yaw",
+    "hover",
+    "item",
+    "damage",
+    "count",
+    "tag"
+   ]
+  },
+  {
+   "name": "block_rand_group",
+   "java": "det.nbt's per-class key (BlockRands.KEYS)",
+   "fields": [
+    "key",
+    "first",
+    "n"
+   ]
+  }
+ ],
+ "entry_points": [
+  "container_spill",
+  "block_rand_reset",
+  "block_rand_index"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "The BR_* order is det.nbt's: furnace, chest, dispenser, hopper, brewing groups."
+}

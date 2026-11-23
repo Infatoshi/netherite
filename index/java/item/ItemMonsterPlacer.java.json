@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/item/ItemMonsterPlacer.java",
+  "classes": ["ItemMonsterPlacer"],
+  "lines": 219,
+  "side": "common",
+  "category": "item",
+  "role": "The spawn egg (id 383): spawns the entity named by its damage value on use, with the egg's EntityEggInfo colours for the two render passes.",
+  "scope": "not_needed",
+  "scope_reason": "Spawn eggs are creative-only (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["spawner_spawn_creature"]}
+  ],
+  "evidence": ["out/java/snapshots/portal-pigspawn-s1"],
+  "members": [
+    {"kind": "field", "name": "theIcon", "sig": "IIcon", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ItemMonsterPlacer", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "partial", "note": "row 383: stack 64, hasSubtypes; no behavior"},
+    {"kind": "method", "name": "getItemStackDisplayName", "sig": "(Lnet/minecraft/item/ItemStack;)Ljava/lang/String;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getColorFromItemStack", "sig": "(Lnet/minecraft/item/ItemStack;I)I", "native": null, "status": "n/a", "note": "EntityList.entityEggInfo colours; the kill-stat side of EntityEggInfo is ported in survival.c:surv_egg_of_kind, not the item colours"},
+    {"kind": "method", "name": "requiresMultipleRenderPasses", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getIconFromDamageForRenderPass", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": null, "status": "missing"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;", "native": null, "status": "missing"},
+    {"kind": "method", "name": "spawnCreature", "sig": "(Lnet/minecraft/world/World;IDDD)Lnet/minecraft/entity/Entity;", "native": "csrc/engine/spawning.c:spawner_spawn_creature", "status": "exact", "note": "reached from BlockPortal.updateTick's pigman: the constructor, World.rand's wrapped yaw, onSpawnWithEgg and playLivingSound's two pitch draws"},
+    {"kind": "method", "name": "getSubItems", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "registerIcons", "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [
+    "onItemUse: using a spawn egg on a block face spawns nothing native.",
+    "onItemRightClick: the liquid-hit branch of using a spawn egg in the air is not ported."
+  ],
+  "notes": "The item only exists in the generated registry; the entity spawning the game uses comes from the natural spawning and structure paths, not the egg."
+}

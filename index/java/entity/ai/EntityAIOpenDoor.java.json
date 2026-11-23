@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIOpenDoor.java",
+  "classes": ["EntityAIOpenDoor"],
+  "lines": 54,
+  "side": "server",
+  "category": "ai",
+  "role": "Villager door task: opens the wooden door on its path for 20 ticks, then (closeDoor true, which the villager passes) closes it again on reset.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_update", "ai_setup_kind"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-village-full-s42", "out/java/villagers/vil-2", "csrc/tests/test_villagers.c", "out/java/snapshots/village-rain-s42", "out/java/snapshots/golem-fight-s42"],
+  "members": [
+    {"kind": "field", "name": "field_75361_i", "sig": "boolean", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "the villager passes true; the native registration has no flag but ai_reset always closes, which matches the only registrant"},
+    {"kind": "field", "name": "field_75360_j", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.door_counter"},
+    {"kind": "ctor", "name": "EntityAIOpenDoor", "sig": "(EntityLiving,boolean)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_OPEN_DOOR, priority 4"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "inherited from EntityAIDoorInteract, implemented as the AIC_OPEN_DOOR case: horizontal collision, a door within 1.5 blocks of the first two path points or above the entity"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "door_counter > 0 && !hasStoppedDoorInteraction"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "door_counter = 20 and func_150014_a(true) -> door_set_open(..., 1)"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "door_set_open(..., 0) when closeDoor"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "--door_counter, then EntityAIDoorInteract.updateTask's dot product; EntityAIOpenDoor.startExecuting does not call super, so entityPositionX/Z stay 0.0F and the flag never sets"}
+  ],
+  "missing": [],
+  "notes": "EntityAIDoorInteract (the abstract parent, in this package) holds the door search and the entityPosX/Y/Z fields; its state lives in ai_task's door_x/y/z, door_pos_x/z and has_stopped_door_interaction. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

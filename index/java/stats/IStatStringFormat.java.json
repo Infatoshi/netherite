@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/stats/IStatStringFormat.java",
+  "classes": ["IStatStringFormat"],
+  "lines": 9,
+  "side": "client",
+  "category": "stats",
+  "role": "Interface for formatting an achievement description at display time; the client installs one on openInventory to insert the inventory key.",
+  "scope": "in_scope",
+  "scope_reason": "The openInventory hint toast shows the formatted description in recorded frames.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_ach_desc"]}
+  ],
+  "evidence": ["out/java/render/toast"],
+  "members": [
+    {"kind": "method", "name": "formatString", "sig": "(String)String", "native": "csrc/engine/survival.c:surv_ach_desc", "status": "partial", "note": "the default key 'E' is baked into the string; a rebound key is not honored"}
+  ],
+  "missing": [],
+  "notes": "Interface only; the implementation is the client's StatStringFormatKeyInv. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): bindings are pinned. Formerly listed as missing: Formatting with a rebound inventory key; native text is fixed to the default key."
+}

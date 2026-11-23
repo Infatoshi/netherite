@@ -1,0 +1,29 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIDefendVillage.java",
+ "classes": ["EntityAIDefendVillage"],
+ "lines": 66,
+ "side": "server",
+ "category": "ai",
+ "role": "The iron golem's village-defence goal: take the village's nearest aggressor (or a random villager on the 1-in-20 fallback) as the attack target.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/ai.c", "symbols": ["ai_tasks_update", "ai_should_execute", "ai_start", "ai_reset", "ai_continue_executing", "target_nearby_ok"]},
+  {"file": "csrc/engine/villagers.c", "symbols": ["v_find_nearest_aggressor", "v_find_low_reputation_player"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/persist-village-full-s42",
+  "csrc/tests/test_villagers.c",
+  "out/java/snapshots/golem-fight-s42"
+ ],
+ "members": [
+  {"kind": "field", "name": "irongolem", "sig": "EntityIronGolem", "native": null, "status": "n/a", "note": "the owning struct living"},
+  {"kind": "field", "name": "villageAgressorTarget", "sig": "EntityLivingBase", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target"},
+  {"kind": "ctor", "name": "EntityAIDefendVillage", "sig": "(EntityIronGolem)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "target task 1, mutex 1, EntityAITarget(golem, false, true): nearby_only 1"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "findNearestVillageAggressor, isSuitableTarget with the task's own nearbyOnly cache, else the 1-in-20 roll for func_82685_c"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "setAttackTarget, then EntityAITarget.startExecuting"}
+ ],
+ "missing": [],
+ "notes": "The golem's village pointer exists (living.h village) and the 1-in-20 Random draw is consumed to keep the streams aligned, so a later port must not re-draw it. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

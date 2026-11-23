@@ -1,0 +1,37 @@
+{
+ "path": "csrc/engine/chunkgen.h",
+ "lines": 44,
+ "role": "Declares the per-world ChunkProviderGenerate state (terrain noise, surface state, seed) and provide_chunk, the raw generation pipeline for one overworld chunk.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "provideChunk"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "chunkgen",
+   "java": "ChunkProviderGenerate's noise generators and surface fields, built once per world",
+   "fields": [
+    "terrain",
+    "surface",
+    "seed"
+   ]
+  }
+ ],
+ "entry_points": [
+  "chunkgen_init",
+  "provide_chunk",
+  "chunkgen_raw",
+  "chunkgen_construct"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_seedworld.c"
+ ],
+ "notes": "Structure generators are excluded: they only record a pending start and place blocks in populate. struct chunkgen.owed marks a provider that owes world_insert_chunk's skipped generations; chunkgen_init clears it (lane suitestart, 2026-09-25)."
+}

@@ -1,0 +1,190 @@
+{
+ "path": "oracle/src/block/BlockEndPortal.java",
+ "classes": [
+  "BlockEndPortal"
+ ],
+ "lines": 124,
+ "side": "common",
+ "category": "block",
+ "role": "The End portal block (119): a 1/16-thick no-collision tile-entity block that sends a colliding entity to dimension 1.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/entity.c",
+   "symbols": [
+    "end_portal"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "te_kind_of_block",
+    "TE_END_PORTAL"
+   ]
+  },
+  {
+   "file": "csrc/engine/collide.c",
+   "symbols": [
+    "collide_add_boxes"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "block_bounds",
+    "raytrace_collision"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_end_portal_cb"
+   ]
+  },
+  {
+   "file": "csrc/engine/item_entity.c",
+   "symbols": [
+    "ie_end_portal"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/ride-endportal-s1",
+  "csrc/tests/test_dims.c",
+  "csrc/tests/test_raypick.c",
+  "csrc/tests/test_rendertick.c",
+  "csrc/tests/test_tileticks.c",
+  "out/java/raypick/rp-1",
+  "out/java/rendertick/fx_portal",
+  "out/java/snapshots/end-arrival-s1",
+  "out/java/snapshots/end-exit-s1",
+  "out/java/snapshots/endportal-ents-s1",
+  "out/java/snapshots/cov-blkmisc-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149948_a",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "the client render flag"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockEndPortal",
+   "sig": "(Lnet/minecraft/block/material/Material;)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 119: light 1.0"
+  },
+  {
+   "kind": "method",
+   "name": "createNewTileEntity",
+   "sig": "(World,I)Lnet/minecraft/tileentity/TileEntity;",
+   "native": "csrc/engine/tileentity.c:te_kind_of_block",
+   "status": "exact",
+   "note": "case 119 returns TE_END_PORTAL"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsBasedOnState",
+   "sig": "(IBlockAccess,III)V",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "shouldSideBeRendered",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": "csrc/engine/render_blocks.c:rb_mesh_section",
+   "status": "n/a",
+   "note": "the end portal's render type is -1 (TileEntityEndPortalRenderer draws it); RenderBlocks, the only caller, never draws it"
+  },
+  {
+   "kind": "method",
+   "name": "addCollisionBoxesToList",
+   "sig": "(World,IIILnet/minecraft/util/AxisAlignedBB;Ljava/util/List;Lnet/minecraft/entity/Entity;)V",
+   "native": "csrc/engine/collide.c:collide_add_boxes",
+   "status": "exact",
+   "note": "the empty body is the portal's no-collision case"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "opaque_cube 0"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "normal_block 0"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Ljava/util/Random;)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "n/a",
+   "note": "the end portal block has hardness -1 and resistance 6000000: no player, explosion or (redstone off) piston removes it with a drop"
+  },
+  {
+   "kind": "method",
+   "name": "onEntityCollidedWithBlock",
+   "sig": "(World,IIILnet/minecraft/entity/Entity;)V",
+   "native": "csrc/engine/entity.c:end_portal",
+   "status": "exact",
+   "note": "the vtable slot fires travelToDimension(1) on an unmounted entity inside the move's block walk: the player (serverreplay.c sr_player_end_portal, not while riding: ride-endportal-s1), a mob (living.c living_end_portal_cb) and an item, orb, arrow or throwable (item_entity.c ie_end_portal); endportal-ents-s1 (three items, a zombie and a pig into the End)"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the particles and every draw, checked per tick against the spawn log in fx_portal"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:pick_block_item",
+   "status": "exact",
+   "note": "Item.getItemById(0), null: the middle click picks nothing (cov-blkmisc-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "getMapColor",
+   "sig": "(I)Lnet/minecraft/block/material/MapColor;",
+   "native": null,
+   "status": "n/a",
+   "note": "only ItemMap.func_77872_a (drawing a filled map) calls getMapColor; world.conf maps = off"
+  }
+ ],
+ "missing": [],
+ "notes": "Verified by the End arrival and exit recordings (end-arrival-s1, end-exit-s1; DEVLOG's End rows around 773-782). The tile entity exists for the tileticks census."
+}

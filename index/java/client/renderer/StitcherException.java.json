@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/client/renderer/StitcherException.java",
+  "classes": ["StitcherException"],
+  "lines": 15,
+  "side": "client",
+  "category": "client_resources",
+  "role": "RuntimeException thrown by the texture atlas Stitcher when a sprite cannot be placed, carrying the offending Holder.",
+  "scope": "not_needed",
+  "scope_reason": "The native engine never re-stitches the atlas: it consumes the oracle's stitched atlas (atlas.json uv ranges and the dumped sheet), so the stitch-failure path cannot exist there.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_98149_a", "sig": "final Stitcher.Holder", "native": null, "status": "n/a", "note": "diagnostic payload of an exception that is never thrown in the native engine"},
+    {"kind": "ctor", "name": "StitcherException", "sig": "(Stitcher.Holder,String)V", "native": null, "status": "n/a", "note": "error path only"}
+  ],
+  "missing": [],
+  "notes": "Error-path class; no behavioural surface to port. The stitched atlas the native engine reads is described in csrc/engine/render_blocks.h's probe-directory contract (atlas.json)."
+}

@@ -1,0 +1,81 @@
+{
+  "path": "oracle/src/command/CommandTime.java",
+  "classes": [
+    "CommandTime"
+  ],
+  "lines": 97,
+  "side": "server",
+  "category": "commands",
+  "role": "The /time command: sets (day=1000, night=13000, or a number) or adds world time on every world server.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [
+    {
+      "file": "csrc/engine/dev.c",
+      "symbols": [
+        "dev_apply"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/dev-world-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": "csrc/engine/dev.c:dev_apply",
+      "status": "partial",
+      "note": "the Dev 'time' op sets or adds st.world_time on every replay world; the day/night word forms are resolved by the Dev op's value instead"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,String[])List",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setTime",
+      "sig": "(ICommandSender,int)V",
+      "native": "csrc/engine/dev.c:dev_apply",
+      "status": "partial",
+      "note": "dev_apply's time op assigns world_time on each world, mirroring the worldServers loop"
+    },
+    {
+      "kind": "method",
+      "name": "addTime",
+      "sig": "(ICommandSender,int)V",
+      "native": "csrc/engine/dev.c:dev_apply",
+      "status": "partial",
+      "note": "dev_apply's time op adds when mode is \"add\""
+    }
+  ],
+  "missing": [],
+  "notes": "Static __OBFID constants are grouped out per the brief."
+}

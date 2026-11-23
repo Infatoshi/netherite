@@ -1,0 +1,295 @@
+{
+ "path": "oracle/src/block/BlockRedstoneComparator.java",
+ "classes": [
+  "BlockRedstoneComparator"
+ ],
+ "lines": 245,
+ "side": "common",
+ "category": "block",
+ "role": "The comparator (149 unpowered, 150 powered) with its TileEntityComparator output: compare or subtract mode, input from power or a container's fill level, and the output signal.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: comparators are craftable (Nether quartz) and placeable; the oracle toggles the mode on right-click, and because func_149903_h reads a container's comparator override directly instead of World's power queries, a comparator behind a filled chest, furnace or hopper still lights and stores an output signal with redstone = off.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/activate.c",
+   "symbols": [
+    "on_block_activated",
+    "ID_CMP_U",
+    "ID_CMP_P"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "render_comparator"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "blockcb_diode_notify",
+    "bwl_on_broken",
+    "bwl_on_added"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks3.c",
+   "symbols": [
+    "rb3_render_comparator"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/comparator.c",
+   "symbols": [
+    "comparator_on_neighbor",
+    "comparator_refresh",
+    "comparator_update_tick",
+    "comparator_should_power",
+    "comparator_strength",
+    "comparator_override",
+    "comparator_notify_step",
+    "input",
+    "side_input",
+    "strength"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "update_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "on_block_placed_by"
+   ]
+  },
+  {
+   "file": "csrc/engine/ticks.c",
+   "symbols": [
+    "ticks_scheduled_this_tick",
+    "ticks_bwl_sched_priority"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/activate/full2",
+  "csrc/tests/test_activate.c",
+  "csrc/tests/test_place.c",
+  "out/java/place/big2",
+  "out/java/snapshots/pickblock-s1",
+  "out/java/snapshots/rs-cmp-s1",
+  "out/java/snapshots/rs-diode-s1",
+  "csrc/tests/test_snapshots.c",
+  "out/java/meshes/scene3-2",
+  "csrc/tests/test_meshes.c"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "BlockRedstoneComparator",
+   "sig": "(Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 149 and 150, container flag"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "comparator item"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149901_b",
+   "sig": "(I)I",
+   "native": "csrc/engine/comparator.c:comparator_on_neighbor",
+   "status": "exact",
+   "note": "the delay 2"
+  },
+  {
+   "kind": "method",
+   "name": "func_149906_e",
+   "sig": "()BlockRedstoneDiode",
+   "native": "csrc/engine/comparator.c:comparator_update_tick",
+   "status": "exact",
+   "note": "the powered id 150"
+  },
+  {
+   "kind": "method",
+   "name": "func_149898_i",
+   "sig": "()BlockRedstoneDiode",
+   "native": "csrc/engine/comparator.c:comparator_update_tick",
+   "status": "exact",
+   "note": "the unpowered id 149"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/render_blocks3.c:rb3_render_comparator",
+   "status": "exact",
+   "note": "37"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it"
+  },
+  {
+   "kind": "method",
+   "name": "func_149905_c",
+   "sig": "(I)Z",
+   "native": "csrc/engine/comparator.c:comparator_on_neighbor",
+   "status": "exact",
+   "note": "id 150 or bit 8"
+  },
+  {
+   "kind": "method",
+   "name": "func_149904_f",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "TE output as power"
+  },
+  {
+   "kind": "method",
+   "name": "func_149970_j",
+   "sig": "(World,IIII)I",
+   "native": "csrc/engine/comparator.c:strength",
+   "status": "exact",
+   "note": "the input, less the side input in subtract mode"
+  },
+  {
+   "kind": "method",
+   "name": "func_149969_d",
+   "sig": "(I)Z",
+   "native": "csrc/engine/comparator.c:strength",
+   "status": "exact",
+   "note": "subtract bit 4"
+  },
+  {
+   "kind": "method",
+   "name": "func_149900_a",
+   "sig": "(World,IIII)Z",
+   "native": "csrc/engine/comparator.c:comparator_should_power",
+   "status": "exact",
+   "note": "15 and up powers, 0 does not, else against the side input"
+  },
+  {
+   "kind": "method",
+   "name": "func_149903_h",
+   "sig": "(World,IIII)I",
+   "native": "csrc/engine/comparator.c:input",
+   "status": "exact",
+   "note": "the override of the block behind (chest and double chest, trapped chest, furnace, dispenser, dropper, hopper, brewing stand, cauldron, jukebox, end portal frame) or behind a normal cube there: rs-cmp-s1 reads each, one furnace through a stone"
+  },
+  {
+   "kind": "method",
+   "name": "func_149971_e",
+   "sig": "(IBlockAccess,III)TileEntityComparator",
+   "native": "csrc/engine/tileentity.c:render_comparator",
+   "status": "exact",
+   "note": "the TE with OutputSignal"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockActivated",
+   "sig": "(World,IIIEntityPlayer,IFFF)Z",
+   "native": "csrc/engine/activate.c:on_block_activated",
+   "status": "exact",
+   "note": "mode flip with flags 2 then func_149972_c"
+  },
+  {
+   "kind": "method",
+   "name": "func_149897_b",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/comparator.c:comparator_on_neighbor",
+   "status": "exact",
+   "note": "skipped while its tick waits in this tick's batch (WorldServer.func_147477_a, ticks.c ticks_scheduled_this_tick); otherwise a tick two ahead, priority -1 behind another diode, when the input or the powered bit moved"
+  },
+  {
+   "kind": "method",
+   "name": "func_149972_c",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/comparator.c:comparator_refresh",
+   "status": "exact",
+   "note": "the output stored, the powered bit (flag 2) and func_149911_e; activate.c keeps the right-click's copy"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/comparator.c:comparator_update_tick",
+   "status": "exact",
+   "note": "servertick.c update_tick's case 149/150: the powered form reverts (flag 4), then func_149972_c"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:bwl_on_added",
+   "status": "exact",
+   "note": "diode_notify; the TE is created by the world core on demand"
+  },
+  {
+   "kind": "method",
+   "name": "breakBlock",
+   "sig": "(World,IIIBlockI)V",
+   "native": "csrc/engine/blockcb.c:bwl_on_broken",
+   "status": "exact",
+   "note": "TE removal then the sweep"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockEventReceived",
+   "sig": "(World,IIIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "no block event is ever added for a comparator, and TileEntityComparator does not override receiveClientEvent"
+  },
+  {
+   "kind": "method",
+   "name": "createNewTileEntity",
+   "sig": "(World,I)TileEntity",
+   "native": "csrc/engine/tileentity.c:render_comparator",
+   "status": "exact",
+   "note": "TileEntityComparator (cases 149/150)"
+  }
+ ],
+ "missing": [],
+ "notes": "The container-input caveat means redstone = off does not fully freeze comparators in the oracle. No recording is known to place a comparator against a filled container. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact. world.conf redstone = off zeroes only World's power queries, so the container input stays live: comparator.c ports it with World.func_147453_f (called from setBlock and setBlockMetadataWithNotify flag 1, the containers' breakBlock, TileEntity.onInventoryChanged in the window clicks, the furnace, the cauldron, the jukebox, the ender eye and dev tile data). rs-cmp-s1: comparators placed by hand behind eleven containers, a chest filled and emptied through its window, the furnace smelting, a cauldron filled, a record in and out, an eye set, a double chest, a trapped chest opened, the mode toggled, a chest broken, the solid block between a furnace and its comparator removed, a comparator dug. Java calls func_147453_f at each markDirty of a click; native once per click that changed a tile slot, which leaves the same pending ticks (only NextTickListEntry's id counter moves less; no row carries it)."
+}

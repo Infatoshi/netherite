@@ -1,0 +1,4 @@
+{"cmd":"run","class":"Snapshot"}
+{"n":40,"act":{}}
+{"n":60,"act":{"hold":["forward"]}}
+{"n":20,"act":{"hold":["forward","jump"]}}

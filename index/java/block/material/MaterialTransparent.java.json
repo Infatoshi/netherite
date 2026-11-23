@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/block/material/MaterialTransparent.java",
+  "classes": ["MaterialTransparent"],
+  "lines": 33,
+  "side": "common",
+  "category": "material",
+  "role": "The transparent material (air, glass, ice, leaves' light path, saplings, flowers): not solid, does not block light, does not block movement, no tool required.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["MATERIALS"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c"],
+  "members": [
+    {"kind": "ctor", "name": "MaterialTransparent", "sig": "(Lnet/minecraft/block/material/MapColor;)V", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "the air/glass/ice/plants rows: isSolid false, opaque false, blocksMovement false, no tool required"},
+    {"kind": "method", "name": "isSolid", "sig": "()Z", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "false"},
+    {"kind": "method", "name": "getMaterialMapColor", "sig": "()I", "native": null, "status": "n/a", "note": "map colors are not needed (see the MapColor record)"},
+    {"kind": "method", "name": "isToolNotRequired", "sig": "(Lnet/minecraft/block/material/Material;)Z", "native": "csrc/engine/harvest.c:item_can_harvest", "status": "exact", "note": "true"}
+  ],
+  "missing": [],
+  "notes": "The air row is exercised by every terrain dump and every movement test (test_worldgen.c, test_move.c)."
+}

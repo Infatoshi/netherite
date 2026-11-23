@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/util/MessageSerializer2.java",
+  "classes": ["MessageSerializer2"],
+  "lines": 34,
+  "side": "common",
+  "category": "network",
+  "role": "The netty encoder stage that prepends a 1-3 byte varint length header to an outgoing frame.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "encode", "sig": "(ChannelHandlerContext,ByteBuf,ByteBuf)V", "native": null, "status": "missing", "note": "no wire framing natively"},
+    {"kind": "method", "name": "encode", "sig": "(ChannelHandlerContext,Object,ByteBuf)V", "native": null, "status": "n/a", "note": "bridge overload"}
+  ],
+  "missing": [
+    "The varint length header is not ported; native packet flow has no wire framing."
+  ],
+  "notes": "See MessageDeserializer."
+}

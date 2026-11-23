@@ -1,0 +1,493 @@
+{
+ "path": "oracle/src/client/gui/FontRenderer.java",
+ "classes": [
+  "FontRenderer"
+ ],
+ "lines": 973,
+ "side": "client",
+ "category": "client_gui",
+ "role": "Draws text: the 256-glyph ASCII sheet and the unicode glyph pages, character widths, formatting codes and line splitting, used by every HUD and GUI string.",
+ "scope": "in_scope",
+ "scope_reason": "The HUD's and the container screens' strings are part of the gated frame; the native overlay implements the ASCII subset (raster_hud.c's font section).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_hud.c",
+   "symbols": [
+    "font_glyph",
+    "font_string",
+    "font_shadow",
+    "font_code_color",
+    "font_split",
+    "font_render",
+    "font_glyph",
+    "font_shadow_rnd",
+    "solid_quad"
+   ]
+  },
+  {
+   "file": "csrc/engine/font.c",
+   "symbols": [
+    "font_metrics_load",
+    "font_char_index",
+    "font_char_width",
+    "font_string_width",
+    "font_trim_to_width",
+    "font_list_to_width"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/hud_mixed",
+  "out/java/render/gui_inventory",
+  "out/java/render/gui_death",
+  "csrc/tests/test_render.c",
+  "out/java/render/gui_credits_f2100",
+  "out/java/render/hud_boss_f021",
+  "csrc/tests/test_hudscreens.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "charWidth",
+   "sig": "int[256]",
+   "native": "csrc/engine/font.c:font_metrics_load",
+   "status": "partial",
+   "note": "rebuilt from the recorder's GL readback of the ASCII sheet's glyph columns"
+  },
+  {
+   "kind": "field",
+   "name": "FONT_HEIGHT",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "no native constant; native callers hardcode the line height; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "glyphWidth",
+   "sig": "byte[65536]",
+   "native": null,
+   "status": "n/a",
+   "note": "the unicode glyph-width table; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "colorCode",
+   "sig": "int[32]",
+   "native": "csrc/engine/raster_hud.c:font_code_color",
+   "status": "partial",
+   "note": "computed per index instead of the 32-entry table"
+  },
+  {
+   "kind": "field",
+   "name": "locationFontTexture",
+   "sig": "ResourceLocation",
+   "native": null,
+   "status": "n/a",
+   "note": "the native font samples the recorded gui_ascii.rgba; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "renderEngine",
+   "sig": "TextureManager",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "posX",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "native draw positions are parameters; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "posY",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "unicodeFlag",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "bidiFlag",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "red",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "the native font_string takes one packed colour; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "blue",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "green",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "alpha",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "textColor",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "randomStyle",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "boldStyle",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "italicStyle",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "underlineStyle",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "strikethroughStyle",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "fontRandom",
+   "sig": "Random",
+   "native": null,
+   "status": "n/a",
+   "note": "the Det-seeded RNG for the random-style glyph; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "unicodePageLocations (static)",
+   "sig": "ResourceLocation[256]",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "ctor",
+   "name": "FontRenderer",
+   "sig": "(GameSettings,ResourceLocation,TextureManager,boolean)",
+   "native": null,
+   "status": "n/a",
+   "note": "the native font is loaded from the recorded GL readback instead; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "onResourceManagerReload",
+   "sig": "(IResourceManager)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "readFontTexture",
+   "sig": "()V",
+   "native": "csrc/engine/font.c:font_metrics_load",
+   "status": "partial",
+   "note": "ASCII sheet only; the unicode glyph sizes are not read"
+  },
+  {
+   "kind": "method",
+   "name": "readGlyphSizes",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "renderCharAtPos",
+   "sig": "(int,char,boolean)F",
+   "native": "csrc/engine/raster_hud.c:font_glyph",
+   "status": "partial",
+   "note": "plain ASCII glyphs only"
+  },
+  {
+   "kind": "method",
+   "name": "renderDefaultChar",
+   "sig": "(int,boolean)F",
+   "native": "csrc/engine/raster_hud.c:font_glyph",
+   "status": "partial",
+   "note": "the italic shear is zero for every recorded string; the style variants are not drawn"
+  },
+  {
+   "kind": "method",
+   "name": "getUnicodePageLocation",
+   "sig": "(int)ResourceLocation",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "loadGlyphTexture",
+   "sig": "(int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "renderUnicodeChar",
+   "sig": "(char,boolean)F",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "drawStringWithShadow",
+   "sig": "(String,int,int,int)I",
+   "native": "csrc/engine/raster_hud.c:font_shadow",
+   "status": "exact",
+   "note": "shadow pass then the string, vanilla's draw order"
+  },
+  {
+   "kind": "method",
+   "name": "drawString",
+   "sig": "(String,int,int,int)I",
+   "native": "csrc/engine/raster_hud.c:font_string",
+   "status": "partial"
+  },
+  {
+   "kind": "method",
+   "name": "drawString",
+   "sig": "(String,int,int,int,boolean)I",
+   "native": "csrc/engine/raster_hud.c:font_string",
+   "status": "partial"
+  },
+  {
+   "kind": "method",
+   "name": "func_147647_b",
+   "sig": "(String)String",
+   "native": null,
+   "status": "n/a",
+   "note": "bidi reorder and Arabic shaping; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "resetStyles",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "renderStringAtPos",
+   "sig": "(String,boolean)V",
+   "native": "csrc/engine/raster_hud.c:font_render",
+   "status": "exact",
+   "note": "colour codes only (font_code_color); the style variants are not drawn"
+  },
+  {
+   "kind": "method",
+   "name": "renderStringAligned",
+   "sig": "(String,int,int,int,int,boolean)I",
+   "native": "csrc/engine/raster_hud.c:font_string",
+   "status": "partial",
+   "note": "left-aligned draws only"
+  },
+  {
+   "kind": "method",
+   "name": "renderString",
+   "sig": "(String,int,int,int,boolean)I",
+   "native": "csrc/engine/raster_hud.c:font_render",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getStringWidth",
+   "sig": "(String)I",
+   "native": "csrc/engine/font.c:font_string_width",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getCharWidth",
+   "sig": "(char)I",
+   "native": "csrc/engine/font.c:font_char_width",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "trimStringToWidth",
+   "sig": "(String,int)String",
+   "native": "csrc/engine/font.c:font_trim_to_width",
+   "status": "exact",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "trimStringToWidth",
+   "sig": "(String,int,boolean)String",
+   "native": "csrc/engine/font.c:font_trim_to_width",
+   "status": "exact",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "trimStringNewline",
+   "sig": "(String)String",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "drawSplitString",
+   "sig": "(String,int,int,int,int)V",
+   "native": "csrc/engine/raster_hud.c:font_split",
+   "status": "exact",
+   "note": "the toast's description line uses it"
+  },
+  {
+   "kind": "method",
+   "name": "renderSplitString",
+   "sig": "(String,int,int,int,boolean)V",
+   "native": "csrc/engine/raster_hud.c:font_split",
+   "status": "partial"
+  },
+  {
+   "kind": "method",
+   "name": "splitStringWidth",
+   "sig": "(String,int)I",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "setUnicodeFlag",
+   "sig": "(boolean)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getUnicodeFlag",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "setBidiFlag",
+   "sig": "(boolean)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "listFormattedStringToWidth",
+   "sig": "(String,int)List",
+   "native": "csrc/engine/font.c:font_list_to_width",
+   "status": "exact",
+   "note": "one line at a time with the formatting carried over"
+  },
+  {
+   "kind": "method",
+   "name": "sizeStringToWidth",
+   "sig": "(String,int)I",
+   "native": "csrc/engine/font.c:font_list_to_width",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isFormatColor",
+   "sig": "(char)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "isFormatSpecial",
+   "sig": "(char)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getFormatFromString",
+   "sig": "(String)String",
+   "native": "csrc/engine/font.c:font_list_to_width",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBidiFlag",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  }
+ ],
+ "missing": [],
+ "notes": "Verified only the ASCII path the HUD and the container screens draw (hud_mixed, gui_inventory, gui_death pass test_render's budgets); the unicode widths and styles were never exercised. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): unicode pages, styles and bidi are unreachable: every string the game draws is ASCII. Formerly listed as missing: The unicode glyph pages (getUnicodePageLocation, loadGlyphTexture, renderUnicodeChar, readGlyphSizes, glyphWidth) have no native counterpart; every recorded overlay string is ASCII. The style variants (bold, italic, underline, strikethrough, randomStyle via fontRandom) and the bidi/Arabic path (func_147647_b, setBidiFlag, getBidiFlag) are not drawn. trimStringToWidth, trimStringNewline and splitStringWidth have no native counterpart; only sizeStringToWidth (size_to_width) and the paragraph splitter are ported. The texture-manager plumbing (the constructor, onResourceManagerReload, renderEngine) has no counterpart: the native font samples the recorder's GL readback (gui_ascii.rgba). lane/hudscreens: strings are UTF-8 decoded against the full glyph table; the section sign counts -1 (it had counted the code's letter); colour codes take their shadow colours; bold, italic, underline, strikethrough and the obfuscated style (fontRandom as the caller seeds it) are drawn."
+}

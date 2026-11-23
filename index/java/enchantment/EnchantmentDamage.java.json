@@ -1,0 +1,130 @@
+{
+  "path": "oracle/src/enchantment/EnchantmentDamage.java",
+  "classes": [
+    "EnchantmentDamage"
+  ],
+  "lines": 107,
+  "side": "common",
+  "category": "combat",
+  "role": "The weapon damage enchantments (sharpness, smite, bane of arthropods as damageType 0/1/2): enchantability windows, the per-creature-attribute melee bonus, the bane slowdown on hit, and the mutual exclusion of damage enchantments.",
+  "scope": "in_scope",
+  "scope_reason": "Enchantments reach the world through loot books and villager trades even with the enchanting table off (world.conf enchanting = off).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/enchants.h",
+      "symbols": [
+        "ENCHANTS",
+        "CAN_APPLY_TOGETHER"
+      ]
+    },
+    {
+      "file": "csrc/engine/enchant.c",
+      "symbols": [
+        "can_apply_together"
+      ]
+    },
+    {
+      "file": "csrc/engine/combatench.c",
+      "symbols": [
+        "ench_modifier_living",
+        "ench_damage_iter"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_trades.c",
+    "csrc/tests/test_loot.c",
+    "out/java/trades/seed2",
+    "out/java/snapshots/trade-full-s1",
+    "out/java/snapshots/dmg-sources-s1",
+    "out/java/snapshots/melee-mods-s1",
+    "out/java/clientframes/idx-tipsword-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "statics: protectionName, baseEnchantability, levelEnchantability, thresholdEnchantability",
+      "sig": "java/lang/String[] / int[]",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "folded into rows 16-18's weight, type and per-level window arrays"
+    },
+    {
+      "kind": "field",
+      "name": "damageType",
+      "sig": "I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "rows 16, 17, 18 are the three damage types"
+    },
+    {
+      "kind": "ctor",
+      "name": "EnchantmentDamage",
+      "sig": "(III)V",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMinEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxLevel",
+      "sig": "()I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_152376_a",
+      "sig": "(ILnet/minecraft/entity/EnumCreatureAttribute;)F",
+      "native": "csrc/engine/combatench.c:ench_modifier_living",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getName",
+      "sig": "()Ljava/lang/String;",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-idx-tipsword-s1 (a Sharpness tooltip)"
+    },
+    {
+      "kind": "method",
+      "name": "canApplyTogether",
+      "sig": "(Lnet/minecraft/enchantment/Enchantment;)Z",
+      "native": "csrc/engine/enchant.c:can_apply_together",
+      "status": "exact",
+      "note": "no other EnchantmentDamage, as one bitmask bit per row"
+    },
+    {
+      "kind": "method",
+      "name": "canApply",
+      "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "the ItemAxe branch (axes take weapon enchantments) is not in enchant.c:can_enchant_item; canApply is only called by the switched-off enchanting table and anvil"
+    },
+    {
+      "kind": "method",
+      "name": "func_151368_a",
+      "sig": "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/entity/Entity;I)V",
+      "native": "csrc/engine/combatench.c:ench_damage_iter",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "Unverified whether any current recording can even carry an enchanted sword into a melee: the pigman fire-aspect path (csrc/engine/hostiles_pigman.c) is the one held-item enchantment effect ported so far, and it reads effect id 20, not 16-18. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

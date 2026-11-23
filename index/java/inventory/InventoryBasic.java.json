@@ -1,0 +1,222 @@
+{
+ "classes": [
+  "InventoryBasic"
+ ],
+ "lines": 188,
+ "side": "common",
+ "category": "inventory",
+ "role": "The generic fixed-size IInventory the GUI inventories extend or mirror; the native port is struct inv with its size, limit and slot array, and the tile entity inventories carry the same shape.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "inv",
+    "container_init"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "inv_set",
+    "inv_decr",
+    "inv_take"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "TE_CHEST",
+    "TE_FURNACE",
+    "TE_DISPENSER",
+    "TE_HOPPER"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_can_interact"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/containers",
+  "out/java/snapshots/te-chest-s1",
+  "out/java/snapshots/containers2-s42"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "inventoryTitle",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "client display"
+  },
+  {
+   "kind": "field",
+   "name": "slotsCount",
+   "sig": "int",
+   "native": "csrc/engine/container.h:inv",
+   "status": "exact",
+   "note": "struct inv's size"
+  },
+  {
+   "kind": "field",
+   "name": "inventoryContents",
+   "sig": "ItemStack[]",
+   "native": "csrc/engine/container.h:inv",
+   "status": "exact",
+   "note": "struct inv's slot array"
+  },
+  {
+   "kind": "field",
+   "name": "field_70480_d",
+   "sig": "List",
+   "native": null,
+   "status": "n/a",
+   "note": "The listeners are the EntityHorse's (its AnimalChest): world.conf horses = off, so no listener is ever added."
+  },
+  {
+   "kind": "field",
+   "name": "field_94051_e",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "the custom-name flag, display only"
+  },
+  {
+   "kind": "ctor",
+   "name": "InventoryBasic",
+   "sig": "(String,Z,I)V",
+   "native": "csrc/engine/container.h:container_init",
+   "status": "exact",
+   "note": "per container kind; the tile entities build their own arrays"
+  },
+  {
+   "kind": "method",
+   "name": "func_110134_a",
+   "sig": "(Lnet/minecraft/inventory/IInvBasic;)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Only EntityHorse adds a listener: world.conf horses = off."
+  },
+  {
+   "kind": "method",
+   "name": "func_110132_b",
+   "sig": "(Lnet/minecraft/inventory/IInvBasic;)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Only EntityHorse removes one: world.conf horses = off."
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlot",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.h:container_slot",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(II)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_decr",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlotOnClosing",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_take",
+   "status": "n/a",
+   "note": "n/a: the containers that close over an InventoryBasic are ContainerEnchantment (enchanting = off) and ContainerRepair (anvil = off)"
+  },
+  {
+   "kind": "method",
+   "name": "setInventorySlotContents",
+   "sig": "(ILnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSizeInventory",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:inv",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryName",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInventoryNameLocalized",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_110133_a",
+   "sig": "(Ljava/lang/String;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryStackLimit",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:inv",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onInventoryChanged",
+   "sig": "()V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact",
+   "note": "With no listener its body calls nothing."
+  },
+  {
+   "kind": "method",
+   "name": "isUseableByPlayer",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "true; the ender window's super call after its tile test"
+  },
+  {
+   "kind": "method",
+   "name": "openInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "closeInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValidForSlot",
+   "sig": "(ILnet/minecraft/item/ItemStack;)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "returns true unconditionally in Java"
+  }
+ ],
+ "missing": [],
+ "notes": " lane/idxblocks: the listener list is the horse switch.",
+ "path": "oracle/src/inventory/InventoryBasic.java"
+}

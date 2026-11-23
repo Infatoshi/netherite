@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/stats/StatBasic.java",
+  "classes": ["StatBasic"],
+  "lines": 28,
+  "side": "common",
+  "category": "stats",
+  "role": "A general statistic (jumps, distance walked, deaths...) that also registers into StatList.generalStats.",
+  "scope": "in_scope",
+  "scope_reason": "General stats are counted by the server and sent in S37.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["STAT_MINUTES_PLAYED", "STAT_PLAYER_KILLS"]}
+  ],
+  "evidence": ["out/java/snapshots/achieve-s1"],
+  "members": [
+    {"kind": "ctor", "name": "StatBasic", "sig": "(String,IChatComponent[,IStatType])V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "registerStat", "sig": "()StatBase", "native": "csrc/engine/survival.h:STAT_MINUTES_PLAYED", "status": "partial", "note": "the general block of the enum; see StatList for which general stats are absent"}
+  ],
+  "missing": [],
+  "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers."
+}

@@ -1,0 +1,44 @@
+{
+ "path": "csrc/engine/smelting.c",
+ "lines": 46,
+ "role": "FurnaceRecipes lookups over the generated recipes.h tables: the smelting result by input (with the 32767 damage wildcard) and Java's result-keyed experience lookup.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/item/crafting/FurnaceRecipes.java",
+   "members": [
+    "smelting",
+    "getSmeltingResult",
+    "getSmeltingExperience",
+    "func_151397_a",
+    "smeltingList",
+    "experienceList"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "SMELTING",
+   "java": "FurnaceRecipes.smeltingList in map order (generated in recipes.h)",
+   "fields": []
+  },
+  {
+   "name": "SMELT_EXPERIENCE",
+   "java": "FurnaceRecipes.experienceList in map order (generated in recipes.h)",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "smelt_result",
+  "smelt_experience"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "lines 20-31 and 38-43: linear scans whose first-match result depends on the generated table's order (the Java HashMap order carried as data)"
+ ],
+ "tests": [
+  "csrc/tests/test_crafting.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Called from container.c and tileticks.c (the furnace). Evidence: out/java/snapshots/te-furnace-s1. func_151397_a as the matching helper's SRG name is assumed, not checked in FurnaceRecipes.java."
+}

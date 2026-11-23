@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/client/resources/data/AnimationMetadataSectionSerializer.java",
+  "classes": ["AnimationMetadataSectionSerializer"],
+  "lines": 151,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Gson deserializer/serializer for the 'animation' .mcmeta section: frametime, frames (ints or {index,time} objects), width and height, with range validation.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Parses the animation .mcmeta JSON; the parsed values reach native as dumped data (state/anim.json, csrc/engine/texanim.c), so the parser never runs natively.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "deserialize", "sig": "(JsonElement,Type,JsonDeserializationContext)AnimationMetadataSection", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "parseAnimationFrame", "sig": "(int,JsonElement)AnimationFrame", "native": null, "status": "n/a", "note": "an int element or an {index,time} object"},
+    {"kind": "method", "name": "serialize", "sig": "(AnimationMetadataSection,Type,JsonSerializationContext)JsonElement", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "serialize", "sig": "(Object,Type,JsonSerializationContext)JsonElement", "native": null, "status": "n/a", "note": "JsonSerializer bridge"},
+    {"kind": "method", "name": "getSectionName", "sig": "()String", "native": null, "status": "n/a", "note": "\"animation\""}
+  ],
+  "missing": [],
+  "notes": "idxaudit 2026-09-27: scope reason rewritten."
+}

@@ -1,0 +1,33 @@
+{
+ "classes": [
+  "AnimalChest"
+ ],
+ "lines": 16,
+ "side": "common",
+ "category": "inventory",
+ "role": "The horse's inventory (saddle plus armor slots) behind ContainerHorseInventory.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf horses = off: horses, donkeys and mules leave the spawn tables, so no animal inventory is ever created.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "AnimalChest(String,int)",
+   "sig": "(String,I)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "AnimalChest(String,boolean,int)",
+   "sig": "(String,Z,I)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/inventory/AnimalChest.java"
+}

@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/renderer/texture/ITickable.java",
+  "classes": ["ITickable"],
+  "lines": 6,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Interface for textures that update themselves each frame (the clock and compass dials).",
+  "scope": "client_cosmetic",
+  "scope_reason": "An interface with no behaviour; its implementer is TextureMap (through ITickableTextureObject), whose updateAnimations is ported in csrc/engine/texanim.c and indexed there.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "tick", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "idxaudit 2026-09-27: scope reason rewritten."
+}

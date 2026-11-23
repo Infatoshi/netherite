@@ -1,0 +1,40 @@
+{
+  "path": "oracle/src/entity/monster/EntityMagmaCube.java",
+  "classes": ["EntityMagmaCube"],
+  "lines": 165,
+  "side": "common",
+  "category": "entity",
+  "role": "The nether's magma cube: a fire-immune slime that takes no fall damage, jumps with 0.42 + 0.1*size velocity, and hits harder on touch.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/slimes.c", "symbols": ["slime_construct", "slime_pre_on_update", "slime_get_jump_delay", "slime_jump_override", "slime_alter_squish", "slime_create_instance", "slime_drop_few_items", "slime_on_collide_with_player", "slime_makes_sound_on_land"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_fall", "living_write_nbt"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["can_spawn_here_slime"]}
+  ],
+  "evidence": ["out/java/snapshots/nether-trip-s1", "out/java/snapshots/nether-trip2-s42", "csrc/tests/test_slimes.c", "out/java/snapshots/cov-mobs-s1"],
+  "members": [
+    {"kind": "ctor", "name": "EntityMagmaCube", "sig": "(World)V", "native": "csrc/engine/slimes.c:slime_construct", "status": "exact", "note": "the SK_MAGMA_CUBE branch: setImmuneToFire (slimes.c:68) and the size body"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": "csrc/engine/slimes.c:slime_construct", "status": "exact", "note": "maxHealth (size*size) and movement (0.2*size) on the magma branch"},
+    {"kind": "method", "name": "getCanSpawnHere", "sig": "()Z", "native": "csrc/engine/spawning.c:can_spawn_here_slime", "status": "partial", "note": "the magma cube's nether-provider guard is not a separate branch in can_spawn_here_slime; the nether spawn lists place it"},
+    {"kind": "method", "name": "getTotalArmorValue", "sig": "()I", "native": "csrc/engine/living.c:living_total_armor", "status": "exact", "note": "the SK_MAGMA_CUBE branch: slime_size * 3 (living.c:1279)"},
+    {"kind": "method", "name": "getBrightnessForRender", "sig": "(F)I", "native": "csrc/play/play.c:mob_self_lit", "status": "exact", "note": "the renderer's light, constant 15728880 whatever the world's light, with getBrightness 1.0F as the hurt overlay's scalar (csrc/play's mob_self_lit, lane/glowfix; clientframes/cov-zoo-s1)"},
+    {"kind": "method", "name": "getBrightness", "sig": "(F)F", "native": "csrc/engine/living.c:living_on_living_update", "status": "exact", "note": "runs only when a frame is drawn (the renderer): covframes' frame coverage runs it in its cf-cov-zoo-s1"},
+    {"kind": "method", "name": "getSlimeParticle", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "particle name, client"},
+    {"kind": "method", "name": "createInstance", "sig": "()Lnet/minecraft/entity/monster/EntitySlime;", "native": "csrc/engine/slimes.c:slime_create_instance", "status": "exact"},
+    {"kind": "method", "name": "func_146068_u", "sig": "()Lnet/minecraft/item/Item;", "native": "csrc/engine/slimes.c:slime_drop_few_items", "status": "exact", "note": "magma cream, item 378 (slimes.c:48)"},
+    {"kind": "method", "name": "dropFewItems", "sig": "(ZI)V", "native": "csrc/engine/slimes.c:slime_drop_few_items", "status": "exact", "note": "the magma branch: 0-2+looting cream only when size > 1 (slimes.c:285-296)"},
+    {"kind": "method", "name": "isBurning", "sig": "()Z", "native": "csrc/engine/slimes.c:slime_construct", "status": "exact", "note": "false always: cov-mobs-s1 hits a magma cube with Fire Aspect (setFire(1) runs, the immunity keeps it from burning)"},
+    {"kind": "method", "name": "getJumpDelay", "sig": "()I", "native": "csrc/engine/slimes.c:slime_get_jump_delay", "status": "exact", "note": "super's nextInt(20)+10 times 4 (slimes.c:169)"},
+    {"kind": "method", "name": "alterSquishAmount", "sig": "()V", "native": "csrc/engine/slimes.c:slime_alter_squish", "status": "exact", "note": "0.9F for the magma cube (slimes.c:117)"},
+    {"kind": "method", "name": "jump", "sig": "()V", "native": "csrc/engine/slimes.c:slime_jump_override", "status": "exact", "note": "motionY = 0.42 + 0.1*size"},
+    {"kind": "method", "name": "fall", "sig": "(F)V", "native": "csrc/engine/living.c:living_fall", "status": "exact", "note": "the empty override is living_fall's SK_MAGMA_CUBE early return"},
+    {"kind": "method", "name": "canDamagePlayer", "sig": "()Z", "native": "csrc/engine/slimes.c:slime_on_collide_with_player", "status": "exact", "note": "always true for the magma cube (slimes.c:340-343)"},
+    {"kind": "method", "name": "getAttackStrength", "sig": "()I", "native": "csrc/engine/slimes.c:slime_on_collide_with_player", "status": "exact", "note": "size + 2 (slimes.c:343)"},
+    {"kind": "method", "name": "getJumpSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "handleLavaMovement", "sig": "()Z", "native": "csrc/engine/slimes.c:slime_pre_on_update", "status": "partial", "note": "the lava-drag immunity folds into the shared pre-update body"},
+    {"kind": "method", "name": "makesSoundOnLand", "sig": "()Z", "native": "csrc/engine/slimes.c:slime_makes_sound_on_land", "status": "exact", "note": "always true for the magma cube (slimes.c:111)"}
+  ],
+  "missing": [],
+  "notes": "EntitySlime's base machinery is slimes.c; EntityMagmaCube's deltas are the SK_MAGMA_CUBE branches. test_slimes.c is the acceptance gate."
+}

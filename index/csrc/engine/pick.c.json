@@ -1,0 +1,28 @@
+{
+ "path": "csrc/engine/pick.c",
+ "lines": 234,
+ "role": "EntityRenderer.getMouseOver's entity pass, bit for bit: AxisAlignedBB.calculateIntercept and isVecInside, Vec3.distanceTo as a float, the inside-the-box and nearer-hit rules and the final replace test; World.getEntitiesWithinAABBExcludingEntity's chunk-list order (dragon parts after their owner); the pick kinds' sizes, yOffsets, canBeCollidedWith and getCollisionBorderSize.",
+ "layer": "client",
+ "java": [
+  {"path": "oracle/src/client/renderer/EntityRenderer.java", "members": ["getMouseOver"]},
+  {"path": "oracle/src/util/AxisAlignedBB.java", "members": ["calculateIntercept", "isVecInside", "expand", "intersectsWith"]},
+  {"path": "oracle/src/util/Vec3.java", "members": ["getIntermediateWithXValue", "getIntermediateWithYValue", "getIntermediateWithZValue", "distanceTo"]},
+  {"path": "oracle/src/world/World.java", "members": ["getEntitiesWithinAABBExcludingEntity"]},
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["getEntitiesWithinAABBForEntity"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["canBeCollidedWith", "getCollisionBorderSize", "setPosition"]},
+  {"path": "oracle/src/entity/projectile/EntityFireball.java", "members": ["canBeCollidedWith", "getCollisionBorderSize"]},
+  {"path": "oracle/src/entity/boss/EntityDragonPart.java", "members": ["canBeCollidedWith"]}
+ ],
+ "structs": [
+  {"name": "pick_cand", "java": "an Entity as the pass reads it (boundingBox, border, canBeCollidedWith)", "fields": ["box", "border", "collidable", "riding", "id"]},
+  {"name": "pick_result", "java": "pointedEntity, var9, var12 and the replace test", "fields": ["chosen", "hx", "hy", "hz", "dist", "replaced"]},
+  {"name": "pick_entry", "java": "Chunk.entityLists membership", "fields": ["cx", "cy", "cz", "seq", "owner", "box"]}
+ ],
+ "entry_points": ["pick_entity_pass", "pick_intercept", "pick_distance", "pick_order", "pick_kind_size", "pick_kind_box", "pick_kind_collidable", "pick_kind_border"],
+ "tick_path": true,
+ "gpu": [
+  "function pick_order: O(n^2) selection of the next insertion stamp per chunk slice (bounded by the client entity cap)"
+ ],
+ "tests": ["csrc/tests/test_raypick.c", "csrc/tests/test_snapshots.c"],
+ "notes": "combat.c:combat_pick_entity feeds it the client world's living copies and pickobj.c's objects; test_raypick feeds it RayProbe's lists."
+}

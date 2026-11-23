@@ -1,0 +1,39 @@
+# The exact simulator at 64x64: vanilla fidelity (mob spawning, random ticks, weather, every chunk ticked) on the
+# FP32 device ray cast, one tick a step: what configs/fidelity.yaml holds an eval to, as a training profile.
+description: 64x64 device ray cast, FP32, one tick a step, vanilla fidelity (the exact eval's world)
+world:
+  render_distance: 4
+client:
+  observation: 64x64
+  camera: raycast
+  cast_precision: 32
+  ticks_per_step: 1
+  action_repeat: 1
+  cast_radius: 0
+engine:
+  tick: host
+  tick_scope: full
+  raycast: device
+  device_mesh: 0
+  device_generation: off
+  device_light: off
+  render: none
+fidelity:
+  spawning: on
+  spawn_types: monster,creature,ambient,water
+  mobs: all
+  random_ticks: on
+  weather: on
+  skip_ambient: off
+  distant_tick_radius: 0
+  rung: exact
+performance:
+  workers: 0
+  streams: 0
+  group: 0
+  batch: 0
+  depth: 0
+  layout: doms
+  pin: 0
+  place: none
+  tune: off

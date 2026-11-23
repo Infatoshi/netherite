@@ -1,0 +1,12 @@
+{
+  "path": "oracle/harness/netherite/oracle/Main.java",
+  "lines": 355,
+  "role": "Oracle launcher (netherite.oracle.Main): parses the harness flags (--play/--agent, --dev, --conf, --set, --tape, --script, --replay, --port, --frames, --from, --rd, --detail, ...), pins options.txt (writeOptions), fixes the session identity, then runs the vanilla client main on this thread. Parses --chat; a replay takes chat and toasts from the header.",
+  "kind": "harness",
+  "used_by": [
+    "oracle/Makefile (every run target launches netherite.oracle.Main: play, script, replay, serve, check, probe, run)",
+    "oracle/tests/rs.sh"
+  ],
+  "vanilla_hooks": [],
+  "notes": "The oracle/src grep hits for Main are net.minecraft.client.main.Main (Start.java) and comments; no vanilla file calls this class. csrc/engine/survival.c mentions it only in a comment (not verified further). Arguments parse in configure (shared by a fresh JVM and a pool run, Main.configurePool refuses what the pool cannot run exactly); --pool, --pool-cold and --pool-skip-reset start a pool member (Pool). --particles N (lane/particles2) sets a fresh recording's particle setting (0 all, 2 minimal the pinned default); the tape header carries it and a replay takes it from there. --snap-at and --snap-dir (the any-tick sweep's replay snapshots); the pool refuses --snap-at, so the sweep always runs a fresh JVM. lane/keyframes: --detail-from T and --until T (Oracle.detailFrom, Oracle.untilTick); the pool refuses both. --pool-max-mb N (Pool.maxMb) and --tick-profile (Prof.on) (lane/oracletick). configurePool gives a --coverage run only to a coverage member (Coverage.startup set) and refuses any other run there."
+}

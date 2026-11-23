@@ -1,0 +1,16 @@
+{
+ "path": "oracle/harness/netherite/oracle/SpawnDumpDim.java",
+ "lines": 334,
+ "role": "Nether and End spawn-area dump: loads the 625 chunks around the dimension's spawn point through that dimension's ChunkProviderServer in initialWorldChunkLoad order, on its own thread bound to Det's SERVER role, and writes a Snapshot-format directory plus animals.jsonl: the reference for seedworld_init_dim.",
+ "kind": "snapshot",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Main.java --spawndumpdim DIM:DIR (called from Oracle.preTick at tick 0)",
+  "make -C oracle run CLASS=SpawnDumpDim (the generic {\"cmd\":\"run\",\"class\":\"SpawnDumpDim\"} reflection dispatch in Oracle.java)",
+  "csrc/engine/seedworld.h",
+  "csrc/tests/test_seedworld.c",
+  "csrc/tests/test_fortress_spawn.c",
+  "oracle/harness/netherite/oracle/FortressSpawnProbe.java (reuses runDump)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Manifest carries both the dimension spawn (0, avg ground, 0) and the overworld spawn DerivedWorldInfo reports. No oracle/src hook."
+}

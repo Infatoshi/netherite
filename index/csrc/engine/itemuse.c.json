@@ -1,0 +1,34 @@
+{
+ "path": "csrc/engine/itemuse.c",
+ "lines": 730,
+ "role": "The world-changing item uses one Java method per C function: buckets (fill and place, with the Nether water fizz), bone meal and cocoa beans, flint and steel, fire charge, lily pad, glass bottle, eye of ender into an end portal frame (and the portal completion), records into a jukebox, dispatched through tryUseItem and activateBlockOrUseItem with the creative count and damage restore.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/server/management/ItemInWorldManager.java", "members": ["tryUseItem", "activateBlockOrUseItem"]},
+  {"path": "oracle/src/item/Item.java", "members": ["getMovingObjectPositionFromPlayer", "onItemUse", "onItemRightClick", "itemRand"]},
+  {"path": "oracle/src/item/ItemStack.java", "members": ["useItemRightClick", "tryPlaceItemIntoWorld", "isItemStackDamageable", "canEditBlocks", "damageItem"]},
+  {"path": "oracle/src/item/ItemBucket.java", "members": ["onItemRightClick", "func_150910_a", "tryPlaceContainedLiquid"]},
+  {"path": "oracle/src/item/ItemDye.java", "members": ["onItemUse", "func_150919_a"]},
+  {"path": "oracle/src/item/ItemFlintAndSteel.java", "members": ["onItemUse"]},
+  {"path": "oracle/src/item/ItemFireball.java", "members": ["onItemUse"]},
+  {"path": "oracle/src/item/ItemLilyPad.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/item/ItemGlassBottle.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/item/ItemEnderEye.java", "members": ["onItemUse"]},
+  {"path": "oracle/src/item/ItemRecord.java", "members": ["onItemUse"]},
+  {"path": "oracle/src/block/BlockCocoa.java", "members": ["onBlockPlaced"]},
+  {"path": "oracle/src/entity/player/EntityPlayer.java", "members": ["canPlayerEdit"]},
+  {"path": "oracle/src/world/World.java", "members": ["func_147480_a"]},
+  {"path": "oracle/src/util/Direction.java", "members": ["offsetX", "offsetZ", "rotateRight", "rotateOpposite", "facingToDirection"]}
+ ],
+ "structs": [],
+ "entry_points": ["itemuse_set_live_det", "itemuse_look_block", "iu_install_rand", "iu_restore_rand", "itemuse_try_use_item", "itemuse_activate_block_or_use_item"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 38-41, function item_sound_random: looks up or creates the Item.itemRand det_split stream by name (whether det_split_random allocates was not checked) inside the tick",
+  "lines 653-663, functions iu_install_rand and iu_restore_rand: save and overwrite the global blockcb_env.world_rand for the length of a use",
+  "line 601, function on_item_use: world_tile_entity returns a tile entity pointer that is written through"
+ ],
+ "tests": ["csrc/tests/test_itemuse.c"],
+ "notes": "Ported against the oracle's ItemUseProbe, which records World.rand's 48-bit state after the use. The filled bucket or bottle a stack gives up is itemuse_try_use_item's give stack, which survival.c adds or drops (iu-fill-s1); ItemHoe.onItemUse is hoe_use (iu-hoe-s1); the fire charge's client call changes nothing (iu-fcharge-s1). Not carried (per itemuse.h): ItemEnderEye.onItemRightClick (stronghold search and the thrown EntityEnderEye), Block.onBlockActivated (the item half always runs; activation lives in activate.c, not verified whether survival.c routes around this), the Unbreaking roll in damageItem (the hoe's damageItem is survival.c's surv_damage_stack). The records case handles ids 2256 and 2257 only. Callers: survival.c and throw.c."
+}
