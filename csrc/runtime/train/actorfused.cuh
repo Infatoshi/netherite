@@ -19,21 +19,22 @@
 #endif
 #define AF_W 8                     /* warps */
 #define AF_T (AF_W * 32)
-#define AF_LZ0 (F1K + 8)            /* z0's row (bf16) */
+/* lane/audit-feat: F, fc1's K (actor.cu's F1K, the run's scalar row padded to 64), a template parameter of k_afused and
+ * af_tail: one instantiation each of net.h's NETH_NET_NSP_CASES */
+#define AF_LZ0(F) ((F) + 8)         /* z0's row (bf16) */
 #define AF_LZ (NETH_NET_D + 8)
 #define AF_LH (NETH_NET_HP + 4)           /* the logits' row (fp32) */
 #define AF_FN (NETH_NET_D / 128)          /* a warp's n16 tiles of fc1 and fc2 */
-#define AF_Z0 (16 * AF_LZ0 * 2)
+#define AF_Z0(F) (16 * AF_LZ0(F) * 2)
 #define AF_Z (16 * AF_LZ * 2)
-static_assert(16 * AF_LH * 4 <= AF_Z0 && NETH_NET_D % 128 == 0, "the logits in z0's place");
+static_assert(16 * AF_LH * 4 <= AF_Z0(NETH_NET_FLAT0 + 192) && NETH_NET_D % 128 == 0, "the logits in z0's place");
 /* k_afused's shared memory, bytes: the bytes; conv1's weights; x1 [SB][64 px][32] (then z0, z1, z2, the logits); x2
  * [SB][16][64]; a zero row */
 #define AF_OB(SB) ((SB) * NETH_NET_H * NETH_NET_W * NETH_NET_C)
 #define AF_W1 (48 * NETH_NET_C1 * 2)
-#define AF_X1(SB) ((SB) * 64 * NETH_NET_C1 * 2 > AF_Z0 + 2 * AF_Z ? (SB) * 64 * NETH_NET_C1 * 2 : AF_Z0 + 2 * AF_Z)  /* or z0..z2 */
+#define AF_X1(SB, F) ((SB) * 64 * NETH_NET_C1 * 2 > AF_Z0(F) + 2 * AF_Z ? (SB) * 64 * NETH_NET_C1 * 2 : AF_Z0(F) + 2 * AF_Z)  /* or z0..z2 */
 #define AF_X2(SB) ((SB) * 16 * NETH_NET_C2 * 2)
-#define AF_SMEMF(SB) (AF_OB(SB) + AF_W1 + AF_X1(SB) + AF_X2(SB) + 128)
-#define AF_SMEM AF_SMEMF(8)
+#define AF_SMEMF(SB, F) (AF_OB(SB) + AF_W1 + AF_X1(SB, F) + AF_X2(SB) + 128)
 /* the samples a block for a call of B: the SMs filled at small groups (the trainer's 128 at 16x16) */
 #define AF_SBFOR(B) ((B) >= 512 ? 8 : (B) >= 256 ? 4 : 2)
 
@@ -105,6 +106,7 @@ struct af_w {
 
 /* fc1, fc2, the heads and the draw for the ns samples from b0 whose z0 rows (16 of them, those past ns finite) are in
  * z0s; z1s and z2s 16 rows; the logits lg may be z0s */
+template <int F>
 __device__ __forceinline__ void af_tail(const af_w &W, const nt16 *z0s, nt16 *z1s, nt16 *z2s, float *lg,
                                         float (*lpp)[3], int b0, int ns, const neth_actor_io &io,
                                         unsigned long long seed, unsigned long long ctr) {
@@ -114,8 +116,8 @@ __device__ __forceinline__ void af_tail(const af_w &W, const nt16 *z0s, nt16 *z1
         acc4 acc[1][2 * AF_FN];
 #pragma unroll
         for (int q = 0; q < 2 * AF_FN; q++) acc[0][q] = acc4{};
-        auto arow = [&](int r, int kc) -> const nt16 * { return z0s + r * AF_LZ0 + kc; };
-        af_mma<1, AF_FN, F1K / 16>(acc, arow, W.wf1 + (long)(w * AF_FN) * (F1K / 16) * 32, lane);
+        auto arow = [&](int r, int kc) -> const nt16 * { return z0s + r * AF_LZ0(F) + kc; };
+        af_mma<1, AF_FN, F / 16>(acc, arow, W.wf1 + (long)(w * AF_FN) * (F / 16) * 32, lane);
 #pragma unroll
         for (int q = 0; q < 2 * AF_FN; q++) {
             int n = w * (NETH_NET_D / 8) + q * 8 + tq;
@@ -233,7 +235,7 @@ __device__ __forceinline__ void af_tail(const af_w &W, const nt16 *z0s, nt16 *z1
 
 /* SB samples a block (8, 4 or 2): conv1 SB / 2 m-tiles a warp, conv2 two row groups of SB / 2 m-tiles, conv3 the
  * (SB * 4 + 15) / 16 m-tiles of its rows */
-template <int SB>
+template <int SB, int F>
 __global__ void __launch_bounds__(AF_T, 1) k_afused(af_w W, int B, neth_actor_io io, unsigned long long *rng) {
     static_assert(SB == 2 || SB == 4 || SB == 8, "k_afused's samples a block");
     constexpr int M1 = SB / 2, M2 = SB / 2, M3 = (SB * 4 + 15) / 16;
@@ -241,10 +243,10 @@ __global__ void __launch_bounds__(AF_T, 1) k_afused(af_w W, int B, neth_actor_io
     uint8_t *ob = asm_;
     nt16 *w1s = (nt16 *)(asm_ + AF_OB(SB));
     nt16 *x1s = (nt16 *)(asm_ + AF_OB(SB) + AF_W1);
-    nt16 *z0s = x1s, *z1s = (nt16 *)((unsigned char *)x1s + AF_Z0), *z2s = (nt16 *)((unsigned char *)x1s + AF_Z0 + AF_Z);
+    nt16 *z0s = x1s, *z1s = (nt16 *)((unsigned char *)x1s + AF_Z0(F)), *z2s = (nt16 *)((unsigned char *)x1s + AF_Z0(F) + AF_Z);
     float *lg = (float *)x1s;
-    nt16 *x2s = (nt16 *)(asm_ + AF_OB(SB) + AF_W1 + AF_X1(SB));
-    nt16 *zr = (nt16 *)(asm_ + AF_OB(SB) + AF_W1 + AF_X1(SB) + AF_X2(SB));   /* 128 zero bytes */
+    nt16 *x2s = (nt16 *)(asm_ + AF_OB(SB) + AF_W1 + AF_X1(SB, F));
+    nt16 *zr = (nt16 *)(asm_ + AF_OB(SB) + AF_W1 + AF_X1(SB, F) + AF_X2(SB));   /* 128 zero bytes */
     __shared__ float lpp[SB][3];
     const int t = threadIdx.x, lane = t & 31, w = t >> 5, g = lane >> 2, tq = (lane & 3) * 2;
     const int b0 = blockIdx.x * SB, ns = min(SB, B - b0);
@@ -336,9 +338,9 @@ __global__ void __launch_bounds__(AF_T, 1) k_afused(af_w W, int B, neth_actor_io
 
     /* ---- conv3: rows (s, oy, ox) of 2 x 2, 64 channels, k = (kh * 3 + kw) * 64 + ci of 576, into z0 (q * 64 + c),
      * the scalars after; warps 2 m-tiles x 4 n16 ---- */
-    for (int i = t; i < 16 * (F1K - NETH_NET_C3 * Q3); i += AF_T) {
-        int s = i / (F1K - NETH_NET_C3 * Q3), j = i % (F1K - NETH_NET_C3 * Q3);
-        z0s[s * AF_LZ0 + NETH_NET_C3 * Q3 + j] = f2h(s < ns && j < NETH_NET_NS ? neth_sc_f32(io.sc[(long)(b0 + s) * NETH_NET_NS + j]) : 0.0f);
+    for (int i = t; i < 16 * (F - NETH_NET_C3 * Q3); i += AF_T) {
+        int s = i / (F - NETH_NET_C3 * Q3), j = i % (F - NETH_NET_C3 * Q3);
+        z0s[s * AF_LZ0(F) + NETH_NET_C3 * Q3 + j] = f2h(s < ns && j < NETH_NET_NS ? neth_sc_f32(io.sc[(long)(b0 + s) * NETH_NET_NS + j]) : 0.0f);
     }
     if ((w >> 2) < M3) {
         acc4 acc[1][2];
@@ -358,12 +360,12 @@ __global__ void __launch_bounds__(AF_T, 1) k_afused(af_w W, int B, neth_actor_io
             for (int hh = 0; hh < 2; hh++) {
                 int m = mt * 16 + g + hh * 8, s = m >> 2;
                 float v0 = fmaxf(acc[0][q][2 * hh] + W.b3[n], 0.0f), v1 = fmaxf(acc[0][q][2 * hh + 1] + W.b3[n + 1], 0.0f);
-                *(nt162 *)(z0s + s * AF_LZ0 + (m & 3) * NETH_NET_C3 + n) = f22h2(s < ns ? v0 : 0.0f, s < ns ? v1 : 0.0f);
+                *(nt162 *)(z0s + s * AF_LZ0(F) + (m & 3) * NETH_NET_C3 + n) = f22h2(s < ns ? v0 : 0.0f, s < ns ? v1 : 0.0f);
             }
         }
     }
     __syncthreads();
-    af_tail(W, z0s, z1s, z2s, lg, lpp, b0, ns, io, seed, ctr);
+    af_tail<F>(W, z0s, z1s, z2s, lg, lpp, b0, ns, io, seed, ctr);
     /* the counter: the last block to finish stores counter + 1 (every block read it above) */
     if (dev_rng && t == 0) {
         __threadfence();

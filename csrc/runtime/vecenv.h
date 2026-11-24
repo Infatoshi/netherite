@@ -576,7 +576,8 @@ struct neth_vec_bufs {
     float *scalars;             /* [n][NETH_VEC_NSCALAR]: semteach.scalars for the next action */
     float *rewards;             /* [n]: the last action's reward */
     uint8_t *terminals;         /* [n]: never set (no state of this game ends an episode) */
-    uint8_t *truncations;       /* [n]: the episode's clock ran out with the last action */
+    uint8_t *truncations;       /* [n]: the episode ended with the last action, by its clock or (task mode) by the
+                                 * task's own end; terminations, last in the struct, says which */
     uint8_t *driver;            /* [n]: who drove the last action: 0 the policy (no macro, or the mine lock its
                                  * own attack started: Macros.chosen), else the macro's kind (the learner masks it) */
     uint8_t *kind;              /* [n]: the macro kind that drove it (0 none) */
@@ -599,6 +600,13 @@ struct neth_vec_bufs {
     struct neth_rl_act *tick_acts;
     uint8_t *tick_macro;
     int32_t ticks;              /* T */
+    /* lane/audit-fixes: [n]: 1 where truncations is 1 and the task itself ended the episode (task mode: its pickup
+     * or a death, task_step's done); 0 where the clock did, and always 0 in milestone mode (a death there respawns).
+     * The learner bootstraps a terminated row from zero, a timed-out one from its own value. It is last on purpose:
+     * the buffers are shared through libneth.so, and a trainer built before it reads the members it knows at their
+     * old offsets (in the middle, every field after it sat one slot on: the old binary read the observation's shape
+     * shifted and stopped) */
+    uint8_t *terminations;
 };
 
 /* lane/ntbc (distillation to fewer macros, train/distill.h): the act the engine stepped (bufs.acts) said in the
@@ -678,6 +686,8 @@ struct neth_vec_episode {
     int32_t cells;              /* lane/explore: the 4x4x4 cells under y 56 the episode entered (at most
                                  * NETH_VEC_EXPLORE_MAX), counted with the explore term off too */
     int32_t food;              /* lane/food: the food level at the end (a picked-up meat eaten shows here) */
+    int32_t win;               /* lane/audit-fixes: 1 the episode ended by its task's pickup (task_step's done 1: the
+                                * env's own task, task_of's v->tk or v->tk2), else 0 (a death, the clock, no task) */
 };
 
 struct neth_vec;

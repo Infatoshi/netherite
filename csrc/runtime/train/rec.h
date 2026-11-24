@@ -45,7 +45,11 @@
  * lost and ntrec tape refused it. Each later tick a macro drove is a sub (REC_SUB_BYTES: u32 the step, u32 the tick
  * 1 .. T - 1, the act whole as rec_canon leaves a step's); a later tick with no sub ran the hold-only act of the tick
  * before's holds (vecenv.c vec_act). A version 2 chunk is the prefix before nsub, with no subs */
-#define REC_VERSION 3
+/* 4 (lane/audit-fixes): struct neth_vec_episode's win at its end, the record in a chunk REC_EP_V3_BYTES + 8 bytes
+ * (rec_head.ep_bytes). A version 1 to 3 file's records are the REC_EP_V3_BYTES before win: the reader puts each
+ * in a chunk of this version with win 0 */
+#define REC_VERSION 4
+#define REC_EP_V3_BYTES offsetof(struct neth_vec_episode, win)
 #define REC_CHUNK_MAGIC 0x5045574eu   /* "NWEP" */
 
 /* rec_chunk.fid: what of vanilla the episode's world ran without (fidelity.h), 0 vanilla, the one fidelity whose

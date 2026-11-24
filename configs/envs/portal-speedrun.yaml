@@ -1,0 +1,27 @@
+# Full 1.7.10 speedrun Nether portal construction from real harvested surface lava pools:
+# bucket-cast a 10-obsidian 4x5 Nether portal frame (block 49) with water+lava buckets and
+# cobblestone mold, then ignite the portal (block 90) with flint and steel.
+description: cast a 10-obsidian Nether portal from real 1.7.10 surface lava pools and ignite (block 90), raw s1 actions, 30 s
+name: portal-speedrun
+episode:
+  seconds: 30
+actions:
+  keys: forward+back+left+right+sprint+jump+sneak+mine+use+throw+drop+hit+swap+paused
+  camera_bins: 41
+  hotbar_cats: 10
+macros: none
+reward:
+  item: 90
+  win: 2.0
+  obsidian: 0.25
+  dist: 0.1
+starts:
+  seeds_bin: out/bedrock/portal_seeds.bin
+  num_seeds: 64
+policy:
+  bedrock:
+    env_id: portal-speedrun
+    seeds_bin: out/bedrock/portal_seeds.bin
+    target_block: 11
+    target_count: 10
+    break_ticks: 8

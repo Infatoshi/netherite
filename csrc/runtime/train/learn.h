@@ -10,6 +10,8 @@
  *   cam  i32 [N][2]           the camera bins drawn       keys  f32 [N][14]    the keys drawn, 0 or 1
  *   logp f32 [N]              the actor's log-probability val   f32 [N]        the actor's value
  *   rew  f32 [N]  done u8 [N]  drv u8 [N] (nonzero: a macro drove the step, masked)   boot f32 [gs]
+ *   term u8 [N]   lane/audit-fixes: where done, 1 the task ended the episode (bootstrap 0), 0 the clock did (bootstrap
+ *                 from the row's own value; k_gae's comment); term = done is the learner without the distinction
  *
  * The parameters are one fp32 buffer of NETH_LEARN_NPARAM in this file's layout (NETH_LEARN_LAYOUT: net.h's tensors with the three
  * heads' weights side by side, then their biases, so the heads are one [97][D] matrix); gradients and Adam's two
@@ -53,6 +55,10 @@
 #else
 #define NETH_LEARN_LAYOUT_RNN(X)
 #endif
+/* lane/audit-feat: fc1's columns are the run's (net.h NETH_NET_NS): the enums below are the layout at no scalar
+ * (NETH_LEARN_LNS 0 while they are made), NETH_LEARN_OFF and NETH_LEARN_NPARAM add fc1's D columns a scalar to every
+ * offset after it; NETH_LEARN_N_name is a tensor's count, fc1_w's at no scalar (NETH_LEARN_NFC1 the run's) */
+#define NETH_LEARN_LNS NETH_NET_NS
 #define NETH_LEARN_LAYOUT(X)                                   \
     NETH_LEARN_LAYOUT_STEM(X)                                  \
     X(conv1_w, NETH_LEARN_I0 + 0, NETH_NET_C1 * NETH_NET_CI * 16)          \
@@ -61,7 +67,7 @@
     X(conv2_b, NETH_LEARN_I0 + 3, NETH_NET_C2)                       \
     X(conv3_w, NETH_LEARN_I0 + 4, NETH_NET_C3 * NETH_NET_C2 * 9)           \
     X(conv3_b, NETH_LEARN_I0 + 5, NETH_NET_C3)                       \
-    X(fc1_w, NETH_LEARN_I0 + 6, NETH_NET_D * NETH_NET_FLAT)                \
+    X(fc1_w, NETH_LEARN_I0 + 6, NETH_NET_D * (NETH_NET_FLAT0 + NETH_LEARN_LNS)) \
     X(fc1_b, NETH_LEARN_I0 + 7, NETH_NET_D)                          \
     X(fc2_w, NETH_LEARN_I0 + 8, NETH_NET_D * NETH_NET_D)                   \
     X(fc2_b, NETH_LEARN_I0 + 9, NETH_NET_D)                          \
@@ -75,6 +81,8 @@
     X(v_b, NETH_LEARN_I0 + 15, 1)                              \
     NETH_LEARN_LAYOUT_RNN(X)
 
+#undef NETH_LEARN_LNS
+#define NETH_LEARN_LNS 0
 enum {
 #define NETH_LEARN_E(n, i, k) NETH_LEARN_N_##n = (k),
     NETH_LEARN_LAYOUT(NETH_LEARN_E)
@@ -85,10 +93,14 @@ enum {
     NETH_LEARN_O_start_ = -1,
     NETH_LEARN_LAYOUT(NETH_LEARN_O)
 #undef NETH_LEARN_O
-    NETH_LEARN_NPARAM
+    NETH_LEARN_NPARAM0
 };
-/* NETH_LEARN_OFF(name): the tensor's element offset in the layout */
-#define NETH_LEARN_OFF(n) (NETH_LEARN_O_##n)
+#undef NETH_LEARN_LNS
+#define NETH_LEARN_LNS NETH_NET_NS
+/* NETH_LEARN_OFF(name): the tensor's element offset in the layout (the run's: past fc1_w, D a scalar more) */
+#define NETH_LEARN_OFF(n) (NETH_LEARN_O_##n + (NETH_LEARN_O_##n > NETH_LEARN_O_fc1_w ? NETH_NET_D * NETH_NET_NS : 0))
+#define NETH_LEARN_NPARAM (NETH_LEARN_NPARAM0 + NETH_NET_D * NETH_NET_NS)
+#define NETH_LEARN_NFC1 (NETH_NET_D * NETH_NET_FLAT)    /* fc1_w's count, the run's */
 
 typedef struct neth_learn_hyper {
     double gamma, lam;          /* GAE's: 0.998, 0.95 (doubles: fastppo's gamma * lam is Python's, rounded once) */
@@ -143,7 +155,8 @@ void neth_learn_to_ntw(const float *flat, float *const ntw[NETH_NET_TENSORS]);
 /* GAE over a segment of T steps of gs envs (device buffers): rew / scale, the discounted advantages and returns, the
  * mask (1 where the policy drove), and the advantages normalised over the masked steps as fastppo's _gae does */
 void neth_learn_gae(neth_learn *L, const neth_learn_hyper *h, int T, int gs, float scale, const float *rew, const uint8_t *done,
-             const uint8_t *drv, const float *val, const float *boot, float *adv, float *ret, float *mask);
+             const uint8_t *term, const uint8_t *drv, const float *val, const float *boot, float *adv, float *ret,
+             float *mask);
 
 /* the forward over the b samples idx names (idx NULL: 0..b-1): heads [b][NETH_LEARN_HSTRIDE], the first 97 of a row the
  * camera's two heads' 41 logits, the keys' 14, the value, in the learner's scratch, its address returned (valid until
@@ -201,8 +214,8 @@ void neth_learn_adam(neth_learn *L, const neth_learn_hyper *h, int step, float *
 void neth_learn_update(neth_learn *L, const neth_learn_hyper *h, float entc, int T, int gs, float scale, int epochs, int mb,
                 const int32_t *perm, const uint8_t *obs, const neth_sc_t *sc, const int32_t *cam, const float *keys,
                 const int32_t *hot, const float *logp, const float *val, const float *rew, const uint8_t *done,
-                const uint8_t *drv, const float *boot, float *w, float *grad, float *m, float *v, int *step,
-                float *books);
+                const uint8_t *term, const uint8_t *drv, const float *boot, float *w, float *grad, float *m, float *v,
+                int *step, float *books);
 /* lane/xhigh-patch: the same over K segments of T x gs laid one after another ([K][T][gs], boot [K][gs], the learner
  * made with nmax at least K * T * gs; perm [epochs][K * T * gs]): each segment's GAE with its own scale[k] and
  * bootstrap, the advantages normalised over all K, then the epochs' minibatches over the whole batch (the feed-forward
@@ -210,8 +223,8 @@ void neth_learn_update(neth_learn *L, const neth_learn_hyper *h, float entc, int
 void neth_learn_update_k(neth_learn *L, const neth_learn_hyper *h, float entc, int T, int gs, int K, const float *scale,
                 int epochs, int mb, const int32_t *perm, const uint8_t *obs, const neth_sc_t *sc, const int32_t *cam,
                 const float *keys, const int32_t *hot, const float *logp, const float *val, const float *rew,
-                const uint8_t *done, const uint8_t *drv, const float *boot, float *w, float *grad, float *m, float *v,
-                int *step, float *books);
+                const uint8_t *done, const uint8_t *term, const uint8_t *drv, const float *boot, float *w, float *grad,
+                float *m, float *v, int *step, float *books);
 
 /* ---- lane/acrl: the privileged critic (train/critic.cuh) ----
  * An MLP of hidden width H (two layers, relu) over a sample's whole scalar row as the env wrote it, before --zero-sc

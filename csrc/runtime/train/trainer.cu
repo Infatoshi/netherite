@@ -98,6 +98,9 @@ static void actor_release(void *ctx)
     free(c);
 }
 
+/* lane/audit-fixes: neth_checkpoint.c's one writer (NTW2, the build's header) */
+extern "C" unsigned char *neth_ntw_write(const float *const t[NETH_NET_TENSORS], size_t *len);
+
 /* net.h's blob of the layout's weights (host) */
 static unsigned char *blob_of(const float *flat, size_t *len)
 {
@@ -106,31 +109,20 @@ static unsigned char *blob_of(const float *flat, size_t *len)
         NETH_NET_ORDER(NETH_NET_R)
 #undef NETH_NET_R
     };
-    static const int dims[NETH_NET_TENSORS][4] = {
+    const int dims[NETH_NET_TENSORS][4] = {   /* lane/audit-feat: fc1's columns the run's (net.h NETH_NET_FLAT) */
 #define NETH_NET_D4(n, r, a, b, c, d) {a, b, c, d},
         NETH_NET_ORDER(NETH_NET_D4)
 #undef NETH_NET_D4
     };
-    size_t sz = 12, cnt[NETH_NET_TENSORS];
-    for (int i = 0; i < NETH_NET_TENSORS; i++) {
-        cnt[i] = 1;
-        for (int k = 0; k < rank[i]; k++) cnt[i] *= dims[i][k];
-        sz += 4 + 4 * rank[i] + 4 * cnt[i];
-    }
-    unsigned char *b = (unsigned char *)malloc(sz), *p = b + 12;
-    memcpy(b, "NTW1\0\0\0\0", 8);
-    int n = NETH_NET_TENSORS;
-    memcpy(b + 8, &n, 4);
     float *t[NETH_NET_TENSORS];
     for (int i = 0; i < NETH_NET_TENSORS; i++) {
-        memcpy(p, &rank[i], 4);
-        memcpy(p + 4, dims[i], 4 * rank[i]);
-        p += 4 + 4 * rank[i];
-        t[i] = (float *)p;      /* 4-byte aligned: every field before it is */
-        p += 4 * cnt[i];
+        size_t cnt = 1;
+        for (int k = 0; k < rank[i]; k++) cnt *= dims[i][k];
+        t[i] = (float *)malloc(4 * cnt);
     }
     neth_learn_to_ntw(flat, t);
-    *len = sz;
+    unsigned char *b = neth_ntw_write(t, len);
+    for (int i = 0; i < NETH_NET_TENSORS; i++) free(t[i]);
     return b;
 }
 
@@ -169,6 +161,13 @@ extern "C" int neth_policy_actor(struct neth_policy *p, const void *ntw, size_t 
     p->launch = actor_launch;
     p->release = actor_release;
     return 0;
+}
+
+/* lane/audit-fixes: both images' draw (actor.h neth_actor_set_draw), before the first launch */
+extern "C" void neth_policy_actor_draw(struct neth_policy *p, float itemp, int greedy)
+{
+    actor_pol *c = (actor_pol *)p->ctx;
+    for (int i = 0; i < 2; i++) neth_actor_set_draw(c->img[i], itemp, greedy);
 }
 
 extern "C" int neth_policy_actor_refresh(struct neth_policy *p, const float *w, cudaStream_t s)
@@ -233,16 +232,20 @@ extern "C" void neth_split_actions(const int32_t *act, int n, int32_t *cam, floa
     neth_split_k<<<(n * NETH_NET_ACTION + 255) / 256, 256, 0, s>>>(act, n, cam, keys, hot);
 }
 
-/* fastppo's bootstrap: the next segment's first value, zero where the segment's last action ended the episode */
-__global__ void neth_boot_k(const float *__restrict__ val0, const uint8_t *__restrict__ done, int n, float *boot)
+/* fastppo's bootstrap: the next segment's first value, zero where the segment's last action ended the episode.
+ * lane/audit-fixes: where the clock ended it (done, not term) the segment's own last value instead (k_gae's
+ * approximation, learn.cu); term = done is the bootstrap as it was, bit for bit */
+__global__ void neth_boot_k(const float *__restrict__ val0, const uint8_t *__restrict__ done,
+                            const uint8_t *__restrict__ term, const float *__restrict__ vlast, int n, float *boot)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < n) boot[i] = val0[i] * (1.0f - (float)done[i]);
+    if (i < n) boot[i] = done[i] && !term[i] ? vlast[i] : val0[i] * (1.0f - (float)done[i]);
 }
 
-extern "C" void neth_boot(const float *val0, const uint8_t *done_last, int n, float *boot, cudaStream_t s)
+extern "C" void neth_boot(const float *val0, const uint8_t *done_last, const uint8_t *term_last, const float *val_last,
+                          int n, float *boot, cudaStream_t s)
 {
-    neth_boot_k<<<(n + 127) / 128, 128, 0, s>>>(val0, done_last, n, boot);
+    neth_boot_k<<<(n + 127) / 128, 128, 0, s>>>(val0, done_last, term_last, val_last, n, boot);
 }
 
 /* lane/ntgru: the segment's start states, h0 = h zeroed where first (NULL: none) */

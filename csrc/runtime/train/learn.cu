@@ -50,7 +50,8 @@ typedef nt16 bf;    /* the 16-bit path's type: bf16, or fp16 at NETH_NET_MMA 1 t
 #define K1 (NETH_NET_CI * 16)     /* conv1's: 48 from the bytes, 256 after the stem ((ky, kx, ci) order) */
 #define K2 (NETH_NET_C1 * 16)     /* 512 at wm 1 */
 #define K3 (NETH_NET_C2 * 9)      /* 576 at wm 1 */
-#define Z0LD ((NETH_NET_FLAT + 7) / 8 * 8)    /* z0's row padded to 16 bytes of bf16 (the tensor cores' alignment): 416 */
+#define Z0LD ((NETH_NET_FLAT + 7) / 8 * 8)    /* z0's row padded to 16 bytes of bf16 (the tensor cores' alignment): 416
+                                               * (lane/audit-feat: the run's, net.h NETH_NET_NS) */
 #define HS NETH_LEARN_HSTRIDE      /* the heads' row: 97 padded likewise */
 #define NPART 1024          /* the reductions' partial sums at most */
 
@@ -105,7 +106,7 @@ typedef nt16 bf;    /* the 16-bit path's type: bf16, or fp16 at NETH_NET_MMA 1 t
 static_assert(NETH_NET_H == 16 && NETH_NET_W == 16 && NETH_NET_C == 3 && NETH_NET_C1 == 32 && NETH_NET_C2 == 64 && NETH_NET_C3 == 64,
               "learn.cu's bf16 convolution kernels assume net.h's 16x16x3, 32, 64, 64");
 #endif
-static_assert(NETH_NET_FLAT <= Z0LD && NETH_LEARN_HEADS <= HS, "z0's and the heads' padded rows");
+static_assert(NETH_LEARN_HEADS <= HS, "the heads' padded rows");
 
 __device__ __forceinline__ float ldf(float x) { return x; }
 __device__ __forceinline__ float ldf(bf x) { return h2f(x); }
@@ -171,24 +172,29 @@ neth_learn_hyper neth_learn_hyper_default(void) {
     return h;
 }
 
-/* the layout in its order: net.h's index, the offset, the elements */
-static const struct {
+/* the layout in its order: net.h's index, the offset, the elements (lane/audit-feat: the run's, made at each call) */
+struct lay_t {
     int ntw, off, n;
-} lay[NETH_NET_TENSORS] = {
-#define NETH_LEARN_S(n, i, k) {(i), NETH_LEARN_OFF(n), (k)},
-    NETH_LEARN_LAYOUT(NETH_LEARN_S)
-#undef NETH_LEARN_S
 };
+#define NETH_LEARN_LAY                                                              \
+    const lay_t lay[NETH_NET_TENSORS] = {                                           \
+        NETH_LEARN_LAYOUT(NETH_LEARN_S)                                             \
+    }
+#define NETH_LEARN_S(n, i, k) {(i), NETH_LEARN_OFF(n), (k)},
 
 void neth_learn_from_ntw(const float *const ntw[NETH_NET_TENSORS], float *flat) {
+    NETH_LEARN_LAY;
     for (int t = 0; t < NETH_NET_TENSORS; t++)
         for (int k = 0; k < lay[t].n; k++) flat[lay[t].off + k] = ntw[lay[t].ntw][k];
 }
 
 void neth_learn_to_ntw(const float *flat, float *const ntw[NETH_NET_TENSORS]) {
+    NETH_LEARN_LAY;
     for (int t = 0; t < NETH_NET_TENSORS; t++)
         for (int k = 0; k < lay[t].n; k++) ntw[lay[t].ntw][k] = flat[lay[t].off + k];
 }
+#undef NETH_LEARN_LAY
+#undef NETH_LEARN_S
 
 /* ---- GEMMs, row-major: C[M][N] = op(A) op(B), A and B the learner's type, C of type ct ---- */
 
@@ -1963,7 +1969,7 @@ __global__ void k_gunperm(const float *gw, float *grad, int zp = 0) {   /* zp: f
     } else if ((t -= NETH_LEARN_N_conv2_w) < NETH_LEARN_N_conv3_w) {
         int co = t / K3, ci = (t % K3) / 9, cell = t % 9;
         grad[NETH_LEARN_OFF(conv3_w) + t] = gw[GW_C3 + (long)co * K3 + cell * NETH_NET_C2 + ci];
-    } else if ((t -= NETH_LEARN_N_conv3_w) < NETH_LEARN_N_fc1_w) {
+    } else if ((t -= NETH_LEARN_N_conv3_w) < NETH_LEARN_NFC1) {
         int k = t % NETH_NET_FLAT;
         if (zp && k < NETH_NET_C3 * P3) k = (k % P3) * NETH_NET_C3 + k / P3;
         grad[NETH_LEARN_OFF(fc1_w) + t] = gw[GW_F1 + (t / NETH_NET_FLAT) * Z0LD + k];
@@ -2179,10 +2185,17 @@ __global__ void k_books(int nblk, int b, const float *part, const float *nmp, fl
  * fused multiply-add), as torch's one kernel an operation rounds them */
 /* GE envs a block: their columns of rew, val and done staged in shared memory by the whole block first (coalesced),
  * then one thread an env walks back over them (the walk's loads 64 dependent global reads before, 180 us) */
+/* lane/audit-fixes: done[t] says the episode ended with row t's action (row t + 1, or the next segment's first row,
+ * is the new episode's first observation); term[t] that the task ended it (vecenv.h terminations). Every end cuts
+ * the trace. A terminated row bootstraps from zero, as before; a timed-out one (done, not term) from its own value
+ * sv[i]. That is an approximation: the critic never sees the timed-out episode's true last observation (the next row
+ * is already the new episode's), so the value it bootstraps from is one step stale. term = done (ntloop --trunc-boot
+ * off, the fixture checks) is the learner as it was, bit for bit */
 #define GE 32
 __global__ void k_gae(int T, int gs, float scale, float gamma, float gl, const float *rew, const uint8_t *done,
-                      const uint8_t *drv, const float *val, const float *boot, float *adv, float *ret, float *mask) {
-    extern __shared__ float sg[];   /* rew [T][GE], val [T][GE], done [T][GE] */
+                      const uint8_t *term, const uint8_t *drv, const float *val, const float *boot, float *adv, float *ret,
+                      float *mask) {
+    extern __shared__ float sg[];   /* rew [T][GE], val [T][GE], the end [T][GE]: 0 none, 1 terminated, 2 timed out */
     float *sr = sg, *sv = sg + T * GE, *sd = sg + 2 * T * GE;
     int e0 = blockIdx.x * GE;
     for (int i = threadIdx.x; i < T * GE; i += blockDim.x) {
@@ -2190,7 +2203,7 @@ __global__ void k_gae(int T, int gs, float scale, float gamma, float gl, const f
         if (e < gs) {
             sr[i] = rew[t * gs + e];
             sv[i] = val[t * gs + e];
-            sd[i] = (float)done[t * gs + e];
+            sd[i] = done[t * gs + e] ? (term[t * gs + e] ? 1.0f : 2.0f) : 0.0f;
             mask[t * gs + e] = drv[t * gs + e] == 0 ? 1.0f : 0.0f;
         }
     }
@@ -2200,9 +2213,10 @@ __global__ void k_gae(int T, int gs, float scale, float gamma, float gl, const f
     float last = 0.0f;
     for (int t = T - 1; t >= 0; t--) {
         int i = t * GE + el;
-        float nv = t == T - 1 ? boot[e] : sv[i + GE];
-        float nd = 1.0f - sd[i];
-        float delta = __fsub_rn(__fadd_rn(sr[i] / scale, __fmul_rn(__fmul_rn(gamma, nv), nd)), sv[i]);
+        float nv = sd[i] == 2.0f ? sv[i] : t == T - 1 ? boot[e] : sv[i + GE];
+        float nd = sd[i] == 0.0f ? 1.0f : 0.0f;     /* the trace goes on */
+        float nb = sd[i] == 1.0f ? 0.0f : 1.0f;     /* the bootstrap kept */
+        float delta = __fsub_rn(__fadd_rn(sr[i] / scale, __fmul_rn(__fmul_rn(gamma, nv), nb)), sv[i]);
         last = __fadd_rn(delta, __fmul_rn(__fmul_rn(gl, nd), last));
         adv[t * gs + e] = last;
         ret[t * gs + e] = __fadd_rn(last, sv[i]);
@@ -2357,6 +2371,7 @@ __global__ void k_scale(int n, float *g, float f) {
 }
 
 neth_learn *neth_learn_new(int nmax, int mb, int prec, void *stream) {
+    neth_net_dsync();   /* lane/audit-feat: this file's kernels read the run's scalar row */
     neth_learn *L = (neth_learn *)calloc(1, sizeof *L);
     L->s = (cudaStream_t)stream;
     L->nmax = nmax;
@@ -2446,7 +2461,9 @@ neth_learn *neth_learn_new(int nmax, int mb, int prec, void *stream) {
     if (prec == NETH_LEARN_BF16) {
         bad |= cudaMalloc(&L->fcpk, PK_N * 16) != cudaSuccess;
         bad |= cudaMalloc((void **)&L->fcpart, (b / FC_BM + 1) * FC_WR * FC_BP * sizeof(float)) != cudaSuccess;
-        CK(cudaFuncSetAttribute(k_fcrow, cudaFuncAttributeMaxDynamicSharedMemorySize, FC_SMEM));
+#define FC_ATTR(NP) CK(cudaFuncSetAttribute(k_fcrow<NETH_NET_FLAT0 + NP>, cudaFuncAttributeMaxDynamicSharedMemorySize, FC_SMEM));
+        NETH_NET_NSP_CASES(FC_ATTR)
+#undef FC_ATTR
     }
 #endif
     if (bad) {
@@ -2479,10 +2496,11 @@ void neth_learn_free(neth_learn *L) {
 }
 
 void neth_learn_gae(neth_learn *L, const neth_learn_hyper *h, int T, int gs, float scale, const float *rew, const uint8_t *done,
-             const uint8_t *drv, const float *val, const float *boot, float *adv, float *ret, float *mask) {
+             const uint8_t *term, const uint8_t *drv, const float *val, const float *boot, float *adv, float *ret,
+             float *mask) {
     float gl = (float)(h->gamma * h->lam);
-    k_gae<<<grid(gs, GE), 256, 3 * T * GE * sizeof(float), L->s>>>(T, gs, scale, (float)h->gamma, gl, rew, done, drv,
-                                                                    val, boot, adv, ret, mask);
+    k_gae<<<grid(gs, GE), 256, 3 * T * GE * sizeof(float), L->s>>>(T, gs, scale, (float)h->gamma, gl, rew, done, term,
+                                                                    drv, val, boot, adv, ret, mask);
     k_advnorm<<<1, 1024, 0, L->s>>>(T * gs, adv, mask);
 }
 
@@ -2665,7 +2683,7 @@ static void backward(neth_learn *L, const float *w, const T *wt, int b, const in
                                                  L->cpart);
         k_s1bsum<<<grid(S1B_PART, 256), 256, 0, s>>>(nblk, L->cpart, L->gw + GW_C1, W_(grad, conv1_b),
                                                      W_(grad, stem_w), W_(grad, stem_b));
-        k_gunperm<<<grid(GW_F1 + NETH_LEARN_N_fc1_w, 256), 256, 0, s>>>(L->gw, grad);
+        k_gunperm<<<grid(GW_F1 + NETH_LEARN_NFC1, 256), 256, 0, s>>>(L->gw, grad);
         return;
     }
 #endif
@@ -2679,7 +2697,7 @@ static void backward(neth_learn *L, const float *w, const T *wt, int b, const in
         gemm(L, 0, 0, b * P1, K1, NETH_NET_C1, dx1, NETH_NET_C1, wt + WT_C1, K1, a1, ab, K1);     /* da1 */
         k_col2im<OS, NETH_NET_C0, 4, T><<<grid((long)b * P0 * NETH_NET_C0 / VN, 256), 256, 0, s>>>(b, a1, x0, W_(w, stem_b), dx0);
     }
-    k_gunperm<<<grid(GW_F1 + NETH_LEARN_N_fc1_w, 256), 256, 0, s>>>(L->gw, grad, !fc);
+    k_gunperm<<<grid(GW_F1 + NETH_LEARN_NFC1, 256), 256, 0, s>>>(L->gw, grad, !fc);
     if constexpr (std::is_same<T, bf>::value) {
         k_stem_dw_mma<<<S0W_BLK, 128, 0, s>>>(b, idx, obs, dx0, L->cpart);
         k_stem_dwsum<<<grid(NETH_NET_C0 * SW, 256), 256, 0, s>>>(S0W_BLK, L->cpart, W_(grad, stem_w), W_(grad, stem_b));
@@ -2688,7 +2706,7 @@ static void backward(neth_learn *L, const float *w, const T *wt, int b, const in
         colsum(L, b * P0, NETH_NET_C0, dx0, NETH_NET_C0, W_(grad, stem_b));
     }
 #else
-    k_gunperm<<<grid(GW_F1 + NETH_LEARN_N_fc1_w, 256), 256, 0, s>>>(L->gw, grad, !fc);
+    k_gunperm<<<grid(GW_F1 + NETH_LEARN_NFC1, 256), 256, 0, s>>>(L->gw, grad, !fc);
     /* conv1 */
 #if NETH_LEARN_SPEC
     if constexpr (spec) {
@@ -2725,7 +2743,14 @@ void neth_learn_grad(neth_learn *L, const neth_learn_hyper *h, float entc, const
         fc_args a = {b, idx, (const bf *)L->x3, w, sc, (const uint4 *)L->fcpk, cam, keys, logp0, adv, ret, mask, L->nm,
                      h->clip, h->vf, entc, (bf *)L->z0, (bf *)L->z1, (bf *)L->z2, (bf *)L->dh, (bf *)L->d2,
                      (bf *)L->d1, (bf *)L->dx3, L->part, L->fcpart};
-        k_fcrow<<<grid(b, FC_BM), FC_T, FC_SMEM, s>>>(a);
+        switch (NETH_NET_NSP(NETH_NET_NS)) {   /* lane/audit-feat: fc1's K, the run's (net.h NETH_NET_NSP_CASES) */
+#define FC_ROW(NP)                                                                       \
+        case NP:                                                                         \
+            k_fcrow<NETH_NET_FLAT0 + NP><<<grid(b, FC_BM), FC_T, FC_SMEM, s>>>(a);      \
+            break;
+        NETH_NET_NSP_CASES(FC_ROW)
+#undef FC_ROW
+        }
         k_books<<<1, BT, 0, s>>>(grid(b, FC_BM), b, L->part, L->nm, h->vf, entc, books, 0);
         backward<bf>(L, w, wt, b, idx, obs, grad, false);
         if (NETH_NET_LSCALE != 1.0f)
@@ -2891,30 +2916,31 @@ static void neth_critic_adam(neth_learn *L, const neth_learn_hyper *h);
 void neth_learn_update(neth_learn *L, const neth_learn_hyper *h, float entc, int T, int gs, float scale, int epochs, int mb,
                 const int32_t *perm, const uint8_t *obs, const neth_sc_t *sc, const int32_t *cam, const float *keys,
                 const int32_t *hot, const float *logp, const float *val, const float *rew, const uint8_t *done,
-                const uint8_t *drv, const float *boot, float *w, float *grad, float *m, float *v, int *step,
-                float *books) {
-    neth_learn_update_k(L, h, entc, T, gs, 1, &scale, epochs, mb, perm, obs, sc, cam, keys, hot, logp, val, rew, done, drv,
-                        boot, w, grad, m, v, step, books);
+                const uint8_t *term, const uint8_t *drv, const float *boot, float *w, float *grad, float *m, float *v,
+                int *step, float *books) {
+    neth_learn_update_k(L, h, entc, T, gs, 1, &scale, epochs, mb, perm, obs, sc, cam, keys, hot, logp, val, rew, done, term,
+                        drv, boot, w, grad, m, v, step, books);
 }
 
 void neth_learn_update_k(neth_learn *L, const neth_learn_hyper *h, float entc, int T, int gs, int K, const float *scale,
                 int epochs, int mb, const int32_t *perm, const uint8_t *obs, const neth_sc_t *sc, const int32_t *cam,
                 const float *keys, const int32_t *hot, const float *logp, const float *val, const float *rew,
-                const uint8_t *done, const uint8_t *drv, const float *boot, float *w, float *grad, float *m, float *v,
-                int *step, float *books) {
+                const uint8_t *done, const uint8_t *term, const uint8_t *drv, const float *boot, float *w, float *grad,
+                float *m, float *v, int *step, float *books) {
     int N1 = T * gs, N = K * N1;
 #if NETH_NET_RNN
     neth_learn_seq(L, T, done, L->rnn->h0);    /* the scan's length and the segment's ends; its start states neth_learn_seq's */
 #endif
     if (K == 1)
-        neth_learn_gae(L, h, T, gs, scale[0], rew, done, drv, val, boot, L->adv, L->ret, L->mask);
+        neth_learn_gae(L, h, T, gs, scale[0], rew, done, term, drv, val, boot, L->adv, L->ret, L->mask);
     else {
         /* each segment's GAE with its own reward scale and bootstrap, then the advantages normalised over all K */
         float gl = (float)(h->gamma * h->lam);
         for (int k = 0; k < K; k++) {
             size_t o = (size_t)k * N1;
             k_gae<<<grid(gs, GE), 256, 3 * T * GE * sizeof(float), L->s>>>(T, gs, scale[k], (float)h->gamma, gl, rew + o,
-                                                                            done + o, drv + o, val + o, boot + (size_t)k * gs,
+                                                                            done + o, term + o, drv + o, val + o,
+                                                                            boot + (size_t)k * gs,
                                                                             L->adv + o, L->ret + o, L->mask + o);
         }
         k_advnorm<<<1, 1024, 0, L->s>>>(N, L->adv, L->mask);

@@ -47,22 +47,22 @@ struct neth_distill_census {
      * stone pickaxe: to the furnace and iron), iron (an iron ingot); per stage and driver the steps, the trained
      * labels, the GUI, hotbar and far flags, and the trained labels that change the slot */
     int64_t st[NETH_DISTILL_NSTAGE][NETH_DISTILL_NCLASS][6];
-    /* lane/ladder4 (NETH_NET_DIG builds; zero otherwise): the trained labels by the dig the state showed, none, the hit
+    /* lane/ladder4 (runs with the dk feature; zero otherwise): the trained labels by the dig the state showed, none, the hit
      * without a crack, a crack; each [labels, of them holding the attack] */
     int64_t dig[3][2];
     /* lane/ladder6 (neth_distill_labeller): the decision steps of envs playing at the student's level, the labeller's labels on
      * them by stage, and the level's steps masked (student_labels shadow) */
     int64_t lsteps, shadow[NETH_DISTILL_NSTAGE], lmasked;
     /* lane/ladder12: the craft macro's steps (mbit NETH_VEC_CRAFT) by half, none (not a crafting plan), the table, the
-     * recipe (neth_vec_label.half); each [steps, trained, the state under a container screen (NETH_NET_GV builds), hotbar
+     * recipe (neth_vec_label.half); each [steps, trained, the state under a container screen (gv runs), hotbar
      * changes, use (a right click under a screen) in the macro's act, the inventory key (the close under one) in it] */
     int64_t half[5][6];     /* [3]: the recipe's first step, counted apart (NETH_VEC_RECIPEKEY's label); [4] the
                              * table half's first step with no screen (lane/ladder15, NETH_VEC_TABLEKEY's label) */
-    /* lane/ladder13 (NETH_NET_GV builds): the recipe half's labels by the screen the state showed (none, the inventory, a
+    /* lane/ladder13 (runs with the gv feature): the recipe half's labels by the screen the state showed (none, the inventory, a
      * crafting table, a furnace, another), [0] the first step's (half 3), [1] the later steps' (half 2), [2] of those
      * trained (--recipe-hold's jump) */
     int64_t rscr[5][3];
-    /* lane/ladder14 (NETH_NET_GV builds): the labels on states under the inventory, a crafting table, a furnace ([0] [1] [2]),
+    /* lane/ladder14 (runs with the gv feature): the labels on states under the inventory, a crafting table, a furnace ([0] [1] [2]),
      * by who opened the window (the step whose act made the screen show: [0] not seen, [1] the craft macro, [2] the
      * policy, [3] another macro) and by the step's label (the driver: [0] the policy's step, the teacher's action, [1]
      * the recipe's first step (half 3), [2] its later steps (half 2), [3] another craft step, [4] the screen macro, [5]
@@ -127,7 +127,7 @@ void neth_distill_student_prev_env(struct neth_distill *D, int on);
 /* --hold-weight W (lane/ladder3): the attack key's BCE gradient times W on a removed macro's label that holds the attack
  * (the mine lock's and the strip's digs: in 1.7.10 one tick without attack resets the block's damage, so a key the
  * student samples at 0.95 keeps a 23-tick dig 31% of the time). The weighted optimum's odds are W times the labels':
- * the held attack trained into the sampled policy, not decoded greedily at play (.gk). Default 1: no change.
+ * the held attack trained into the sampled policy, not decoded greedily at play (ntloop --greedy keys). Default 1: no change.
  * scope (--hold-scope): 0 all, every removed macro's held attack (the strip's tunnels too); 1 lock, the mine lock's
  * alone; 2 dig, the mine lock's where the step before held the attack too (a dig under way, not its start); 3 digs
  * (lane/ladder5), dig's and the seek's continuing dig too (the seek removed at L3) */
@@ -136,7 +136,7 @@ int neth_distill_beta_on(const struct neth_distill *D);
 /* lane/ladder10 (actions.gui cursor, with --beta): the teacher's key 12 cleared before it is sent or labels a step: the
  * inventory key there (vecenv.h NETH_VEC_KEY_INV), a key the teacher's net never had a use for and samples at random */
 void neth_distill_gui(struct neth_distill *D);
-/* lane/ladder10 (--gui-weight W, NETH_NET_GV builds): a label whose state showed an open container screen weighs W in the loss
+/* lane/ladder10 (--gui-weight W, runs with the gv feature): a label whose state showed an open container screen weighs W in the loss
  * (its share of the minibatch's sum of weights), so the few steps a craft spends under a screen (its clicks and close,
  * about 15 an episode against 24,000) are not drowned by the rest. Default 1: no change */
 void neth_distill_gui_weight(struct neth_distill *D, float w);
@@ -144,7 +144,7 @@ void neth_distill_gui_weight(struct neth_distill *D, float w);
  * macro's clicks and close, and the 2x2 labeller's) weighs W, ladder10's gui_weight for those labels alone (L4bE learned
  * the 2x2 kit's clicks at gui_weight 10, its craft labels 8% of the steps; at L6a they are about 3.5%). Default 1 */
 void neth_distill_x2_weight(struct neth_distill *D, float w);
-/* lane/ladder13 (--recipe-hold on, distill.recipe_hold; NETH_VEC_RECIPEKEY levels, NETH_NET_GV builds): the recipe's later
+/* lane/ladder13 (--recipe-hold on, distill.recipe_hold; NETH_VEC_RECIPEKEY levels, gv runs): the recipe's later
  * steps under a container screen labelled as its first is, the jump key alone, weight 1. Under NETH_VEC_RECIPEKEY the
  * env reads the policy's jump at every call of the recipe half (vecenv.c craft(): a call without it hands the window
  * back), and the smelt's wait is hundreds of such calls; without this those steps are the level's macro's and masked,
@@ -153,7 +153,7 @@ void neth_distill_x2_weight(struct neth_distill *D, float w);
  * (its label says the inventory key) labelled as that key alone, not the jump: on 1 teaches the student never to close
  * a window, and one left untidy by a hand-off holds it (L4f's 34M checkpoint: 11,928 steps a run under a screen) */
 void neth_distill_recipe_hold(struct neth_distill *D, int on);
-/* lane/ladder14 (--window-label on, distill.window_label; NETH_VEC_NOTABLE and NETH_VEC_RECIPEKEY levels, NETH_NET_GV builds):
+/* lane/ladder14 (--window-label on, distill.window_label; NETH_VEC_NOTABLE and NETH_VEC_RECIPEKEY levels, gv runs):
  * on a state under the inventory, a crafting table or a furnace the policy opened, the teacher's env's screen macro
  * (it closes the window: at the teacher's macros every label there is that close, 2,605 of 2,605 under the student's
  * own tables against the jump on 2,189 of 2,189 first steps under the macro's) relabelled: where the window is tidy and
@@ -205,8 +205,9 @@ void neth_distill_row(struct neth_distill *D, void *file, int64_t env_steps, dou
 void neth_distill_print(const struct neth_distill *D);
 
 /* net.h's blob of any width (NETH_NET_WM) at or under the build's into the build's, its added weights zero; malloc'd, NULL
- * with err (a wider blob, another stem, a bad file) */
-unsigned char *neth_distill_widen(const unsigned char *b, size_t len, size_t *out, char *err, size_t en);
+ * with err (a wider blob, another stem, a bad file). lane/audit-fixes: name (the teacher's path) starts the messages,
+ * its scalars are neth_checkpoint.c neth_ntw_parse's and the result NTW2 */
+unsigned char *neth_distill_widen(const unsigned char *b, size_t len, const char *name, size_t *out, char *err, size_t en);
 
 #ifdef __cplusplus
 }

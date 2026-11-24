@@ -12,7 +12,7 @@
  *   x1 [32 wm][I/2][I/2]   relu(conv 4x4, stride 2, pad 1)
  *   x2 [64 wm][I/4][I/4]   relu(conv 4x4, stride 2, pad 1)
  *   x3 [64 wm][I/8][I/8]   relu(conv 3x3, stride 2, pad 1)
- *   z0 [NETH_NET_FLAT]           x3 flattened channel-major (c * (I/8)^2 + y * I/8 + x), then the 155 scalars
+ *   z0 [NETH_NET_FLAT]           x3 flattened channel-major (c * (I/8)^2 + y * I/8 + x), then the 155 scalars and the run's features'
  *   z1 [256 wm]            relu(linear)
  *   z2 [256 wm]            relu(linear)
  *   cam [2][41]            linear: the pitch bin's and the yaw bin's logits
@@ -23,9 +23,16 @@
  * sampler draws each camera bin by Gumbel-max (argmax of logit - log(-log u)) and each key as u < sigmoid(logit);
  * logp is the camera's two log-softmax terms plus each key's log-sigmoid of its sign.
  *
- * The weight blob (.ntw): the 8 bytes "NTW1\0\0\0\0", int32 tensor count (NETH_NET_TENSORS: 16, 18 with the stem, 2 more with the hotbar or NETH_NET_RNN), then
- * each tensor in NETH_NET_ORDER as int32 rank, int32 dims, fp32 data in PyTorch's layout (a conv [out][in][kh][kw], a
- * linear [out][in]), little-endian. */
+ * The weight blob (.ntw), little-endian. lane/audit-fixes: NTW2, what every writer makes (neth_checkpoint.c
+ * neth_ntw_write): the 4 bytes "NTW2", int32 H, H bytes of header text, int32 tensor count (NETH_NET_TENSORS: 16, 18 with
+ * the stem, 2 more with the hotbar or NETH_NET_RNN), then each tensor in NETH_NET_ORDER as int32 rank, int32 dims, fp32
+ * data in PyTorch's layout (a conv [out][in][kh][kw], a linear [out][in]). The header is the lines "variant V" (the
+ * build's word, NETH_NET_NAME), "features F" (NETH_NET_FEATURES' words the net reads, in their order, or none;
+ * lane/audit-feat: the run's set, neth_net_fs) and "scalars N" (NETH_NET_NS), each ended by \n, then NUL bytes to a
+ * multiple of 4. NTW1, the old form: the 8 bytes "NTW1\0\0\0\0" in place of "NTW2", H and the header; it never said which
+ * inputs it read, so it loads only when it reads the base 155 scalars (ntinit --migrate states an old file's features
+ * and writes it as NTW2). One parser reads both (neth_checkpoint.c neth_ntw_parse): fc1's columns for each feature the
+ * file names go to the run's place for it, the run's others zero; a file naming a feature the run lacks is refused. */
 #ifndef NETH_NET_NET_H
 #define NETH_NET_NET_H
 
@@ -115,73 +122,99 @@ static inline float neth_bf16_to_f32_host(uint16_t h)
 #define NETH_NET_C1 (32 * NETH_NET_WM)
 #define NETH_NET_C2 (64 * NETH_NET_WM)
 #define NETH_NET_C3 (64 * NETH_NET_WM)
-/* lane/starts: NETH_NET_LATE 1 (the .ls variants), the late game's scalars after the 155 (vecenv.h NETH_VEC_LATE_N: the
- * counts the 32 items leave out and the dimension); a blob of the 155-scalar net loads with zero weights on them
- * (loop.c neth_weights_flat), so it plays exactly as before */
-#ifndef NETH_NET_LATE
-#define NETH_NET_LATE 0
-#endif
+/* The scalar features after the base 155, each a block of the vector env's scalar row (vecenv.h's widths), in the row's
+ * order. lane/audit-feat: a run's feature set, not a build's: one build reads any subset (the mask below, bit k the
+ * table's k-th, vecenv.h's opts.late_scalars bit for bit), set once a process before any learner, actor or image is
+ * made (neth_net_set_features: ntloop's --features, the run file's net.features, the --init file's header; ntinit's
+ * --features). A blob without a feature loads with zero weights on its columns (neth_checkpoint.c's parser) and plays
+ * as before.
+ *   ls (lane/starts) the late game's scalars, the counts the 32 items leave out and the dimension
+ *   hs (lane/ladder2 + lane/hill-rnn-hotbar) legal 9-slot HUD hotbar scalars: per slot 12 features directly visible on
+ *      the 1.7.10 HUD bar (pickaxe/axe/shovel/sword tier, bow, snowball/arrow/building-block/food log-counts, water
+ *      bucket, empty bucket, flint & steel)
+ *   dk (lane/ladder4) the dig the screen shows: the crack stage under the crosshair and the client's hit under way, so a
+ *      student can tell a dig from any other held attack
+ *   or (lane/ladder5) the seek's view: for iron ore, diamond ore and logs in view, the flag, the nearest cell's yaw and
+ *      pitch from the look and its distance, so a student without the seek (L3) can be told where the ore it sees is
+ *   gv (lane/ladder10) what the open container screen shows: the screen's kind and each cursor cell's stack by class,
+ *      so a student that clicks (actions.gui cursor) sees which slot holds what
+ *   tk (lane/acrl) the task one-hot: task_item's, then task_item2's, the goal as a person is told it, for one policy
+ *      over two tasks
+ * The word is the checkpoint header's (NTW2's "features" line), ntloop's and ntinit's --features', and a build name's
+ * (actor.mk: the words in V name V's default set; the code is the same for every set). */
 #define NETH_NET_LATE_N 14                    /* vecenv.h NETH_VEC_LATE_N */
-/* lane/ladder2 + lane/hill-rnn-hotbar: NETH_NET_HSEE 1 (the .hs variants), legal 9-slot HUD hotbar scalars after those
- * (vecenv.h NETH_VEC_HSEE_N: per slot 12 features directly visible on the 1.7.10 HUD bar: pickaxe/axe/shovel/sword tier,
- * bow, snowball/arrow/building-block/food log-counts, water bucket, empty bucket, flint & steel);
- * a blob without them loads with zero weights on them (loop.c neth_weights_flat) and plays as before */
-#ifndef NETH_NET_HSEE
-#define NETH_NET_HSEE 0
-#endif
 #define NETH_NET_HSEE_N 108                   /* vecenv.h NETH_VEC_HSEE_N */
-/* lane/ladder4: NETH_NET_DIG 1 (the .dk variants), the dig the screen shows after those (vecenv.h NETH_VEC_DIG_N: the crack
- * stage under the crosshair and the client's hit under way), so a student can tell a dig from any other held attack;
- * a blob without them loads with zero weights on them (loop.c neth_weights_flat) and plays as before */
-#ifndef NETH_NET_DIG
-#define NETH_NET_DIG 0
-#endif
 #define NETH_NET_DIG_N 2                      /* vecenv.h NETH_VEC_DIG_N */
-/* lane/ladder5: NETH_NET_ORE 1 (the .or variants), the seek's view after those (vecenv.h NETH_VEC_ORE_N: for iron ore, diamond
- * ore and logs in view, the flag, the nearest cell's yaw and pitch from the look and its distance), so a student
- * without the seek (L3) can be told where the ore it sees is; a blob without them loads with zero weights on them */
-#ifndef NETH_NET_ORE
-#define NETH_NET_ORE 0
-#endif
 #define NETH_NET_ORE_N 12                     /* vecenv.h NETH_VEC_ORE_N */
-/* lane/ladder10: NETH_NET_GV 1 (the .gv variants), what the open container screen shows after those (vecenv.h NETH_VEC_GV_N:
- * the screen's kind and each cursor cell's stack by class), so a student that clicks (actions.gui cursor) sees which
- * slot holds what; a blob without them loads with zero weights on them */
-#ifndef NETH_NET_GV
-#define NETH_NET_GV 0
-#endif
 #define NETH_NET_GV_N 708                     /* vecenv.h NETH_VEC_GV_N */
-/* lane/acrl: NETH_NET_TASK 1 (the .tk variants), the task one-hot after those (vecenv.h NETH_VEC_TASK_N: task_item's, then
- * task_item2's), the goal as a person is told it, for one policy over two tasks; a blob without them loads with zero
- * weights on them */
-#ifndef NETH_NET_TASK
-#define NETH_NET_TASK 0
-#endif
 #define NETH_NET_TASK_N 2                     /* vecenv.h NETH_VEC_TASK_N */
-/* lane/ladder2: NETH_ACTOR_GREEDY (the .gk, .gc and .gkc builds, a frozen policy's eval only): the actor's keys (bit 0) and
- * camera bins (bit 1) drawn greedily, a key held at logit over 0, the camera's argmax bin (actor.cu heads_draw) */
-#ifndef NETH_ACTOR_GREEDY
-#define NETH_ACTOR_GREEDY 0
+#define NETH_NET_BASE_NS 155                  /* vecenv.h NETH_VEC_NSCALAR */
+/* X(word, its mask bit, width) */
+#define NETH_NET_FEATURES(X)                \
+    X("ls", NETH_NET_FLS, NETH_NET_LATE_N)    \
+    X("hs", NETH_NET_FHS, NETH_NET_HSEE_N)    \
+    X("dk", NETH_NET_FDK, NETH_NET_DIG_N)     \
+    X("or", NETH_NET_FOR, NETH_NET_ORE_N)     \
+    X("gv", NETH_NET_FGV, NETH_NET_GV_N)      \
+    X("tk", NETH_NET_FTK, NETH_NET_TASK_N)
+enum { NETH_NET_FLS = 1, NETH_NET_FHS = 2, NETH_NET_FDK = 4, NETH_NET_FOR = 8, NETH_NET_FGV = 16, NETH_NET_FTK = 32,
+       NETH_NET_FALL = 63, NETH_NET_NFEAT = 6 };
+/* a mask's scalar row, and where feature bit f's block starts in it */
+#define NETH_NET_NS_OF(m)                                                                                          \
+    (NETH_NET_BASE_NS + ((m) & NETH_NET_FLS ? NETH_NET_LATE_N : 0) + ((m) & NETH_NET_FHS ? NETH_NET_HSEE_N : 0) +     \
+     ((m) & NETH_NET_FDK ? NETH_NET_DIG_N : 0) + ((m) & NETH_NET_FOR ? NETH_NET_ORE_N : 0) +                           \
+     ((m) & NETH_NET_FGV ? NETH_NET_GV_N : 0) + ((m) & NETH_NET_FTK ? NETH_NET_TASK_N : 0))
+#define NETH_NET_OFF_OF(m, f) NETH_NET_NS_OF((m) & ((f) - 1))
+#define NETH_NET_NS_MAX NETH_NET_NS_OF(NETH_NET_FALL)   /* 1001 */
+/* the kernels' scalar count: the row padded to 64 (fc1's k chunks, actor.cu's F1K and fc.cuh's FC_K1 were already
+ * padded so): 192, 320, 896 or 1024 for the 40 reachable rows, one instantiation each of the kernels that need fc1's K
+ * at compile time (NETH_NET_NSP_CASES) */
+#define NETH_NET_NSP(ns) (((ns) + 63) / 64 * 64)
+#define NETH_NET_NSP_CASES(X) X(192) X(320) X(896) X(1024)
+/* the build's default set (actor.mk: the feature words of V's name; none without them) */
+#ifndef NETH_NET_FEAT0
+#define NETH_NET_FEAT0 0
 #endif
-/* lane/rawpix: NETH_ACTOR_TEMP N (the .tN builds, a frozen policy's eval only), the camera bins and keys drawn at temperature
- * N / 10: each bin by Gumbel-max over logit / T, each key held when u < sigmoid(logit / T) (logp still the logits');
- * 0 (the default) the policy's own distribution, 10 the same */
-#ifndef NETH_ACTOR_TEMP
-#define NETH_ACTOR_TEMP 0
+/* the process's set: its mask and row. One definition for every object of a binary (weak), fixed once a device copy
+ * of it is made (neth_net_dsync; neth_net_set_features after that is refused) */
+typedef struct neth_net_feat_s {
+    int mask, ns, fixed;
+} neth_net_feat_t;
+__attribute__((weak)) neth_net_feat_t neth_net_fs = {NETH_NET_FEAT0, NETH_NET_NS_OF(NETH_NET_FEAT0), 0};
+/* the set for this process: 0, or -1 when a device copy was made already (the shapes are allocated) */
+static inline int neth_net_set_features(int mask)
+{
+    if (neth_net_fs.fixed && (mask & NETH_NET_FALL) != neth_net_fs.mask) return -1;
+    neth_net_fs.mask = mask & NETH_NET_FALL;
+    neth_net_fs.ns = NETH_NET_NS_OF(neth_net_fs.mask);
+    return 0;
+}
+/* the scalar row: the process's on the host, each .cu file's __constant__ copy in its kernels (neth_net_dsync copies
+ * it: every .cu file whose kernels read it calls it where its state is made) */
+#ifdef __CUDACC__
+static __constant__ __attribute__((unused)) int neth_net_dns;
+static inline void neth_net_dsync(void)
+{
+    neth_net_fs.fixed = 1;
+    cudaMemcpyToSymbol(neth_net_dns, &neth_net_fs.ns, sizeof(int));
+}
 #endif
-#define NETH_NET_NS (155 + NETH_NET_LATE * NETH_NET_LATE_N + NETH_NET_HSEE * NETH_NET_HSEE_N + NETH_NET_DIG * NETH_NET_DIG_N + NETH_NET_ORE * NETH_NET_ORE_N + \
-               NETH_NET_GV * NETH_NET_GV_N + NETH_NET_TASK * NETH_NET_TASK_N)   /* the vector env's scalar row: NETH_VEC_NSCALAR
-                                     * (+ NETH_VEC_LATE_N) (+ NETH_VEC_HSEE_N) (+ NETH_VEC_DIG_N) (+ NETH_VEC_ORE_N)
-                                     * (+ NETH_VEC_GV_N) (+ NETH_VEC_TASK_N) */
-/* a blob's scalars may be any prefix of the build's that ends at a part: 155, then + the late ones, + the hotbar's
- * tools, + the dig's (lane/ladder5: an L2 .dk student in a .dk.or build) (loop.c neth_weights_flat and distill.cu's widening
- * load it with zero weights on the rest) */
-#define NETH_NET_NS_PREFIX(ns) ((ns) == 155 || (ns) == 155 + NETH_NET_LATE * NETH_NET_LATE_N || \
-                          (ns) == 155 + NETH_NET_LATE * NETH_NET_LATE_N + NETH_NET_HSEE * NETH_NET_HSEE_N || \
-                          (ns) == 155 + NETH_NET_LATE * NETH_NET_LATE_N + NETH_NET_HSEE * NETH_NET_HSEE_N + NETH_NET_DIG * NETH_NET_DIG_N || \
-                          (ns) == 155 + NETH_NET_LATE * NETH_NET_LATE_N + NETH_NET_HSEE * NETH_NET_HSEE_N + NETH_NET_DIG * NETH_NET_DIG_N + \
-                                      NETH_NET_ORE * NETH_NET_ORE_N || (ns) == NETH_NET_NS - NETH_NET_TASK * NETH_NET_TASK_N || (ns) == NETH_NET_NS)
-#define NETH_NET_FLAT (NETH_NET_C3 * NETH_NET_O3 * NETH_NET_O3 + NETH_NET_NS)   /* 411 at wm 1, 16x16 */
+#ifdef __CUDA_ARCH__
+#define NETH_NET_NS neth_net_dns
+#else
+#define NETH_NET_NS (neth_net_fs.ns)
+#endif
+#define NETH_NET_FEATMASK (neth_net_fs.mask)
+/* lane/audit-fixes: the build's word as given to make (actor.mk's nt_vflags passes it), the checkpoint header's variant */
+#ifndef NETH_NET_NAME
+#define NETH_NET_NAME "unnamed"
+#endif
+/* lane/audit-fixes: neth_ntw_parse's flags: NETH_NTW_FEWER, fewer tensors than the build's (the first ones; ntinit --from,
+ * the teacher); NETH_NTW_NARROW, a tensor's first two dims at or under the build's (the teacher at a smaller wm) */
+#define NETH_NTW_FEWER 1
+#define NETH_NTW_NARROW 2
+#define NETH_NET_FLAT0 (NETH_NET_C3 * NETH_NET_O3 * NETH_NET_O3)   /* fc1's columns before the scalars */
+#define NETH_NET_FLAT (NETH_NET_FLAT0 + NETH_NET_NS)   /* 411 at wm 1, 16x16 and the base 155 */
 #define NETH_NET_D (256 * NETH_NET_WM)
 #define NETH_NET_CAM 2
 #define NETH_NET_BINS 41

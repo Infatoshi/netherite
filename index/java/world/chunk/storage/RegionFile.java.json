@@ -17,7 +17,7 @@
    "symbols": [
     "region_load_chunk",
     "region_enumerate",
-    "read_whole",
+    "read_at",
     "inflate_zlib"
    ]
   }
@@ -46,9 +46,9 @@
    "kind": "field",
    "name": "dataFile",
    "sig": "RandomAccessFile",
-   "native": "csrc/engine/region.c:read_whole",
+   "native": "csrc/engine/region.c:read_at",
    "status": "exact",
-   "note": "read whole"
+   "note": "opened once, read at offsets with pread: the chunk's header entry, then its record (the whole file is no longer read)"
   },
   {
    "kind": "field",
@@ -92,9 +92,9 @@
    "kind": "ctor",
    "name": "RegionFile",
    "sig": "(File)",
-   "native": "csrc/engine/region.c:read_whole",
+   "native": "csrc/engine/region.c:region_load_chunk",
    "status": "exact",
-   "note": "the read side; a file under 8192 bytes has no chunk to read"
+   "note": "the read side, in region_load_chunk: the file opened for each read; a file under 8192 bytes has no chunk to read"
   },
   {
    "kind": "method",

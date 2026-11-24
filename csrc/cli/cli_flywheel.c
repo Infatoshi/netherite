@@ -9,7 +9,8 @@
  *   train_config, eval_config          run files (the eval's is held to configs/fidelity.yaml unless allow_approx)
  *   budget_steps                       env-steps of training a step
  *   incumbent                          the model a step starts from and is compared with (--incumbent wins)
- *   primary_metric                     depth, ret, deaths, raw_share, or a milestone (dragon, iron_pickaxe, ...)
+ *   primary_metric                     depth, ret, deaths, raw_share, or a milestone (dragon, iron_pickaxe, ...; win,
+ *                                      a task environment's win rate: lane/audit-fixes)
  *   max_p, min_z                       KEEP when the metric is better with p <= max_p or z >= min_z
  *   eval_split                         a seeds file or splits.json (eval_seeds) for the eval
  *   build_cmd, quick_gate              a command run first (no shell), and on: nether gate --quick first

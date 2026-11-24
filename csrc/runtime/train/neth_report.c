@@ -31,6 +31,8 @@ void neth_report_episode(FILE *f, const struct neth_vec_episode *e, int64_t step
         fprintf(f, "%s\"%s\": %u", i ? ", " : "", neth_ms_names[i], (e->ms >> i) & 1);
     /* the End entered and the dragon killed (vecenv.h NETH_VEC_MS_END, NETH_VEC_MS_DRAGON) */
     fprintf(f, ", \"end\": %u, \"dragon\": %u", (e->ms >> NETH_VEC_MS_END) & 1, (e->ms >> NETH_VEC_MS_DRAGON) & 1);
+    /* lane/audit-fixes: the task won (vecenv.h neth_vec_episode.win), a milestone to nether eval (not in its depth) */
+    fprintf(f, ", \"win\": %d", e->win ? 1 : 0);
     fputs("}, \"macro\": {", f);
     for (int i = 0; i < NETH_VEC_MACROS; ++i) fprintf(f, "%s\"%s\": %lld", i ? ", " : "", MACRO_NAMES[i], (long long)e->macro[i]);
     fputs("}, \"t\": ", f);

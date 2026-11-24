@@ -18,16 +18,17 @@
 #          RP_ARGS more flags (--beta B: DAgger, --soft 1, --student-prev env)
 #       4. the frozen student on the held-out plain and dark-cave starts with the ore scalars zeroed (--zero-sc ore:
 #          pixels, the crack scalar and the player's own state), RP_EVAL_N envs (64), eval seed RP_EVAL_SEED, each env's first
-#          episode, in each build of RP_EVALS: RP_V.t5 (the keys and camera drawn at temperature 0.5, net.h NETH_ACTOR_TEMP)
-#          and RP_V (sampled, as the training's actor); RP_V.gkc is the greedy one
+#          episode, in each draw of RP_EVALS on RP_SV's build (lane/audit-fixes: ntloop's flags, were builds): tT the keys
+#          and camera drawn at temperature T (--temp T; t0.5 the default's), sampled (as the training's actor), gk, gc
+#          and gkc the keys, the camera or both greedy (--greedy keys|cam|both)
 #     RP_TONE=auto|gamma:G (empty: none; auto the default): every observation the teacher, the student and the evals read through ntloop
 #     --obs-tone (auto: each frame times 255 over its brightest byte, the camera's auto exposure);
 #     RP_CURVE=N (0 off): the student's checkpoint every N env-steps played frozen on RP_CURVE_LIB (the plain held-out
 #     starts; 32 envs, sampled; its ore weights are 0, so no --zero-sc is needed), RP_OUT/ckpt-*.ntw.eval;
 #     and the lines RAWPIX-TIME (the parts' wall seconds) and RAWPIX (held-out success by build, plain and dark caves).
 #     lane/rawsearch: RP_SV=BUILD the student's build (RP_V, the teacher's, by default; s1.dk.or.r1 a minGRU student of a
-#     feed-forward teacher: distill.cu takes the teacher's blob with the minGRU's tensors zero), its evals RP_SV.t5 and
-#     RP_SV; RP_VIEW=K (empty: none) the evals' view books of seen kind K (ntloop --view-books: 0 iron ore, 2 logs),
+#     feed-forward teacher: distill.cu takes the teacher's blob with the minGRU's tensors zero), its evals on RP_SV's
+#     build; RP_VIEW=K (empty: none) the evals' view books of seen kind K (ntloop --view-books: 0 iron ore, 2 logs),
 #     EVAL/view.jsonl and a RAWPIX-VIEW line each (viewbooks.sh: of the first episodes, won and lost, the share that saw
 #     the object, lost it from view, got it back, and had it in view at the end); those evals run with --task-hint 0
 #     (the books read the seen-object flag, which a run file's task.hint would fill when nothing is drawn; the student's
@@ -65,7 +66,10 @@ RP_HMIX_MAX    ?= 50
 RP_HMIX        ?= $(RT_OUT)/rawskill/train$(RP_HMIX_MAX)-mix
 RP_TLIB        ?= $(RS_TRAIN)
 RP_LIB         ?= $(RP_WMIX)
-RP_EVALS       ?= $(RP_SV).t5 $(RP_SV)
+RP_EVALS       ?= t0.5 sampled
+# lane/audit-fixes: an eval's draw as ntloop's flags (t0.5: --temp 0.5; sampled: none; gk, gc, gkc: --greedy)
+RP_DRAW         = case $$v in sampled) d=;; t[0-9]*) d="--temp $${v\#t}";; gk) d="--greedy keys";; gc) d="--greedy cam";; \
+                    gkc) d="--greedy both";; *) echo "rawpix: RP_EVALS word $$v (tT, sampled, gk, gc, gkc)"; exit 2;; esac
 RP_TONE        ?= auto
 RP_EVAL_N      ?= 128
 RP_TARGS       ?=
@@ -93,7 +97,8 @@ rawpix-starts: $(NT_OUT)/rawstarts
 
 rawpix: rawpix-starts
 	@cd $(RT_ROOT) && set -e; \
-	  for v in $(sort $(RP_V) $(RP_SV)) $(RP_EVALS); do $(MAKE) --no-print-directory -s -C $(RT_DIR) train-loop-v NT_V=$$v; done; \
+	  for v in $(RP_EVALS); do $(RP_DRAW); done; \
+	  for v in $(sort $(RP_V) $(RP_SV)); do $(MAKE) --no-print-directory -s -C $(RT_DIR) train-loop-v NT_V=$$v; done; \
 	  [ -x $(RP_SINIT) ] || $(MAKE) --no-print-directory -s -C $(RT_DIR) train-loop-v NT_V=$(subst .or,,$(RP_SV)) $(RP_SINIT); \
 	  rm -rf $(RP_OUT) && mkdir -p $(RP_OUT); \
 	  t0=$$(date +%s.%N); \
@@ -110,10 +115,10 @@ rawpix: rawpix-starts
 	      --eval-threads 8 --eval-extra "--dev --start $$(awk -F'\t' 'NR == 2 {print $$9}' $(RP_CURVE_LIB)/index.tsv) --library $(RP_CURVE_LIB) $(RP_TONEF)") \
 	    $(RP_ARGS) > $(RP_OUT)/train.log 2>&1 || { tail -5 $(RP_OUT)/train.log; exit 1; }; \
 	  t2=$$(date +%s.%N); \
-	  for v in $(RP_EVALS); do for lib in $(RS_HELD) $(RP_HCAVE); do \
+	  for v in $(RP_EVALS); do $(RP_DRAW); for lib in $(RS_HELD) $(RP_HCAVE); do \
 	    held0=$$(awk -F'\t' 'NR == 2 {print $$9}' $$lib/index.tsv); e=$(RP_OUT)/eval-$$v-$$(basename $$lib); \
-	    $(NT_OUT)/$$v/ntloop --score --run $(RP_RUN) --dev --init $(RP_OUT)/model.ntw --start $$held0 --library $$lib \
-	      --ns $(RP_EVAL_N) --minutes $(RP_MIN) --seed $(RP_EVAL_SEED) --out $$e --zero-sc ore $(RP_TONEF) \
+	    $(RP_BIN) --score --run $(RP_RUN) --dev --init $(RP_OUT)/model.ntw --start $$held0 --library $$lib \
+	      --ns $(RP_EVAL_N) --minutes $(RP_MIN) --seed $(RP_EVAL_SEED) --out $$e --zero-sc ore $(RP_TONEF) $$d \
 	      $(if $(RP_VIEW),--view-books $(RP_VIEW) --task-hint 0) > $$e.log 2>&1 || { tail -5 $$e.log; exit 1; }; \
 	  done; done; \
 	  t3=$$(date +%s.%N); \
@@ -121,7 +126,7 @@ rawpix: rawpix-starts
 	  awk -v a=$$t0 -v b=$$t1 -v c=$$t2 -v d=$$t3 -v r="$$rate" 'BEGIN { \
 	    printf "RAWPIX-TIME total %.2f s: teacher %.2f, student %.2f (%s env-steps/s), evals %.2f\n", d - a, b - a, c - b, r, d - c }'; \
 	  for v in $(RP_EVALS); do for lib in $(RS_HELD) $(RP_HCAVE); do \
-	    jq -s -r --arg lib $$(basename $$lib) --arg v $$v 'group_by(.env) | map(.[0]) | length as $$n | \
+	    jq -s -r --arg lib $$(basename $$lib) --arg v $(RP_SV).$$v 'group_by(.env) | map(.[0]) | length as $$n | \
 	      (map(select((.items["$(RP_ITEM)"] // 0) >= $(RP_NEED))) | length) as $$k | \
 	      "RAWPIX pixels-only \($$v) \($$lib) success \($$k / $$n * 1000 | round / 1000) (\($$k) of \($$n)), deaths \(map(.deaths) | add)"' \
 	      $(RP_OUT)/eval-$$v-$$(basename $$lib)/episodes.jsonl; \

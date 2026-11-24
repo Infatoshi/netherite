@@ -1,0 +1,18 @@
+# Mine 3 exposed stone outcrop blocks (block 1) in Bedrock GPU training.
+description: mine 3 stone blocks (block 1) from a surface outcrop, raw keys, 20 s
+name: stone-mine
+episode:
+  seconds: 20
+actions:
+  keys: forward+back+left+right+jump+mine
+macros: none
+reward:
+  item: 1
+  win: 1.0
+  dist: 0.1
+policy:
+  bedrock:
+    env_id: stone-mine
+    target_block: 1
+    target_count: 3
+    break_ticks: 12

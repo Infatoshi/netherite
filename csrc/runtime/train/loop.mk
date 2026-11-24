@@ -208,7 +208,7 @@ train-loop-bench: rlbind $(RT_OUT)/vec_bench $(NT_OUT)/ntloop train-loop-cfg
 	    if (m < min) {print "TRAIN-LOOP-BENCH FAIL: the median under " min "%"; exit 1} print "TRAIN-LOOP-BENCH PASS"}' \
 	    $(NTL_OUT)/bench.log
 
-# lane/ladder2, the hotbar's tools as scalars (net.h NETH_NET_HSEE, the .hs builds; gpuq.sh check), about 20 s:
+# lane/ladder2, the hotbar's tools as scalars (net.h's hs feature, the .hs builds' default; gpuq.sh check), about 20 s:
 #   make -C csrc/runtime train-hsee-check    a fresh s1.hb net (ntinit, seed 3) frozen at 64x64 (NTCONF_DEV's world,
 #          the device cast), the L2 student's macros (8187) with the hotbar, through the s1.hb build and the s1.hb.hs
 #          build: the blob's 155 scalars load into the wider fc1 with zeros on the 27 added, so the actions and the

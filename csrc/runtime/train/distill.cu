@@ -43,7 +43,7 @@ struct neth_distill {
     struct neth_distill_rec **seg;   /* [2 G] device [T][gs] */
     int32_t (*prev)[4];     /* [n]: the student's previous-action fields for each env's next step */
     uint8_t *stage;         /* [n]: lane/ladder2, each env's stage this episode (neth_distill_census st) */
-    uint8_t *pdig;          /* [n]: lane/ladder4 (NETH_NET_DIG), the dig the state before this step showed: bit 0 a crack,
+    uint8_t *pdig;          /* [n]: lane/ladder4 (the dk feature), the dig the state before this step showed: bit 0 a crack,
                              * bit 1 the hit (neth_distill_census dig) */
     neth_sc_t *ssc;         /* device [T gs][NETH_NET_NS]: the student's scalars */
     float *cnt;             /* device: the minibatch's weight and valid sums */
@@ -71,9 +71,9 @@ struct neth_distill {
     int hscope;             /* --hold-scope: 0 all, 1 lock, 2 dig (distill.h) */
     int gui;                /* lane/ladder10 (neth_distill_gui): the teacher's key 12 cleared */
     float guiw;             /* lane/ladder10 (--gui-weight, neth_distill_gui_weight): a label's weight where the state showed an
-                             * open container screen (NETH_NET_GV's kind flags) */
+                             * open container screen (the gv feature's kind flags) */
     float x2w;              /* lane/ladder17 (--x2-weight, neth_distill_x2_weight): a 2x2 recipe label's weight (half 9) */
-    uint8_t *pscr;          /* [n]: lane/ladder10, the state before this step showed one (NETH_NET_GV builds; 0 otherwise);
+    uint8_t *pscr;          /* [n]: lane/ladder10, the state before this step showed one (runs with gv; 0 otherwise);
                              * lane/ladder13: its kind, 1 the inventory, 2 a crafting table, 3 a furnace, 4 another */
     int rhold;              /* lane/ladder13 (--recipe-hold, neth_distill_recipe_hold) */
     int tlab;               /* lane/ladder15 (--table-label, neth_distill_table_label) */
@@ -127,6 +127,7 @@ extern "C" struct neth_distill *neth_distill_new(int n, int G, int gs, int T, in
         snprintf(err, en, "neth_distill_new: %d envs are not %d groups of %d", n, G, gs);
         return NULL;
     }
+    neth_net_dsync();   /* lane/audit-feat: this file's kernels read the run's scalar row */
     struct neth_distill *D = (struct neth_distill *)calloc(1, sizeof *D);
     D->n = n, D->G = G, D->gs = gs, D->T = T, D->level = level, D->vf = vf, D->hotw = 1.0f, D->holdw = 1.0f;
     /* lane/ladder16 (NETH_VEC_SEEKKEY): the teacher's own key 13 cleared (k_mix), so key 13 is said only at a seek's
@@ -270,9 +271,7 @@ extern "C" int neth_distill_launch(struct neth_distill *D, void *teacher, void *
 #define SC_MAC (NETH_VEC_ITEMS + 9 + 12)
 #define SC_CAM (SC_MAC + NETH_VEC_MACROS)
 #define SC_KEY (SC_CAM + 2 * NETH_VEC_CAM)
-static_assert(SC_KEY + NETH_VEC_KEYS + NETH_NET_LATE * NETH_NET_LATE_N + NETH_NET_HSEE * NETH_NET_HSEE_N + NETH_NET_DIG * NETH_NET_DIG_N +
-                      NETH_NET_ORE * NETH_NET_ORE_N + NETH_NET_GV * NETH_NET_GV_N + NETH_NET_TASK * NETH_NET_TASK_N == NETH_NET_NS,
-              "the scalars' layout");
+static_assert(SC_KEY + NETH_VEC_KEYS == NETH_NET_BASE_NS, "the scalars' layout: the base 155, then the run's features");
 
 /* the env's own previous-action fields in sc against p: equal */
 static int prev_equal(const float *sc, const int32_t *p) {
@@ -547,18 +546,13 @@ extern "C" void neth_distill_took(struct neth_distill *D, const struct neth_vec_
                 C->dig[dg][1] += r->a[NETH_NET_CAM + KEY_ATTACK] != 0;
             }
         }
-#if NETH_NET_DIG
-        {
-            const float *g = b->scalars + (size_t)i * NETH_NET_NS + NETH_NET_NS - NETH_NET_DIG_N - NETH_NET_ORE * NETH_NET_ORE_N -
-                             NETH_NET_GV * NETH_NET_GV_N - NETH_NET_TASK * NETH_NET_TASK_N;  /* ladder5: .or's after it; ladder10: .gv's;
-                                                                      * acrl: .tk's last */
+        if (NETH_NET_FEATMASK & NETH_NET_FDK) {     /* lane/audit-feat: the run's dk block (net.h NETH_NET_OFF_OF) */
+            const float *g = b->scalars + (size_t)i * NETH_NET_NS + NETH_NET_OFF_OF(NETH_NET_FEATMASK, NETH_NET_FDK);
             D->pdig[i] = b->truncations[i] ? 0 : (uint8_t)((g[0] > 0.0f) | (g[1] > 0.0f) << 1);
         }
-#endif
-#if NETH_NET_GV
-        {
+        if (NETH_NET_FEATMASK & NETH_NET_FGV) {
             /* lane/ladder10: the open screen's kind flags (late_scalars bit 4's first four) for the next step's label */
-            const float *g = b->scalars + (size_t)i * NETH_NET_NS + NETH_NET_NS - NETH_NET_GV_N - NETH_NET_TASK * NETH_NET_TASK_N;
+            const float *g = b->scalars + (size_t)i * NETH_NET_NS + NETH_NET_OFF_OF(NETH_NET_FEATMASK, NETH_NET_FGV);
             uint8_t was = D->pscr[i];
             D->pscr[i] = b->truncations[i] ? 0 : g[0] > 0.0f ? 1 : g[1] > 0.0f ? 2 : g[2] > 0.0f ? 3 : g[3] > 0.0f ? 4 : 0;
             /* lane/ladder14: the step that made a screen show opened it */
@@ -566,7 +560,6 @@ extern "C" void neth_distill_took(struct neth_distill *D, const struct neth_vec_
             else if (!was || was != D->pscr[i])
                 D->popen[i] = l->mbit == NETH_VEC_CRAFT ? 1 : l->mbit == 0 ? 2 : 3;
         }
-#endif
         {
             int sg = stage_of(b->scalars + (size_t)i * NETH_NET_NS);
             if (b->truncations[i] || !(l->flags & NETH_VEC_LBL_VALID)) D->stage[i] = 0;
@@ -812,10 +805,9 @@ extern "C" void neth_distill_row(struct neth_distill *D, void *file, int64_t env
     fprintf(f, ", \"prev_ok\": %lld, \"prev_bad\": %lld, \"invalid\": %lld, \"student\": %lld, \"agree\": %lld, ",
             (long long)C->prev_ok, (long long)C->prev_bad, (long long)C->invalid, (long long)C->student,
             (long long)C->agree);
-#if NETH_NET_DIG
-    fprintf(f, "\"dig\": [[%lld, %lld], [%lld, %lld], [%lld, %lld]], ", (long long)C->dig[0][0], (long long)C->dig[0][1],
-            (long long)C->dig[1][0], (long long)C->dig[1][1], (long long)C->dig[2][0], (long long)C->dig[2][1]);
-#endif
+    if (NETH_NET_FEATMASK & NETH_NET_FDK)    /* lane/audit-feat: the run's dk */
+        fprintf(f, "\"dig\": [[%lld, %lld], [%lld, %lld], [%lld, %lld]], ", (long long)C->dig[0][0], (long long)C->dig[0][1],
+                (long long)C->dig[1][0], (long long)C->dig[1][1], (long long)C->dig[2][0], (long long)C->dig[2][1]);
     if (D->level & (NETH_VEC_NOTABLE | NETH_VEC_NORECIPE)) {   /* lane/ladder12: the craft macro by half */
         fputs("\"halves\": [", f);
         for (int h = 0; h < 5; ++h)     /* lane/ladder15: [4] the table half's first step */
@@ -831,8 +823,7 @@ extern "C" void neth_distill_row(struct neth_distill *D, void *file, int64_t env
                     (long long)C->rscr[k][2]);
         fputs("], ", f);
     }
-#if NETH_NET_GV
-    {
+    if (NETH_NET_FEATMASK & NETH_NET_FGV) {     /* lane/audit-feat: the run's gv */
         /* lane/ladder14: win[screen][opener][label] flattened, 6 a cell; wrel */
         fputs("\"win\": [", f);
         const int64_t *q = &C->win[0][0][0][0];
@@ -840,7 +831,6 @@ extern "C" void neth_distill_row(struct neth_distill *D, void *file, int64_t env
         fprintf(f, "], \"wrel\": [%lld, %lld, %lld], ", (long long)C->wrel[0], (long long)C->wrel[1],
                 (long long)C->wrel[2]);
     }
-#endif
     if (D->tlab) fprintf(f, "\"tlabs\": %lld, ", (long long)C->tlabs);     /* lane/ladder15 */
     if (D->level & NETH_VEC_SEEKKEY)     /* lane/ladder16 */
         fprintf(f, "\"seekkey\": [%lld, %lld, %lld], \"seekwalk\": [%lld, %lld, %lld, %lld], ",
@@ -971,7 +961,15 @@ extern "C" void neth_distill_print(const struct neth_distill *D) {
 
 /* ---- the widening ---- */
 
-extern "C" unsigned char *neth_distill_widen(const unsigned char *b, size_t len, size_t *out, char *err, size_t en) {
+/* lane/audit-fixes: neth_checkpoint.c's parser and writer (neth_pipe_internal.h): the teacher's header and scalars are
+ * the parser's (its fc1 at the run's scalars, each feature it names where the run reads it), the wm and the heads
+ * it lacks this widening's */
+extern "C" int neth_ntw_parse(const void *data, size_t len, const char *name, int flags, float *t[NETH_NET_TENSORS],
+                              int dims[NETH_NET_TENSORS][4], char *err, size_t en);
+extern "C" unsigned char *neth_ntw_write(const float *const t[NETH_NET_TENSORS], size_t *len);
+
+extern "C" unsigned char *neth_distill_widen(const unsigned char *b, size_t len, const char *name, size_t *out, char *err,
+                                             size_t en) {
     static const int rank[NETH_NET_TENSORS] = {
 #define NETH_NET_R(n, r, a, b, c, d) r,
         NETH_NET_ORDER(NETH_NET_R)
@@ -987,82 +985,32 @@ extern "C" unsigned char *neth_distill_widen(const unsigned char *b, size_t len,
         NETH_NET_ORDER(NETH_NET_N)
 #undef NETH_NET_N
     };
-    int cnt;
     /* NETH_NET_HOTBAR (lane/nthotbar): a blob without the hotbar's head takes one that always keeps the slot (its weights
      * 0, its bias 0 for keep and NETH_DISTILL_NOHOT for each slot: never drawn, and logp's hotbar term exactly 0), so a teacher
      * trained without the head acts and scores as it did; NETH_NET_RNN (lane/ladder8): a blob without the minGRU's two
      * tensors (and the hotbar's, before them) takes them zero: h stays 0 and the net is the blob's feed-forward one */
-    int has = len >= 12 ? (memcpy(&cnt, b + 8, 4), cnt) : -1;
-    if (len < 12 || memcmp(b, "NTW1\0\0\0\0", 8) ||
-        !(cnt == NETH_NET_TENSORS || (NETH_NET_HOTBAR && !NETH_NET_RNN && cnt == NETH_NET_TENSORS - 2) ||
-          (NETH_NET_RNN && cnt == NETH_NET_TENSORS - 2) || (NETH_NET_RNN && NETH_NET_HOTBAR && cnt == NETH_NET_TENSORS - 4))) {
-        snprintf(err, en, "not an NTW1 blob of %d tensors (another stem?)", NETH_NET_TENSORS);
+    float *src[NETH_NET_TENSORS];
+    int sd[NETH_NET_TENSORS][4];
+    int has = neth_ntw_parse(b, len, name, NETH_NTW_FEWER | NETH_NTW_NARROW, src, sd, err, en);
+    if (has < 0) return NULL;
+    if (!(has == NETH_NET_TENSORS || (NETH_NET_HOTBAR && !NETH_NET_RNN && has == NETH_NET_TENSORS - 2) ||
+          (NETH_NET_RNN && has == NETH_NET_TENSORS - 2) || (NETH_NET_RNN && NETH_NET_HOTBAR && has == NETH_NET_TENSORS - 4))) {
+        for (int i = 0; i < has; ++i) free(src[i]);
+        snprintf(err, en, "%s: %d tensors, not a blob of %d (another stem?)", name, has, NETH_NET_TENSORS);
         return NULL;
     }
-    /* the source's dims, then conv3's channels (fc1's input: c3 * O3^2 then the scalars) */
-    int sd[NETH_NET_TENSORS][4];
-    size_t off = 12, need = 12;
-    const unsigned char *data[NETH_NET_TENSORS];
-    for (int i = has; i < NETH_NET_TENSORS; ++i) {   /* the hotbar's head added */
-        data[i] = NULL;
-        for (int k = 0; k < 4; ++k) sd[i][k] = dims[i][k];
-        size_t m = 1;
-        for (int k = 0; k < rank[i]; ++k) m *= (size_t)dims[i][k];
-        need += 4 + 4 * (size_t)rank[i] + 4 * m;
-    }
-    for (int i = 0; i < has; ++i) {
-        int r;
-        if (off + 4 > len || (memcpy(&r, b + off, 4), r != rank[i])) {
-            snprintf(err, en, "tensor %d's rank", i);
-            return NULL;
-        }
-        off += 4;
-        size_t n = 1;
-        for (int k = 0; k < 4; ++k) sd[i][k] = 1;
-        for (int k = 0; k < r; ++k, off += 4) {
-            if (off + 4 > len) return snprintf(err, en, "truncated"), (unsigned char *)NULL;
-            memcpy(&sd[i][k], b + off, 4);
-            if (sd[i][k] > dims[i][k] || sd[i][k] <= 0 || (k >= 2 && sd[i][k] != dims[i][k])) {
-                snprintf(err, en, "tensor %s's dim %d is %d, the build's %d", names[i], k, sd[i][k], dims[i][k]);
-                return NULL;
-            }
-            n *= (size_t)sd[i][k];
-        }
-        if (off + 4 * n > len) return snprintf(err, en, "truncated"), (unsigned char *)NULL;
-        data[i] = b + off;
-        off += 4 * n;
-        size_t m = 1;
-        for (int k = 0; k < r; ++k) m *= (size_t)dims[i][k];
-        need += 4 + 4 * (size_t)r + 4 * m;
-    }
-    if (off != len) return snprintf(err, en, "trailing bytes"), (unsigned char *)NULL;
+    /* the source's dims (the parser's: fc1's input conv3's c3 * O3^2 columns, then the run's scalars) */
     const int fc1 = 2 * NETH_NET_STEM + 6, c3w = 2 * NETH_NET_STEM + 4;
     int c3s = sd[c3w][0], sp = NETH_NET_O3 * NETH_NET_O3;
-    /* lane/ladder2: the scalars may be a prefix of the build's (155, then NETH_NET_LATE's, then NETH_NET_HSEE's: the added ones
-     * take zero weights, as neth_weights_flat's) */
-    int sns = sd[fc1][1] - c3s * sp;
-    if (!NETH_NET_NS_PREFIX(sns)) {   /* lane/ladder4: and NETH_NET_DIG's after those */
-        snprintf(err, en, "fc1's input %d is not conv3's %d channels at %dx%d and %d scalars", sd[fc1][1], c3s, NETH_NET_O3,
-                 NETH_NET_O3, NETH_NET_NS);
-        return NULL;
-    }
-    unsigned char *o = (unsigned char *)calloc(1, need), *q = o;
-    memcpy(q, b, 8);
-    int nt = NETH_NET_TENSORS;
-    memcpy(q + 8, &nt, 4);
-    q += 12;
+    float *dst[NETH_NET_TENSORS];
     for (int i = 0; i < NETH_NET_TENSORS; ++i) {
         int r = rank[i];
-        memcpy(q, &r, 4);
-        q += 4;
-        for (int k = 0; k < r; ++k, q += 4) memcpy(q, &dims[i][k], 4);
-        float *dst = (float *)q;  /* q stays 4-aligned: every field is 4 bytes */
         size_t m = 1, n = 1;
         for (int k = 0; k < r; ++k) m *= (size_t)dims[i][k], n *= (size_t)sd[i][k];
-        if (!data[i]) {     /* the added hotbar head: hot_w zero, hot_b keep 0 and the slots NETH_DISTILL_NOHOT; the minGRU 0 */
+        dst[i] = (float *)calloc(m, sizeof(float));
+        if (!src[i]) {     /* the added hotbar head: hot_w zero, hot_b keep 0 and the slots NETH_DISTILL_NOHOT; the minGRU 0 */
             if (!strcmp(names[i], "hot_b"))
-                for (size_t e = 1; e < m; ++e) dst[e] = NETH_DISTILL_NOHOT;
-            q += 4 * m;
+                for (size_t e = 1; e < m; ++e) dst[i][e] = NETH_DISTILL_NOHOT;
             continue;
         }
         int td[4] = {1, 1, 1, 1};
@@ -1074,12 +1022,11 @@ extern "C" unsigned char *neth_distill_widen(const unsigned char *b, size_t len,
             if (i == fc1 && ix[1] >= c3s * sp) ix[1] = ix[1] - c3s * sp + NETH_NET_C3 * sp;     /* the scalars' columns */
             size_t t = 0;
             for (int k = 0; k < r; ++k) t = t * (size_t)td[k] + (size_t)ix[k];
-            float f;
-            memcpy(&f, data[i] + 4 * e, 4);
-            dst[t] = f;
+            dst[i][t] = src[i][e];
         }
-        q += 4 * m;
     }
-    *out = need;
+    unsigned char *o = neth_ntw_write(dst, out);
+    for (int i = 0; i < NETH_NET_TENSORS; ++i) free(src[i]), free(dst[i]);
     return o;
 }
+

@@ -1,5 +1,173 @@
 # netherite-v2 DEVLOG
 
+## 2026-11-23 lane/audit-feat: the scalar features are the run's choice; one build runs any set
+
+The audit's last item. Three commits on the lane, each droppable on its own (the first two are lane/audit-feat's
+7593d497 and c217b600, cherry-picked): 69bf8770, 8fba6493 and 19ab72b3. Dropped, the feature words are build-time
+again and the entry below holds as written. The comparison is against 3ad3f120's compile-time builds of the same
+trainer (lane `audit-feat-base`), one working directory, on the dev host; the logs are the lane's `out/audit/`.
+
+**What changed.**
+
+- *The row's count is a run-time value* (69bf8770). The six feature words (`.ls .hs .dk .or .gv .tk`) each passed a
+  `-D` that fixed the scalar row's width, so a model of any other subset needed its own build of every variant.
+  net.h holds the run's set as a process-wide mask (`neth_net_fs`: mask, count, fixed). Host code reads
+  `NETH_NET_NS` from it, device code a `__constant__` copy that each `.cu` file uploads where it makes its state
+  (`neth_net_dsync`), and `loop.cu`'s two staging kernels take the count as an argument.
+  - The kernels that need fc1's K at compile time (`k_fcrow`, the fc1 GEMM, `k_afused`) are templates on the count
+    padded to 64. The 40 reachable rows pad to four widths (192, 320, 896, 1024), and every build's K is the one its
+    compile-time build used, so the arithmetic is the same.
+- *ntloop and ntinit take the set* (8fba6493). `--features WORDS` (ls hs dk or gv tk, or none; spaces, commas or
+  dots between) and the run file's `policy.net.features`. With neither, an NTW2 `--init` file's header decides; an
+  NTW1 file or no `--init` gets the build's default, which is all the words in a variant's name mean now. A named set
+  must hold every feature the file has, or the run is refused naming both; a flag and a run key that differ are
+  refused too.
+  - **The checkpoint rule is not the entry below's.** A build no longer refuses a file of another set, because the
+    file's header decides: `s1`, `s1.ls` and `s1.dk.or` run an `s1.ls` file as ls, with one digest. Refused: a set
+    that lacks a feature the file has, and an NTW1 file of more than 155 scalars (migrate it, as below).
+  - A file with fewer features than the run loads with zero weights on the rest: a trained ls net given
+    `--features ls,hs` has the ls run's digest.
+  - ntinit takes `--features` for a fresh net and with `--from`. `make train-loop-v` does not build `V/ntinit`, so a
+    worktree's ntinit from before these commits keeps the old rules until it is built by hand
+    (`make -C csrc/runtime $PWD/out/runtime/train/V/ntinit`).
+- *A migrated file's header names the build* (19ab72b3). `ntinit --migrate` wrote `variant unnamed` whenever the
+  stated set was not the build's own; it now writes the build's word, as a model a run saves does.
+
+**Measured.**
+
+- Trajectory digests, the compile-time build against this tree, one weights file and one command (64 envs, 60 group
+  steps, learning off): equal for the production set fresh (a3ad6eadfa930f8f), for none, ls and dk or fresh (all three
+  6f4e8cedc27eadf6: a fresh net's first 60 steps do not tell the sets apart), and for `ckpt-060` migrated as ls
+  (3d745b18fc812a0f).
+- So two nets were trained 19 updates by the compile-time builds (their scalar columns' largest weight then 0.042
+  against 0.029 fresh) and run on both trees: ls 5ff5cdee55aa7709, dk or f4bf40ced72f08fd, equal. With fc1's scalar
+  columns set to 0 the two digests are others (d28dea638fcecb16, 99c0d37c59766ab9), equal again: the digest reads
+  those columns. `ckpt-060`'s scalar columns average 0.17 where a fresh net's do 0.015.
+- The first learner row with learning on, the same trained nets: the same loss on both trees in 5 runs of 6 to the
+  last digit, and in the sixth each tree one of the two values of the third epoch (below). Fresh nets, 15 interleaved
+  runs a tree: the same values for none, the recurrent build, ls, dk or and the production set; `ckpt-060` four
+  values within 1.1e-8.
+- ntinit: the same tensors as the compile-time builds' for a fresh ls, dk or and none net, for `--from` and for
+  `--migrate`. The refusals name their reason: a flag lacking the file's feature; `--features xx`; two `--features`;
+  a migration whose features make 171 scalars of a 169-scalar file.
+- Throughput, the production variant (`nether ab`, learning on, 256 envs in 8 groups, about a minute a run,
+  alternating order, card 3), the compile-time build's env-steps a second against this tree's: three sets of 5, 5
+  and 8 rounds give 0.9970, 0.9988 and 0.9894; the 18 paired rounds together 0.9941, from 0.9845 to 1.0037 at 95%.
+  A run's own spread is 2 to 6%. No slowdown is shown; one of about 1% can be neither shown nor ruled out.
+- Size: `ntloop` 2,868,008 against 3,033,712 bytes for `s1`, 3,119,592 against 3,313,232 for the production
+  variant; the five trainer objects 1,625,432 against 1,764,864 and 1,895,744 against 2,063,240 bytes; `w1.af`'s 1.84
+  against 2.69 MB. A cold compile of the five: `s1` 7.0 against 7.2 s, `w1.af` 8.0 against 11.2 s (the worker's).
+- The checks at 19ab72b3: `train-actor-v-check`, `train-wire-check` (the GAE case, 6 PASS), `train-loop-check`
+  (df2a60c5's digests), `nether gate --quick` 6 of 6, the export check 5 of 5, and the live list of the entry below
+  again, its digests and learner rows alike.
+
+**On the way.**
+
+- The worker's one odd row is not explained. Of 77 runs of `s1 --features ls` one first learner row gave
+  -0.021496661, 1.7% from the usual value; the compile-time build showed no such value in 77. In 480 more runs on
+  each tree it did not come again (120 side by side on a quiet host; 360 with each run pinned to two cores, 120 of
+  those with a second job of this lane's sharing the card): 570 a tree in all, the one odd row on this tree's side.
+- The learner's first update does not repeat bit for bit on either tree. The run has one update of 3 epochs; the
+  first two are equal in every run, and the third's loss is -0.02187241055071354 or -0.021872462704777718 (561 and
+  390 of 960 runs; a third value, -0.02187246084213257, in 9). The two differ by 5.2e-8 in the loss, 2.8e-4 in `pg`,
+  1.2e-6 in the gradient norm.
+- `neth_net_dsync` does not look at `cudaMemcpyToSymbol`'s result. The four-width switches have no default case (the
+  mask is 6 bits, so they are complete). The critic's tensor-core path loops to a run-time bound now (only with
+  `--critic`; not measured).
+
+## 2026-11-23 lane/audit-fixes: checkpoints name their inputs, the draw and the bootstrap are flags, the guide is slim
+
+An audit of the code's naive spots; its list was settled the same day. The commits on df2a60c5 each carry one change.
+Everything below was measured on the dev host at the lane's head; the logs are the lane's `out/audit/` (not
+committed).
+
+**What changed.**
+
+- *Checkpoints say which inputs they were built for* (a6dd740a). An `.ntw` file starts `NTW2`, a header length and
+  `variant V\nfeatures F\nscalars N\n`; the tensor records follow as they were. One parser and one writer serve every
+  reader (`neth_checkpoint.c`, built with `-DNETH_NTW_ONLY` where net.h is all there is). Before, an `s1.ls` model and
+  an `s1.dk.or` model have the same tensor shapes (169 scalars) and loaded into each other without a word.
+  - A file built for a feature the build lacks is refused, both named. One with fewer features than the run loads
+    with zero weights on the rest, as a prefix file did.
+  - An NTW1 file with features is refused with the command that migrates it:
+    `ntinit --migrate IN.ntw OUT.ntw --features ls`. Three on the dev host have 169 scalars and need it: `ckpt-060.ntw`,
+    `curric2-R100-s3.ntw`, `s64big-final.ntw` (their Adam files too; the file cannot say which 14, the command asks).
+    An NTW1 file of 155 scalars loads as before.
+- *Run files read lines of any length* (8b3b1fc1): `getline` in `neth_runconf.c` and `worldconf.c`. A 3,271-byte
+  `starts.seeds` line (300 seeds) runs; df2a60c5 refused it with "not KEY: VALUE".
+- *The draw's temperature and greedy choice are flags* (46bdddaa, 3f65d6ce): `--temp T`, `--greedy keys|cam|both`, on
+  any build, in place of the words `.t3 .t5 .t7 .gk .gc .gkc`. A frozen policy only: refused with `--learn 1`, with
+  `--teacher`, and on a fused `.af` build. `actor_check [--temp T] [--greedy ...]`, raweval `-T`, rawpix `RP_DRAW`.
+  A word that is none of actor.mk's stops make (it compiled as the variant without it before).
+- *A timed-out episode is not a death* (3c6684fb, 4a3685db, 3ad3f120). `terminations` beside `truncations` in the
+  vector env's buffers: the task's own end against the clock's. The learner bootstraps a terminated row from zero, as
+  before, and a timed-out one from its own value: `--trunc-boot on|off` (run file `ppo.trunc_boot`, default on).
+  `--check-learn` pins the GAE on a hand-made segment, both ways.
+  - The value is one step stale: the critic never sees the timed-out episode's last observation (the next row is the
+    new episode's first).
+  - A run is no longer bit for bit a df2a60c5 run once a timeout falls inside a segment. `--trunc-boot off` is the
+    learner as it was.
+  - `struct neth_vec_bufs` gained a member, the last. A trainer built before the change runs against the new
+    `libneth.so` as it did: df2a60c5's `s1` trainer gives its own trajectory digest, and its `s1.r1.m4.b.f` its own
+    first learner row, on this tree's library. In the middle of the struct (3c6684fb) they failed on the
+    observation's shape.
+- *Wood-punch grades on its win rate* (08d34a0c, 2400d576): the episode record keeps `win`, `episodes.jsonl` has
+  `"win": 0|1` under `ms`, `nether eval` prints `win k/n` with its Wilson interval and pairs it (McNemar), and
+  `configs/envs/wood-punch.yaml` has `primary_metric: win`.
+  - Recordings are version 4 (312 bytes an episode). A reader from an older tree refuses them.
+  - The models trained on wood-punch so far win 0 of 512, 0 of 128 and 0 of 64 scored episodes, so a flywheel step
+    there can only KEEP once a candidate wins.
+- *The guide* (95e7b194): `AGENTS.md` from 91,446 bytes to 16,890: the rules and the method, its Rules section 3,425
+  bytes. The command ledger it carried is `git show df2a60c5:AGENTS.md`; `docs/scripts.md` says so.
+- *The engine* (12098790): `ai.c` resolves `blocks_movement`'s class once per block id, into `ai_move_class[4096]`,
+  instead of up to 11 `strcmp` calls on each navigation clearance check. The 3,925 unregistered ids have no class
+  name, which the old chain read past.
+- *The index* (69a7a371): `RegionFile.java`'s record cited `read_whole`, which `region.c` no longer has.
+- *Two leftovers* (0242601d): the pipe releases the terminations buffer it pinned, and the `truncations` comment says
+  what sets it.
+
+**Measured.**
+
+- The checks on the merged tree: `train-actor-v-check`, `train-wire-check` (with the GAE case: 6 PASS),
+  `train-loop-check` and `nether gate --quick` (6 of 6) all pass. `train-loop-check`'s trajectory digests are
+  df2a60c5's: 440c72b7dfc3dd9f and 486fdf7386b0ea68.
+- The rules through `ntloop` itself: an `s1.dk.or` build refuses an `s1.ls` file and the other way round; a 155-scalar
+  file loads in both; the migrated `ckpt-060` loads in `s1.ls` and is refused by `s1.dk.or`. (At 35db84ac. The entry
+  above gives the say to the file's header instead.)
+- The old draws by flag, one weights file and one command, the old binaries df2a60c5's run on this tree's files: no
+  flag gives 6f4e8cedc27eadf6 (the plain build's), `--temp 0.5` 0f7b4d9215041c4a (`.t5`'s), `--greedy both`
+  ac444ceb1fa8b080 (`.gkc`'s), also with `--graph 1`.
+- The learner, `s1.r1.m4.b.f`, its first row with an update: `--trunc-boot off` gives a df2a60c5 first update field for
+  field (loss -0.024073058739304543 or -0.024320514872670174 at ep-len 40: the two orders the groups finish in);
+  `on` gives -0.024233540520071983 or -0.024046944454312325, its value loss 3.1e-7 where `off` has 1.15e-4; at
+  ep-len 100, where the first segment has no end, both give -0.02423546463251114, a df2a60c5 row.
+- `nether eval` on dirt-punch with a trained model: win 511 of 512 and 512 of 512 on two evals; live on the merged
+  tree, 64 of 64.
+- The engine: 170,131,456 cases of the old chain against the table, 0 differ (2,260,800 of them where the old chain
+  met a NULL name). A whole replay of `gold-g1-s42` takes 0.17% fewer instructions (2,955,543,001 against
+  2,950,607,491); the micro-measurement 1,100,865,098 against 139,385,044 for 3,420,000 calls, 7.9 times fewer.
+- The native test suite fails the same 52 jobs at the base commit and at the lane's head, each for a missing
+  recording directory (this host has `gold-g1-s42` only); 11 pass.
+
+**On the way.**
+
+- This host has no `hud_mixed` recording (`out/java/render` holds `forest-fast`), so `make -C csrc` leaves
+  `items.rgba` and `mobs/mushroom_red.rgba` out of `out/assets` (75 of 77), and `train-loop-check` and every live
+  trainer run stop on them. The lane records the scene into its own `out/audit/scenes/hud_mixed` (the oracle's
+  `script` target, 9 s) and remakes the assets from it (`make -C csrc assets HUDSCENE=...`): then `digest-128x2` and
+  `digest-128x2-f32` are as `gates.tsv` pins. A tree makes its own with `make -C oracle render-scenes`.
+- `hostfixed.yaml` and `host16.yaml` are not made by `train-loop-cfg`, so two of the four `digest-128x2` pins do not
+  run here.
+- A lane links `out/java` to the canonical tree's. The lane's first `make -C oracle build` (the recording needs it)
+  made its `oracle/src` from the cache and the patch (identical to the canonical tree's: 0 of 1,287 files differ) and
+  rebuilt the shared `out/java/classes` (2,089 classes, 5 s), so that stamp moved. Nothing was running against them.
+- Left for later: `curric.h` reads `index.tsv` through `char line[8192]`; `strcmp` on a `class_name` that may be NULL
+  in `seedworld.c`, `survival.c`, `enchant.c`, `tileticks.c`, `randomtick.c`; `wood-logs3.yaml` and `ore-mine.yaml`
+  still grade on `ret`; `ai.c` and `pathfind.c` keep a block-class table each; `learn_io.h`'s fixture reader reads
+  NTW1 only; `neth_vec_bufs.terminals` is never set or read; a chain's forced end counts as a timeout; the learner's
+  books after the first update do not repeat run to run (the actor's refresh timing), so long comparisons need a
+  deterministic refresh.
+
 ## 2026-11-23 lane/configs-nw-clean: the S6 pass is tickpass; configs/ holds only the registry files and folders
 
 **What changed.**

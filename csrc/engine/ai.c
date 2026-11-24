@@ -72,41 +72,81 @@ static int ceil_float_int(float f)
 }
 
 
+/* lane/audit-fixes: blocks_movement ran up to 11 class_name strcmp calls per
+ * block on every navigation path check; each block id is resolved once into
+ * its getBlocksMovement override here instead, as pathfind.c's pf_move_class
+ * does. An unregistered id has no class name (NULL, which the strcmp chain
+ * would have crashed on) and takes the default: its material is air's, so it
+ * is passable, as Block.getBlockById's air is. */
+enum { AIM_DEFAULT, AIM_LIQUID, AIM_NEVER, AIM_ALWAYS, AIM_FENCE_GATE, AIM_TRAPDOOR, AIM_DOOR };
+static signed char ai_move_class[4096];
+
+/* before main: the same for every environment */
+__attribute__((constructor)) static void ai_build_move_class(void)
+{
+    for (int id = 0; id < 4096; ++id)
+    {
+        const char *c = BLOCKS[id].class_name;
+        int k = AIM_DEFAULT;
+
+        if (c != NULL)
+        {
+            /* BlockLiquid is abstract, so no id carries its name; it stays for
+             * the inheritance the chain spelled out */
+            if (strcmp(c, "BlockLiquid") == 0 || strcmp(c, "BlockStaticLiquid") == 0 ||
+                strcmp(c, "BlockDynamicLiquid") == 0) k = AIM_LIQUID;
+            else if (strcmp(c, "BlockFence") == 0 || strcmp(c, "BlockWall") == 0) k = AIM_NEVER;
+            else if (strcmp(c, "BlockPressurePlate") == 0 || strcmp(c, "BlockPressurePlateWeighted") == 0 ||
+                     strcmp(c, "BlockSign") == 0) k = AIM_ALWAYS;
+            else if (strcmp(c, "BlockFenceGate") == 0) k = AIM_FENCE_GATE;
+            else if (strcmp(c, "BlockTrapDoor") == 0) k = AIM_TRAPDOOR;
+            else if (strcmp(c, "BlockDoor") == 0) k = AIM_DOOR;
+        }
+        ai_move_class[id] = (signed char)k;
+    }
+}
+
 /* Block.getBlocksMovement: the NEGATION of the material's flag, with the
  * overrides the pathfinder depends on: the liquids (water blocks, lava does
  * not), the fence and wall classes (never), the pressure plates and signs
- * (always), and the door, gate and trapdoor open bits. */
+ * (always), and the door, gate and trapdoor open bits. The metadata is read
+ * only by the classes that look at it (World.getBlockMetadata has no side
+ * effect once getBlock has read the same cell). */
 static int blocks_movement(struct world *w, int x, int y, int z)
 {
     int id = world_get_block(w, x, y, z) & 4095;
     const struct block_def *b = &BLOCKS[id];
-    const char *cn = b->class_name;
-    int meta = world_get_meta(w, x, y, z);
 
+    switch (ai_move_class[id])
+    {
     /* BlockLiquid.getBlocksMovement, inherited by the static and dynamic
      * forms: passable unless lava */
-    if (strcmp(cn, "BlockLiquid") == 0 || strcmp(cn, "BlockStaticLiquid") == 0 ||
-        strcmp(cn, "BlockDynamicLiquid") == 0) return b->material != 7;
+    case AIM_LIQUID: return b->material != 7;
 
-    if (strcmp(cn, "BlockFence") == 0 || strcmp(cn, "BlockWall") == 0) return 0;
+    case AIM_NEVER: return 0;
 
-    /* BlockBasePressurePlate's override, inherited by both plate classes */
-    if (strcmp(cn, "BlockPressurePlate") == 0 || strcmp(cn, "BlockPressurePlateWeighted") == 0 ||
-        strcmp(cn, "BlockSign") == 0) return 1;
+    /* BlockBasePressurePlate's override, inherited by both plate classes,
+     * and BlockSign's */
+    case AIM_ALWAYS: return 1;
 
-    if (strcmp(cn, "BlockFenceGate") == 0) return (meta & 4) != 0;
+    case AIM_FENCE_GATE: return (world_get_meta(w, x, y, z) & 4) != 0;
 
-    if (strcmp(cn, "BlockTrapDoor") == 0) return (meta & 4) == 0;
+    case AIM_TRAPDOOR: return (world_get_meta(w, x, y, z) & 4) == 0;
 
-    if (strcmp(cn, "BlockDoor") == 0)
+    case AIM_DOOR:
     {
         /* BlockDoor.func_150012_g: the halves combine, the open bit is 4 */
+        int meta = world_get_meta(w, x, y, z);
         int lower = (meta & 8) != 0 ? world_get_block(w, x, y - 1, z) & 4095 : id;
         int lower_meta = (meta & 8) != 0 ? world_get_meta(w, x, y - 1, z) : meta;
         int upper_meta = (meta & 8) != 0 ? meta : world_get_meta(w, x, y + 1, z);
         int combined = (lower_meta & 7) | (upper_meta & 8);
 
         if (lower == id && (upper_meta & 8) != 0) return (combined & 4) != 0;
+        break;
+    }
+
+    default: break;
     }
 
     return !MATERIALS[b->material].blocks_movement;

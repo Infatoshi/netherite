@@ -1,0 +1,23 @@
+# Square-GEMM NVFP4 forward + selectable FP16 / FP8 E4M3 / NVFP4-SR backward PPO for Bedrock.
+# Loaded directly by out/bedrock/bedrock_bench --algo ppo-bedrock (or a YAML path).
+description: Bedrock GPU-resident PPO with Square-GEMM NVFP4 forward and selectable FP16/FP8/NVFP4-SR backward
+macros: none
+net:
+  hidden: 1024
+  forward_precision: nvfp4
+  backward_precision: nvfp4
+  epilogue: fused_relu
+  head_precision: fp16
+  master_weights: fp32
+ppo:
+  lr: 2.5e-4
+  ent: 0.01
+  clip: 0.2
+  gamma: 0.99
+  lam: 0.95
+  epochs: 3
+  rollout_t: 16
+  grad_loss_scale: 16.0
+run:
+  iters: 35
+  seed: 539365667

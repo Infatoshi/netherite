@@ -2,7 +2,9 @@
 # same starts and sampler seeds for every model of a task, so two models compare start by start.
 #
 #   make -C csrc/runtime raweval RE_W=MODEL.ntw RE_TASK=ore [RE_KIND=student|teacher] [RE_ARM=strip|van] [RE_OUT=FILE.tsv]
-#                                [RE_LABEL=NAME] [RE_BUILD=s1.dk.or.r1.t5] [RE_MIN=M] [RE_K=256] [RE_R=4]
+#                                [RE_LABEL=NAME] [RE_BUILD=s1.dk.or.r1] [RE_TEMP=T] [RE_MIN=M] [RE_K=256] [RE_R=4]
+#       (lane/audit-fixes: RE_TEMP is ntloop's --temp, the student's 0.5 and the teacher's 1 by default; the build is
+#       the net alone, no .tN word)
 #       one model on one task: raweval.sh's header has every knob and the tasks (ore, orecave, hard, hardcave,
 #       logview, logany, lognear, logs3near, logs3view); RE_OUT (out/e/NAME-TASK-ARM.tsv) a row an episode, and the
 #       line RAWEVAL-TIME (starts loaded, env steps, the rest) and rawstat's one line: success, its standard error
@@ -34,7 +36,7 @@ $(NT_OUT)/rawstat: $(NT_DIR)/rawstat.c
 raweval: $(NT_OUT)/rawstat
 	@test -n "$(RE_W)" || { echo "raweval: RE_W=MODEL.ntw"; exit 2; }
 	@cd $(RT_ROOT) && bash $(NT_DIR)/raweval.sh -w $(RE_W) -t $(RE_TASK) -k $(RE_KIND) -a $(RE_ARM) -l $(RE_LABEL) -o $(RE_OUT) \
-	  $(if $(RE_BUILD),-b $(RE_BUILD)) $(if $(RE_MIN),-m $(RE_MIN)) $(if $(RE_K),-K $(RE_K)) $(if $(RE_R),-R $(RE_R)) $(RE_EXTRA)
+	  $(if $(RE_BUILD),-b $(RE_BUILD)) $(if $(RE_TEMP),-T $(RE_TEMP)) $(if $(RE_MIN),-m $(RE_MIN)) $(if $(RE_K),-K $(RE_K)) $(if $(RE_R),-R $(RE_R)) $(RE_EXTRA)
 
 RE_SET   ?= $(RS_SET)
 RE_LIBS  ?= $(RT_OUT)/eval1k

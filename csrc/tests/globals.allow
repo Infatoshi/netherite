@@ -42,6 +42,7 @@ randomtick:rt_diffuse             Block.field_149783_u (rt_light_diffuse) by blo
 jmath:MH_SIN                      MathHelper.SIN_TABLE
 living:(nether_)?light_brightness_table   WorldProvider.lightBrightnessTable, both providers
 pathfind:pf_move_class            the path finder's block classes
+ai:ai_move_class                  the navigator's getBlocksMovement classes by block id
 spawning:(lists|jungle_creature|swamp_monster|mush_creature|empty_list|scattered_witch)   the biomes' spawn lists
 gunzip:fixed_(lit|dist)           DEFLATE's fixed Huffman tables
 gunzip:crc_fold_ok                the CPU's carry-less multiply support

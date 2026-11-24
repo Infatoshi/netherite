@@ -814,3 +814,37 @@ episodes, the starts) calls the macros only through `csrc/runtime/vecmods.h`'s d
   library boundary and the move kept every trajectory. The proof of a change here: `make -C csrc/runtime
   macro-digests` (`macrodig.tsv`: 18 rows from starts where each family runs, with options, levels and labellers:
   trajectory, label, episode and books digests) and gates-env.
+
+# Netherite Bedrock Branch Specification
+
+## Purpose
+
+Netherite maintains two complementary simulation tiers inside one repository:
+
+- **`1.7.10` (CPU-ticked hybrid):** Exact Java 1.7.10 bit-parity engine (`csrc/engine/`) for full-game speedruns, evaluation ground truth (`nether eval`), and fine-tuning.
+- **`bedrock` (GPU-resident Blackwell engine):** Down-to-the-metal CUDA engine (`csrc/bedrock/`) designed for 20M+ to 6B+ env-steps/s brute-force RL training on bounded tasks, closing fidelity gaps against CPU `1.7.10` rung by rung via the Bedrock Fidelity Flywheel.
+
+## Blackwell (`sm_120`) 3-Tier Memory Architecture
+
+Target hardware: NVIDIA RTX PRO 6000 Blackwell (188 SMs, 49.3 MB chip-wide registers, 128 MB L2 with 80 MB hardware-pinnable persisting L2, 102 GB GDDR7 at 1,792 GB/s).
+
+1. **Tier 1 (SM Registers + L1/TEX, hot across K ticks):** ~120 B/world active state: 24 B Q16.16 fixed-point player state (or 30 B block-local FP32 for sub-millimeter CPU parity), 32 B hot 8-block mining delta ring, 64 B for 8 compact Q8.8 mobs. Zero VRAM traffic during a K-tick burst.
+2. **Tier 2 (80 MB Persisting L2 Cache via `cudaAccessPropertyPersisting`):** Shared read-only CoW terrain seeds (16 KB/seed 1-bit collision map; 128 KB/seed 1-byte block IDs -> 64 seeds = 9 MB), FP16 `[N, 64]` raycast observations (2 MB at 16k worlds), and FP16 Tensor-Core policy weights/activations.
+3. **Tier 3 (GDDR7 VRAM, flushed every K ticks):** Full 32-entry per-world episode delta logs, PPO rollout buffers, and learner gradients. CPU host pulls async scalar telemetry only (zero per-tick PCIe sync).
+
+## Repo Layout
+
+- `csrc/bedrock/bedrock.h` — Public C11 ABI, SoA fleet structures, and fidelity report structs.
+- `csrc/bedrock/br_sim.cu` — Blackwell kernels (`local-fp32` parity core, `fixed-q16` speed core, CoW delta overlay, 8-mob AI, 64-ray DDA obs, CUDA-Graphed `cublasGemmEx` FP16 Tensor-Core policy).
+- `csrc/bedrock/br_bridge.c` — Direct link to `out/native/libnetherite.a` running identical seeds, spawns, and action tapes through real CPU `1.7.10` `world_t` + `entity_move` vs GPU Bedrock.
+- `csrc/bedrock/br_bench.c` — `bedrock_bench` CLI (`--mode parity|speed|all`).
+- `configs/sim/bedrock.yaml` — Disaggregated sim profile for `bedrock`.
+- `configs/bedrock-fidelity.yaml` — Fidelity Flywheel rung definitions and pass thresholds.
+
+## Fidelity Flywheel Workflow
+
+1. Add or tighten a game mechanic in `csrc/bedrock/br_sim.cu` (e.g. step-up, mining hardness table, liquid drag, knockback, crafting).
+2. Run `make -C csrc/bedrock parity` to diff GPU Bedrock tick-by-tick against compiled CPU `1.7.10` (`libnetherite.a`) across Rungs 0 to 2.
+3. Fix any discrepancy until `p50_pos_err`, `ground_match_pct`, and `win_match_pct` clear `configs/bedrock-fidelity.yaml`.
+4. Run `make -C csrc/bedrock speed` to confirm RL throughput remains above the 20M+ steps/s floor on Blackwell.
+5. Train policy on `bedrock`, then evaluate zero-shot on exact CPU `1.7.10` (`nether eval`) to verify transfer.

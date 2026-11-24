@@ -1,0 +1,21 @@
+# Bedrock GPU-resident simulator profile for RTX PRO 6000 Blackwell (sm_120a).
+# Loaded directly by out/bedrock/bedrock_bench --sim bedrock (or a YAML path).
+description: Blackwell sm_120a GPU-resident Bedrock sim (CoW seeds in Persisting L2, split fast/slow queue)
+world:
+  bubble_xyz: 64x32x64
+  cow_seeds: 64
+  persisting_l2_mb: 32
+client:
+  observation: ray64_log16_scalar16_pad128
+  ticks_per_step: 4
+pipeline:
+  worlds: 16384
+  queue_chunk_q: 8192
+  split_fast_slow_queue: on
+  delta_ring_slots: 32
+  episode_max_ticks: 400
+engine:
+  tick: bedrock
+  precision: fixed_q16
+  parity_precision: local_fp32
+  pcie_per_tick: off

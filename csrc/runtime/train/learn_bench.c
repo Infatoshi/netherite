@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
         cudaGraph_t g;
         cudaStreamBeginCapture(st, cudaStreamCaptureModeThreadLocal);
         neth_learn_update(L, &h, entc, s.T, s.gs, s.scale, s.epochs, s.mb, s.perm, s.obs, s.sc, s.cam, s.keys, s.hot, s.logp,
-                   s.val, s.rew, s.done, s.drv, s.boot, dw, dg, dm, dv, &step, books);
+                   s.val, s.rew, s.done, s.done, s.drv, s.boot, dw, dg, dm, dv, &step, books);
         if (cudaStreamEndCapture(st, &g) != cudaSuccess || cudaGraphInstantiate(&ge, g, 0) != cudaSuccess) {
             fprintf(stderr, "learn_bench: graph capture failed\n");
             return 2;
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
             cudaGraphLaunch(ge, st);
         else
             neth_learn_update(L, &h, entc, s.T, s.gs, s.scale, s.epochs, s.mb, s.perm, s.obs, s.sc, s.cam, s.keys, s.hot,
-                       s.logp, s.val, s.rew, s.done, s.drv, s.boot, dw, dg, dm, dv, &step, books);
+                       s.logp, s.val, s.rew, s.done, s.done, s.drv, s.boot, dw, dg, dm, dv, &step, books);
     }
     cudaEventRecord(ev[U], st);
     cudaError_t e = cudaStreamSynchronize(st);

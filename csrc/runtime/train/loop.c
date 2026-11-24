@@ -48,10 +48,9 @@
 #include "neth_pipe_internal.h"
 #include "neth_runconf.h"
 
-_Static_assert(NETH_NET_NS == NETH_VEC_NSCALAR + NETH_NET_LATE * NETH_VEC_LATE_N + NETH_NET_HSEE * NETH_VEC_HSEE_N +
-                           NETH_NET_DIG * NETH_VEC_DIG_N + NETH_NET_ORE * NETH_VEC_ORE_N + NETH_NET_GV * NETH_VEC_GV_N +
-                           NETH_NET_TASK * NETH_VEC_TASK_N &&
-                   NETH_NET_LATE_N == NETH_VEC_LATE_N && NETH_NET_HSEE_N == NETH_VEC_HSEE_N && NETH_NET_DIG_N == NETH_VEC_DIG_N &&
+/* lane/audit-feat: net.h's blocks are the vector env's, in its order (the run's mask is opts.late_scalars, neth_runconf.c) */
+_Static_assert(NETH_NET_BASE_NS == NETH_VEC_NSCALAR && NETH_NET_LATE_N == NETH_VEC_LATE_N &&
+                   NETH_NET_HSEE_N == NETH_VEC_HSEE_N && NETH_NET_DIG_N == NETH_VEC_DIG_N &&
                    NETH_NET_ORE_N == NETH_VEC_ORE_N && NETH_NET_GV_N == NETH_VEC_GV_N && NETH_NET_TASK_N == NETH_VEC_TASK_N,
                "net.h's scalars are the vector env's");
 _Static_assert(NETH_NET_ACTION == NETH_VEC_ACTION + NETH_NET_HOTBAR, "net.h's action is the vector env's (NETH_VEC_HOTBAR's with "

@@ -3281,6 +3281,8 @@ void neth_vec_step_hook(struct neth_vec *v, int id, const struct pool_result *r,
     {
         v->b.rewards[id] = rew;
         v->b.truncations[id] = e->te >= e->eplen;
+        /* lane/audit-fixes: the end is the task's own (its pickup or a death) rather than the clock's */
+        v->b.terminations[id] = e->te >= e->eplen && v->tk.item && e->tk.done;
     }
     if (e->te >= e->eplen)
     {
@@ -3317,6 +3319,8 @@ void neth_vec_step_hook(struct neth_vec *v, int id, const struct pool_result *r,
         c->level = e->level;
         c->cells = e->ncells;
         c->food = r->priv.food;
+        /* lane/audit-fixes: the task won (its pickup, not a death or the clock); e->tk is task_of's task's state */
+        c->win = v->tk.item && e->tk.done == 1;
         memcpy(c->macro, e->macro_n, sizeof c->macro);
         c->steps = e->ep_steps;
         e->ended = 1;
@@ -3438,6 +3442,7 @@ struct neth_vec *neth_vec_make(const struct neth_vec_opts *o, char *err, int en)
     v->b.rewards = page_alloc((size_t)n * sizeof(float));
     v->b.terminals = page_alloc((size_t)n);
     v->b.truncations = page_alloc((size_t)n);
+    v->b.terminations = page_alloc((size_t)n);
     v->b.driver = page_alloc((size_t)n);
     v->b.kind = page_alloc((size_t)n);
     v->b.chosen = page_alloc((size_t)n);
@@ -3725,6 +3730,7 @@ void neth_vec_free(struct neth_vec *v)
     free(v->b.rewards);
     free(v->b.terminals);
     free(v->b.truncations);
+    free(v->b.terminations);
     free(v->b.driver);
     free(v->b.kind);
     free(v->b.chosen);

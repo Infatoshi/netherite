@@ -26,14 +26,14 @@ NTP_INIT = $(dir $(NTP_BIN))ntinit
 ntrec-bin: $(NT_OUT)/ntrec
 
 # ntinit (train/ntinit.c): a fresh net of the variant as a .ntw (nether train's start without --init), built with
-# the variant's -D flags like its ntloop
-$(NT_OUT)/ntinit: $(NT_DIR)/ntinit.c $(NT_DIR)/net.h
+# the variant's -D flags like its ntloop (lane/audit-fixes: with neth_checkpoint.c's parser and writer, -DNETH_NTW_ONLY)
+$(NT_OUT)/ntinit: $(NT_DIR)/ntinit.c $(NT_DIR)/net.h $(NT_DIR)/neth_checkpoint.c
 	@mkdir -p $(@D)
-	$(RT_CC) -O2 -std=c11 -Wall -Wextra -Werror -o $@ $< -lm
+	$(RT_CC) -O2 -std=c11 -Wall -Wextra -Werror -DNETH_NTW_ONLY -o $@ $< $(NT_DIR)/neth_checkpoint.c -lm
 
-$(NT_OUT)/%/ntinit: $(NT_DIR)/ntinit.c $(NT_DIR)/net.h
+$(NT_OUT)/%/ntinit: $(NT_DIR)/ntinit.c $(NT_DIR)/net.h $(NT_DIR)/neth_checkpoint.c
 	@mkdir -p $(@D)
-	$(RT_CC) -O2 -std=c11 -Wall -Wextra -Werror $(call nt_vflags,$*) -o $@ $< -lm
+	$(RT_CC) -O2 -std=c11 -Wall -Wextra -Werror -DNETH_NTW_ONLY $(call nt_vflags,$*) -o $@ $< $(NT_DIR)/neth_checkpoint.c -lm
 
 train-prep-check:
 	@[ -n "$(RUN)" ] || { echo "train-prep: RUN=configs/NAME.yaml"; exit 2; }; \

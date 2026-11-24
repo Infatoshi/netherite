@@ -5,6 +5,10 @@ Every shell, Perl and awk file in the tree (99 at base 7db1ed3d: 96 .sh, 2 .pl, 
 that run each one, found by git grep on its name. Five dead one-offs and two unused `csrc/cuda/tick/` scripts were
 deleted, so 92 remain (89 .sh, 2 .pl, 1 .awk).
 
+Where a row says a script is documented in, listed in or named by AGENTS.md, it means the command ledger that file
+carried until lane/audit-fixes slimmed it to the rules and the method: `git show df2a60c5:AGENTS.md`. What each
+script takes is in its own header.
+
 ## csrc/cuda/lighting
 
 | script | lines | status | callers | why |

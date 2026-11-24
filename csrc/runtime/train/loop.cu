@@ -108,14 +108,15 @@ extern "C" int neth_policy_noop(struct neth_policy *p)
 /* --stage 1 (lane/ntcast): a group step's inputs from the env's page-locked buffers (mapped: read in place over the
  * bus) into the segment in one launch, in place of up to five copies: the last action's reward, end and driver at
  * step t - 1 (rew, done and drv NULL at a segment's first step), the scalars and, with the cast on the host, the
- * observation at step t (obs NULL: the device's cast fills it). A block an env */
-__global__ void neth_stage_k(const float *rew_h, const uint8_t *done_h, const uint8_t *drv_h, const float *sc_h,
-                           const uint8_t *obs_h, int lo, size_t oe, float *rew, uint8_t *done, uint8_t *drv, neth_sc_t *sc,
-                           uint8_t *obs)
+ * observation at step t (obs NULL: the device's cast fills it). A block an env. lane/audit-fixes: the termination
+ * beside the end (term, NULL with rew). lane/audit-feat: ns the run's scalars (net.h NETH_NET_NS, the host's) */
+__global__ void neth_stage_k(const float *rew_h, const uint8_t *done_h, const uint8_t *drv_h, const uint8_t *term_h,
+                           const float *sc_h, const uint8_t *obs_h, int lo, size_t oe, float *rew, uint8_t *done,
+                           uint8_t *drv, uint8_t *term, neth_sc_t *sc, uint8_t *obs, int ns)
 {
     const int i = blockIdx.x, e = lo + i;
-    if (rew && threadIdx.x == 0) rew[i] = rew_h[e], done[i] = done_h[e], drv[i] = drv_h[e];
-    for (int j = threadIdx.x; j < NETH_NET_NS; j += blockDim.x) sc[(size_t)i * NETH_NET_NS + j] = loop_f32_sc(sc_h[(size_t)e * NETH_NET_NS + j]);
+    if (rew && threadIdx.x == 0) rew[i] = rew_h[e], done[i] = done_h[e], drv[i] = drv_h[e], term[i] = term_h[e];
+    for (int j = threadIdx.x; j < ns; j += blockDim.x) sc[(size_t)i * ns + j] = loop_f32_sc(sc_h[(size_t)e * ns + j]);
     if (obs)
     {
         /* 16 bytes a thread where the rows allow it (oe a multiple of 16: every cast size the nets take) */
@@ -156,11 +157,12 @@ extern "C" void neth_tone(uint8_t *obs, int n, size_t oe, int mode, const uint8_
     neth_tone_k<<<n, 128, 0, s>>>(obs, oe, mode, lut);
 }
 
-extern "C" void neth_stage(const float *rew_h, const uint8_t *done_h, const uint8_t *drv_h, const float *sc_h,
-                         const uint8_t *obs_h, int lo, int n, size_t oe, float *rew, uint8_t *done, uint8_t *drv, neth_sc_t *sc,
-                         uint8_t *obs, cudaStream_t s)
+extern "C" void neth_stage(const float *rew_h, const uint8_t *done_h, const uint8_t *drv_h, const uint8_t *term_h,
+                         const float *sc_h, const uint8_t *obs_h, int lo, int n, size_t oe, float *rew, uint8_t *done,
+                         uint8_t *drv, uint8_t *term, neth_sc_t *sc, uint8_t *obs, cudaStream_t s)
 {
-    neth_stage_k<<<n, 128, 0, s>>>(rew_h, done_h, drv_h, sc_h, obs_h, lo, oe, rew, done, drv, sc, obs);
+    neth_stage_k<<<n, 128, 0, s>>>(rew_h, done_h, drv_h, term_h, sc_h, obs_h, lo, oe, rew, done, drv, term, sc, obs,
+                                   NETH_NET_NS);
 }
 
 /* ---- lane/cuda-graph: a group's completion as a mapped flag, and the captured group step's two kernels ---- */
@@ -195,16 +197,18 @@ extern "C" void neth_commit(const int32_t *act, int na, int32_t *act_h, uint32_t
  * reads and into the segment at step t, the cast's frame (fixed: the actor reads it there) copied into the segment */
 #define GSTAGE_T 256
 #define GSTAGE_CB 4     /* the frame copy's blocks an env */
-static_assert(NETH_NET_NS <= 2 * GSTAGE_T, "the stage kernel holds two scalars a thread");
+/* lane/audit-feat: the scalars' loop strides GSTAGE_T, so any run's count (up to net.h NETH_NET_NS_MAX, 1001) fits; the
+ * build-time bound it had (NETH_NET_NS <= 2 GSTAGE_T) is gone with the build's count */
 static_assert(sizeof(struct neth_gslot) == 8 * sizeof(int32_t), "the slot is eight words");
 
-/* Device memory only: the graph's first nodes DMA the group's staging block (stg: the slot, the rewards, ends and
- * drivers) and its scalars (scf, f32) to the device. A host-mapped read by a kernel costs a bus round trip that the
+/* Device memory only: the graph's first nodes DMA the group's staging block (stg: the slot, the rewards, ends,
+ * drivers and terminations) and its scalars (scf, f32) to the device. A host-mapped read by a kernel costs a bus round trip that the
  * device barely overlaps (measured on the RTX PRO 6000: neth_stage_k's ~300 small reads 13.5 us; 128 blocks reading
  * the 32-byte slot mapped 57 us), so nothing here reads the host. Blocks [0, gs) an env's scalars and outcome, the
  * rest GSTAGE_CB an env for the frame's copy */
 __global__ void __launch_bounds__(GSTAGE_T) neth_gstage_k(const uint8_t *__restrict__ stg, const float *__restrict__ scf,
-                              struct neth_gseg sg, const uint8_t *__restrict__ frames, int gs, size_t oe, neth_sc_t *gsc)
+                              struct neth_gseg sg, const uint8_t *__restrict__ frames, int gs, size_t oe, neth_sc_t *gsc,
+                              int ns)
 {
     const struct neth_gslot sl = *(const struct neth_gslot *)stg;
     const int i = blockIdx.x, x = threadIdx.x, h = sl.half;
@@ -222,15 +226,16 @@ __global__ void __launch_bounds__(GSTAGE_T) neth_gstage_k(const uint8_t *__restr
     if (sl.has_prev && x == 0)
     {
         const float *rew = (const float *)(stg + sizeof sl);
-        const uint8_t *done = stg + sizeof sl + (size_t)gs * sizeof(float), *drv = done + gs;
+        const uint8_t *done = stg + sizeof sl + (size_t)gs * sizeof(float), *drv = done + gs, *term = drv + gs;
         const size_t pa = (size_t)sl.pt * gs + i;
         sg.rew[sl.phalf][pa] = rew[i], sg.done[sl.phalf][pa] = done[i], sg.drv[sl.phalf][pa] = drv[i];
+        sg.term[sl.phalf][pa] = term[i];    /* lane/audit-fixes */
     }
-    for (int j = x; j < NETH_NET_NS; j += GSTAGE_T)
+    for (int j = x; j < ns; j += GSTAGE_T)
     {
-        neth_sc_t c = loop_f32_sc(scf[(size_t)i * NETH_NET_NS + j]);
-        gsc[(size_t)i * NETH_NET_NS + j] = c;
-        sg.sc[h][at * NETH_NET_NS + j] = c;
+        neth_sc_t c = loop_f32_sc(scf[(size_t)i * ns + j]);
+        gsc[(size_t)i * ns + j] = c;
+        sg.sc[h][at * ns + j] = c;
     }
 }
 
@@ -253,7 +258,13 @@ __global__ void neth_gcommit_k(const uint8_t *stg, struct neth_gseg sg, int gs, 
     {
         sg.logp[h][(size_t)sl.t * gs + i] = glogp[i];
         sg.val[h][(size_t)sl.t * gs + i] = gval[i];
-        if (sl.boot) sg.boot[sl.phalf][i] = gval[i] * (1.0f - (float)sg.done[sl.phalf][(size_t)(T - 1) * gs + i]);
+        if (sl.boot)
+        {
+            /* lane/audit-fixes: a last row the clock ended bootstraps from its own value (trainer.cu neth_boot_k) */
+            const size_t la = (size_t)(T - 1) * gs + i;
+            const uint8_t d = sg.done[sl.phalf][la];
+            sg.boot[sl.phalf][i] = d && !sg.term[sl.phalf][la] ? sg.val[sl.phalf][la] : gval[i] * (1.0f - (float)d);
+        }
     }
     loop_publish(flag, sl.seq);
 }
@@ -280,13 +291,13 @@ extern "C" void neth_grnn_h0(const uint8_t *stg, const float *h, int gs, float *
 
 extern "C" size_t neth_gstg_bytes(int gs)
 {
-    return (sizeof(struct neth_gslot) + (size_t)gs * (sizeof(float) + 2) + 15) & ~(size_t)15;
+    return (sizeof(struct neth_gslot) + (size_t)gs * (sizeof(float) + 3) + 15) & ~(size_t)15;
 }
 
 extern "C" void neth_gstage(const uint8_t *stg, const float *scf, const struct neth_gseg *sg, const uint8_t *frames, int gs,
                             size_t oe, neth_sc_t *gsc, cudaStream_t s)
 {
-    neth_gstage_k<<<gs * (1 + GSTAGE_CB), GSTAGE_T, 0, s>>>(stg, scf, *sg, frames, gs, oe, gsc);
+    neth_gstage_k<<<gs * (1 + GSTAGE_CB), GSTAGE_T, 0, s>>>(stg, scf, *sg, frames, gs, oe, gsc, NETH_NET_NS);
 }
 
 extern "C" void neth_gcommit(const uint8_t *stg, const struct neth_gseg *sg, int gs, int T, const int32_t *gact,

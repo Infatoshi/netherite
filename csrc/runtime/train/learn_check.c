@@ -143,13 +143,17 @@ static const char *const tname[NETH_NET_TENSORS] = {
                                               "rnn.weight",    "rnn.bias",
 #endif
 };
-static const struct {
+/* lane/audit-feat: filled by lay_init at main's start (fc1's columns are the run's, net.h NETH_NET_NS) */
+static struct {
     int off, n, ntw;
-} lay[NETH_NET_TENSORS] = {
-#define LC(n, i, k) {NETH_LEARN_OFF(n), (k), (i)},
+} lay[NETH_NET_TENSORS];
+
+static void lay_init(void) {
+    int t = 0;
+#define LC(n, i, k) lay[t].off = NETH_LEARN_OFF(n), lay[t].n = (k), lay[t].ntw = (i), t++;
     NETH_LEARN_LAYOUT(LC)
 #undef LC
-};
+}
 
 /* every tensor of a flat buffer against the reference's, the key PRE:name */
 static void tensors(const char *man, const char *pre, const float *a, const float *ref, double lo) {
@@ -200,6 +204,7 @@ static float *diff(const float *a, const float *b) {
 
 int main(int argc, char **argv) {
     char def[4096];
+    lay_init();
     const char *croot = getenv("NETHER_CACHE");
     snprintf(def, sizeof def, "%s/native/learn-a05-070", (croot && croot[0]) ? croot : ".cache");
     const char *dir = def, *dump = NULL;
@@ -243,8 +248,8 @@ int main(int argc, char **argv) {
     cudaMalloc((void **)&dgn, 4);
     printf("learn_check %s %s: N %d, Adam step %d before, scale %g\n", NETH_NET_VARIANT, dir, s.N, s.adam_step, s.scale);
 
-    /* GAE */
-    neth_learn_gae(L, &h, s.T, s.gs, s.scale, s.rew, s.done, s.drv, s.val, s.boot, dadv, dret, dmask);
+    /* GAE (lane/audit-fixes: the fixture's ends are both done and term, every end bootstrapping from zero as fastppo's) */
+    neth_learn_gae(L, &h, s.T, s.gs, s.scale, s.rew, s.done, s.done, s.drv, s.val, s.boot, dadv, dret, dmask);
     const char *gk[3] = {"adv", "ret", "mask"};
     float *gd[3] = {dadv, dret, dmask};
     double gtol = class_tol(fmax(spread(man, "adv"), fmax(spread(man, "ret"), spread(man, "mask"))), 1e-5);
@@ -355,7 +360,7 @@ int main(int argc, char **argv) {
     cudaMemcpy(dv, v0, P, cudaMemcpyHostToDevice);
     int step = s.adam_step;
     neth_learn_update(L, &h, entc, s.T, s.gs, s.scale, s.epochs, s.mb, s.perm, s.obs, s.sc, s.cam, s.keys, s.hot, s.logp, s.val,
-               s.rew, s.done, s.drv, s.boot, dw, dg, dm, dv, &step, NULL);
+               s.rew, s.done, s.done, s.drv, s.boot, dw, dg, dm, dv, &step, NULL);
     float *w3 = (float *)dget(dw, P), *rw3 = lio_ntw(dir, "after3.ntw");
     tensors(man, "after3", w3, rw3, 1e-6);
     tensors(man, "d3", diff(w3, w0), diff(rw3, w0), 1e-4);
@@ -389,7 +394,7 @@ int main(int argc, char **argv) {
                "in the policy heads' (0)\n", ok ? "ok" : "FAIL", ev, tv, nz);
         int vstep = 0;
         neth_learn_update(L, &hv, entc, s.T, s.gs, s.scale, s.epochs, s.mb, s.perm, s.obs, s.sc, s.cam, s.keys, s.hot, s.logp,
-                   s.val, s.rew, s.done, s.drv, s.boot, dw, dg, dm, dv, &vstep, NULL);
+                   s.val, s.rew, s.done, s.done, s.drv, s.boot, dw, dg, dm, dv, &vstep, NULL);
         float *wv = (float *)dget(dw, P), *mv = (float *)dget(dm, P), *vv = (float *)dget(dv, P);
         long moved = 0, still = 0;
         for (int i = 0; i < NETH_LEARN_NPARAM; i++) {

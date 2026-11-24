@@ -1,0 +1,19 @@
+# Bucket-cast 4 lava cells (block 11) into solid obsidian frame anchors (block 49) in the per-world
+# delta ring, then ignite Nether portal fire (block 90) with flint and steel.
+description: bucket-cast 4 obsidian anchors from surface lava and ignite a Nether portal (block 90), raw keys, 20 s
+name: nether-portal
+episode:
+  seconds: 20
+actions:
+  keys: forward+back+left+right+jump+mine+use
+macros: none
+reward:
+  item: 90
+  win: 1.5
+  dist: 0.1
+policy:
+  bedrock:
+    env_id: nether-portal
+    target_block: 11
+    target_count: 4
+    break_ticks: 8

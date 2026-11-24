@@ -35,7 +35,7 @@ harvest:
   biome: any
   split_train: 0.8
 eval:
-  primary_metric: ret
+  primary_metric: win
   min_z: 3
   episodes: 128
   seed: 1000

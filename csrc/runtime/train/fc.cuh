@@ -197,7 +197,9 @@ static_assert(FC_BM * FC_LH * 4 <= FC_SMZ, "hd in z1's place");
 
 /* two blocks an SM where two fit its 100 KB (FC_BM 32 at D 256), their registers then at most 128 a thread */
 #define FC_MINB (2 * (FC_SMEM + 1024) <= 100 * 1024 && FC_T * 2 <= 1024 ? 2 : 1)
+template <int K1>   /* lane/audit-feat: fc1's K (FC_K1, the run's), learn.cu's dispatch over net.h NETH_NET_NSP_CASES */
 __global__ void __launch_bounds__(FC_T, FC_MINB) k_fcrow(fc_args p) {
+    static_assert(K1 % FC_KC == 0, "fc1's K is whole chunks");
     extern __shared__ __align__(16) unsigned char fsm[];
     bf *st = (bf *)fsm;                             /* fc1's A chunks [2][BM][LA]; then dH [BM][LD] */
     bf *dhs = (bf *)fsm;
@@ -214,7 +216,7 @@ __global__ void __launch_bounds__(FC_T, FC_MINB) k_fcrow(fc_args p) {
     float *bp = p.bpart + ((long)blockIdx.x * FC_WR + wr) * FC_BP;
 
     /* ---- fc1: z0 streamed a chunk at a time (written out for the weight gradient), z1 = relu(z0 W1^T + b1) ---- */
-    constexpr int NC = FC_K1 / FC_KC, CU = FC_BM * FC_KC / 8 / FC_T;   /* uint4 a thread a chunk */
+    constexpr int NC = K1 / FC_KC, CU = FC_BM * FC_KC / 8 / FC_T;   /* uint4 a thread a chunk */
     static_assert(FC_BM * FC_KC / 8 % FC_T == 0, "a chunk's loads");
     for (int pp = 0; pp < FC_NP; pp++) {
         acc4 acc[FC_MT][4];
@@ -265,15 +267,15 @@ __global__ void __launch_bounds__(FC_T, FC_MINB) k_fcrow(fc_args p) {
                 if (pp == 0 && n < b && j < Z0LD) *(uint4 *)(p.z0 + (long)n * Z0LD + j) = v;
             }
         };
-        const uint4 *B = p.pk + PK_1F + (long)((pp * 256 + wc * 32) / 16) * (FC_K1 / 16) * 32;
+        const uint4 *B = p.pk + PK_1F + (long)((pp * 256 + wc * 32) / 16) * (K1 / 16) * 32;
         fc_ring<2> ring;
-        fc_ring0<2, FC_K1 / 16>(ring, B, lane);
+        fc_ring0<2, K1 / 16>(ring, B, lane);
         load(0);
         store(0);
         __syncthreads();
         for (int c = 0; c < NC; c++) {
             if (c + 1 < NC) load(c + 1);
-            fc_steps<2, FC_K1 / 16>(acc, ring, st + (c & 1) * FC_BM * FC_LA + mr * FC_LA, FC_LA, B, c * FC_PF, lane);
+            fc_steps<2, K1 / 16>(acc, ring, st + (c & 1) * FC_BM * FC_LA + mr * FC_LA, FC_LA, B, c * FC_PF, lane);
             if (c + 1 < NC) store(c + 1);
             __syncthreads();
         }

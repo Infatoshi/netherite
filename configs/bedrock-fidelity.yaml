@@ -1,0 +1,30 @@
+# Bedrock Fidelity Flywheel: CPU 1.7.10 (libnetherite.a) vs GPU Bedrock parity rungs.
+# Every feature added to csrc/bedrock/ must clear its rung gate before training use,
+# and trained Bedrock policies are evaluated zero-shot on exact CPU 1.7.10 via nether eval.
+target_throughput:
+  min_rl_msteps_s: 20.0
+  min_sim_msteps_s: 1000.0
+rungs:
+  - id: 0
+    name: movement-gravity-jump
+    description: free-fall, walk, jump timer (10t), drag (0.546 ground / 0.91 air), <0.005 clamp
+    local_fp32_max_p50_blocks: 0.0001
+    fixed_q16_max_p50_blocks: 0.05
+    min_ground_match_pct: 99.0
+  - id: 1
+    name: 3d-aabb-terrain-collision
+    description: sprint + yaw rotation + Y/X/Z AABB sweep against 1-bit CoW hills and trees
+    local_fp32_max_p50_blocks: 0.0001
+    fixed_q16_max_p50_blocks: 0.05
+    min_ground_match_pct: 99.0
+  - id: 2
+    name: wood-punch-delta-mining
+    description: 4.5-block DDA pick on oak log (block 17), 60-tick hand break, sparse delta overlay mutation
+    local_fp32_max_p50_blocks: 0.0001
+    min_win_match_pct: 99.0
+  - id: 3
+    name: step-up-and-mob-combat
+    description: 0.5-block step_height, knockback, health/damage, 8-mob aggro parity (planned)
+  - id: 4
+    name: zero-shot-policy-transfer
+    description: policy trained on bedrock at 20M+ steps/s clears nether eval on exact CPU 1.7.10 (planned)

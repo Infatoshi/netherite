@@ -10,6 +10,9 @@ int neth_distill_setup(struct neth_pipe *L, const struct neth_runconf *c)
     struct neth_learner *R = &L->lr;
     const char *mopts = c->mopts;
     int n = c->n;
+    /* lane/audit-feat: the run's feature set has the open window's scalars (net.h's gv) */
+    const int gv = (NETH_NET_FEATMASK & NETH_NET_FGV) != 0;
+    static const char *const NOGV = "a run without the open window's scalars (the gv feature: --features or the init's header)";
     /* the student's macro level (default the teacher's own: the env's --macros) */
     char err[1024];
     const char *level_s = c->level_s;
@@ -43,7 +46,7 @@ int neth_distill_setup(struct neth_pipe *L, const struct neth_runconf *c)
         int lo, k;
         if (neth_zsc_parse(c->szero_arg, &lo, &k))
         {
-            printf("FAIL: --student-zero %s: LO:N inside the build's %d scalars (or ore, a .or build)\n", c->szero_arg,
+            printf("FAIL: --student-zero %s: LO:N inside the run's %d scalars (or ore, a run with the or feature)\n", c->szero_arg,
                    NETH_NET_NS);
             return 2;
         }
@@ -84,10 +87,9 @@ int neth_distill_setup(struct neth_pipe *L, const struct neth_runconf *c)
     }
     if (c->guiw != 1)
     {
-        if (!(c->guiw > 0) || !NETH_NET_GV)
+        if (!(c->guiw > 0) || !gv)
         {
-            printf("FAIL --gui-weight %g: %s\n", c->guiw,
-                   NETH_NET_GV ? "not a positive weight" : "a build without the open window's scalars (.gv)");
+            printf("FAIL --gui-weight %g: %s\n", c->guiw, gv ? "not a positive weight" : NOGV);
             return 2;
         }
         neth_distill_gui_weight(L->dist, (float)c->guiw);
@@ -107,12 +109,12 @@ int neth_distill_setup(struct neth_pipe *L, const struct neth_runconf *c)
     if (strcmp(c->rhold, "off"))
     {
         int rh = !strcmp(c->rhold, "on") ? 1 : !strcmp(c->rhold, "close") ? 2 : 0;
-        if (!rh || !NETH_NET_GV || !(level & NETH_VEC_RECIPEKEY))
+        if (!rh || !gv || !(level & NETH_VEC_RECIPEKEY))
         {
             printf("FAIL --recipe-hold %s: %s\n", c->rhold,
-                   !rh      ? "on, close or off"
-                   : !NETH_NET_GV ? "a build without the open window's scalars (.gv)"
-                            : "a level without NETH_VEC_RECIPEKEY");
+                   !rh  ? "on, close or off"
+                   : !gv ? NOGV
+                        : "a level without NETH_VEC_RECIPEKEY");
             return 2;
         }
         neth_distill_recipe_hold(L->dist, rh);
@@ -123,7 +125,7 @@ int neth_distill_setup(struct neth_pipe *L, const struct neth_runconf *c)
     {
         int wl = !strcmp(c->wlab, "on") ? 1 : !strcmp(c->wlab, "level") ? 2 : 0;
         const char *why = !wl ? "on, level or off"
-                          : !NETH_NET_GV ? "a build without the open window's scalars (.gv)"
+                          : !gv ? NOGV
                           : !(level & NETH_VEC_NOTABLE) || !(level & NETH_VEC_RECIPEKEY)
                               ? "a level without NETH_VEC_NOTABLE and NETH_VEC_RECIPEKEY"
                           : wl == 2 && !strcmp(c->labeller, "off") ? "level without --labeller (no episode at the level)"

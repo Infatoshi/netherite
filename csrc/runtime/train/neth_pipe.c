@@ -147,8 +147,8 @@ static int took(struct neth_pipe *L, int g, int books)
             h = fnv(h, &b->driver[i], 1);
             h = fnv(h, &b->kind[i], 1);
             h = fnv(h, &b->chosen[i], 1);
-            /* the 155 base scalars (a .ls build's late ones not hashed, so its digest is the base build's
-             * when it plays the same trajectory) */
+            /* the 155 base scalars (a run's feature scalars not hashed, so a run with ls has the base run's digest
+             * when it plays the same trajectory; lane/audit-feat: the features are the run's) */
             L->hash[i] = fnv(h, b->scalars + (size_t)i * NETH_NET_NS, NETH_VEC_NSCALAR * sizeof(float));
         }
         L->seen[i] = 1;
@@ -358,7 +358,7 @@ static void graph_capture(struct neth_pipe *L, int g, int img, int key)
     {
         const struct neth_seg *S = &L->sg[2 * g + h];
         sg.obs[h] = S->obs, sg.sc[h] = S->sc, sg.act[h] = S->act, sg.logp[h] = S->logp, sg.val[h] = S->val;
-        sg.rew[h] = S->rew, sg.boot[h] = S->boot, sg.done[h] = S->done, sg.drv[h] = S->drv;
+        sg.rew[h] = S->rew, sg.boot[h] = S->boot, sg.done[h] = S->done, sg.drv[h] = S->drv, sg.term[h] = S->term;
     }
     const uint8_t *frames = (const uint8_t *)L->b.obs + (size_t)lo * L->oe;
     neth_sc_t *gsc = L->g_sc + (size_t)lo * NETH_NET_NS;
@@ -459,6 +459,7 @@ static void launch_graph(struct neth_pipe *L, int g)
         memcpy(o, b->rewards + lo, (size_t)gs * sizeof(float));
         memcpy(o + (size_t)gs * sizeof(float), b->truncations + lo, (size_t)gs);
         memcpy(o + (size_t)gs * (sizeof(float) + 1), b->driver + lo, (size_t)gs);
+        memcpy(o + (size_t)gs * (sizeof(float) + 2), b->terminations + lo, (size_t)gs);   /* lane/audit-fixes */
     }
     if (!L->gx[g * 4 + key]) graph_capture(L, g, img, key);
     if (L->fail) return;
@@ -507,13 +508,16 @@ void neth_pipe_launch(struct neth_pipe *L, int g)
     int gs = L->gs, lo = g * gs, t = L->tg[g];
     struct neth_seg *S = &L->sg[2 * g + L->cur[g]], *fin = NULL;
     float *rw = NULL;   /* the last action's outcome's place in the segment (none at a group's first step) */
-    uint8_t *dn = NULL, *dv = NULL;
-    if (t > 0) rw = S->rew + (size_t)(t - 1) * gs, dn = S->done + (size_t)(t - 1) * gs, dv = S->drv + (size_t)(t - 1) * gs;
+    uint8_t *dn = NULL, *dv = NULL, *dt = NULL;
+    if (t > 0)
+        rw = S->rew + (size_t)(t - 1) * gs, dn = S->done + (size_t)(t - 1) * gs, dv = S->drv + (size_t)(t - 1) * gs,
+        dt = S->term + (size_t)(t - 1) * gs;
     if (t > 0 && !L->stage)
     {
         CK(cudaMemcpyAsync(rw, b->rewards + lo, gs * sizeof(float), cudaMemcpyHostToDevice, s));
         CK(cudaMemcpyAsync(dn, b->truncations + lo, gs, cudaMemcpyHostToDevice, s));
         CK(cudaMemcpyAsync(dv, b->driver + lo, gs, cudaMemcpyHostToDevice, s));
+        CK(cudaMemcpyAsync(dt, b->terminations + lo, gs, cudaMemcpyHostToDevice, s));    /* lane/audit-fixes */
     }
     if (t > 0 && L->dist) neth_distill_stage_step(L->dist, (int)(S - L->sg), t - 1, lo, gs, s);  /* beside its reward */
     if (t == L->T)
@@ -566,8 +570,8 @@ void neth_pipe_launch(struct neth_pipe *L, int g)
     else if (!L->stage)
         CK(cudaMemcpyAsync(obs, src, gs * L->oe, cudaMemcpyHostToDevice, s));
     if (L->stage)
-        neth_stage(L->drew, L->ddone, L->ddrv, L->dsc, b->obs_device ? NULL : L->dobs, lo, gs, L->oe, rw, dn, dv, sc,
-                 b->obs_device ? NULL : obs, s);
+        neth_stage(L->drew, L->ddone, L->ddrv, L->dterm, L->dsc, b->obs_device ? NULL : L->dobs, lo, gs, L->oe, rw, dn, dv,
+                 dt, sc, b->obs_device ? NULL : obs, s);
     else
     {
 #if NETH_SC_BF16
@@ -602,7 +606,8 @@ void neth_pipe_launch(struct neth_pipe *L, int g)
     if (fin)
     {
         /* the bootstrap before the event the learner waits on (fastppo: after it, the learner read it unmade) */
-        neth_boot(io.value, fin->done + (size_t)(L->T - 1) * gs, gs, fin->boot, s);
+        size_t la = (size_t)(L->T - 1) * gs;   /* lane/audit-fixes: a last row the clock ended keeps its own value */
+        neth_boot(io.value, fin->done + la, fin->term + la, fin->val + la, gs, fin->boot, s);
         CK(cudaEventRecord(fin->ready, s));
     }
     if (L->poll)
@@ -875,7 +880,7 @@ static int pipe_options(struct neth_pipe *L, const struct neth_runconf *c)
         int lo, k;
         if (neth_zsc_parse(c->zsc_arg, &lo, &k))
         {
-            printf("FAIL: --zero-sc %s: LO:N inside the build's %d scalars (or ore, a .or build)\n", c->zsc_arg, NETH_NET_NS);
+            printf("FAIL: --zero-sc %s: LO:N inside the run's %d scalars (or ore, a run with the or feature)\n", c->zsc_arg, NETH_NET_NS);
             return 2;
         }
         L->zsc_lo = lo, L->zsc_n = k;
@@ -888,7 +893,7 @@ static int pipe_options(struct neth_pipe *L, const struct neth_runconf *c)
         char p[4096];
         if (c->vbk > 2 || !c->out || neth_zsc_parse("ore", &lo, &k) || k == 0)
         {
-            printf("FAIL: --view-books %d: K 0, 1 or 2, with --out, in a .or build\n", c->vbk);
+            printf("FAIL: --view-books %d: K 0, 1 or 2, with --out, in a run with the or feature\n", c->vbk);
             return 2;
         }
         snprintf(p, sizeof p, "%s/view.jsonl", c->out);
@@ -1191,6 +1196,7 @@ void neth_pipe_destroy(struct neth_pipe *L)
         cudaHostUnregister(b->actions);
         cudaHostUnregister(b->rewards);
         cudaHostUnregister(b->truncations);
+        if (b->terminations != b->truncations) cudaHostUnregister(b->terminations);   /* lane/audit-fixes: --trunc-boot off points it at truncations */
         cudaHostUnregister(b->driver);
     }
     neth_vec_free(L->v);

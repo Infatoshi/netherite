@@ -55,6 +55,25 @@ neth_actor *neth_actor_load_blob(const void *blob, size_t len, const char **err)
 void neth_actor_free(neth_actor *a);
 /* precision of the calls that follow (NETH_NET_ACTOR_FP32 by default) */
 void neth_actor_set_mode(neth_actor *a, int mode);
+/* lane/audit-fixes: the draw of the calls that follow, set once before the first step (1.0f and 0 by default, the
+ * policy's own distribution, bit for bit). itemp multiplies the camera's and the keys' logits before the draw (the
+ * temperature's inverse); greedy bit 0 the keys held at logit over 0, bit 1 the camera's argmax bin; the hotbar stays
+ * sampled, and logp stays the logits' own. Both are read when a step is queued: a captured CUDA graph keeps the
+ * values of its capture. A build whose bf16 step is fused (neth_actor_fused) refuses any other draw in bf16
+ * (neth_actor_step: cudaErrorNotSupported) */
+void neth_actor_set_draw(neth_actor *a, float itemp, int greedy);
+/* lane/audit-fixes: the itemp of temperature t > 0: at t = N / 10 for a whole N from 1 to 10, 10.0f / N (the factor the
+ * old .tN builds compiled, bit for bit), else 1.0f / t */
+static inline float neth_actor_itemp(float t)
+{
+    float r = 1.0f / t;
+    for (int n = 1; n <= 10; n++)
+        if (t == (float)n / 10.0f) r = 10.0f / (float)n;
+    return r;
+}
+/* 1 when the build's bf16 step is one kernel (actor.cu NETH_ACTOR_FUSE, the .af word at 16x16 wm 1), whose draw is the
+ * policy's own alone */
+int neth_actor_fused(void);
 /* new weights into a loaded actor, device to device: w the learner's parameters (learn.h's layout, NETH_LEARN_NPARAM fp32
  * on the device, at the build's net.h variant); one kernel queued on stream, no allocation, graph-capturable. The
  * image is then byte for byte the one neth_actor_load_blob makes of the same weights (lane/ntwidth, for lane ntwire's
@@ -69,7 +88,8 @@ void neth_actor_ws_free(neth_actor_ws *w);
 /* the device RNG's seed and counter (queued on stream: a graph captured after it starts from there) */
 int neth_actor_ws_seed(neth_actor_ws *w, uint64_t seed, uint64_t counter, cudaStream_t stream);
 
-/* 0, or a CUDA error code (B over the workspace's max_b: cudaErrorInvalidValue) */
+/* 0, or a CUDA error code (B over the workspace's max_b: cudaErrorInvalidValue; a draw a fused bf16 step cannot make:
+ * cudaErrorNotSupported) */
 int neth_actor_step(neth_actor_ws *w, int B, const neth_actor_io *io, cudaStream_t stream);
 
 #ifdef __cplusplus

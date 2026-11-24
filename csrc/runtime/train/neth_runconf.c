@@ -3,6 +3,7 @@
  * the settings imply and refuse, and the vector env's options made from them. */
 #define _GNU_SOURCE
 #include "neth_runconf.h"
+#include "actor.h"
 
 /* ---- the macro sets, the milestones, the starts' archive ---- */
 
@@ -105,8 +106,8 @@ int neth_zsc_parse(const char *a, int *lo, int *n)
 {
     const char *c = strchr(a, ':');
     *lo = atoi(a), *n = c ? atoi(c + 1) : 0;
-    if (!strncmp(a, "ore", 3))
-        *lo = NETH_NET_NS - NETH_NET_TASK * NETH_NET_TASK_N - NETH_NET_GV * NETH_NET_GV_N - NETH_NET_ORE_N, *n = NETH_NET_ORE ? NETH_NET_ORE_N : 0;
+    if (!strncmp(a, "ore", 3))  /* lane/audit-feat: the run's or block (net.h NETH_NET_OFF_OF), none without it */
+        *lo = NETH_NET_OFF_OF(NETH_NET_FEATMASK, NETH_NET_FOR), *n = NETH_NET_FEATMASK & NETH_NET_FOR ? NETH_NET_ORE_N : 0;
     return *n <= 0 || *lo < 0 || *lo + *n > NETH_NET_NS ? -1 : 0;
 }
 
@@ -241,6 +242,10 @@ static const struct rc_row ROWS[] = {
     {"--mopt", NULL, RC_FN, 0, F(mopts), NULL, fn_mopt, "NAME=WORD", "a macro option over the run file's"},
     {"--policy", NULL, RC_STR, 0, F(pol), "standin", NULL, "standin|noop|actor", "the policy (a run file's: actor)"},
     {"--init", NULL, RC_STR, 0, F(init), NULL, NULL, "W.ntw", "the actor's (or student's) weights"},
+    /* lane/audit-feat: the scalar features (net.h's words), the run's: without them, --init's NTW2 header's */
+    {"--features", NULL, RC_STR, 0, F(feat_arg), NULL, NULL, "WORDS",
+     "the scalars past 155 (ls hs dk or gv tk, or none; --init's own, else the build's)"},
+    {NULL, "net.features", RC_STR, 0, F(feat_run), NULL, NULL, NULL, "the scalars past 155"},
     {"--out", "run.out", RC_STR, 0, F(out), NULL, NULL, "DIR", "episodes.jsonl, iters.jsonl, model.ntw"},
     {"--log-every", "run.log_every", RC_DBL, RC_NAN, F(log_every), "30", NULL, "SEC", "a row's seconds"},
     {"--save-every", "run.save_every", RC_DBL, RC_NAN, F(save_every), NULL, NULL, "MIN", "a snapshot's minutes"},
@@ -286,6 +291,8 @@ static const struct rc_row ROWS[] = {
     {"--value-warmup", "ppo.value_warmup", RC_INT, 0, F(vwarm), NULL, NULL, "N", "updates of the value head alone"},
     {"--value-warmup-lr", "ppo.value_warmup_lr", RC_DBL, 0, F(vwarm_lr), NULL, NULL, "X", "their rate (0 lr)"},
     {"--anneal", "ppo.anneal", RC_STR, 0, F(anneal_s), "off", NULL, "off|on", "the rate to 0 over the run"},
+    {"--trunc-boot", "ppo.trunc_boot", RC_STR, 0, F(trunc_boot_s), "on", NULL, "on|off",
+     "a timed-out episode's last step bootstraps from its value (off: from zero, as a death)"},
     {NULL, "ppo.stage_scale", RC_ONOFF, 0, F(stage_scale), NULL, NULL, NULL, "rewards over their stage's scale"},
     {"--stage-scale", NULL, RC_INT, 0, F(stage_scale), NULL, NULL, "0|1", NULL},
     {"--critic", NULL, RC_INT, 0, F(critic_h), NULL, NULL, "H", "the privileged critic's width (0 off)"},
@@ -313,6 +320,9 @@ static const struct rc_row ROWS[] = {
     {"--clock", NULL, RC_FN, 0, F(clock_wrap), NULL, fn_clock, "raw|wrap", "the time scalar (--score's wrap)"},
     {"--score-json", NULL, RC_STR, 0, F(score_json), NULL, NULL, "PATH", NULL},
     {"--score-books", NULL, RC_STR, 0, F(score_books), NULL, NULL, "FILE", "each run's books"},
+    /* lane/audit-fixes: the actor's draw, run-time (were the .tN and .gk/.gc/.gkc builds) */
+    {"--temp", NULL, RC_STR, 0, F(temp_arg), NULL, NULL, "T", "the keys and camera drawn at temperature T (a frozen policy's)"},
+    {"--greedy", NULL, RC_STR, 0, F(greedy_arg), NULL, NULL, "keys|cam|both", "drawn greedily (a frozen policy's)"},
     {"--pearl-census", NULL, RC_SET, 0, F(pearl_census), NULL, NULL, NULL, "the books' privileged census"},
     /* distillation */
     {"--teacher", "distill.teacher", RC_STR, 0, F(teacher), NULL, NULL, "T.ntw", "the teacher drives"},
@@ -478,6 +488,7 @@ static void rc_defaults(struct neth_runconf *c)
     c->prec = NETH_LEARN_BF16;
     c->clock_wrap = -1;     /* --score's wrap, else raw */
     c->task_crack_arg = NAN;
+    c->itemp = 1.0f;        /* lane/audit-fixes: the policy's own draw until --temp is read */
     char e[64];
     for (size_t i = 0; i < NROWS; ++i)
         if (ROWS[i].def) rc_set(c, &ROWS[i], ROWS[i].def, 0, NULL, e, sizeof e);
@@ -541,9 +552,12 @@ static int rc_read_run(struct neth_runconf *c, const char *path, char *err, size
 {
     FILE *f = fopen(path, "r");
     if (!f) return snprintf(err, en, "--run %s: %s", path, strerror(errno)), -1;
-    char line[1024], part[64] = "", sec[64] = "";
+    /* lane/audit-fixes: getline, so a line of any length (a long starts.seeds) is one line, not cut at 1023 bytes into
+     * two */
+    char *line = NULL, part[64] = "", sec[64] = "";
+    size_t cap = 0;
     int ln = 0, bad = 0;
-    while (!bad && fgets(line, sizeof line, f))
+    while (!bad && getline(&line, &cap, f) != -1)
     {
         ++ln;
         trim(line);
@@ -569,6 +583,7 @@ static int rc_read_run(struct neth_runconf *c, const char *path, char *err, size
         if (sim && !r) continue;    /* the sim's own keys are worldconf.c's */
         bad = r ? rc_set(c, r, v, 1, path, err, en) : rc_other(c, key, v, path, ln, err, en);
     }
+    free(line);
     fclose(f);
     if (bad) return -1;
     /* starts.archive into --save-starts, with fastrun.py's defaults */
@@ -701,6 +716,13 @@ int neth_runconf_parse(struct neth_runconf *c, int argc, char **argv)
                "--value-warmup N >= 0 (%d)\n", c->anneal_s, c->ref_kl, c->ref_sched, c->vwarm);
         return 2;
     }
+    /* lane/audit-fixes: the clock's end bootstrapped from the last value (on) or from zero as the task's end (off) */
+    c->trunc_boot = !strcmp(c->trunc_boot_s, "on");
+    if (!c->trunc_boot && strcmp(c->trunc_boot_s, "off"))
+    {
+        printf("FAIL: --trunc-boot on|off (%s)\n", c->trunc_boot_s);
+        return 2;
+    }
     if ((c->anneal || (c->ref_kl > 0 && !strcmp(c->ref_sched, "linear"))) && !(c->hours > 0 || c->max_steps > 0))
     {
         printf("FAIL: --anneal on and --ref-kl-schedule linear run over the run's length: --hours or --env-steps\n");
@@ -709,8 +731,102 @@ int neth_runconf_parse(struct neth_runconf *c, int argc, char **argv)
     return 0;
 }
 
+/* lane/audit-fixes: --temp T into itemp (actor.h neth_actor_itemp), --greedy into its bits; 0, or -1 with the reason
+ * printed */
+static int draw_resolve(struct neth_runconf *c)
+{
+    c->itemp = 1.0f;
+    c->greedy = 0;
+    if (c->temp_arg)
+    {
+        char *end = NULL;
+        float t = strtof(c->temp_arg, &end);
+        if (!c->temp_arg[0] || *end || !(t > 0.0f) || isinf(t))
+        {
+            printf("FAIL: --temp T, a number over 0 (%s; 1 is the policy's own distribution)\n", c->temp_arg);
+            return -1;
+        }
+        c->itemp = neth_actor_itemp(t);
+    }
+    if (c->greedy_arg)
+    {
+        c->greedy = !strcmp(c->greedy_arg, "keys") ? 1 : !strcmp(c->greedy_arg, "cam") ? 2
+                    : !strcmp(c->greedy_arg, "both") ? 3 : -1;
+        if (c->greedy < 0)
+        {
+            printf("FAIL: --greedy keys|cam|both (%s)\n", c->greedy_arg);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+/* lane/audit-feat: a .ntw file's header (its first bytes): its version (1 or 2) and NTW2's features, or -1 (the file's
+ * loader reports it) */
+static int feat_head(const char *path, int *mask, char *variant, size_t vn)
+{
+    unsigned char b[4096];
+    char e[512];
+    FILE *f = fopen(path, "rb");
+    if (!f) return -1;
+    size_t n = fread(b, 1, sizeof b, f);
+    fclose(f);
+    return neth_ntw_features(b, n, path, mask, variant, vn, e, sizeof e);
+}
+
+/* lane/audit-feat: the run's scalar features into net.h's neth_net_fs, before anything is made: --features or the
+ * run file's net.features (the same set when both are given), the --init file holding no feature outside it; else
+ * the --init file's NTW2 header; else (an NTW1 file, no --init) the build's default (net.h NETH_NET_FEAT0, actor.mk's
+ * words in the build's name). A file with fewer features loads with zero weights on the rest (neth_checkpoint.c's
+ * parser, which also holds the teacher to the run's set). 0, or -1 with the reason printed */
+static int feat_resolve(struct neth_runconf *c)
+{
+    char e[512], wa[64], wb[64], wc[64], v[128];
+    int fm = -1, rm = -1;
+    if (c->feat_arg && neth_net_words(c->feat_arg, &fm, e, sizeof e))
+    {
+        printf("FAIL: --features %s: %s\n", c->feat_arg, e);
+        return -1;
+    }
+    if (c->feat_run && neth_net_words(c->feat_run, &rm, e, sizeof e))
+    {
+        printf("FAIL: %s: policy.net.features %s: %s\n", c->run, c->feat_run, e);
+        return -1;
+    }
+    if (fm >= 0 && rm >= 0 && fm != rm)
+    {
+        neth_net_mask_words(fm, wa, sizeof wa);
+        neth_net_mask_words(rm, wb, sizeof wb);
+        printf("FAIL: --features %s and the run file's policy.net.features %s (%s) differ: one set a run\n", wa, wb,
+               c->run);
+        return -1;
+    }
+    int req = fm >= 0 ? fm : rm, m = req >= 0 ? req : NETH_NET_FEAT0, im = 0;
+    if (c->init && feat_head(c->init, &im, v, sizeof v) == 2)
+    {
+        if (req < 0) m = im;
+        else if (im & ~req)
+        {
+            neth_net_mask_words(im, wa, sizeof wa);
+            neth_net_mask_words(req, wb, sizeof wb);
+            neth_net_mask_words(im & ~req, wc, sizeof wc);
+            printf("FAIL: --init %s has the features %s (variant %s); %s %s lacks %s: the run's set holds every one of "
+                   "the file's (without a set the run is the file's own)\n", c->init, wa, v,
+                   fm >= 0 ? "--features" : "the run file's policy.net.features", wb, wc);
+            return -1;
+        }
+    }
+    if (neth_net_set_features(m))
+    {
+        printf("FAIL: the run's features are set once, before the nets are made\n");
+        return -1;
+    }
+    return 0;
+}
+
 int neth_runconf_resolve(struct neth_runconf *c)
 {
+    if (feat_resolve(c)) return 2;
     if (c->teacher) c->pol = "actor";     /* the teacher is the actor, --init the student */
     if (c->score && c->teacher)
     {
@@ -750,10 +866,16 @@ int neth_runconf_resolve(struct neth_runconf *c)
         printf("FAIL: --teacher trains the student: not with --learn 0\n");
         return 2;
     }
-    if ((NETH_ACTOR_GREEDY || NETH_ACTOR_TEMP) && (c->learn || c->teacher))
+    if (draw_resolve(c)) return 2;
+    if ((c->itemp != 1.0f || c->greedy) && (c->learn || c->teacher))
     {
-        printf("FAIL: a greedy or tempered build (NETH_ACTOR_GREEDY, NETH_ACTOR_TEMP: .gk .gc .tN) plays a frozen policy only: "
-               "--learn 0, no --teacher\n");
+        printf("FAIL: --temp (other than 1) and --greedy play a frozen policy only: --learn 0, no --teacher\n");
+        return 2;
+    }
+    if ((c->itemp != 1.0f || c->greedy) && neth_actor_fused())
+    {
+        printf("FAIL: --temp (other than 1) and --greedy draw in heads_draw, and this build's bf16 actor step is fused "
+               "(the .af word): build the same variant without .af (make -C csrc/runtime train-loop-v NT_V=V)\n");
         return 2;
     }
     if (c->groups < 1 || c->n % c->groups || c->depth < -1 || c->depth >= c->groups || c->T < 1 || c->ab < 0 ||
@@ -792,8 +914,9 @@ int neth_runconf_vec_opts(const struct neth_runconf *c, struct neth_vec_opts *o)
     o->macros = c->macros | (NETH_NET_HOTBAR ? NETH_VEC_HOTBAR : 0);  /* the action's hotbar element */
     o->macro_opts = c->mopts;
     o->objective = NETH_VEC_FULL;
-    /* the wider scalars of the .ls, .hs, .dk, .or, .gv and task builds */
-    o->late_scalars = NETH_NET_LATE | NETH_NET_HSEE << 1 | NETH_NET_DIG << 2 | NETH_NET_ORE << 3 | NETH_NET_GV << 4 | NETH_NET_TASK << 5;
+    /* the scalar features after the 155 (ls hs dk or gv tk): lane/audit-feat, the run's set (net.h's mask is
+     * late_scalars bit for bit), the net's and the env's one value */
+    o->late_scalars = NETH_NET_FEATMASK;
     o->reward_rel = c->reward_rel != 0;
     o->task_item = c->task_item, o->task_block = c->task_block, o->task_keys = c->task_keys;
     o->task_win = c->task_w[0], o->task_death = c->task_w[1], o->task_look = c->task_w[2], o->task_crack = c->task_w[3];

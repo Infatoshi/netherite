@@ -4,14 +4,15 @@
 # `make -C csrc/runtime raweval` (raweval.mk); inside a GPU window: gpuq.sh check --mem 8000 -- make ... raweval
 #
 #   bash csrc/runtime/train/raweval.sh -w MODEL.ntw -t TASK -o OUT.tsv [-l LABEL] [-k student|teacher] [-a strip|van]
-#        [-b BUILD] [-m MINUTES] [-K STARTS] [-R REPS] [-S STARTS_A_PROCESS] [-s SEED] [-L]
+#        [-b BUILD] [-T TEMP] [-m MINUTES] [-K STARTS] [-R REPS] [-S STARTS_A_PROCESS] [-s SEED] [-L]
 #
 #   -t TASK  ore | orecave (rawpix's, 10 s) | hard | hardcave (rawtree's iron ore 5 to 12 blocks behind, 20 s) |
 #            logview | logany | lognear (logs from a spawn, rawtree's 20 s run file for view, rawsearch's 60 s for the
 #            rest) | logs3near | logs3view (three logs, 30 s); the held-out library of each is out/runtime/eval1k
 #            (ore, made by rawstarts on world seeds 501 to 1000, never trained on) or out/runtime/rawtree (logs-*-held)
-#   -k       student: pixels only (the ore scalars zeroed, the build at temperature 0.5, .t5); teacher: its scalars
-#            (and the run file's hint), sampled
+#   -k       student: pixels only (the ore scalars zeroed, drawn at temperature 0.5: ntloop --temp 0.5); teacher: its
+#            scalars (and the run file's hint), sampled
+#   -T       the draw's temperature over the kind's (ntloop --temp; 1 sampled; lane/audit-fixes: was the build's .tN)
 #   -a       strip: the lanes' fidelity (no spawning, random ticks or weather); van: the run file without its
 #            fidelity section, vanilla (mobs spawning)
 #   -K -R    the first K starts of the library (512), each played R times (2: R episodes a start, N = K x R, 1,024);
@@ -28,11 +29,12 @@
 set -e
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 cd "$ROOT"
-W= TASK= OUT= LABEL= KIND=student ARM=strip BUILD= MIN= K=512 R=2 SC=64 SEED=7000 LOCK=1
-while getopts w:t:o:l:k:a:b:m:K:R:S:s:L f; do
+W= TASK= OUT= LABEL= KIND=student ARM=strip BUILD= TEMP= MIN= K=512 R=2 SC=64 SEED=7000 LOCK=1
+while getopts w:t:o:l:k:a:b:T:m:K:R:S:s:L f; do
   case $f in
     w) W=$OPTARG;; t) TASK=$OPTARG;; o) OUT=$OPTARG;; l) LABEL=$OPTARG;; k) KIND=$OPTARG;; a) ARM=$OPTARG;;
-    b) BUILD=$OPTARG;; m) MIN=$OPTARG;; K) K=$OPTARG;; R) R=$OPTARG;; S) SC=$OPTARG;; s) SEED=$OPTARG;; L) LOCK=0;;
+    b) BUILD=$OPTARG;; T) TEMP=$OPTARG;; m) MIN=$OPTARG;; K) K=$OPTARG;; R) R=$OPTARG;; S) SC=$OPTARG;; s) SEED=$OPTARG;;
+    L) LOCK=0;;
     *) exit 2;;
   esac
 done
@@ -54,7 +56,9 @@ case $TASK in
 esac
 MIN=${MIN:-$M}
 [ -n "$LABEL" ] || LABEL=$(basename "$W" .ntw)
-if [ -z "$BUILD" ]; then if [ "$KIND" = teacher ]; then BUILD=s1.dk.or; else BUILD=s1.dk.or.t5; fi; fi
+BUILD=${BUILD:-s1.dk.or}
+# lane/audit-fixes: the student's temperature is ntloop's --temp on the base build (was the s1.dk.or.t5 build)
+[ -n "$TEMP" ] || { [ "$KIND" = teacher ] && TEMP=1 || TEMP=0.5; }
 BIN=out/runtime/train/$BUILD/ntloop
 [ -x "$BIN" ] || { echo "raweval: $BIN is not built (make -C csrc/runtime train-loop-v NT_V=$BUILD)" >&2; exit 2; }
 ZERO=; [ "$KIND" = teacher ] || ZERO="--zero-sc ore"
@@ -91,7 +95,7 @@ while [ $off -lt "$K" ]; do
     LK=; [ "$LOCK" = 1 ] && { mkdir -p "${NETHER_CACHE:-.cache}/tmp"; LK="flock ${NETHER_CACHE:-.cache}/tmp/gates-env.lock"; }
     # t0 is written once the lock is held: another lane's job holds it for a minute at a time, and that wait is not the eval's
     $LK bash -c 'date +%s.%N > "$0"; exec /usr/bin/time -f %M -o "$0.rss" "$@"' "$D/start" "$BIN" --score --run "$RUNF" --dev --init "$W" --start "$held0" --library "$D/lib" --start-cycle on \
-      --ns $NS --groups $G --minutes "$MIN" --seed $((SEED + shard)) --out "$D/out" --obs-tone auto $ZERO > "$D/eval.log" 2>&1 \
+      --ns $NS --groups $G --minutes "$MIN" --seed $((SEED + shard)) --out "$D/out" --obs-tone auto --temp "$TEMP" $ZERO > "$D/eval.log" 2>&1 \
       || { tail -5 "$D/eval.log" >&2; echo "raweval: shard $shard failed" >&2; exit 1; }
     t1=$(date +%s.%N)
     t0=$(cat "$D/start")

@@ -2,7 +2,9 @@
  *
  * An eval directory is what ntloop --score --out DIR writes: DIR/episodes.jsonl (one JSON line an episode: env,
  * start, ret, deaths, len, the boolean milestones in "ms", the macros' steps in "macro", the dimensions in "dims")
- * and DIR/score.json. Read here directly, no jq or awk:
+ * and DIR/score.json. lane/audit-fixes: "ms" holds "win" too, 1 when the episode ended by its task's pickup (a task
+ * environment's reward.item; 0 a death, the clock, or no task): a milestone like the others (its count, rate,
+ * interval and paired test; the metric win is the win rate), not one of depth's. Read here directly, no jq or awk:
  *
  *   one run:   n, depth (ntloop's: the 15 milestones of neth_report.c's END_NAMES, the Nether from dims) mean and
  *              standard error, return, deaths an episode, the raw (no-macro) share of steps, each milestone's count,
@@ -81,7 +83,7 @@ double cs_norm_p2(double z);
 /* log of the binomial(n, 1/2) probability of x, exact to rounding (Loader 2000) */
 double cs_log_dbinom_half(long x, long n);
 
-/* a named metric (depth, ret, deaths, raw, or a milestone) of a comparison: candidate and baseline values,
+/* a named metric (depth, ret, deaths, raw, or a milestone: win, a task's win rate, is one) of a comparison: candidate and baseline values,
  * delta (candidate - baseline), p, z (signed so that positive is better), and whether lower is better. 0, or -1
  * when the name is unknown. Without a baseline (b and cmp NULL) only cand is set. */
 int cs_metric(const struct cs_run *cr, const struct cs_summary *c, const struct cs_summary *b, const struct cs_compare *cmp,

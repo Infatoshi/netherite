@@ -47,6 +47,7 @@ struct neth_gseg {
     int32_t *act[2];
     float *logp[2], *val[2], *rew[2], *boot[2];
     uint8_t *done[2], *drv[2];
+    uint8_t *term[2];           /* lane/audit-fixes: the segment's terminations (neth_seg's term) */
 };
 struct neth_gslot {
     int32_t half, t, phalf, pt, has_prev, boot;
@@ -66,6 +67,9 @@ int neth_policy_noop(struct neth_policy *p);
  * device RNG stream a group (groups of gs), bf16 or fp32; 0, or -1 with err */
 int neth_policy_actor(struct neth_policy *p, const void *ntw, size_t len, int groups, int gs, int bf16, uint64_t seed,
                     char *err, size_t n);
+/* lane/audit-fixes: the actor's draw on both images (actor.h neth_actor_set_draw: itemp 1, greedy 0 the policy's own),
+ * set before the first launch; a captured graph keeps the draw of its capture */
+void neth_policy_actor_draw(struct neth_policy *p, float itemp, int greedy);
 /* the image launches do not use, written on s from the learner's weights w (learn.h's layout, device): the caller
  * orders s after every launch so far (their events), and calls switch once it has run on the device */
 int neth_policy_actor_refresh(struct neth_policy *p, const float *w, cudaStream_t s);
@@ -88,7 +92,7 @@ int neth_policy_actor_step(struct neth_policy *p, int img, const struct neth_io 
 void neth_commit(const int32_t *act, int na, int32_t *act_h, uint32_t *flag, uint32_t seq, cudaStream_t s);
 /* --graph's kernels around the captured actor and critic (struct neth_gseg's comment). A group's staging block (stg,
  * device; the graph's first node copies the host's page-locked one): the slot, then float rew[gs], uint8 done[gs],
- * uint8 drv[gs], padded to 16 bytes (neth_gstg_bytes); scf the group's scalars (f32, device). Neither kernel reads the
+ * uint8 drv[gs], uint8 term[gs] (lane/audit-fixes), padded to 16 bytes (neth_gstg_bytes); scf the group's scalars (f32, device). Neither kernel reads the
  * host: a kernel's mapped reads cost a bus trip each */
 size_t neth_gstg_bytes(int gs);
 void neth_gstage(const uint8_t *stg, const float *scf, const struct neth_gseg *sg, const uint8_t *frames, int gs, size_t oe,
@@ -100,14 +104,18 @@ void neth_gcommit(const uint8_t *stg, const struct neth_gseg *sg, int gs, int T,
 void neth_grnn_h0(const uint8_t *stg, const float *h, int gs, float *h0a, float *h0b, cudaStream_t s);
 
 /* the loop's kernels around the learner, on s: the actions [n][16] into its camera bins [n][2] and keys [n][14];
- * the bootstrap boot = val0 * (1 - done_last); max |a - b| over n into *out (device) */
+ * the bootstrap boot = val0 * (1 - done_last), or val_last where done_last and not term_last (lane/audit-fixes: the
+ * segment's last row timed out); max |a - b| over n into *out (device) */
 void neth_split_actions(const int32_t *act, int n, int32_t *cam, float *keys, int32_t *hot, cudaStream_t s);
-void neth_boot(const float *val0, const uint8_t *done_last, int n, float *boot, cudaStream_t s);
-/* lane/ntcast, ntloop --stage 1: envs lo .. lo + n - 1's reward, end and driver (device pointers of the env's mapped
- * page-locked buffers, indexed by env) into rew, done and drv [n] (all NULL: none), their scalars into sc [n][NETH_NET_NS]
- * and, obs_h not NULL, their observations (oe bytes each, a multiple of 16) into obs, in one launch on s */
-void neth_stage(const float *rew_h, const uint8_t *done_h, const uint8_t *drv_h, const float *sc_h, const uint8_t *obs_h,
-              int lo, int n, size_t oe, float *rew, uint8_t *done, uint8_t *drv, neth_sc_t *sc, uint8_t *obs, cudaStream_t s);
+void neth_boot(const float *val0, const uint8_t *done_last, const uint8_t *term_last, const float *val_last, int n,
+               float *boot, cudaStream_t s);
+/* lane/ntcast, ntloop --stage 1: envs lo .. lo + n - 1's reward, end, driver and termination (device pointers of the
+ * env's mapped page-locked buffers, indexed by env) into rew, done, drv and term [n] (all NULL: none), their scalars
+ * into sc [n][NETH_NET_NS] and, obs_h not NULL, their observations (oe bytes each, a multiple of 16) into obs, in one
+ * launch on s */
+void neth_stage(const float *rew_h, const uint8_t *done_h, const uint8_t *drv_h, const uint8_t *term_h, const float *sc_h,
+              const uint8_t *obs_h, int lo, int n, size_t oe, float *rew, uint8_t *done, uint8_t *drv, uint8_t *term,
+              neth_sc_t *sc, uint8_t *obs, cudaStream_t s);
 void neth_maxabs(const float *a, const float *b, int n, float *out, cudaStream_t s);
 /* lane/rawpix (ntloop --obs-tone): n observations of oe bytes each through a tone, in place on s: mode 1 auto (each
  * frame's bytes times 255 over its largest, the camera's auto exposure; integer, exact), mode 2 the 256-byte table lut

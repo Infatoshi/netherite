@@ -35,6 +35,8 @@ struct neth_actor {
                                           * learner's index of the weight it holds (learn.h's layout), or -1: zero */
     size_t tot, nfr;                     /* floats in mem (bf16s in mem16), bf16s in memf */
     int mode;
+    float itemp;                         /* lane/audit-fixes: the draw's inverse temperature (1: the policy's own) */
+    int greedy;                          /* lane/audit-fixes: the keys (bit 0), the camera (bit 1) drawn greedily */
 };
 
 struct neth_actor_ws {
@@ -60,7 +62,9 @@ struct neth_actor_ws {
 #define P1 (NETH_NET_O1 + 2)      /* x1 [B][P1][P1][C1]: conv1's, padded */
 #define P2 (NETH_NET_O2 + 2)      /* x2 [B][P2][P2][C2]: conv2's, padded */
 #define Q3 (NETH_NET_O3 * NETH_NET_O3)  /* conv3's positions */
-#define F1K ((NETH_NET_FLAT + 63) / 64 * 64)   /* z0's row: fc1's k padded with zeros to a multiple of 64 */
+#define F1K ((NETH_NET_FLAT + 63) / 64 * 64)   /* z0's row: fc1's k padded with zeros to a multiple of 64 (lane/audit-feat:
+                                                * the run's; fc1's layer and k_afused take it as a template parameter,
+                                                * F1KC, one instantiation each of net.h's NETH_NET_NSP_CASES) */
 #define K1 (16 * NETH_NET_CI)     /* conv1's k: 48 from the bytes, 256 after the stem */
 
 /* the first layer's (conv1's, or the stem's) rows m = (b, oy, ox) over OS x OS, columns k = (kh, kw, ci) of 48: the
@@ -723,11 +727,13 @@ __device__ static float logsig(float x) { return fminf(x, 0.f) - log1pf(expf(-fa
  * to bf16 as a tensor core's inputs are) and the HK partials are summed in order. Then three warps a sample draw:
  * camera head 0 and 1 by Gumbel-max (argmax of logit - log(-log u), the first on a tie, as torch's argmax) with
  * their log-softmax terms, and the keys as u < sigmoid(logit) with each one's log-sigmoid of its sign; logp is
- * (camera 0 + camera 1) + keys (semteach.logp). The device RNG's uniforms are drawn first, beside the loads. */
+ * (camera 0 + camera 1) + keys (semteach.logp). The device RNG's uniforms are drawn first, beside the loads.
+ * lane/audit-fixes: itemp and greedy are the actor's draw (neth_actor_set_draw; 1 and 0 the policy's own distribution),
+ * kernel arguments read when the step is queued. */
 template <bool BF>
 __global__ void __launch_bounds__(HTH)
 heads_draw(const float *__restrict__ z2, const void *__restrict__ hw, const float *__restrict__ hb, int B,
-           neth_actor_io io, const unsigned long long *__restrict__ rng)
+           neth_actor_io io, const unsigned long long *__restrict__ rng, float itemp, int greedy)
 {
     __shared__ __align__(16) float zs[HB][HC];
     __shared__ __align__(16) float part[HK][HB][NETH_NET_HP];
@@ -760,15 +766,13 @@ heads_draw(const float *__restrict__ z2, const void *__restrict__ hw, const floa
          * kept under 1 (the camera's as they were: changing them moves every default trajectory) */
         if (hlane)
             u0 = fminf(u0, 0x1.fffffep-1f);
-#if NETH_ACTOR_GREEDY
-        /* lane/ladder2 (the .gk and .gc builds, a frozen policy's eval only: ntloop refuses learning with them): one
-         * uniform for every key (u 0.5: a key is held when its logit is over 0) and every camera bin (one Gumbel
-         * offset for all bins: the argmax logit); the hotbar stays sampled */
-        if ((NETH_ACTOR_GREEDY & 1) && h == NETH_NET_CAM && !hlane)
+        /* lane/ladder2, a runtime choice since lane/audit-fixes (ntloop --greedy, a frozen policy's eval only): one
+         * uniform for every key (bit 0; u 0.5: a key is held when its logit is over 0) and every camera bin (bit 1; one
+         * Gumbel offset for all bins: the argmax logit); the hotbar stays sampled */
+        if ((greedy & 1) && h == NETH_NET_CAM && !hlane)
             u0 = 0.5f;
-        if ((NETH_ACTOR_GREEDY & 2) && h < NETH_NET_CAM)
+        if ((greedy & 2) && h < NETH_NET_CAM)
             u0 = u1 = 0.5f;
-#endif
     }
     float acc[HB][4];
 #pragma unroll
@@ -826,16 +830,12 @@ heads_draw(const float *__restrict__ z2, const void *__restrict__ hw, const floa
             const float *lh = l + h * NETH_NET_BINS;
             bool has1 = lane + 32 < NETH_NET_BINS;
             float x0 = lh[lane], x1 = has1 ? lh[lane + 32] : -INFINITY;
-#if NETH_ACTOR_TEMP
-            /* lane/rawpix: the draw at temperature NETH_ACTOR_TEMP / 10 (the log-softmax term below stays the logits') */
-            const float itemp = 10.0f / (float)NETH_ACTOR_TEMP;
-#else
-            const float itemp = 1.0f;
-#endif
-            float g0 = (NETH_ACTOR_TEMP ? x0 * itemp : x0) - logf(-logf(u0)), gb = g0, mx = fmaxf(x0, x1);
+            /* lane/rawpix, a runtime itemp since lane/audit-fixes (ntloop --temp): the draw at temperature 1 / itemp (the
+             * log-softmax term below stays the logits'); itemp 1 multiplies exactly, the policy's own draw */
+            float g0 = x0 * itemp - logf(-logf(u0)), gb = g0, mx = fmaxf(x0, x1);
             int gi = lane;
             if (has1) {
-                float g1 = (NETH_ACTOR_TEMP ? x1 * itemp : x1) - logf(-logf(u1));
+                float g1 = x1 * itemp - logf(-logf(u1));
                 if (g1 > gb) {
                     gb = g1;
                     gi = lane + 32;
@@ -865,7 +865,7 @@ heads_draw(const float *__restrict__ z2, const void *__restrict__ hw, const floa
             float lk = 0.f;
             if (lane < NETH_NET_KEYS) {
                 float x = l[NETH_NET_CAM * NETH_NET_BINS + lane];
-                int key = u0 < 1.f / (1.f + expf(NETH_ACTOR_TEMP ? -x * (10.0f / (float)(NETH_ACTOR_TEMP + !NETH_ACTOR_TEMP)) : -x));
+                int key = u0 < 1.f / (1.f + expf(-x * itemp));
                 lk = key ? logsig(x) : logsig(-x);
                 io.act[b * NETH_NET_ACTION + NETH_NET_CAM + lane] = key;
                 if (io.keys)
@@ -922,8 +922,10 @@ heads_draw(const float *__restrict__ z2, const void *__restrict__ hw, const floa
 #ifndef NETH_ACTOR_FUSE
 #define NETH_ACTOR_FUSE 0
 #endif
-#if NETH_ACTOR_FUSE && (NETH_NET_STEM || NETH_NET_WM != 1 || NETH_NET_HOTBAR || NETH_ACTOR_GREEDY || NETH_ACTOR_TEMP)   /* the hotbar's draw is heads_draw's alone;
-                                                                      * lane/ladder2: so is the greedy one */
+#if NETH_ACTOR_FUSE && (NETH_NET_STEM || NETH_NET_WM != 1 || NETH_NET_HOTBAR)   /* the hotbar's draw is heads_draw's alone;
+                                                                      * lane/audit-fixes: so are the tempered and greedy
+                                                                      * draws (neth_actor_set_draw), refused on a fused
+                                                                      * build's bf16 step */
 #undef NETH_ACTOR_FUSE
 #define NETH_ACTOR_FUSE 0
 #endif
@@ -940,37 +942,10 @@ __global__ void rng_set(unsigned long long *rng, unsigned long long seed, unsign
 
 /* ---- loading ---- */
 
-struct blob {
-    const unsigned char *p;
-    size_t len, off;
-};
-
-static const float *take(blob *b, int rank, int d0, int d1, int d2, int d3, const char **err)
-{
-    int dims[4] = {d0, d1, d2, d3}, r;
-    if (b->off + 4 > b->len)
-        return *err = "ntw: truncated", nullptr;
-    memcpy(&r, b->p + b->off, 4);
-    b->off += 4;
-    if (r != rank)
-        return *err = "ntw: a tensor's rank is not net.h's", nullptr;
-    size_t n = 1;
-    for (int i = 0; i < rank; i++) {
-        int d;
-        if (b->off + 4 > b->len)
-            return *err = "ntw: truncated", nullptr;
-        memcpy(&d, b->p + b->off, 4);
-        b->off += 4;
-        if (d != dims[i])
-            return *err = "ntw: a tensor's shape is not net.h's", nullptr;
-        n *= d;
-    }
-    if (b->off + 4 * n > b->len)
-        return *err = "ntw: truncated", nullptr;
-    const float *f = (const float *)(b->p + b->off);
-    b->off += 4 * n;
-    return f;
-}
+/* lane/audit-fixes: neth_checkpoint.c's parser, every .ntw reader's (neth_pipe_internal.h; actor.mk's checks link
+ * neth_checkpoint.c built with -DNETH_NTW_ONLY) */
+extern "C" int neth_ntw_parse(const void *data, size_t len, const char *name, int flags, float *t[NETH_NET_TENSORS],
+                              int dims[NETH_NET_TENSORS][4], char *err, size_t en);
 
 /* conv [out][in][kh][kw] -> [k][out], k = (kh * KW + kw) * in + ci */
 template <class E>
@@ -1100,33 +1075,28 @@ static void frags(E *fr, const E *h, const img_lay &L)
     frag(fr + L.n1f + L.n2 + L.n3 + L.nf1, h + L.f2, NETH_NET_D, NETH_NET_D);
 }
 
-extern "C" neth_actor *neth_actor_load_blob(const void *data, size_t len, const char **err)
+/* lane/audit-fixes: name (a path, or ntw for a blob) starts the parser's messages */
+static neth_actor *load_named(const void *data, size_t len, const char *name, const char **err)
 {
     const char *e0;
     if (!err)
         err = &e0;
-    blob b = {(const unsigned char *)data, len, 0};
-    int cnt;
-    if (len < 12 || memcmp(data, "NTW1\0\0\0\0", 8))
-        return *err = "ntw: not an NTW1 blob", nullptr;
-    memcpy(&cnt, b.p + 8, 4);
-    b.off = 12;
-    if (cnt != NETH_NET_TENSORS)
-        return *err = "ntw: tensor count is not net.h's", nullptr;
+    neth_net_dsync();   /* lane/audit-feat: this file's kernels read the run's scalar row */
+    /* lane/audit-fixes: the one parser (net.h's NTW2 and NTW1 rules); its message lives until the next failed load */
+    static thread_local char msg[1024];
+    float *tw[NETH_NET_TENSORS];
+    if (neth_ntw_parse(data, len, name, 0, tw, nullptr, msg, sizeof msg) < 0)
+        return *err = msg, nullptr;
     const float *t[NETH_NET_TENSORS];
-    int i = 0;
-#define NETH_NET_TAKE(name, rank, d0, d1, d2, d3)                  \
-    if (!(t[i++] = take(&b, rank, d0, d1, d2, d3, err)))     \
-        return nullptr;
-    NETH_NET_ORDER(NETH_NET_TAKE)
-#undef NETH_NET_TAKE
-    if (b.off != len)
-        return *err = "ntw: trailing bytes", nullptr;
+    for (int i = 0; i < NETH_NET_TENSORS; i++)
+        t[i] = tw[i];
     const img_lay L = img_layout();
     /* the image, and neth_actor_reload's map made by the same placement over each weight's learner index + 1 (0 a
      * zero slot) */
     float *h = (float *)calloc(L.tot, sizeof(float));
     place(t, h, L);
+    for (int i = 0; i < NETH_NET_TENSORS; i++)
+        free(tw[i]);
     int32_t *li = (int32_t *)malloc(NETH_LEARN_NPARAM * sizeof(int32_t)), *hi = (int32_t *)calloc(L.tot, sizeof(int32_t));
     const int32_t *ti[NETH_NET_TENSORS];
 #define NETH_NET_LI(name, i, k)                                         \
@@ -1149,6 +1119,7 @@ extern "C" neth_actor *neth_actor_load_blob(const void *data, size_t len, const 
     for (size_t i = 0; i < L.tot + L.nfr; i++)
         map[i] -= 1;
     neth_actor *a = (neth_actor *)calloc(1, sizeof *a);
+    a->itemp = 1.0f;
     a->tot = L.tot;
     a->nfr = L.nfr;
     const char *e = nullptr;
@@ -1188,6 +1159,11 @@ extern "C" neth_actor *neth_actor_load_blob(const void *data, size_t len, const 
     a->wf1 = a->wf3 + L.n3 / 8;
     a->wff2 = a->wf1 + L.nf1 / 8;
     return a;
+}
+
+extern "C" neth_actor *neth_actor_load_blob(const void *data, size_t len, const char **err)
+{
+    return load_named(data, len, "ntw", err);
 }
 
 /* the learner's weights (learn.h's layout, on the device) into the image: one gather a slot, mem16 and memf the
@@ -1246,7 +1222,7 @@ extern "C" neth_actor *neth_actor_load(const char *path, const char **err)
     void *d = malloc(n > 0 ? n : 1);
     size_t got = fread(d, 1, n, f);
     fclose(f);
-    neth_actor *a = got == (size_t)n ? neth_actor_load_blob(d, n, err) : (*err = "ntw: short read", nullptr);
+    neth_actor *a = got == (size_t)n ? load_named(d, n, path, err) : (*err = "ntw: short read", nullptr);
     free(d);
     return a;
 }
@@ -1263,6 +1239,14 @@ extern "C" void neth_actor_free(neth_actor *a)
 }
 
 extern "C" void neth_actor_set_mode(neth_actor *a, int mode) { a->mode = mode; }
+
+extern "C" void neth_actor_set_draw(neth_actor *a, float itemp, int greedy)
+{
+    a->itemp = itemp;
+    a->greedy = greedy & 3;
+}
+
+extern "C" int neth_actor_fused(void) { return NETH_ACTOR_FUSE; }
 
 extern "C" neth_actor_ws *neth_actor_ws_new(neth_actor *a, int max_b, uint64_t seed)
 {
@@ -1281,9 +1265,15 @@ extern "C" neth_actor_ws *neth_actor_ws_new(neth_actor *a, int max_b, uint64_t s
     w->rng = (unsigned long long *)w->mem;
     w->x0 = w->mem + NETH_ACTOR_RNGF;
 #if NETH_ACTOR_FUSE
-    if (cudaFuncSetAttribute(k_afused<8>, cudaFuncAttributeMaxDynamicSharedMemorySize, AF_SMEMF(8)) ||
-        cudaFuncSetAttribute(k_afused<4>, cudaFuncAttributeMaxDynamicSharedMemorySize, AF_SMEMF(4)) ||
-        cudaFuncSetAttribute(k_afused<2>, cudaFuncAttributeMaxDynamicSharedMemorySize, AF_SMEMF(2))) {
+#define AF_ATTR(NP)                                                                                                        \
+    cudaFuncSetAttribute(k_afused<8, NETH_NET_FLAT0 + NP>, cudaFuncAttributeMaxDynamicSharedMemorySize,                     \
+                         AF_SMEMF(8, NETH_NET_FLAT0 + NP)) ||                                                              \
+        cudaFuncSetAttribute(k_afused<4, NETH_NET_FLAT0 + NP>, cudaFuncAttributeMaxDynamicSharedMemorySize,                 \
+                             AF_SMEMF(4, NETH_NET_FLAT0 + NP)) ||                                                          \
+        cudaFuncSetAttribute(k_afused<2, NETH_NET_FLAT0 + NP>, cudaFuncAttributeMaxDynamicSharedMemorySize,                 \
+                             AF_SMEMF(2, NETH_NET_FLAT0 + NP)) ||
+    if (NETH_NET_NSP_CASES(AF_ATTR) 0) {
+#undef AF_ATTR
         cudaFree(w->mem);
         free(w);
         return nullptr;
@@ -1335,17 +1325,17 @@ extern "C" int neth_actor_ws_seed(neth_actor_ws *w, uint64_t seed, uint64_t coun
 #if !NETH_NET_STEM && NETH_NET_WM == 2
 #define T16V_C2 64, 64, 2, 16 * NETH_NET_C1, 2, 2
 #define T16V_C3 32, 32, 4, 9 * NETH_NET_C2, 1, 1
-#define T16V_F1 16, 32, 8, F1K, 1, 1
+#define T16V_F1 16, 32, 8, F1KC, 1, 1
 #define T16V_F2 16, 32, 8, NETH_NET_D, 1, 1
 #elif !NETH_NET_STEM && NETH_NET_WM == 4
 #define T16V_C2 64, 64, 1, 16 * NETH_NET_C1, 2, 2
 #define T16V_C3 32, 64, 2, 9 * NETH_NET_C2, 1, 2
-#define T16V_F1 32, 64, 2, F1K, 2, 2
+#define T16V_F1 32, 64, 2, F1KC, 2, 2
 #define T16V_F2 32, 64, 2, NETH_NET_D, 2, 2
 #elif !NETH_NET_STEM && NETH_NET_WM >= 8
 #define T16V_C2 64, 128, 1, 16 * NETH_NET_C1, 2, 4
 #define T16V_C3 64, 64, 1, 9 * NETH_NET_C2, 2, 2
-#define T16V_F1 32, 64, 2, F1K, 2, 2
+#define T16V_F1 32, 64, 2, F1KC, 2, 2
 #define T16V_F2 32, 64, 2, NETH_NET_D, 2, 2
 #elif NETH_NET_STEM && NETH_NET_WM == 1
 #define T16V_C2 64, 64, 1, 16 * NETH_NET_C1, 2, 2
@@ -1354,7 +1344,7 @@ extern "C" int neth_actor_ws_seed(neth_actor_ws *w, uint64_t seed, uint64_t coun
 #define T16V_C1 64, 64, 1, K1, 2, 2
 #define T16V_C2 64, 64, 1, 16 * NETH_NET_C1, 2, 2
 #define T16V_C3 64, 64, 1, 9 * NETH_NET_C2, 2, 2
-#define T16V_F1 16, 64, 4, F1K, 1, 2
+#define T16V_F1 16, 64, 4, F1KC, 1, 2
 #define T16V_F2 16, 64, 4, NETH_NET_D, 1, 2
 #endif
 #ifndef T32_S0
@@ -1409,7 +1399,7 @@ extern "C" int neth_actor_ws_seed(neth_actor_ws *w, uint64_t seed, uint64_t coun
 #ifdef T16V_F1
 #define T16_F1 T16V_F1
 #else
-#define T16_F1 16, 16, 8, F1K
+#define T16_F1 16, 16, 8, F1KC
 #endif
 #endif
 #ifndef T16_F2
@@ -1429,6 +1419,28 @@ struct flat_o {
     __device__ T *operator()(int m) const { return z0 + ((unsigned)m / Q3) * F1K + ((unsigned)m % Q3) * NETH_NET_C3; }
 };
 
+/* lane/audit-feat: fc1's layer at K F1KC (F1K, the run's: one instantiation each of net.h's NETH_NET_NSP_CASES, the K a
+ * build of that row compiled), bf16 or fp32 */
+template <int F1KC>
+static void fc1_layer(neth_actor_ws *w, const neth_actor *a, int B, bool bf16, cudaStream_t s)
+{
+    if (bf16)
+        gemmb<T16_F1>(dense_a<F1KC, nt16>{w->z0h}, dense_o<nt16>{w->z1h, NETH_NET_D}, a->wf1, a->f1h, a->fb1, B, NETH_NET_D, s);
+    else
+        gemm<T32_F1>(dense_a<F1KC>{w->z0}, dense_o<>{w->z1, NETH_NET_D}, a->f1, a->fb1, B, NETH_NET_D, F1KC, s);
+}
+static void fc1_run(neth_actor_ws *w, const neth_actor *a, int B, bool bf16, cudaStream_t s)
+{
+    switch (F1K - NETH_NET_FLAT0) {
+#define FC1_CASE(NP)                                         \
+    case NP:                                                 \
+        fc1_layer<NETH_NET_FLAT0 + NP>(w, a, B, bf16, s);    \
+        break;
+        NETH_NET_NSP_CASES(FC1_CASE)
+#undef FC1_CASE
+    }
+}
+
 extern "C" int neth_actor_step(neth_actor_ws *w, int B, const neth_actor_io *io, cudaStream_t s)
 {
     if (B <= 0 || B > w->max_b || (NETH_NET_RNN && !io->h))
@@ -1437,12 +1449,24 @@ extern "C" int neth_actor_step(neth_actor_ws *w, int B, const neth_actor_io *io,
     constexpr int M1 = NETH_NET_O1 * NETH_NET_O1, M2 = NETH_NET_O2 * NETH_NET_O2;   /* conv1's and conv2's positions */
     pre_conv1<> pre = {io->ucam && io->ukey ? nullptr : w->rng, io->sc, w->z0};
 #if NETH_ACTOR_FUSE
+    /* lane/audit-fixes: k_afused's own draw has no temperature and no greedy choice: such a draw is refused */
+    if (a->mode == NETH_NET_ACTOR_BF16 && (a->itemp != 1.0f || a->greedy))
+        return cudaErrorNotSupported;
     if (a->mode == NETH_NET_ACTOR_BF16) {     /* lane/ntfc: the whole step, a block a tile of samples */
         af_w W = {a->w1h, a->hwh, a->b1, a->b2, a->b3, a->fb1, a->fb2, a->hb, a->wf2, a->wf3, a->wf1, a->wff2};
-        switch (AF_SBFOR(B)) {
-        case 8: k_afused<8><<<(B + 7) / 8, AF_T, AF_SMEMF(8), s>>>(W, B, *io, w->rng); break;
-        case 4: k_afused<4><<<(B + 3) / 4, AF_T, AF_SMEMF(4), s>>>(W, B, *io, w->rng); break;
-        default: k_afused<2><<<(B + 1) / 2, AF_T, AF_SMEMF(2), s>>>(W, B, *io, w->rng); break;
+        const int sb = AF_SBFOR(B);
+        switch (F1K - NETH_NET_FLAT0) {     /* lane/audit-feat: the run's fc1 K */
+#define AF_CASE(NP)                                                                                              \
+        case NP:                                                                                                 \
+            if (sb == 8)                                                                                         \
+                k_afused<8, NETH_NET_FLAT0 + NP><<<(B + 7) / 8, AF_T, AF_SMEMF(8, NETH_NET_FLAT0 + NP), s>>>(W, B, *io, w->rng); \
+            else if (sb == 4)                                                                                    \
+                k_afused<4, NETH_NET_FLAT0 + NP><<<(B + 3) / 4, AF_T, AF_SMEMF(4, NETH_NET_FLAT0 + NP), s>>>(W, B, *io, w->rng); \
+            else                                                                                                 \
+                k_afused<2, NETH_NET_FLAT0 + NP><<<(B + 1) / 2, AF_T, AF_SMEMF(2, NETH_NET_FLAT0 + NP), s>>>(W, B, *io, w->rng); \
+            break;
+        NETH_NET_NSP_CASES(AF_CASE)
+#undef AF_CASE
         }
         return cudaGetLastError();
     }
@@ -1461,9 +1485,10 @@ extern "C" int neth_actor_step(neth_actor_ws *w, int B, const neth_actor_io *io,
                       a->w2h, a->b2, B * M2, NETH_NET_C2, s);
         gemmb<T16_C3>(conv_a<P2, NETH_NET_C2, NETH_NET_O3, NETH_NET_O3, 3, bf>{w->x2h}, flat_o<bf>{w->z0h}, a->wf3, a->w3h, a->b3, B * Q3,
                       NETH_NET_C3, s);
-        gemmb<T16_F1>(dense_a<F1K, bf>{w->z0h}, dense_o<bf>{w->z1h, NETH_NET_D}, a->wf1, a->f1h, a->fb1, B, NETH_NET_D, s);
+        fc1_run(w, a, B, true, s);
         gemmb<T16_F2>(dense_a<NETH_NET_D, bf>{w->z1h}, dense_o<>{w->z2, NETH_NET_D}, a->wff2, a->f2h, a->fb2, B, NETH_NET_D, s);
-        heads_draw<true><<<(B + HB - 1) / HB, HTH, 0, s>>>(rnn_step(w, a, B, io, s, true), a->hwh, a->hb, B, *io, w->rng);
+        heads_draw<true><<<(B + HB - 1) / HB, HTH, 0, s>>>(rnn_step(w, a, B, io, s, true), a->hwh, a->hb, B, *io, w->rng,
+                                                           a->itemp, a->greedy);
     } else {
         /* tiles: BM, BN, TM, TV, KS, KC (gemm_tile); each layer about 128 blocks at B 128 (wm 1, 16x16) */
 #if NETH_NET_STEM
@@ -1477,9 +1502,10 @@ extern "C" int neth_actor_step(neth_actor_ws *w, int B, const neth_actor_io *io,
                      NETH_NET_C2, 16 * NETH_NET_C1, s);
         gemm<T32_C3>(conv_a<P2, NETH_NET_C2, NETH_NET_O3, NETH_NET_O3, 3>{w->x2}, flat_o<>{w->z0}, a->w3, a->b3, B * Q3, NETH_NET_C3,
                      9 * NETH_NET_C2, s);
-        gemm<T32_F1>(dense_a<F1K>{w->z0}, dense_o<>{w->z1, NETH_NET_D}, a->f1, a->fb1, B, NETH_NET_D, F1K, s);
+        fc1_run(w, a, B, false, s);
         gemm<T32_F2>(dense_a<NETH_NET_D>{w->z1}, dense_o<>{w->z2, NETH_NET_D}, a->f2, a->fb2, B, NETH_NET_D, NETH_NET_D, s);
-        heads_draw<false><<<(B + HB - 1) / HB, HTH, 0, s>>>(rnn_step(w, a, B, io, s, false), a->hw, a->hb, B, *io, w->rng);
+        heads_draw<false><<<(B + HB - 1) / HB, HTH, 0, s>>>(rnn_step(w, a, B, io, s, false), a->hw, a->hb, B, *io, w->rng,
+                                                            a->itemp, a->greedy);
     }
     return cudaGetLastError();
 }

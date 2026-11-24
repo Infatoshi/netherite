@@ -14,6 +14,7 @@ void neth_seg_alloc(struct neth_seg *s, int T, int gs, size_t oe)
     CK(cudaMalloc((void **)&s->rew, (size_t)T * gs * sizeof(float)));
     CK(cudaMalloc((void **)&s->done, (size_t)T * gs));
     CK(cudaMalloc((void **)&s->drv, (size_t)T * gs));
+    CK(cudaMalloc((void **)&s->term, (size_t)T * gs));
     CK(cudaMalloc((void **)&s->boot, (size_t)gs * sizeof(float)));
     s->h0 = NULL;
     if (NETH_NET_RNN) CK(cudaMalloc((void **)&s->h0, (size_t)gs * NETH_NET_D * sizeof(float)));
@@ -38,6 +39,7 @@ void neth_seg_free(struct neth_seg *s)
     cudaFree(s->rew);
     cudaFree(s->done);
     cudaFree(s->drv);
+    cudaFree(s->term);
     cudaFree(s->boot);
     cudaFree(s->h0);
     if (s->psc && s->psc != s->sc) cudaFree(s->psc);
@@ -74,9 +76,14 @@ int neth_seg_create(struct neth_pipe *L, const struct neth_runconf *c)
     L->drew = neth_pin(b->rewards, (size_t)n * sizeof(float));
     L->ddone = neth_pin(b->truncations, (size_t)n);
     L->ddrv = neth_pin(b->driver, (size_t)n);
+    /* lane/audit-fixes: --trunc-boot off reads the ends as the terminations (every end bootstraps from zero, the
+     * learner as it was): the pipe's own copy of the buffers points terminations at truncations */
+    if (!c->trunc_boot) b->terminations = b->truncations;
+    L->dterm = neth_pin(b->terminations, (size_t)n);
     if (!b->obs_device) L->dobs = neth_pin(b->obs, (size_t)n * L->oe);
     L->pinned = 1;
-    L->stage = c->stage && L->dsc && L->drew && L->ddone && L->ddrv && (b->obs_device || (L->dobs && L->oe % 16 == 0));
+    L->stage = c->stage && L->dsc && L->drew && L->ddone && L->ddrv && L->dterm &&
+               (b->obs_device || (L->dobs && L->oe % 16 == 0));
     if (c->stage && !L->stage) printf("--stage: the env's buffers are not mapped; the copies instead\n");
     L->st = calloc((size_t)groups, sizeof *L->st);
     L->ev = calloc((size_t)groups, sizeof *L->ev);

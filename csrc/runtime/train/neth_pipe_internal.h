@@ -50,6 +50,8 @@ struct neth_seg {
     float *logp, *val;  /* [T][gs] */
     float *rew;         /* [T][gs] */
     uint8_t *done, *drv;/* [T][gs] */
+    uint8_t *term;      /* [T][gs] lane/audit-fixes: the env's terminations beside done (its truncations with
+                         * --trunc-boot off), the learner's and the bootstrap's (learn.h) */
     float *boot;        /* [gs]: the next segment's first value, zero where the episode ended (fastppo's boot) */
     float *h0;          /* (net.h NETH_NET_RNN) [gs][NETH_NET_D]: each env's minGRU state at the segment's start,
                          * zero where its first step starts an episode (the learner's scan starts there) */
@@ -102,7 +104,7 @@ struct neth_learner {
      * kfill (its group's stream may refill it at once) and the kseg-th's update reads the batch: [kseg][T][gs] */
     int kseg, kfill;
     struct {
-        uint8_t *obs, *done, *drv;
+        uint8_t *obs, *done, *drv, *term;
         neth_sc_t *sc, *psc;
         float *logp, *val, *rew, *boot;
         float scale[64];
@@ -198,6 +200,8 @@ struct neth_pipe {
                                  * pointers: dsc, drew, ddone, ddrv, and dobs with the host cast) */
     float *dsc, *drew;
     uint8_t *ddone, *ddrv, *dobs;
+    uint8_t *dterm;             /* lane/audit-fixes: the terminations' (b.terminations: with --trunc-boot off the
+                                 * pipe's copy of the buffers points it at b.truncations, neth_seg_create) */
     /* lane/cuda-graph. --poll-flag 1: a group's launch ends in one kernel that writes its actions to the env's mapped
      * buffer (dact) and then its flag done_d[g] = done_seq[g] (done_h the host's view, page-locked and mapped): the
      * main thread reads the flag (no cudaEventQuery), ev[g] recorded only for the learner's refresh. --graph 1 (the
@@ -252,7 +256,7 @@ struct neth_pipe {
      * for the critic; NULL (the default) none. sch: pinned BF16 staging buffer for b->scalars when NETH_SC_BF16=1 */
     neth_sc_t *psch;
     neth_sc_t *sch;
-    /* --view-books K (a .or build), the seen-object scalars' flag of kind K (0 iron ore, 1 diamond ore,
+    /* --view-books K (a run with the or feature), the seen-object scalars' flag of kind K (0 iron ore, 1 diamond ore,
      * 2 logs: drawn on screen this step) read before --zero-sc, each env's episode's view as books, a line an episode
      * to OUT/view.jsonl: steps, steps in view, the first step in view, the times it left the view (lost) and came back
      * (reacq), the longest gap out of view, in view at the end; NULL vbf (the default) none */
@@ -373,7 +377,21 @@ void neth_report_finish(struct neth_pipe *L, const struct neth_runconf *c);
 void neth_report_staged(struct neth_pipe *L, int g);    /* the staged hook: --obs-dump, --view-books */
 void neth_report_received(struct neth_pipe *L, int g);  /* the received hook: --score-books */
 
-/* neth_checkpoint.c: net.h's blobs and the model's files */
+/* neth_checkpoint.c: net.h's blobs and the model's files. lane/audit-fixes: neth_ntw_parse is every .ntw reader's
+ * (NTW2 and NTW1, net.h's rules; actor.cu, distill.cu and ntinit.c declare it as here), neth_ntw_write the one
+ * writer (NTW2, the build's header), neth_ntw_migrate and neth_ntw_info ntinit's */
+int neth_ntw_parse(const void *data, size_t len, const char *name, int flags, float *t[NETH_NET_TENSORS],
+                   int dims[NETH_NET_TENSORS][4], char *err, size_t en);
+unsigned char *neth_ntw_write(const float *const t[NETH_NET_TENSORS], size_t *len);
+unsigned char *neth_ntw_migrate(const void *data, size_t len, const char *name, const char *words, size_t *olen,
+                                char *err, size_t en);
+long neth_ntw_info(const void *data, size_t len, const char *name, char *variant, size_t vn, char *features, size_t fn,
+                   int *scalars, char *err, size_t en);
+/* lane/audit-feat: feature words into a mask and back, and a file's version and header features (the run's set) */
+int neth_net_words(const char *words, int *mask, char *err, size_t en);
+void neth_net_mask_words(int mask, char *s, size_t n);
+int neth_ntw_features(const void *data, size_t len, const char *name, int *mask, char *variant, size_t vn, char *err,
+                      size_t en);
 int neth_ntw_flat(const unsigned char *b, size_t len, float *flat, char *err, size_t en);
 int neth_ntw_load(const char *path, float *flat, char *err, size_t en);
 int neth_ntw_save(const char *path, const float *flat);

@@ -1,7 +1,11 @@
 /* actor_check: the actor (actor.h) against mcsr-speedrun's scripts/ntref.py fixture (the reference: fastppo.py's
  * Small in fp32 on the CPU, and its gumbel sampler on the fixture's noise).
  *
- *   actor_check [FIXTURE_DIR]      (default ~/.cache/netherite-native/actor-a05-070)
+ *   actor_check [--temp T] [--greedy keys|cam|both] [FIXTURE_DIR]      (default ~/.cache/netherite-native/actor-a05-070)
+ *
+ * lane/audit-fixes: --temp and --greedy draw as ntloop's flags do (actor.h neth_actor_set_draw); the fixture's actions are
+ * the policy's own draw's, so such a run reports the tempered or greedy actions' differences from them, as the old .tN
+ * and .gk/.gc/.gkc builds' runs did
  *
  * fp32: the camera and key logits and the value within 1e-4 (max abs) of cam.f32, keys.f32 and value.f32; with
  * ucam.f32 and ukey.f32 as the noise, the actions equal act.i32 except where the reference's own margin is under
@@ -298,7 +302,33 @@ int main(int argc, char **argv)
     char def[4096];
     const char *croot = getenv("NETHER_CACHE");
     snprintf(def, sizeof def, "%s/native/actor-a05-070", (croot && croot[0]) ? croot : ".cache");
-    const char *dir = argc > 1 ? argv[1] : def;
+    const char *dir = def;
+    /* lane/audit-fixes: --temp T and --greedy keys|cam|both, the draw (actor.h neth_actor_set_draw) as ntloop's flags
+     * set it, so the old .tN and .gk/.gc/.gkc builds' output can be reproduced on the default build */
+    float itemp = 1.0f;
+    int greedy = 0;
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "--temp") && i + 1 < argc) {
+            char *end = NULL;
+            float t = strtof(argv[++i], &end);
+            if (!argv[i][0] || *end || !(t > 0.0f) || isinf(t)) {
+                fprintf(stderr, "actor_check: --temp T, a number over 0 (%s)\n", argv[i]);
+                return 2;
+            }
+            itemp = neth_actor_itemp(t);
+        } else if (!strcmp(argv[i], "--greedy") && i + 1 < argc) {
+            const char *g = argv[++i];
+            greedy = !strcmp(g, "keys") ? 1 : !strcmp(g, "cam") ? 2 : !strcmp(g, "both") ? 3 : -1;
+            if (greedy < 0) {
+                fprintf(stderr, "actor_check: --greedy keys|cam|both (%s)\n", g);
+                return 2;
+            }
+        } else if (argv[i][0] == '-') {
+            fprintf(stderr, "usage: actor_check [--temp T] [--greedy keys|cam|both] [FIXTURE_DIR]\n");
+            return 2;
+        } else
+            dir = argv[i];
+    }
     char p[8192];
     snprintf(p, sizeof p, "%s/obs.u8", dir);
     FILE *f = fopen(p, "rb");
@@ -324,6 +354,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "actor_check: %s: %s\n", p, err);
         return 2;
     }
+    neth_actor_set_draw(a, itemp, greedy);
     printf("actor_check %s: %s, %d samples\n", NETH_NET_VARIANT, dir, n);
     neth_actor_ws *w = neth_actor_ws_new(a, 512, 1);
     cudaStream_t s;

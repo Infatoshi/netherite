@@ -21,6 +21,116 @@ static double relerr(const float *a, const float *ref, size_t n)
     return e;
 }
 
+/* lane/audit-fixes: the GAE and the segment-end bootstrap on a hand-made segment of CT steps of CG envs, ntloop
+ * --trunc-boot on (term the env's terminations) and off (term = done), each against the sums made here from the rule
+ * itself: every end cuts the trace; a terminated row (done and term) bootstraps from zero, a timed-out one (done, not
+ * term) from its own value; a last row open from the next segment's first value (val0). Env 0 is terminated at step 1,
+ * env 1 timed out at step 1, env 2 timed out at the last step, env 3 terminated at the last step, env 4 open. The
+ * returns are compared before the normalisation, the advantages after it (k_advnorm's mean and n - 1 spread) */
+enum { CT = 4, CG = 5, CN = CT * CG };
+
+static void gae_ref(const float *rew, const float *val, const float *val0, const uint8_t *done, const uint8_t *term,
+                    float scale, double gamma, double lam, double *adv, double *ret)
+{
+    for (int e = 0; e < CG; ++e)
+    {
+        int l = (CT - 1) * CG + e;
+        double boot = !done[l] ? val0[e] : term[l] ? 0.0 : val[l], last = 0.0;
+        for (int t = CT - 1; t >= 0; --t)
+        {
+            int i = t * CG + e;
+            double nv = !done[i] ? (t == CT - 1 ? boot : val[i + CG]) : term[i] ? 0.0 : val[i];
+            last = (double)rew[i] / scale + gamma * nv - val[i] + (done[i] ? 0.0 : gamma * lam * last);
+            adv[i] = last;
+            ret[i] = last + val[i];
+        }
+    }
+    double m = 0.0, q = 0.0;
+    for (int i = 0; i < CN; ++i) m += adv[i];
+    m /= CN;
+    for (int i = 0; i < CN; ++i) q += (adv[i] - m) * (adv[i] - m);
+    double sd = sqrt(q / (CN - 1));
+    for (int i = 0; i < CN; ++i) adv[i] = (adv[i] - m) / (sd + 1e-8);
+}
+
+static int gae_case(neth_learn *D, const neth_learn_hyper *h0)
+{
+    static const uint8_t done[CN] = {0, 0, 0, 0, 0,  1, 1, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 1, 1, 0};   /* [t][env] */
+    static const uint8_t term[CN] = {0, 0, 0, 0, 0,  1, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0, 1, 0};
+    static const char *const what[CG] = {"terminated at step 1", "timed out at step 1", "timed out at the end",
+                                         "terminated at the end", "open"};
+    float rew[CN], val[CN], val0[CG], scale = 2.0f;
+    for (int i = 0; i < CN; ++i) rew[i] = 0.25f * (float)(i % 3) - 0.125f, val[i] = 0.5f + 0.25f * (float)((i * 7) % 5);
+    for (int e = 0; e < CG; ++e) val0[e] = 2.0f + 0.5f * (float)e;
+    neth_learn_hyper h = *h0;
+    h.gamma = 0.9, h.lam = 0.8;
+    float *drew, *dval, *dval0, *dboot, *dadv, *dret, *dmask;
+    uint8_t *ddone, *dterm, *ddrv;
+    CK(cudaMalloc((void **)&drew, CN * 4));
+    CK(cudaMalloc((void **)&dval, CN * 4));
+    CK(cudaMalloc((void **)&dval0, CG * 4));
+    CK(cudaMalloc((void **)&dboot, CG * 4));
+    CK(cudaMalloc((void **)&dadv, CN * 4));
+    CK(cudaMalloc((void **)&dret, CN * 4));
+    CK(cudaMalloc((void **)&dmask, CN * 4));
+    CK(cudaMalloc((void **)&ddone, CN));
+    CK(cudaMalloc((void **)&dterm, CN));
+    CK(cudaMalloc((void **)&ddrv, CN));
+    CK(cudaMemcpy(drew, rew, CN * 4, cudaMemcpyHostToDevice));
+    CK(cudaMemcpy(dval, val, CN * 4, cudaMemcpyHostToDevice));
+    CK(cudaMemcpy(dval0, val0, CG * 4, cudaMemcpyHostToDevice));
+    CK(cudaMemcpy(ddone, done, CN, cudaMemcpyHostToDevice));
+    CK(cudaMemset(ddrv, 0, CN));
+    float gadv[2][CN], gret[2][CN];
+    double radv[2][CN], rret[2][CN];
+    int fails = 0;
+    printf("  the GAE case (lane/audit-fixes): T %d x %d envs, scale %g gamma %g lam %g; per env its steps' advantage "
+           "(normalised) and return\n", CT, CG, scale, h.gamma, h.lam);
+    for (int on = 1; on >= 0; --on)
+    {
+        const uint8_t *tm = on ? term : done;
+        CK(cudaMemcpy(dterm, tm, CN, cudaMemcpyHostToDevice));
+        size_t la = (size_t)(CT - 1) * CG;
+        neth_boot(dval0, ddone + la, dterm + la, dval + la, CG, dboot, 0);
+        CK(cudaDeviceSynchronize());
+        neth_learn_gae(D, &h, CT, CG, scale, drew, ddone, dterm, ddrv, dval, dboot, dadv, dret, dmask);
+        CK(cudaDeviceSynchronize());
+        CK(cudaMemcpy(gadv[on], dadv, CN * 4, cudaMemcpyDeviceToHost));
+        CK(cudaMemcpy(gret[on], dret, CN * 4, cudaMemcpyDeviceToHost));
+        gae_ref(rew, val, val0, done, tm, scale, h.gamma, h.lam, radv[on], rret[on]);
+        double ea = 0.0, er = 0.0;
+        for (int i = 0; i < CN; ++i)
+            ea = fmax(ea, fabs(gadv[on][i] - radv[on][i])), er = fmax(er, fabs(gret[on][i] - rret[on][i]));
+        for (int e = 0; e < CG; ++e)
+        {
+            printf("  trunc-boot %-3s env %d (%-21s) adv", on ? "on" : "off", e, what[e]);
+            for (int t = 0; t < CT; ++t) printf(" %9.5f", gadv[on][t * CG + e]);
+            printf("  ret");
+            for (int t = 0; t < CT; ++t) printf(" %9.5f", gret[on][t * CG + e]);
+            printf("\n");
+        }
+        int ok = ea < 1e-4 && er < 1e-5;
+        printf("  trunc-boot %-3s against the sums made here: adv within %.2g, ret within %.2g: %s\n", on ? "on" : "off",
+               ea, er, ok ? "PASS" : "FAIL");
+        fails += !ok;
+    }
+    /* on and off apart where the clock ended an episode (envs 1 and 2), the same returns bit for bit elsewhere */
+    int apart = 0, same = 0;
+    for (int e = 0; e < CG; ++e)
+    {
+        int d = memcmp(&gret[0][e], &gret[1][e], 4) != 0;
+        for (int t = 1; t < CT; ++t) d |= memcmp(&gret[0][t * CG + e], &gret[1][t * CG + e], 4) != 0;
+        if (e == 1 || e == 2) apart += d;
+        else same += !d;
+    }
+    printf("  trunc-boot on against off: the returns of the 2 envs the clock ended differ in %d, the other 3 equal in "
+           "%d: %s\n", apart, same, apart == 2 && same == 3 ? "PASS" : "FAIL");
+    fails += !(apart == 2 && same == 3);
+    cudaFree(drew), cudaFree(dval), cudaFree(dval0), cudaFree(dboot), cudaFree(dadv), cudaFree(dret), cudaFree(dmask);
+    cudaFree(ddone), cudaFree(dterm), cudaFree(ddrv);
+    return fails;
+}
+
 /* gate 1: learn_check's fixture segment fed through the loop's path (a group's segment as neth_pipe_launch() fills it, the
  * actions packed as the env's [16], learn_enqueue with the run file's recipe and the fixture's scale, order and Adam
  * state, the actor refreshed after it) against the learner called directly as learn_check calls it, bit for bit;
@@ -91,6 +201,7 @@ int neth_check_learn(const char *dir, const neth_learn_hyper *h0, float ent0, in
     CK(cudaMemcpy(S.val, s.val, N * 4, cudaMemcpyDeviceToDevice));
     CK(cudaMemcpy(S.rew, s.rew, N * 4, cudaMemcpyDeviceToDevice));
     CK(cudaMemcpy(S.done, s.done, N, cudaMemcpyDeviceToDevice));
+    CK(cudaMemcpy(S.term, s.done, N, cudaMemcpyDeviceToDevice));  /* lane/audit-fixes: the fixture's ends both masks */
     CK(cudaMemcpy(S.drv, s.drv, N, cudaMemcpyDeviceToDevice));
     CK(cudaMemcpy(S.boot, s.boot, (size_t)s.gs * 4, cudaMemcpyDeviceToDevice));
     if (NETH_NET_RNN) CK(cudaMemcpy(S.h0, s.h0, (size_t)s.gs * NETH_NET_D * 4, cudaMemcpyDeviceToDevice));
@@ -142,7 +253,7 @@ int neth_check_learn(const char *dir, const neth_learn_hyper *h0, float ent0, in
     CK(cudaMemset(dbooks, 0, NETH_LEARN_NBOOK * 4));
     int step = s.adam_step;
     neth_learn_update(D, &h, entc, s.T, s.gs, s.scale, s.epochs, s.mb, s.perm, s.obs, S.sc, s.cam, s.keys, s.hot, s.logp, s.val,
-               s.rew, s.done, s.drv, s.boot, dw, dg, dm, dv, &step, dbooks);
+               s.rew, s.done, s.done, s.drv, s.boot, dw, dg, dm, dv, &step, dbooks);
     CK(cudaDeviceSynchronize());
     float *wd = malloc(P), *md = malloc(P), *vd = malloc(P), bd[NETH_LEARN_NBOOK];
     CK(cudaMemcpy(wd, dw, P, cudaMemcpyDeviceToHost));
@@ -167,6 +278,7 @@ int neth_check_learn(const char *dir, const neth_learn_hyper *h0, float ent0, in
     float *r3 = lio_ntw(dir, "after3.ntw");
     printf("  the weights against fastppo's after the update: max relative error %.3g (learn_check gates them a "
            "tensor at a time)\n", relerr(wl, r3, NETH_LEARN_NPARAM));
+    fails += gae_case(D, &h);
     printf("check-learn: %s\n", fails ? "FAIL" : "PASS");
     free(wl), free(ml), free(vl), free(wd), free(md), free(vd), free(r3), free(w0), free(m0), free(v0);
     return fails ? 1 : 0;
@@ -221,6 +333,7 @@ int neth_check_actor(const char *dir)
     b->actions = calloc((size_t)n * NETH_NET_ACTION, sizeof(int32_t));
     b->rewards = calloc((size_t)n, sizeof(float));
     b->truncations = calloc((size_t)n, 1);
+    b->terminations = b->truncations;   /* lane/audit-fixes: no episode ends here */
     b->driver = calloc((size_t)n, 1);
     L->st = calloc((size_t)G, sizeof *L->st);
     L->ev = calloc((size_t)G, sizeof *L->ev);

@@ -270,8 +270,10 @@ static size_t header(const char *buf)
  * run file: its parts at column 0, each part's sections two spaces in and
  * their entries four; sim's are the registry's, policy's (the trainer's,
  * mcsr-speedrun runconf.py) are held to the grammar only. Any other file
- * is sim's sections at column 0, entries two spaces in. */
-int wconf_parse(struct wconf *c, const char *text, const char *name, char *err, size_t n)
+ * is sim's sections at column 0, entries two spaces in. lane/audit-fixes: buf
+ * holds the text's longest line (wconf_parse's), so a line of any length (a
+ * run file's long policy starts.seeds) is read, not refused past 1023 bytes. */
+static int parse_lines(struct wconf *c, const char *text, const char *name, char *err, size_t n, char *buf)
 {
     char part[64] = "", section[64] = "", seen[512] = ",", keys[8192] = ",";
     int line = 0, parts = -1;
@@ -279,9 +281,7 @@ int wconf_parse(struct wconf *c, const char *text, const char *name, char *err, 
     {
         const char *e = strchr(s, '\n');
         size_t len = e ? (size_t)(e - s) : strlen(s);
-        char buf[1024];
         ++line;
-        if (len >= sizeof buf) return fail(err, n, "%s: a line over %s bytes%s", name, line, "1023", NULL);
         memcpy(buf, s, len);
         buf[len] = 0;
         s = e ? e + 1 : s + len;
@@ -356,6 +356,15 @@ int wconf_parse(struct wconf *c, const char *text, const char *name, char *err, 
         snprintf(seen + strlen(seen), sizeof seen - strlen(seen), "%s", tag + 1);
     }
     return 0;
+}
+
+int wconf_parse(struct wconf *c, const char *text, const char *name, char *err, size_t n)
+{
+    char *buf = malloc(strlen(text) + 1);
+    if (!buf) return fail(err, n, "%s: out of memory%s%s", name, 0, NULL, NULL);
+    int rc = parse_lines(c, text, name, err, n, buf);
+    free(buf);
+    return rc;
 }
 
 int wconf_load(struct wconf *c, const char *path, char *err, size_t n)

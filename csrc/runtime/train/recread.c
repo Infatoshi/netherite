@@ -65,10 +65,14 @@ static const char *const MS[NETH_VEC_MILESTONES] = {
     "wooden_pickaxe", "stone_pickaxe", "iron_pickaxe", "diamond_pickaxe", "furnace", "iron_ingot", "bucket",
     "flint_and_steel", "obsidian", "blaze_rod", "blaze_powder", "ender_pearl", "ender_eye"};
 
-/* a chunk's bytes in a file of this version */
-static size_t chunk_bytes(uint32_t version)
+/* a chunk's bytes in a file of this version whose records are epb bytes (rec_head.ep_bytes; lane/audit-fixes:
+ * version 4's are longer by the win, so a chunk is its head, the record, then the version's tail) */
+static size_t chunk_bytes(uint32_t version, uint32_t epb)
 {
-    return version == 1 ? REC_CHUNK_V1_BYTES : version == 2 ? REC_CHUNK_V2_BYTES : sizeof(struct rec_chunk);
+    size_t tail = version == 1   ? 0
+                  : version == 2 ? REC_CHUNK_V2_BYTES - REC_CHUNK_V1_BYTES
+                                 : sizeof(struct rec_chunk) - REC_CHUNK_V1_BYTES;
+    return offsetof(struct rec_chunk, rec) + epb + tail;
 }
 
 static int open_file(struct file *F, const char *path, int payload)
@@ -78,25 +82,34 @@ static int open_file(struct file *F, const char *path, int payload)
     if (fread(&F->h, sizeof F->h, 1, F->f) != 1 || memcmp(F->h.magic, REC_MAGIC, 8))
         return fprintf(stderr, "ntrec: %s: not a recording\n", path), -1;
     if (F->h.version < 1 || F->h.version > REC_VERSION || F->h.head_bytes != sizeof F->h ||
-        F->h.ep_bytes != sizeof(struct neth_vec_episode) ||
+        F->h.ep_bytes != (F->h.version < 4 ? REC_EP_V3_BYTES : sizeof(struct neth_vec_episode)) ||
         F->h.step_bytes != sizeof(struct rec_step))
-        return fprintf(stderr, "ntrec: %s: format %u (header %u, record %u, step %u bytes), this reader's %d (%zu, %zu, %zu)\n",
+        return fprintf(stderr, "ntrec: %s: format %u (header %u, record %u, step %u bytes), this reader's %d (%zu, %zu, %zu; "
+                       "records of %zu bytes before version 4)\n",
                        path, F->h.version, F->h.head_bytes, F->h.ep_bytes, F->h.step_bytes, REC_VERSION, sizeof F->h,
-                       sizeof(struct neth_vec_episode), sizeof(struct rec_step)), -1;
+                       sizeof(struct neth_vec_episode), sizeof(struct rec_step), REC_EP_V3_BYTES), -1;
     F->text = malloc(F->h.text_bytes + 1);
     if (fread(F->text, 1, F->h.text_bytes, F->f) != F->h.text_bytes)
         return fprintf(stderr, "ntrec: %s: the header's text is cut\n", path), -1;
     F->text[F->h.text_bytes] = 0;
     int cap = 0;
     /* a version 1 chunk is version 2's without its rung and fid at the end (lane/ladder): no ladder, the header's
-     * fidelity; a version 2 chunk version 3's without its nsub (lane/ticks-per-step): no subs */
-    const size_t cb = chunk_bytes(F->h.version);
+     * fidelity; a version 2 chunk version 3's without its nsub (lane/ticks-per-step): no subs; lane/audit-fixes: a
+     * version 1 to 3 chunk's record is the one before the win (win 0), its tail after it */
+    const size_t cb = chunk_bytes(F->h.version, F->h.ep_bytes), ro = offsetof(struct rec_chunk, rec);
     for (;;)
     {
         struct rec_chunk c;
+        unsigned char raw[sizeof c] = {0};
         memset(&c, 0, sizeof c);
-        size_t got = fread(&c, 1, cb, F->f);
+        size_t got = fread(raw, 1, cb, F->f);
         if (got == 0) break;
+        memcpy(&c, raw, ro);
+        if (got == cb)
+        {
+            memcpy(&c.rec, raw + ro, F->h.ep_bytes);
+            memcpy((unsigned char *)&c + REC_CHUNK_V1_BYTES, raw + ro + F->h.ep_bytes, cb - ro - F->h.ep_bytes);
+        }
         if (got != cb || c.magic != REC_CHUNK_MAGIC || c.chunk_bytes != cb)
         {
             F->truncated = 1;
@@ -243,7 +256,7 @@ static int cmd_list(const char *path)
         fid_text(c->fid, fd, sizeof fd);
         printf("%6d %8llu %5d %4d %5d %6u %10.3f %-6s %8u %4d %-24s %016llx  %s%s\n", i, (unsigned long long)c->index,
                c->env, c->env_ep, c->rec.start, c->steps, c->rec.ret, keep_name(c->keep),
-               c->zlen + (unsigned)chunk_bytes(F.h.version), c->rung, fd,
+               c->zlen + (unsigned)chunk_bytes(F.h.version, F.h.ep_bytes), c->rung, fd,
                (unsigned long long)c->digest, m, c->rec.level ? " (from a saved start)" : "");
     }
     return 0;

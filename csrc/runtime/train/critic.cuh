@@ -76,13 +76,14 @@ __global__ void k_c_prep_act(int H, int P, const float *__restrict__ src, float 
     }
 }
 
-/* fused 2-layer tensor-core actor forward: one block (8 warps = 256 threads) per 32 samples, H multiple of 16 */
-#if NETH_CRITIC_NSP16 <= 256
+/* fused 2-layer tensor-core actor forward: one block (8 warps = 256 threads) per 32 samples, H multiple of 16; a row of
+ * at most 256 scalars (lane/audit-feat: the run's, neth_critic_act's choice; xs's row the widest's) */
+#define NETH_CRITIC_TCMAX 256
 __global__ void __launch_bounds__(256)
 k_cf_act_tc(int b, int H, const neth_sc_t *__restrict__ x, const float *__restrict__ wa,
             const bf *__restrict__ w1ah, const bf *__restrict__ w2ah, float *__restrict__ out, int os) {
     namespace wm = nvcuda::wmma;
-    constexpr int XS = NETH_CRITIC_NSP16 + 8;
+    constexpr int XS = NETH_CRITIC_TCMAX + 8;
     constexpr int H1S = NETH_CRITIC_MAXH + 8;
     __shared__ __align__(16) bf xs[32][XS];
     __shared__ __align__(16) bf h1[32][H1S];
@@ -157,13 +158,12 @@ k_cf_act_tc(int b, int H, const neth_sc_t *__restrict__ x, const float *__restri
         out[(long)(b0 + t) * os] += s;
     }
 }
-#endif
 
 /* coalesced actor forward: one block per sample, whole-warp blockDim >= H; out[n * os] += v_c */
 template <class T>
 __global__ void k_cf_act(int b, int H, const neth_sc_t *__restrict__ x, const float *__restrict__ wa,
                          const T *__restrict__ w1t, const T *__restrict__ w2t, float *__restrict__ out, int os) {
-    __shared__ float xs[NETH_NET_NS], h1[NETH_CRITIC_MAXH], wred[8];
+    __shared__ float xs[NETH_NET_NS_MAX], h1[NETH_CRITIC_MAXH], wred[8];   /* lane/audit-feat: the widest row's */
     int n = blockIdx.x, j = threadIdx.x, lane = j & 31, wid = j >> 5;
     if (n >= b) return;
     const neth_sc_t *xr = x + (long)n * NETH_NET_NS;
@@ -319,6 +319,7 @@ neth_critic *neth_critic_new(int H, int nmax, uint64_t seed) {
         fprintf(stderr, "neth_critic_new: hidden width %d outside 1..%d\n", H, NETH_CRITIC_MAXH);
         return NULL;
     }
+    neth_net_dsync();   /* lane/audit-feat: the run's scalar row (learn.cu's kernels) */
     neth_critic *C = (neth_critic *)calloc(1, sizeof *C);
     C->H = H;
     C->HP = ((H + 7) / 8) * 8;
@@ -382,12 +383,10 @@ void neth_critic_set_mode(neth_critic *C, int bf16) {
 }
 
 void neth_critic_act(neth_critic *C, int b, const neth_sc_t *x, float *value, void *stream) {
-#if NETH_CRITIC_NSP16 <= 256
-    if (C->bf16 && (C->H & 15) == 0 && b >= 8) {
+    if (NETH_CRITIC_NSP16 <= NETH_CRITIC_TCMAX && C->bf16 && (C->H & 15) == 0 && b >= 8) {
         k_cf_act_tc<<<(b + 31) / 32, 256, 0, (cudaStream_t)stream>>>(b, C->H, x, C->wa[C->cur], C->w1ah[C->cur], C->w2ah[C->cur], value, 1);
         return;
     }
-#endif
     int th = ((C->H + 31) / 32) * 32;
     if (C->bf16)
         k_cf_act<bf><<<b, th, 0, (cudaStream_t)stream>>>(b, C->H, x, C->wa[C->cur], C->w1th[C->cur], C->w2th[C->cur], value, 1);

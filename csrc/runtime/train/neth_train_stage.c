@@ -26,11 +26,12 @@ int neth_train_policy(struct neth_pipe *L, const struct neth_runconf *c)
             size_t tl;
             unsigned char *tb = slurp(c->teacher, &tl);
             int got = tb != NULL;
-            blob = got ? neth_distill_widen(tb, tl, &blen, err, sizeof err) : NULL;
+            blob = got ? neth_distill_widen(tb, tl, c->teacher, &blen, err, sizeof err) : NULL;
             free(tb);
             if (!blob)
             {
-                printf("FAIL --teacher %s: %s\n", c->teacher, got ? err : "cannot read");
+                if (got) printf("FAIL --teacher %s\n", err);   /* lane/audit-fixes: the message names the file */
+                else printf("FAIL --teacher %s: cannot read\n", c->teacher);
                 return 1;
             }
             /* --soft's copy of the teacher's weights in the learner's layout */
@@ -51,6 +52,7 @@ int neth_train_policy(struct neth_pipe *L, const struct neth_runconf *c)
             printf("FAIL: %s\n", err);
             return 1;
         }
+        neth_policy_actor_draw(&L->P, c->itemp, c->greedy);   /* lane/audit-fixes: --temp, --greedy */
     }
     else if ((!strcmp(c->pol, "standin")       ? neth_policy_standin(&L->P, c->n, c->seed)
               : !strcmp(c->pol, "standin-gui") ? neth_policy_standin_gui(&L->P, c->n, c->seed)
@@ -225,6 +227,7 @@ void neth_train_init(struct neth_pipe *L, int nmax, int prec)
         CK(cudaMalloc((void **)&R->bt.rew, K * n1 * sizeof(float)));
         CK(cudaMalloc((void **)&R->bt.done, K * n1));
         CK(cudaMalloc((void **)&R->bt.drv, K * n1));
+        CK(cudaMalloc((void **)&R->bt.term, K * n1));
         CK(cudaMalloc((void **)&R->bt.boot, K * (size_t)L->gs * sizeof(float)));
     }
 }
@@ -240,7 +243,7 @@ void neth_train_free(struct neth_learner *R)
     {
         if (R->bt.psc != R->bt.sc) cudaFree(R->bt.psc);
         cudaFree(R->bt.obs), cudaFree(R->bt.sc), cudaFree(R->bt.logp), cudaFree(R->bt.val), cudaFree(R->bt.rew);
-        cudaFree(R->bt.done), cudaFree(R->bt.drv), cudaFree(R->bt.boot);
+        cudaFree(R->bt.done), cudaFree(R->bt.drv), cudaFree(R->bt.term), cudaFree(R->bt.boot);
     }
     cudaEventDestroy(R->e0), cudaEventDestroy(R->e1), cudaStreamDestroy(R->s);
     free(R->q);
@@ -261,6 +264,7 @@ static void learn_collect(struct neth_pipe *L, struct neth_seg *S)
     CK(cudaMemcpyAsync(R->bt.val + o, S->val, n1 * sizeof(float), cudaMemcpyDeviceToDevice, s));
     CK(cudaMemcpyAsync(R->bt.rew + o, S->rew, n1 * sizeof(float), cudaMemcpyDeviceToDevice, s));
     CK(cudaMemcpyAsync(R->bt.done + o, S->done, n1, cudaMemcpyDeviceToDevice, s));
+    CK(cudaMemcpyAsync(R->bt.term + o, S->term, n1, cudaMemcpyDeviceToDevice, s));   /* lane/audit-fixes */
     CK(cudaMemcpyAsync(R->bt.drv + o, S->drv, n1, cudaMemcpyDeviceToDevice, s));
     CK(cudaMemcpyAsync(R->bt.boot + (size_t)R->kfill * L->gs, S->boot, (size_t)L->gs * sizeof(float),
                        cudaMemcpyDeviceToDevice, s));
@@ -350,15 +354,15 @@ static void learn_enqueue(struct neth_pipe *L, struct neth_seg *S)
     {
         if (R->crit) neth_learn_set_critic(R->ln, R->crit, S->psc);
         neth_learn_update(R->ln, &R->h, R->entc, L->T, L->gs, S->scale, R->epochs, R->mb, perm, S->obs, S->sc, R->cam,
-                   R->keys, R->hot, S->logp, S->val, S->rew, S->done, S->drv, S->boot, R->w, R->grad, R->m, R->v,
+                   R->keys, R->hot, S->logp, S->val, S->rew, S->done, S->term, S->drv, S->boot, R->w, R->grad, R->m, R->v,
                    vonly ? &R->vstep : &R->step, R->acc);
     }
     else
     {
         if (R->crit) neth_learn_set_critic(R->ln, R->crit, R->bt.psc);
         neth_learn_update_k(R->ln, &R->h, R->entc, L->T, L->gs, R->kseg, R->bt.scale, R->epochs, R->mb, perm, R->bt.obs,
-                   R->bt.sc, R->cam, R->keys, R->hot, R->bt.logp, R->bt.val, R->bt.rew, R->bt.done, R->bt.drv, R->bt.boot,
-                   R->w, R->grad, R->m, R->v, vonly ? &R->vstep : &R->step, R->acc);
+                   R->bt.sc, R->cam, R->keys, R->hot, R->bt.logp, R->bt.val, R->bt.rew, R->bt.done, R->bt.term, R->bt.drv,
+                   R->bt.boot, R->w, R->grad, R->m, R->v, vonly ? &R->vstep : &R->step, R->acc);
         R->kfill = 0;
     }
     R->h.lr = lr_now;

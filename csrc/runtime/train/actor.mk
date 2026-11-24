@@ -46,33 +46,37 @@ nt_vflags    = -DNETH_NET_WM=$(patsubst s%,%,$(patsubst w%,%,$(call nt_vbase,$(1
                -DFC_W=$(patsubst fc%,%,$(filter fc%,$(call nt_vwords,$(1)))))$(if $(filter bm%,$(call nt_vwords,$(1))), \
                -DFC_BM=$(patsubst bm%,%,$(filter bm%,$(call nt_vwords,$(1)))))$(if \
                $(filter af,$(call nt_vwords,$(1))), -DNETH_ACTOR_FUSE=1) \
-               $(foreach x,$(call nt_vwords,$(1)),$(NT_X_$(x)))
+               $(foreach x,$(call nt_vwords,$(1)),$(NT_X_$(x))$(call nt_vknown,$(1),$(x))) $(call nt_vfeat,$(1)) \
+               -DNETH_NET_NAME='"$(1)"'
+# lane/audit-fixes: a word that is none of the above stops make (it compiled as the variant without it before); the old
+# .gk/.gc/.gkc and .tN words are ntloop's --greedy keys|cam|both and --temp T now
+nt_vknown    = $(if $(or $(filter m% r% fc% bm% af $(NT_FEATS),$(2)),$(NT_X_$(2))),,$(error NT_V=$(1): unknown variant word .$(2) \
+               (actor.mk's words: mP rN fc fcN bmN af $(patsubst NT_X_%,%,$(filter NT_X_%,$(.VARIABLES))) $(NT_FEATS); the \
+               draw's temperature and greedy choice are ntloop's --temp T and --greedy keys|cam|both)))
+# lane/audit-fixes: -DNETH_NET_NAME, V itself, the checkpoint header's variant (net.h: a build without V, unnamed). The
+# checks link neth_checkpoint.c's parser and writer (every .ntw reader's), built with -DNETH_NTW_ONLY: net.h alone
+NTA_NTW      = $(NTA_DIR)/neth_checkpoint.c
 NT_X_b      := -DNETH_LEARN_S1B=1
 NT_X_f      := -DNETH_LEARN_S1F=1
 # lane/nthotbar: .hb, net.h's hotbar head (NETH_NET_HOTBAR 1; s1.hb, w1.hb), its fixtures actor-fresh-V.hb, learn-fresh-V.hb
 NT_X_hb     := -DNETH_NET_HOTBAR=1
-# lane/starts: .ls, the late game's scalars (net.h NETH_NET_LATE 1: 155 + 14; s1.ls), an old blob widened with zeros
-NT_X_ls     := -DNETH_NET_LATE=1
-# lane/ladder2 + lane/hill-rnn-hotbar: .hs, legal 9-slot HUD hotbar scalars (net.h NETH_NET_HSEE 1: + 108; s1.hb.hs), an old blob widened with zeros
-NT_X_hs     := -DNETH_NET_HSEE=1
-# lane/ladder4: .dk, the dig the screen shows as scalars (net.h NETH_NET_DIG 1: + 2, the crack stage and the hit; s1.hb.dk)
-NT_X_dk     := -DNETH_NET_DIG=1
-# lane/ladder5: .or, the seek's view as scalars (net.h NETH_NET_ORE 1: + 12, iron ore, diamond ore and logs in view; s1.hb.dk.or)
-NT_X_or     := -DNETH_NET_ORE=1
-# lane/ladder10: .gv, what the open container screen shows as scalars (net.h NETH_NET_GV 1: + 708; s1.hb.dk.gv), for a student
-# that clicks (actions.gui cursor)
-NT_X_gv     := -DNETH_NET_GV=1
-# lane/acrl: .tk, the task as the policy is told it (net.h NETH_NET_TASK 1: + 2, the one-hot of task_item and task_item2;
-# s1.dk.or.tk), an old blob widened with zeros
-NT_X_tk     := -DNETH_NET_TASK=1
-# lane/ladder2: .gk, .gc, .gkc, the actor's keys, camera, or both drawn greedily (net.h NETH_ACTOR_GREEDY; frozen evals only)
-NT_X_gk     := -DNETH_ACTOR_GREEDY=1
-NT_X_gc     := -DNETH_ACTOR_GREEDY=2
-NT_X_gkc    := -DNETH_ACTOR_GREEDY=3
-# lane/rawpix: .t3, .t5, .t7, the keys and camera drawn at temperature 0.3, 0.5, 0.7 (net.h NETH_ACTOR_TEMP; frozen evals only)
-NT_X_t3     := -DNETH_ACTOR_TEMP=3
-NT_X_t5     := -DNETH_ACTOR_TEMP=5
-NT_X_t7     := -DNETH_ACTOR_TEMP=7
+# The scalar features' words (.ls .hs .dk .or .gv .tk) are net.h's NETH_NET_FEATURES and NTW2's header's (lane/audit-fixes):
+# a blob loads where the run has every feature its header names, those it lacks zero; an NTW1 blob only at 155.
+# lane/audit-feat: a feature is the run's, not the build's (ntloop --features WORDS, the run file's net.features, the --init
+# file's header; ntinit --features): one build of V runs a net of any set, and V.ls, V.dk.or ... build the same code as V,
+# the words naming the directory's default set alone (net.h NETH_NET_FEAT0, their bits summed: ls 1, hs 2, dk 4, or 8, gv
+# 16, tk 32), the set a run without a flag, a run file key or an NTW2 --init reads. Their widths: ls the late game's
+# scalars (+ 14), hs the HUD hotbar's (+ 108), dk the dig's (+ 2), or the seek's view (+ 12), gv the open screen's (+ 708),
+# tk the task one-hot (+ 2)
+NT_FEATS    := ls hs dk or gv tk
+NT_F_ls     := 1
+NT_F_hs     := 2
+NT_F_dk     := 4
+NT_F_or     := 8
+NT_F_gv     := 16
+NT_F_tk     := 32
+nt_vfeat     = $(if $(filter $(NT_FEATS),$(call nt_vwords,$(1))),-DNETH_NET_FEAT0=0$(subst $() ,,$(foreach x,$(sort \
+               $(filter $(NT_FEATS),$(call nt_vwords,$(1)))),+$(NT_F_$(x)))))
 # lane/neon-prec-sim-buf: .sb (BF16 rollout/H2D scalars + zero-copy psc alias when --zero-sc is off), .pa (psc alias alone)
 NT_X_sb     := -DNETH_SC_BF16=1 -DNETH_PSC_ALIAS=1
 NT_X_pa     := -DNETH_PSC_ALIAS=1
@@ -88,9 +92,10 @@ $(NTA_OUT)/actor.o: $(NTA_DIR)/actor.cu $(NTA_DIR)/actor.h $(NTA_DIR)/net.h $(NT
 	@mkdir -p $(@D)
 	$(NTA_CCACHE)$(NTA_NVCC) $(NTA_NVFLAGS) -c -o $@ $<
 
-$(NTA_OUT)/%: $(NTA_DIR)/%.c $(NTA_OUT)/actor.o $(NTA_DIR)/actor.h $(NTA_DIR)/net.h $(NTA_DIR)/learn.h
+$(NTA_OUT)/%: $(NTA_DIR)/%.c $(NTA_OUT)/actor.o $(NTA_DIR)/actor.h $(NTA_DIR)/net.h $(NTA_DIR)/learn.h $(NTA_NTW)
 	$(NTA_CCACHE)cc $(NTA_CFLAGS) -c -o $@.o $<
-	cc -o $@ $@.o $(NTA_OUT)/actor.o -L$(NTA_CUDALIB) -Wl,-rpath,$(NTA_CUDALIB) -lcudart -lstdc++ -lm
+	$(NTA_CCACHE)cc $(NTA_CFLAGS) -DNETH_NTW_ONLY -c -o $@.ntw.o $(NTA_NTW)
+	cc -o $@ $@.o $@.ntw.o $(NTA_OUT)/actor.o -L$(NTA_CUDALIB) -Wl,-rpath,$(NTA_CUDALIB) -lcudart -lstdc++ -lm
 
 $(NTA_OUT)/%/actor.o: $(NTA_DIR)/actor.cu $(NTA_DIR)/actor.h $(NTA_DIR)/net.h $(NTA_DIR)/learn.h $(NTA_DIR)/prec.cuh \
     $(NTA_DIR)/actorfused.cuh $(NTA_DIR)/rnn_actor.cuh
@@ -98,10 +103,11 @@ $(NTA_OUT)/%/actor.o: $(NTA_DIR)/actor.cu $(NTA_DIR)/actor.h $(NTA_DIR)/net.h $(
 	$(NTA_CCACHE)$(NTA_NVCC) $(NTA_NVFLAGS) $(call nt_vflags,$*) -c -o $@ $<
 
 $(NTA_OUT)/%/actor_check $(NTA_OUT)/%/actor_bench: $(NTA_DIR)/actor_check.c $(NTA_DIR)/actor_bench.c $(NTA_OUT)/%/actor.o \
-    $(NTA_DIR)/actor.h $(NTA_DIR)/net.h $(NTA_DIR)/learn.h
+    $(NTA_DIR)/actor.h $(NTA_DIR)/net.h $(NTA_DIR)/learn.h $(NTA_NTW)
+	$(NTA_CCACHE)cc $(NTA_CFLAGS) $(call nt_vflags,$*) -DNETH_NTW_ONLY -c -o $(@D)/ntw.o $(NTA_NTW)
 	for p in actor_check actor_bench; do \
 	  $(NTA_CCACHE)cc $(NTA_CFLAGS) $(call nt_vflags,$*) -c -o $(@D)/$$p.o $(NTA_DIR)/$$p.c && \
-	  cc -o $(@D)/$$p $(@D)/$$p.o $(@D)/actor.o -L$(NTA_CUDALIB) -Wl,-rpath,$(NTA_CUDALIB) -lcudart -lstdc++ -lm || exit 1; \
+	  cc -o $(@D)/$$p $(@D)/$$p.o $(@D)/ntw.o $(@D)/actor.o -L$(NTA_CUDALIB) -Wl,-rpath,$(NTA_CUDALIB) -lcudart -lstdc++ -lm || exit 1; \
 	done
 
 train-actor-check: train-actor

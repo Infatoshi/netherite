@@ -16,6 +16,9 @@
 struct neth_runconf {
     /* the run: the config (the run file is one), the policy, its weights, where the start is */
     const char *config, *run, *pol, *out, *init, *start_dir;
+    /* lane/audit-feat: the scalar features, --features and the run file's net.features (their words; one set a run),
+     * read by neth_runconf_resolve with --init's and --teacher's headers into net.h's neth_net_fs */
+    const char *feat_arg, *feat_run;
     int n, groups, threads, warm, steps, ep_len, macros, T, dev;
     int train_skip_ambient, distant_tick_radius;
     uint64_t seed;
@@ -36,6 +39,8 @@ struct neth_runconf {
     int epochs, mb, learn, prec, fresh_opt, vwarm, critic_h;
     const char *ref_sched, *anneal_s, *critic_init;
     int anneal;                 /* anneal_s read (neth_runconf_parse) */
+    const char *trunc_boot_s;   /* lane/audit-fixes: --trunc-boot, ppo.trunc_boot */
+    int trunc_boot;             /* trunc_boot_s read: 1 a timed-out row bootstraps from its own value (learn.cu k_gae) */
     /* the reward */
     int log_cap, reward_rel, stage_scale, stall_ticks;
     double nether_w, end_w, dragon_w, dragon_hp_w, crystal_w, step_pen, stall_pen, stall_rad;
@@ -43,6 +48,11 @@ struct neth_runconf {
     /* the frozen eval */
     int score, clock_wrap, pearl_census;
     const char *score_json, *score_books;
+    /* lane/audit-fixes: the actor's draw (--temp T, --greedy keys|cam|both; a frozen policy's), read by
+     * neth_runconf_resolve into itemp (1: the policy's own) and greedy (actor.h neth_actor_set_draw) */
+    const char *temp_arg, *greedy_arg;
+    float itemp;
+    int greedy;
     /* distillation (--teacher) */
     const char *teacher, *level_s, *rhold, *wlab, *tlab, *seeklab, *walklab, *hscope, *labeller, *slabels, *szero_arg;
     double beta, hotw, holdw, guiw, x2w, lshare, lalign, lreach;
@@ -92,7 +102,7 @@ void neth_runconf_usage(FILE *f);
 int neth_macro_set(const char *spec, char *err, size_t en);
 /* "NAME+NAME..." of reward.MILESTONES into a mask, -1 on a bad name */
 int64_t neth_ms_mask(const char *spec, char *err, size_t en);
-/* a scalar span LO:N, or ore; 0, or -1 when outside the build */
+/* a scalar span LO:N, or ore; 0, or -1 when outside the run's row (or ore without the or feature) */
 int neth_zsc_parse(const char *a, int *lo, int *n);
 
 /* the run file's ladder keys into D (D->nr 0: none): 0, or -1 with err (neth_schedule.c) */
